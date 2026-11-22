@@ -56,6 +56,7 @@ add_library(blocktime-core STATIC
   src/event_log.cpp
   src/block_detector.cpp
   src/geo.cpp
+  src/open_flight.cpp
   src/telemetry_filter.cpp)
 target_include_directories(blocktime-core PUBLIC src)
 target_link_libraries(blocktime-core PUBLIC blocktime-options nlohmann_json::nlohmann_json)
@@ -75,7 +76,8 @@ if(BLOCKTIME_BUILD_TESTS)
   add_executable(blocktime-tests
     tests/block_detector_test.cpp
     tests/event_log_test.cpp
-    tests/geo_test.cpp)
+    tests/geo_test.cpp
+    tests/open_flight_test.cpp)
   target_link_libraries(blocktime-tests PRIVATE blocktime-core GTest::gtest_main)
   gtest_discover_tests(blocktime-tests)
 endif()

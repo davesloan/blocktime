@@ -22,6 +22,7 @@
 
 #include "block_detector.h"
 #include "event_log.h"
+#include "open_flight.h"
 #include "sim_connection.h"
 #include "telemetry_filter.h"
 
@@ -212,6 +213,14 @@ int wmain(int argc, wchar_t** argv) {
     if (!log.write("recorder_started", {{"version", BLOCKTIME_VERSION}})) return 1;
     std::cout << "BlockTime Recorder " BLOCKTIME_VERSION "\nLogging to " << log.dir().string()
               << "\nPress Ctrl+C to stop.\n";
+
+    // A recorder that was killed (or a power cut) left its open flight without an end; close it now (D-048).
+    // This runs after the single-instance check, so it can't close a flight another recorder is still recording.
+    if (auto id = findOpenFlight(log.dir())) {
+        std::cout << "Previous flight " << *id
+                  << " was left open (the recorder didn't close cleanly); logged as interrupted.\n";
+        logBlockEvent(log, FlightInterrupted{*id, "recorder_crash"});
+    }
 
     TelemetryLogger telemetry(log);
     BlockDetector detector;
