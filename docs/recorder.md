@@ -144,6 +144,10 @@ temporarily, which is misleading.
 4. **Step climbs stay in Cruise:** "Cruise — step climb".
 5. **Debounce.** A transition only counts if its condition holds for a sustained period (start with ~30–60 s;
    tune and log). Brief bumps from turbulence or pitch changes must not trigger transitions.
+   **A sim freeze adds nothing to a hold** (D-058). MSFS can stop for a minute while it loads scenery, with sim
+   time stopped too. Time the sim spends sending no messages at all (the silence the recorder already tracks for
+   `sim_unresponsive`) doesn't count toward any hold or timer, including short silences that never reach the
+   30 s warning. Otherwise a freeze right after a level-off would look like a sustained level-off.
 6. **Top of descent:** leaving cruise altitude with a sustained descent, not a small drift.
 7. **Approach:** based on distance to destination plus height (e.g. within ~30 nm and below ~10,000 ft), not
    vertical speed alone.
