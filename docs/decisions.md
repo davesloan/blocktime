@@ -623,9 +623,11 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   covers a long flight across UTC midnight and a restart days later, without reading years of logs.
 - Alternatives considered: Leaving it to the web app to treat an unended `block_out` as interrupted. Persisting
   the open flight in a state file.
-- Known gap: if the sim is still in that flight after the restart, a later brake set, release and 10 m of taxi
-  opens a new flight there (e.g. a stop on the taxiway). The main menu or the session end then interrupts it.
-  Only possible after a recorder crash, so it's accepted.
+- Known gap: if the sim is still in that flight after the restart, the next brake release followed by 10 m of
+  taxi opens a new flight there. That needs the brake to be set at some point: either already set when the
+  recorder restarts, or set later (e.g. a stop on the taxiway). The main menu or the session end then interrupts
+  it. Only possible after a recorder crash, so it's accepted. Seen in the 0.3.0 sim test, where the brake was set
+  before the kill.
 
 ## D-049 — Block events whose write failed are held and retried
 - Date: 2026-11-22

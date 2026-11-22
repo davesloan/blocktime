@@ -3,6 +3,29 @@
 These facts come from BlockTime Recorder logs. Each entry says when and with what it was seen. Add new
 observations at the top.
 
+## 2026-11-22: PMDG 737-800 at KOAK, recorder 0.3.0
+
+### Leaving a flight (D-047)
+- Both exits to the main menu went Escape menu (flag `8`) → `full` (flag `1`) → `sim_stopped` about 1.3 s after
+  the `full` flag. Each interrupted the open flight with reason `sim_stopped`.
+- `Sim` state flaps on the way out: `sim_stopped`, `sim_running` about 1 s later, then `sim_stopped` again about
+  1.5 s after that. Only the first stop interrupts; the later ones find no flight open.
+- The Escape menu (flag `8`, 3 s) and active pause (flag `4`, 5 s) mid-flight logged no `sim_stopped`.
+- A flight restart from the Escape menu before any flight was open showed `sim_stopped` → `sim_running` about
+  4 s apart, as in the 0.1.1 test.
+
+### Recorder killed mid-flight (D-048)
+- `taskkill /F` left the last line a normal telemetry line (no torn line). The restarted recorder logged
+  `recorder_started`, then `flight_interrupted` (`recorder_crash`) 25 ms later, before `sim_connected`.
+- A second recorder started while one was running wrote nothing to the log (the single-instance check is before
+  the log is opened).
+- The brake was set when the recorder restarted, so its first sample set a "set" baseline, and the next release
+  plus 11 m of taxi opened a new flight (the D-048 gap).
+
+### Other
+- `UNRECOGNIZED_ID` (index 3) on the first snapshot right after connecting, again. Ignored, as
+  before.
+
 ## 2026-11-22: PMDG 737-800 and 777-300ER at KOAK, recorder 0.2.0
 
 ### Block detection

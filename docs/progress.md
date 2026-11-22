@@ -22,6 +22,34 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-22 — Recorder 0.3.0 sim test at KOAK
+
+PMDG 737-800 at a KOAK gate, one MSFS load (Dave reloaded the flight once at the start). Log:
+`events-2026-11-22.jsonl`, 19:15–19:51 UTC.
+
+**Results (all pass):**
+1. Push and taxi: `block_out` at the 19:35:25 release, `moved_m` 11.1, fuel 15,517 lb.
+2. Escape menu (3 s) and active pause (5 s): no `sim_stopped`, no `flight_interrupted`.
+3. Exit to the main menu: `sim_stopped` and `flight_interrupted` (`sim_stopped`) for that flight, about 1.3 s
+   after the `full` pause flag.
+4. Second flight: `block_out` at the 19:48:04 release, `moved_m` 10.4.
+5. Second recorder: nothing in the log; the first kept recording.
+6. Recorder killed and restarted: `recorder_started`, then `flight_interrupted` with flight
+   `2026-11-22T19:48:04.035Z` and reason `recorder_crash`.
+   - The brake had been set at 19:48:34, before the kill. So after the restart, the release at 19:50:16 and 11 m
+     of taxi opened a new flight. This is the accepted D-048 gap; its wording now also covers a brake that is
+     already set at the restart.
+7. Exit to the main menu: `sim_stopped`, and the gap flight was interrupted (`sim_stopped`). That shows the gap
+   flight is cleaned up the normal way. MSFS wasn't quit (the recorder was stopped with Ctrl+C), so `sim_quit`
+   wasn't seen this time. That code didn't change since the 0.1.1 test, where it was seen.
+
+**Noted for the first time:** the `Sim` state flaps on the way to the main menu (stopped, running, stopped within
+about 3 s). Only the first stop interrupts. Details are in `docs/notes/msfs-observed-behaviour.md`.
+
+**Decisions for Dave to confirm:** D-047, D-048 and D-049 are still Proposed.
+
+**Next step:** milestone 4 (phases).
+
 ## 2026-11-22 — Planning: Qt UI test builds (docs only)
 
 **Done:**

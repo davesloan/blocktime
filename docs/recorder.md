@@ -105,7 +105,8 @@ the sim reconnects.
 - **Recorder killed or power cut (D-048):** at the next start, after the single-instance check, the recorder looks
   at up to 7 daily log files, newest first. If the last `block_out` / `block_in` / `flight_interrupted` line is a
   `block_out`, it logs `flight_interrupted` for it with reason `recorder_crash`. Known gap: if the sim is still in
-  that flight, a later brake set, release and 10 m of taxi opens a new flight there.
+  that flight, the next release and 10 m of taxi opens a new flight there, if the brake was set at the restart or
+  is set later.
 
 ### Diversions
 
