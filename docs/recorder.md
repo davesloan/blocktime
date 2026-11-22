@@ -35,6 +35,9 @@ It is being built **first**, because everything else depends on reliable flight 
      the next start, the recorder closes a flight left open in the log as interrupted (`recorder_crash`), so it
      isn't silently lost.
    - A block event whose write failed is held, retried, and shown on the console.
+   - **Then the Qt UI test builds (D-050),** on the branch `spike/qt-ui` (D-051): two throwaway builds to decide
+     between one native Qt app and the recorder plus web app. Milestones 4–8 get adjusted after the decision. Why
+     and what each build answers: `docs/qt-ui-test-context.md`.
 4. **Phases.** Implement the phase rules below, including level-off sub-states and go-arounds.
 5. **Touchdown capture.** Fast sampling near the ground; record touchdown rate.
 6. **SimBrief plan.** Fetch the latest OFP to get planned cruise altitude, origin, destination (needed by phase rules).

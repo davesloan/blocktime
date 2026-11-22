@@ -22,6 +22,28 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-22 — Planning: Qt UI test builds (docs only)
+
+**Done:**
+- Brainstormed the app stack with Dave. Decided to run two throwaway Qt 6 + QML test builds between milestones 3
+  and 4 to decide whether BlockTime becomes one native app (D-050), on the branch `spike/qt-ui` (D-051, amends
+  D-038).
+- Wrote `docs/qt-ui-test-context.md`: how we got here, what Dave wants, what each build answers and how to decide.
+  It also notes side topics from the same chat (recorder→app link ideas, GSX, Navigraph dropped).
+- Added the test builds to the milestone list in `recorder.md` and the docs index.
+
+**Working / verified:**
+- No code changed.
+
+**Unverified or broken:**
+- Nothing new. Milestone 3's in-sim checks below are still in progress.
+
+**Next step:**
+- Dave finishes milestone 3's in-sim checks. Then Dave installs Qt 6 (official online installer, MSVC 64-bit kit)
+  and we plan UI test 1 on `spike/qt-ui`.
+
+---
+
 ## 2026-11-22 — Recorder milestone 3: flights always end (0.3.0)
 
 **Done:**

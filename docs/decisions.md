@@ -433,7 +433,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-038 — No pull requests; work goes straight to main
 - Date: 2026-11-22
-- Status: Accepted
+- Status: Accepted (amended by D-051: test builds get their own branch)
 - Decided by: Dave
 - Area: build
 - Decision: There are no pull requests and no feature branches. Work is committed to `main` and pushed. A code
@@ -640,3 +640,34 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: "Nothing may be lost" (CLAUDE.md), and the milestone 2 review deferred this. Block events exist only in
   memory, so a failed write lost the flight with only a stderr line.
 - Alternatives considered: A console warning only. A separate fallback file.
+
+## D-050 — Qt UI test builds between recorder milestones 3 and 4
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: design
+- Decision: Before milestone 4, build two throwaway Qt 6 + QML test builds to decide whether BlockTime becomes one
+  native Windows app instead of the recorder plus a local web app (D-001). Test 1: a Qt shell running the recorder
+  core on its own thread, a dark-only theme and a live flight panel. Test 2: a post-flight route map (live position
+  is a bonus), a fleet list from SQLite and a side menu. Afterwards Dave decides, and milestones 4–8 are adjusted. Qt comes from
+  the official installer, not vcpkg. D-001 and D-004 stay in force until then. Full context:
+  `docs/qt-ui-test-context.md`.
+- Why: Dave wants the lightest possible app next to the sim and a polished, FlyHub / Sim Toolkit Pro style
+  dark-only UI. Qt is the lightest option but means slower UI work and less fluent help from Claude, so a real build
+  answers the question better than a guess.
+- Alternatives considered: Rails + React + Postgres (dropped: needs WSL2, and Dave won't run a VM while flying);
+  C# + .NET (heavier, recorder rewrite); a native shell with WebView2 + React (Chromium-level memory); deciding
+  without a test.
+
+## D-051 — Test builds get their own branch
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: build
+- Decision: Amends D-038. Milestone work still goes straight to `main`. A test build that exists to evaluate an
+  option gets its own branch (the Qt UI test is `spike/qt-ui`). If it's kept, it gets the missing tests and a code
+  review on the branch, then is merged. If not, the branch is deleted. Either way, what was learned goes into the
+  decision log. Merge `main` into the branch now and then while it's open.
+- Why: Trying something out and then merging or pruning it is exactly what branches are for, and it keeps
+  throwaway code off `main`.
+- Alternatives considered: A `spikes/` folder on `main` (throwaway code on `main` while it's being judged).

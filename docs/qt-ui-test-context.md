@@ -1,0 +1,110 @@
+# Qt UI test: why we're running it
+
+Context from a brainstorming chat with Dave on 2026-11-22. Read this before working on the Qt UI test builds
+(D-050, D-051) or before deciding what comes after them. It records how we got here, what Dave cares about, and
+what the test has to answer, so a future session doesn't have to rediscover it.
+
+Status: **test not started.** It runs between recorder milestones 3 and 4, on the branch `spike/qt-ui`.
+D-001 (two programs) and D-004 (local web app + SQLite) stay in force until the test's decision point.
+
+## The question
+
+Should BlockTime stay two programs (the C++ recorder plus a local Node/TypeScript web app shown in a browser,
+D-001), or become **one native Windows app** built in **C++ with Qt 6 and a QML interface**, with the recorder
+running inside it?
+
+## How we got here
+
+1. **Rails + React + Postgres (dropped).** Dave first wanted the web app in Rails, so he'd work in a language he
+   knew. Dropped because:
+   - Dave decided familiarity doesn't matter: it's been long enough that Rails would feel new anyway, and Rails is
+     slowly leaving the industry.
+   - Rails really wants WSL2 on Windows, and **Dave won't run a VM while he's in the sim.**
+   - The idea of the recorder writing straight into a shared database was also questioned: it couples the
+     recorder to a schema the app owns and migrates, and needs the database up during every flight. The
+     log-first rule (D-008) avoids that. A shared SQLite file also can't be used across the Windows/WSL2 boundary
+     (WAL mode needs both programs on the same machine).
+   - Postgres itself wouldn't hurt frame rates (it's idle at this workload); that wasn't the reason.
+2. **One app, like Sim Toolkit Pro.** Dave asked whether the recorder and app need to be separate at all, and
+   whether Claude Code could build a single native app with everything in it. Yes, it can.
+3. **Options compared** (memory figures are rough estimates, not measured):
+
+   | Option | Memory | Notes |
+   |---|---|---|
+   | C++ + Qt 6 + QML, one app | ~40–80 MB | Lightest. Keeps the milestone 1–3 recorder code. Slower UI work; Claude is less fluent in QML than React; Qt map support unproven for us |
+   | C# + .NET (WPF/WinUI), one app | ~100–150 MB+ | Easier language, but garbage-collector pauses and a rewrite of the recorder |
+   | Native shell + WebView2 + React | ~150–300 MB | Fast UI work and a proven map (MapLibre), but Chromium-level memory, two toolchains, and a C++↔JS message bridge to maintain. Basically the current plan in one window |
+   | Current plan (recorder + Node app in a browser) | ~60–100 MB Node + browser tab | Fastest UI work and lowest risk. Either half restarts without touching the other, so the app can be reworked mid-flight. Needs the recorder↔app link built |
+
+4. Claude's recommendation was the **current plan**: every option is tiny next to MSFS, and being able to restart
+   the app while flying matters a lot for a project built while it's being used. **Dave is leaning toward Qt**
+   and wants to find out with a real build rather than decide on paper.
+
+## What Dave wants (in his words, condensed)
+
+- **Least resources** possible next to the sim, PMDG and SayIntentions. This was his first priority.
+- A UI in the style of **FlyHub and Sim Toolkit Pro**: modern, polished. It must not look like an
+  "Intro to Programming" desktop app.
+- **Dark mode only.**
+- His hesitation about Qt: it will **take longer to reach an MVP**, and **Claude Code is less proficient** in
+  C++/QML than in web tech.
+
+## The test
+
+Two builds on `spike/qt-ui`, throwaway by design (light on tests, no code review). Milestone 4 (phases) can
+carry on on `main` in parallel; merge `main` into the branch now and then.
+
+**UI test 1: Qt shell and live data**
+- A Qt 6 app linking the existing `blocktime-core` library, with the recorder on its own thread.
+- A dark-only theme file and the first building blocks (card, stat tile, button).
+- A live flight panel: altitude, speed, fuel, parking brake, and block events as they happen.
+- Answers: how well Claude handles QML; how slow the change/rebuild loop feels; CPU and memory next to the sim
+  (Dave checks Task Manager during a real flight).
+
+**UI test 2: map and data screens**
+- A post-flight route map: the track flown, drawn from the recorded positions. This is the map that matters.
+  A live position on the same map is a bonus if it comes cheaply.
+- A fleet list read from SQLite.
+- A side menu between screens, so it feels like FlyHub / Sim Toolkit Pro.
+- Answers: can Qt draw a decent route map; how much work are data-heavy screens.
+
+**Setup:** Qt from the official Qt online installer (free Qt account), not vcpkg (building Qt takes hours).
+
+**Ways to keep the risk low if Qt wins** (Claude's proposals):
+- Airline logic (money, rotations, loads, detection) in a plain C++ library with no Qt UI code, tested with
+  GoogleTest. QML only displays. If QML ever disappoints, the UI can be replaced without rewriting the logic.
+- A small QML component kit first (theme + building blocks), with QML conventions added to CLAUDE.md, and Qt's
+  live QML preview for faster UI changes.
+
+## Deciding afterwards
+
+Pass criteria (confirmed by Dave, 2026-11-22):
+- Claude produces working, good-looking QML screens without endless back-and-forth.
+- The change → see-it loop is tolerable for day-to-day UI work.
+- During a real flight the app stays **under 100 MB of memory and under 1% CPU** (Task Manager).
+- Dave likes how it looks.
+
+The map is **not a must-have**. Dave uses Navigraph for live position. What he wants from a map is **the route he
+flew, shown in the post-flight summary**; a live map is a bonus. If Qt can't do a route map, that's acceptable but
+annoying, so it counts against Qt without failing it.
+
+Then:
+- **Qt wins:** add tests and run a code review on the branch, merge it, write a decision superseding D-001 and
+  D-004, and rework milestones 4–8 (milestone 8, "delivery to the app", mostly disappears).
+- **Qt loses:** delete the branch, keep the current plan, and record what was learned here and in the log.
+
+## Other topics from the same chat (for later)
+
+- **Recorder → app link (only matters if the current plan stays):** Claude suggested the app reads the JSONL log
+  as it grows (the log stays the only record of events), plus a localhost WebSocket with the recorder as server,
+  for 1 Hz live data and for the app to send the recorder the leg being flown. Log lines would need a sequence
+  number or event ID. Not decided. Who fetches SimBrief (recorder or app) is also open.
+- **GSX Pro:** integration looks possible. GSX exposes service states (boarding, deboarding, refuelling,
+  catering, departure/pushback) and passenger counts as L:vars, which SimConnect can read since SU12. Ideas:
+  a turnaround timeline per leg, measured turn times feeding background rotations, a cleaner pushback phase,
+  "deboarding complete" as an end-of-flight trigger, and debrief flavour (never penalties). Read only. Writing
+  loads to GSX isn't needed if loads go through SimBrief. Needs a probe flight first. Not decided.
+- **Navigraph:** considered for airport data and procedures, then **dropped** as too complicated. Notes: the
+  developer API is free but needs Navigraph's approval; copying the navdata file installed for Sim Toolkit Pro
+  (or PMDG, or Little Navmap) is against Navigraph's terms. Airport basics (coordinates, runways, elevation) can
+  come from free data such as OurAirports.

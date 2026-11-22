@@ -6,6 +6,7 @@
 | [recorder.md](recorder.md) | Spec for the native Windows flight recorder |
 | [decisions.md](decisions.md) | Append-only log of decisions and why they were made |
 | [progress.md](progress.md) | Session-by-session progress log (newest first) |
+| [qt-ui-test-context.md](qt-ui-test-context.md) | Why the Qt UI test builds are being run, what Dave wants, and how to decide afterwards (D-050) |
 | [notes/](notes/) | Small how-to and quirk notes discovered while building |
 
 ## Notes
