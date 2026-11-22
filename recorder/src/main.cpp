@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Milestone 2: connect to MSFS, log telemetry, and detect block out / block in (D-031, D-032).
+// Connects to MSFS, logs telemetry, and detects block out / block in (D-031, D-032). Every flight ends with
+// block_in or flight_interrupted; none is resumed (D-046).
 // See docs/recorder.md and docs/progress.md.
 
 #include <windows.h>
@@ -221,6 +222,11 @@ int wmain(int argc, wchar_t** argv) {
             return;
         }
         if (auto e = detector.onSample(toBlockSample(s, std::chrono::system_clock::now()))) logBlockEvent(log, *e);
+    }, [&](bool running) {
+        // Leaving the flight (main menu, restart, quit) ends it; it is never resumed (D-046, D-047).
+        if (!running) {
+            if (auto e = detector.onSimStopped()) logBlockEvent(log, *e);
+        }
     });
 
     auto waitingSince = std::chrono::steady_clock::now();

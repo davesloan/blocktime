@@ -109,13 +109,15 @@ void BlockDetector::onInvalidSample() {
     outCandidate_.reset();
 }
 
-// Milestone 2 stopgap (D-044): nothing survives a lost session. Milestone 3 decides about resuming.
+// Nothing survives a lost session, and a flight is never resumed (D-044, D-046).
 std::optional<FlightInterrupted> BlockDetector::onSessionEnded(std::string_view reason) {
     std::optional<FlightInterrupted> result;
     if (open_) result = FlightInterrupted{open_->flightId, std::string(reason)};
     *this = BlockDetector{};
     return result;
 }
+
+std::optional<FlightInterrupted> BlockDetector::onSimStopped() { return onSessionEnded("sim_stopped"); }
 
 namespace {
 

@@ -135,7 +135,8 @@ long long secondsSince(Clock::time_point t) {
 
 }  // namespace
 
-SimConnection::SimConnection(EventLog& log, SampleCallback onSample) : log_(log), onSample_(std::move(onSample)) {}
+SimConnection::SimConnection(EventLog& log, SampleCallback onSample, SimStateCallback onSimState)
+    : log_(log), onSample_(std::move(onSample)), onSimState_(std::move(onSimState)) {}
 
 SimConnection::~SimConnection() { close("recorder_exit"); }
 
@@ -362,6 +363,7 @@ void SimConnection::setSimRunning(bool running) {
     if (simRunning_ == v) return;
     simRunning_ = v;
     log_.write(running ? "sim_running" : "sim_stopped");
+    if (onSimState_) onSimState_(running);
     if (running) {
         check(SimConnect_RequestSystemState(h(handle_), REQ_AIRCRAFT_LOADED, "AircraftLoaded"), "state AircraftLoaded");
         requestSnapshot();

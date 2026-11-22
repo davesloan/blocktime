@@ -4,8 +4,8 @@
 //
 // Decides when a flight starts (block out, D-031) and ends (block in, D-032) from the parking brake.
 // Pure logic: it is fed one valid telemetry sample at a time and returns at most one event per sample.
-// The rules are in docs/recorder.md ("Flight lifecycle") and D-042. State is in memory only (milestone 3
-// adds persistence).
+// The rules are in docs/recorder.md ("Flight lifecycle") and D-042. State is in memory only: a flight is
+// never resumed (D-046).
 
 #pragma once
 
@@ -54,7 +54,7 @@ struct BlockIn {
 
 struct FlightInterrupted {
     std::string flightId;
-    std::string reason;  // the sim session's lost reason, or "recorder_exit"
+    std::string reason;  // the sim session's lost reason, "recorder_exit" or "sim_stopped"
 };
 
 using BlockEvent = std::variant<BlockOut, BlockIn, FlightInterrupted>;
@@ -72,6 +72,10 @@ public:
 
     // The sim session ended. Reports an open flight as interrupted and forgets all state (D-044).
     std::optional<FlightInterrupted> onSessionEnded(std::string_view reason);
+
+    // The sim's Sim state changed to stopped: Dave left the flight (main menu, restart, quit). Same as a lost
+    // session, with reason "sim_stopped"; a flight is never resumed (D-046, D-047).
+    std::optional<FlightInterrupted> onSimStopped();
 
     bool flightOpen() const { return open_.has_value(); }
 

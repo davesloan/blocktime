@@ -80,6 +80,10 @@ struct Script {
     }
     // The junk filter rejected a sample (main menu, loading screen).
     void invalid() { det.onInvalidSample(); }
+    // The sim's Sim state changed to stopped (exit to the main menu, D-047).
+    void simStopped() {
+        if (auto e = det.onSimStopped()) events.push_back(*e);
+    }
     // Set, release at +5 s, move 20 m at +40 s: block out at kT0 + 5 s.
     void blockOut() {
         brake(true, 0s);
@@ -482,4 +486,44 @@ TEST(Session, InvalidSampleKeepsOpenFlightState) {
     f.engines(0, 4090s);
     ASSERT_EQ(f.events.size(), 2u);
     EXPECT_EQ(std::get<BlockIn>(f.events[1]).time, kT0 + 4000s);
+}
+
+// --- Main menu (D-046, D-047) ------------------------------------------------
+
+TEST(Session, SimStoppedInterruptsOpenFlight) {
+    Script f;
+    f.blockOut();
+    f.simStopped();
+    ASSERT_EQ(f.events.size(), 2u);
+    const auto& out = std::get<BlockOut>(f.events[0]);
+    const auto& stopped = std::get<FlightInterrupted>(f.events[1]);
+    EXPECT_EQ(stopped.flightId, out.flightId);
+    EXPECT_EQ(stopped.reason, "sim_stopped");
+    EXPECT_FALSE(f.det.flightOpen());
+}
+
+TEST(Session, SimStoppedWithoutFlightReportsNothing) {
+    Script f;
+    f.brake(true, 0s);
+    f.simStopped();
+    EXPECT_TRUE(f.events.empty());
+}
+
+TEST(Session, AfterSimStoppedNextFlightStartsFresh) {
+    Script f;
+    f.blockOut();
+    f.simStopped();
+    // The next flight loads at another airport with the brake off: not a release.
+    f.s.latDeg = 37.7118;
+    f.s.lonDeg = -122.2225;
+    f.brake(false, 900s);
+    f.north(50, 960s);
+    ASSERT_EQ(f.events.size(), 2u);
+    f.brake(true, 1000s);
+    f.brake(false, 1100s);
+    f.north(20, 1140s);
+    ASSERT_EQ(f.events.size(), 3u);
+    const auto& second = std::get<BlockOut>(f.events[2]);
+    EXPECT_EQ(second.time, kT0 + 1100s);
+    EXPECT_NE(second.flightId, std::get<BlockOut>(f.events[0]).flightId);
 }

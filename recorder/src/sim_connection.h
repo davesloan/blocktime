@@ -28,8 +28,10 @@ namespace blocktime {
 class SimConnection {
 public:
     using SampleCallback = std::function<void(const TelemetrySample&, bool simRunning)>;
+    // Called when the sim's "Sim" state changes, right after sim_running / sim_stopped is logged.
+    using SimStateCallback = std::function<void(bool running)>;
 
-    SimConnection(EventLog& log, SampleCallback onSample);
+    SimConnection(EventLog& log, SampleCallback onSample, SimStateCallback onSimState = {});
     ~SimConnection();
     SimConnection(const SimConnection&) = delete;
     SimConnection& operator=(const SimConnection&) = delete;
@@ -67,6 +69,7 @@ private:
     void* simProcess_ = nullptr;     // process HANDLE of FlightSimulator.exe, if found
     EventLog& log_;
     SampleCallback onSample_;
+    SimStateCallback onSimState_;
 
     bool handshake_ = false;         // SIMCONNECT_RECV_ID_OPEN received
     bool connectedLogged_ = false;   // sim_connected written for this session
