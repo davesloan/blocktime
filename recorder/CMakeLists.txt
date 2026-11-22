@@ -54,6 +54,7 @@ target_compile_options(blocktime-options INTERFACE /W4 /permissive- /utf-8 /exte
 # --- Core: logic with no SimConnect or windows.h, so it can be unit tested (D-041) ---
 add_library(blocktime-core STATIC
   src/event_log.cpp
+  src/block_detector.cpp
   src/geo.cpp
   src/telemetry_filter.cpp)
 target_include_directories(blocktime-core PUBLIC src)
@@ -72,6 +73,7 @@ if(BLOCKTIME_BUILD_TESTS)
   find_package(GTest CONFIG REQUIRED)
   include(GoogleTest)
   add_executable(blocktime-tests
+    tests/block_detector_test.cpp
     tests/event_log_test.cpp
     tests/geo_test.cpp)
   target_link_libraries(blocktime-tests PRIVATE blocktime-core GTest::gtest_main)
