@@ -54,7 +54,7 @@ build:
 ctest --preset x64-release
 ```
 
-The test exe is `buildd-releaselocktime-tests.exe`. The tests also show up in Visual Studio's Test Explorer.
+The test exe is `build\x64-release\blocktime-tests.exe`. The tests also show up in Visual Studio's Test Explorer.
 Pass `-DBLOCKTIME_BUILD_TESTS=OFF` to the configure step to skip building them.
 
 Notes:
