@@ -49,9 +49,18 @@ Newest entries at the top. Add an entry at the end of every working session.
 **Unverified or odd:**
 - The hold-short set/release (step 2) hasn't been seen in the sim.
 
+**Dave's answers to the milestone 2 open questions (D-046):**
+- The recorder never resumes a flight. Exiting to the main menu means the flight is over, and an open one should
+  be logged as interrupted. The web app discards or completes interrupted flights.
+- Turnarounds happen in the sim: shut down, then either exit to the main menu or deboard, refuel, board, restart
+  and fly the next flight. Flights are often chained. Still to confirm: does the parking brake stay set from block
+  in until the next push? (If it is released and left off, the next block out is timed at that release, with
+  fuel from before the refuel.)
+
 **Next step:**
-- Dave confirms D-042 to D-045 and answers the two open questions in the milestone 2 entry below.
-- Then milestone 3: durable log and resume of an open flight.
+- Dave confirms D-042, D-043 and D-045 (D-044 is replaced by D-046).
+- Milestone 3, re-scoped by D-046 (see `docs/recorder.md`): end an open flight at the main menu, close a flight
+  left open by a recorder crash on the next start, and surface failed block-event writes.
 
 ## 2026-11-22 — Recorder milestone 2: block out / block in (0.2.0)
 

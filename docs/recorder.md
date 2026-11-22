@@ -28,7 +28,11 @@ It is being built **first**, because everything else depends on reliable flight 
    and reconnect.
 2. **Block out / block in.** Detect parking brake release and set; write events with time, position, fuel.
    **Built in 0.2.0** (D-041 to D-044); the in-sim checks are listed in `docs/progress.md`.
-3. **Durable local log.** Append-only event log on disk; recorder restart mid-flight resumes the open flight.
+3. **Ending flights cleanly (no resume, D-046).** Suggested scope, to be planned:
+   - Exiting to the main menu with a flight open logs `flight_interrupted`.
+   - If the recorder itself is killed or the PC loses power mid-flight, no `flight_interrupted` gets written. On
+     the next start, the recorder closes a flight left open in the log as interrupted, so it isn't silently lost.
+   - A failed write of a block event is made visible (deferred from milestone 2).
 4. **Phases.** Implement the phase rules below, including level-off sub-states and go-arounds.
 5. **Touchdown capture.** Fast sampling near the ground; record touchdown rate.
 6. **SimBrief plan.** Fetch the latest OFP to get planned cruise altitude, origin, destination (needed by phase rules).
@@ -67,24 +71,26 @@ what to test and what result to expect.
     flicker drops neither. After junk samples (main menu, loading) with no flight open, the brake state starts
     over.
   - Times are real-world UTC when the sample arrives (up to about 1 s late).
-- **Not handled yet:** a flight that returns to the gate without taking off stays open.
+- **Not handled yet:** a flight that returns to the gate without taking off stays open until the main menu or
+  the end of the session interrupts it.
 - Block time = block in − block out. This is the definition used by the whole app.
-- A flight that has started but not ended is **open**. Open-flight state must be persisted so a recorder or sim
-  restart can resume it.
+- A flight that has started but not ended is **open**. Only one flight is open at a time. An open flight is
+  never resumed (D-046): if it ends any way other than block in, it is logged as interrupted.
+- **Turnarounds (D-046):** after block in Dave either exits to the main menu, or deboards, refuels, boards,
+  restarts the engines and flies the next flight from the same gate. Several flights are often chained in one sim
+  session.
 
 ### Sim crash / disconnect during a flight
 
-The recorder must not guess. It keeps the open flight and its events, marks the flight as **interrupted**, and
-leaves the resolution to the user (in the web app):
+The recorder must not guess. It marks the open flight as **interrupted** and leaves the resolution to the user
+(in the web app):
 
 - **Discard:** the flight is removed as if it never happened; the plane stays at the origin.
 - **Complete:** the flight is treated like a background flight; the plane is moved to the destination.
 
-If the sim reconnects and the user carries on flying the same flight, the recorder may resume it (design the
-resume rules carefully and log the decision).
-
-**Until milestone 3 (D-044):** state is in memory only. When the sim session ends or the recorder exits with a
-flight open, the recorder logs `flight_interrupted` and forgets the flight. There is no resume yet.
+**No resume (D-046):** when the sim session ends, the recorder exits, or Dave exits to the main menu with a
+flight open, the recorder logs `flight_interrupted` and forgets the flight. It never picks it up again, even if
+the sim reconnects. As of 0.2.0 the main-menu case isn't built yet (milestone 3).
 
 ### Diversions
 

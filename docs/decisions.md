@@ -535,7 +535,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-044 — Lost session ends the open flight as interrupted (until milestone 3)
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Superseded by D-046 (the rule stays, and is now permanent; there will be no resume)
 - Decided by: Claude
 - Area: recorder
 - Decision: When the sim session ends (`sim_quit`, `sim_process_gone`, `too_many_errors`, `handshake_timeout`) or
@@ -550,7 +550,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-045 — Ground flicker and invalid stretches in block detection
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Proposed (its "Open flights" bullet is answered by D-046)
 - Decided by: Claude (from the milestone 2 code review)
 - Area: recorder
 - Decision:
@@ -568,3 +568,24 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   a trip to the main menu.
 - Alternatives considered: Re-baselining an open flight too. That could miss a brake set made during the gap and
   leave the flight stuck open.
+
+## D-046 — The recorder never resumes a flight; the main menu ends it
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: recorder, app
+- Decision:
+  - The recorder never picks up an old flight. A flight that ends without block in is logged as
+    `flight_interrupted`, and that is final. Dave then discards it or completes it in the web app (D-009).
+  - This applies when the sim session is lost (quit, crash, kill), when the recorder exits, **and when Dave exits
+    to the main menu** with a flight open. Dave only goes to the main menu to change aircraft, restart a flight or
+    quit, so a flight is always over by then.
+  - Turnarounds happen in the sim: after block in, Dave either exits to the main menu, or deboards, refuels,
+    boards, restarts the engines and flies the next flight from the same gate. Several flights are often chained
+    in one sim session.
+- Why: Resuming adds rules and persisted state for a case that never happens in Dave's flying, and the web app
+  can already handle an incomplete flight.
+- Alternatives considered: Persisting the open flight and resuming it after a recorder restart or sim reconnect
+  (the old milestone 3 plan). Ending an open flight only if the position jumps when the next flight loads.
+- Replaces: D-044's "until milestone 3", D-045's open question about open flights, and the resume wording in
+  `docs/recorder.md`.
