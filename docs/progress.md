@@ -56,7 +56,7 @@ Newest entries at the top. Add an entry at the end of every working session.
   memory/CPU are all unverified.
 - The windowed app doesn't show the few errors `EventLog` / `SimConnection` print straight to stderr (accepted for
   now, see `docs/notes/qt-setup.md`).
-- Decisions for Dave to confirm: D-053..D-057 are Proposed.
+- Decisions: Dave confirmed D-053..D-057 (Accepted).
 
 **Dave's sim test (Qt UI test 1):** one MSFS load, PMDG 737 at a KOAK gate. Build the branch first
 (`git switch qt-ui-spike`, then the usual release configure and build). Use

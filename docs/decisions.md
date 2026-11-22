@@ -692,7 +692,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-053 — The recorder loop is a library with an observer
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-22)
 - Decided by: Claude
 - Area: recorder
 - Decision: The loop that was in `main.cpp` is now `Recorder::run()` (`recorder/src/recorder.{h,cpp}`). It reports
@@ -707,7 +707,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-054 — QML look: Basic style, one Theme singleton, Segoe UI Variable, dark only
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-22)
 - Decided by: Claude
 - Area: app
 - Decision: Qt Quick Controls' **Basic** style, the one meant to be fully re-skinned. Every colour, size and font is
@@ -720,7 +720,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-055 — QML hot reload in debug builds
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-22)
 - Decided by: Claude
 - Area: app
 - Decision: In debug builds, a URL interceptor maps the module's `qrc:/qt/qml/BlockTime/<name>.qml` to
@@ -734,7 +734,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-056 — windeployqt after every app build
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-22)
 - Decided by: Claude
 - Area: build
 - Decision: A POST_BUILD step runs `windeployqt` (`--qmldir recorder/qml --no-translations --no-system-d3d-compiler
@@ -745,7 +745,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-057 — The app has a --demo mode
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-22)
 - Decided by: Claude
 - Area: app
 - Decision: `blocktime-app.exe --demo` fills the panel with made-up cruise values and an open flight. It doesn't
