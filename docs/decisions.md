@@ -592,7 +592,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-047 — Leaving the flight is detected from the Sim stopped state
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-22)
 - Decided by: Claude
 - Area: recorder
 - Decision: When the sim's `Sim` system state changes to stopped and a flight is open, log `flight_interrupted`
@@ -610,7 +610,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-048 — A flight left open by a killed recorder is closed on the next start
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-22)
 - Decided by: Claude
 - Area: recorder
 - Decision: At startup, after the single-instance check (D-037) and `recorder_started`, scan up to 7 daily log
@@ -631,7 +631,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-049 — Block events whose write failed are held and retried
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-22)
 - Decided by: Claude
 - Area: recorder
 - Decision: `block_out`, `block_in` and `flight_interrupted` go through an `EventOutbox`. A failed write is held,

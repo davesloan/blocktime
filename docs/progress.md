@@ -46,7 +46,7 @@ PMDG 737-800 at a KOAK gate, one MSFS load (Dave reloaded the flight once at the
 **Noted for the first time:** the `Sim` state flaps on the way to the main menu (stopped, running, stopped within
 about 3 s). Only the first stop interrupts. Details are in `docs/notes/msfs-observed-behaviour.md`.
 
-**Decisions for Dave to confirm:** D-047, D-048 and D-049 are still Proposed.
+**Decisions:** Dave confirmed D-047, D-048 and D-049 (Accepted) after this test.
 
 **Next step:** milestone 4 (phases).
 
