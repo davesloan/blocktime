@@ -53,12 +53,12 @@ Newest entries at the top. Add an entry at the end of every working session.
 - The recorder never resumes a flight. Exiting to the main menu means the flight is over, and an open one should
   be logged as interrupted. The web app discards or completes interrupted flights.
 - Turnarounds happen in the sim: shut down, then either exit to the main menu or deboard, refuel, board, restart
-  and fly the next flight. Flights are often chained. Still to confirm: does the parking brake stay set from block
-  in until the next push? (If it is released and left off, the next block out is timed at that release, with
-  fuel from before the refuel.)
+  and fly the next flight. Flights are often chained. The parking brake stays set from block in until the next
+  push, so a block-out candidate can't start early, and the "candidate never expires" review item doesn't need
+  fixing.
+- D-042, D-043 and D-045 are confirmed (Accepted). D-044 is replaced by D-046.
 
 **Next step:**
-- Dave confirms D-042, D-043 and D-045 (D-044 is replaced by D-046).
 - Milestone 3, re-scoped by D-046 (see `docs/recorder.md`): end an open flight at the main menu, close a flight
   left open by a recorder crash on the next start, and surface failed block-event writes.
 

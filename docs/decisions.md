@@ -489,7 +489,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-042 — Block detection details
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-22)
 - Decided by: Claude
 - Area: recorder
 - Decision: These details fill in D-031 and D-032:
@@ -516,7 +516,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-043 — Block event fields
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-22)
 - Decided by: Claude
 - Area: recorder, data
 - Decision:
@@ -550,7 +550,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-045 — Ground flicker and invalid stretches in block detection
 - Date: 2026-11-22
-- Status: Proposed (its "Open flights" bullet is answered by D-046)
+- Status: Accepted (confirmed by Dave, 2026-11-22) (its "Open flights" bullet is answered by D-046)
 - Decided by: Claude (from the milestone 2 code review)
 - Area: recorder
 - Decision:

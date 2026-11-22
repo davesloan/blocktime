@@ -79,6 +79,8 @@ what to test and what result to expect.
 - **Turnarounds (D-046):** after block in Dave either exits to the main menu, or deboards, refuels, boards,
   restarts the engines and flies the next flight from the same gate. Several flights are often chained in one sim
   session.
+  The parking brake stays set from block in until the next push (Dave, 2026-11-22), so the next block out is
+  timed at the push release, with fuel after the refuel.
 
 ### Sim crash / disconnect during a flight
 
