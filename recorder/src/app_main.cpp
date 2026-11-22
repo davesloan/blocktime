@@ -19,6 +19,7 @@
 #include <chrono>
 #include <cstring>
 #include <filesystem>
+#include <optional>
 #include <string_view>
 #include <thread>
 
@@ -90,13 +91,15 @@ int main(int argc, char* argv[]) {
     // Declared before the thread, so they outlive it.
     RecorderBridge bridge;
     BridgeObserver observer(bridge);
-    const blocktime::SingleInstance instance;
+    // Demo mode records nothing, so it doesn't take the recorder mutex (the console recorder can run beside it).
+    std::optional<blocktime::SingleInstance> instance;
+    if (!demo) instance.emplace();
     std::atomic<bool> stop{false};
     std::jthread worker;
 
     if (demo) {
         fillDemo(bridge);
-    } else if (instance.acquired()) {
+    } else if (instance->acquired()) {
         worker = std::jthread([&] {
             const int result = blocktime::Recorder(logDir, observer).run(stop);
             QMetaObject::invokeMethod(&bridge, [&bridge, result] { bridge.applyStopped(result); },
