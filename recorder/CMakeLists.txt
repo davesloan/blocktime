@@ -145,7 +145,8 @@ qt_add_qml_module(blocktime-app
     src/event_feed_model.h src/event_feed_model.cpp
     src/recorder_bridge.h src/recorder_bridge.cpp
     src/qml_hot_reload.h src/qml_hot_reload.cpp
-    src/flight_list_model.h src/flight_list_model.cpp)
+    src/flight_list_model.h src/flight_list_model.cpp
+    src/fleet_table_model.h src/fleet_table_model.cpp)
 target_link_libraries(blocktime-app PRIVATE blocktime-sim Qt6::Quick Qt6::QuickControls2 Qt6::Location Qt6::Positioning)
 # The C++ that qmlcachegen generates from our QML trips C4702 (unreachable code) inside Qt's qjsengine.h. It's raised
 # by the optimizer, so /external:W0 can't hide it. Silence it for those generated files only.

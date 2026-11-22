@@ -27,6 +27,8 @@
 
 #include "app_settings.h"
 #include "event_log.h"
+#include "fleet_store.h"
+#include "fleet_table_model.h"
 #include "flight_list_model.h"
 #include "qml_hot_reload.h"
 #include "recorder.h"
@@ -97,6 +99,22 @@ MapSettings mapSettings() {
     return m;
 }
 
+// %LOCALAPPDATA%\BlockTime\blocktime.db, seeded with the test fleet on first run. If it can't be opened the table is
+// empty and the Fleet page shows SQLite's message.
+FleetTableModel openFleet(const FlightListModel& flights) {
+    const std::filesystem::path dir = blocktime::defaultSettingsFile().parent_path();
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    const std::u8string file = (dir / "blocktime.db").u8string();  // sqlite3 takes UTF-8
+    std::string error;
+    std::vector<blocktime::Airframe> airframes;
+    if (auto store = blocktime::FleetStore::open(std::string(file.begin(), file.end()), &error)) {
+        store->seedIfEmpty();
+        airframes = store->airframes();
+    }
+    return FleetTableModel(std::move(airframes), QString::fromStdString(error), flights);
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -152,10 +170,15 @@ int main(int argc, char* argv[]) {
     FlightListModel flights(logDir);
     QObject::connect(&bridge, &RecorderBridge::flightChanged, &flights, &FlightListModel::reload);
 
+    // The fleet comes from SQLite (D-061), next to the log folder. --demo opens it too: it records no flight, and
+    // the database only holds the test fleet.
+    FleetTableModel fleet = openFleet(flights);
+
     QQmlApplicationEngine engine;
     const MapSettings map = mapSettings();
     const QVariantMap props{{"recorder", QVariant::fromValue(&bridge)},
                             {"flights", QVariant::fromValue(&flights)},
+                            {"fleet", QVariant::fromValue(&fleet)},
                             {"mapTileUrl", map.tileUrl},
                             {"mapCacheDir", map.cacheDir},
                             {"mapUserAgent", map.userAgent}};
