@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -39,7 +40,10 @@ private:
     std::ofstream out_;
 };
 
-// UTC timestamp, ISO-8601 with milliseconds, e.g. 2026-11-21T14:03:07.123Z
+// UTC timestamp, ISO-8601 with milliseconds (truncated), e.g. 2026-11-21T14:03:07.123Z
+std::string formatUtc(std::chrono::system_clock::time_point t);
+
+// formatUtc() of the current time.
 std::string utcTimestamp();
 
 }  // namespace blocktime

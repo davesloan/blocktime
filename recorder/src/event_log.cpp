@@ -12,10 +12,11 @@
 
 namespace blocktime {
 
-std::string utcTimestamp() {
-    const auto now = std::chrono::floor<std::chrono::milliseconds>(std::chrono::system_clock::now());
-    return std::format("{:%FT%T}Z", now);
+std::string formatUtc(std::chrono::system_clock::time_point t) {
+    return std::format("{:%FT%T}Z", std::chrono::floor<std::chrono::milliseconds>(t));
 }
+
+std::string utcTimestamp() { return formatUtc(std::chrono::system_clock::now()); }
 
 std::filesystem::path EventLog::defaultDir() {
     wchar_t* base = nullptr;

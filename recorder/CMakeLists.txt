@@ -43,15 +43,37 @@ set_target_properties(SimConnect PROPERTIES
 # --- Third-party --------------------------------------------------------------
 find_package(nlohmann_json CONFIG REQUIRED)
 
+# --- Shared build settings ----------------------------------------------------
+# /external:W0 keeps third-party headers (gtest) from breaking the /W4 no-warnings rule.
+add_library(blocktime-options INTERFACE)
+target_compile_definitions(blocktime-options INTERFACE
+  WIN32_LEAN_AND_MEAN NOMINMAX UNICODE _UNICODE
+  BLOCKTIME_VERSION="${PROJECT_VERSION}")
+target_compile_options(blocktime-options INTERFACE /W4 /permissive- /utf-8 /external:W0)
+
+# --- Core: logic with no SimConnect or windows.h, so it can be unit tested (D-041) ---
+add_library(blocktime-core STATIC
+  src/event_log.cpp
+  src/geo.cpp
+  src/telemetry_filter.cpp)
+target_include_directories(blocktime-core PUBLIC src)
+target_link_libraries(blocktime-core PUBLIC blocktime-options nlohmann_json::nlohmann_json)
+
 # --- Recorder -----------------------------------------------------------------
 add_executable(blocktime-recorder
   src/main.cpp
-  src/event_log.cpp
-  src/sim_connection.cpp
-  src/telemetry_filter.cpp)
+  src/sim_connection.cpp)
+target_link_libraries(blocktime-recorder PRIVATE blocktime-core SimConnect)
 
-target_compile_definitions(blocktime-recorder PRIVATE
-  WIN32_LEAN_AND_MEAN NOMINMAX UNICODE _UNICODE
-  BLOCKTIME_VERSION="${PROJECT_VERSION}")
-target_compile_options(blocktime-recorder PRIVATE /W4 /permissive- /utf-8)
-target_link_libraries(blocktime-recorder PRIVATE SimConnect nlohmann_json::nlohmann_json)
+# --- Tests --------------------------------------------------------------------
+option(BLOCKTIME_BUILD_TESTS "Build the unit tests" ON)
+if(BLOCKTIME_BUILD_TESTS)
+  enable_testing()
+  find_package(GTest CONFIG REQUIRED)
+  include(GoogleTest)
+  add_executable(blocktime-tests
+    tests/event_log_test.cpp
+    tests/geo_test.cpp)
+  target_link_libraries(blocktime-tests PRIVATE blocktime-core GTest::gtest_main)
+  gtest_discover_tests(blocktime-tests)
+endif()
