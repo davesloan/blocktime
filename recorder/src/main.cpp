@@ -22,6 +22,7 @@
 
 #include "block_detector.h"
 #include "event_log.h"
+#include "event_outbox.h"
 #include "open_flight.h"
 #include "sim_connection.h"
 #include "telemetry_filter.h"
@@ -156,9 +157,14 @@ private:
 
 std::string hhmmss(TimePoint t) { return formatUtc(t).substr(11, 8); }
 
-// Writes a block event to the log, then prints a short line for it.
-void logBlockEvent(EventLog& log, const BlockEvent& event) {
-    log.write(eventType(event), toJson(event));
+// Writes a block event to the log through the outbox, then prints a short line for it. If the write fails, the
+// event is held and retried, and the console shows its data so it is never lost unseen (D-049).
+void logBlockEvent(EventOutbox& outbox, const BlockEvent& event) {
+    const nlohmann::json data = toJson(event);
+    if (!outbox.send(std::string(eventType(event)), data)) {
+        std::cout << "WARNING: " << eventType(event) << " could not be written to the log; retrying every 5 s. "
+                  << data.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
+    }
     const std::string now = utcTimestamp().substr(11, 8);
     std::visit(
         [&](const auto& e) {
@@ -176,9 +182,26 @@ void logBlockEvent(EventLog& log, const BlockEvent& event) {
         event);
 }
 
-void endSession(EventLog& log, BlockDetector& detector, std::string_view reason) {
-    if (auto e = detector.onSessionEnded(reason)) logBlockEvent(log, *e);
+void endSession(EventOutbox& outbox, BlockDetector& detector, std::string_view reason) {
+    if (auto e = detector.onSessionEnded(reason)) logBlockEvent(outbox, *e);
 }
+
+// Retries held block events at most every 5 s (D-049), so a failing disk isn't hammered every 100 ms.
+class HeldEventRetry {
+public:
+    explicit HeldEventRetry(EventOutbox& outbox) : outbox_(outbox) {}
+    void tick() {
+        if (outbox_.pending() == 0) return;
+        const auto now = std::chrono::steady_clock::now();
+        if (now - lastTry_ < 5s) return;
+        lastTry_ = now;
+        if (outbox_.flush()) std::cout << "Held events written to the log.\n";
+    }
+
+private:
+    EventOutbox& outbox_;
+    std::chrono::steady_clock::time_point lastTry_ = std::chrono::steady_clock::now();
+};
 
 }  // namespace
 
@@ -211,6 +234,8 @@ int wmain(int argc, wchar_t** argv) {
 
     EventLog log(logDir);
     if (!log.write("recorder_started", {{"version", BLOCKTIME_VERSION}})) return 1;
+    EventOutbox outbox([&log](std::string_view type, const nlohmann::json& data) { return log.write(type, data); });
+    HeldEventRetry retry(outbox);
     std::cout << "BlockTime Recorder " BLOCKTIME_VERSION "\nLogging to " << log.dir().string()
               << "\nPress Ctrl+C to stop.\n";
 
@@ -219,7 +244,7 @@ int wmain(int argc, wchar_t** argv) {
     if (auto id = findOpenFlight(log.dir())) {
         std::cout << "Previous flight " << *id
                   << " was left open (the recorder didn't close cleanly); logged as interrupted.\n";
-        logBlockEvent(log, FlightInterrupted{*id, "recorder_crash"});
+        logBlockEvent(outbox, FlightInterrupted{*id, "recorder_crash"});
     }
 
     TelemetryLogger telemetry(log);
@@ -230,11 +255,11 @@ int wmain(int argc, wchar_t** argv) {
             detector.onInvalidSample();
             return;
         }
-        if (auto e = detector.onSample(toBlockSample(s, std::chrono::system_clock::now()))) logBlockEvent(log, *e);
+        if (auto e = detector.onSample(toBlockSample(s, std::chrono::system_clock::now()))) logBlockEvent(outbox, *e);
     }, [&](bool running) {
         // Leaving the flight (main menu, restart, quit) ends it; it is never resumed (D-046, D-047).
         if (!running) {
-            if (auto e = detector.onSimStopped()) logBlockEvent(log, *e);
+            if (auto e = detector.onSimStopped()) logBlockEvent(outbox, *e);
         }
     });
 
@@ -243,6 +268,7 @@ int wmain(int argc, wchar_t** argv) {
     bool announcedConnected = false;
 
     while (!g_stop) {
+        retry.tick();
         if (!sim.isOpen()) {
             if (sim.open()) {
                 std::cout << "Sim found, waiting for it to finish starting...\n";
@@ -269,7 +295,7 @@ int wmain(int argc, wchar_t** argv) {
                       << ").\n";
             const std::string reason = sim.lostReason();
             sim.close(reason);
-            endSession(log, detector, reason);
+            endSession(outbox, detector, reason);
             waitingSince = std::chrono::steady_clock::now();
             continue;
         }
@@ -277,7 +303,14 @@ int wmain(int argc, wchar_t** argv) {
     }
 
     sim.close("recorder_exit");
-    endSession(log, detector, "recorder_exit");
+    endSession(outbox, detector, "recorder_exit");
+    // Last chance for held block events; anything still held is printed so it can be recovered by hand (D-049).
+    if (!outbox.flush()) {
+        for (const auto& [type, data] : outbox.held()) {
+            std::cerr << "LOST: " << type << " " << data.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)
+                      << "\n";
+        }
+    }
     log.write("recorder_stopped");
     std::cout << "Stopped.\n";
     return 0;
