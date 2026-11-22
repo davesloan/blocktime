@@ -60,23 +60,39 @@ Newest entries at the top. Add an entry at the end of every working session.
   before refuelling.
 - A return to the gate without taking off leaves the flight open, with the same effect as question 1.
 
-**Unverified (Dave to test in the sim with 0.2.0):** fly a KSAN pattern in the PMDG 737, and repeat the shutdown on
-the 777.
-1. Profile set/release, GSX set, release for the push, set after the push, release to taxi. Expect exactly **one**
-   `block_out`, timed at the push release, with `fuel_lb` equal to the fuel at that moment. The console prints
-   `BLOCK OUT`.
-2. Set and release the brake at hold short before takeoff. Expect no new events.
-3. After landing, set and release at a taxiway stop. Expect no `block_in`.
-4. Set at the gate, then shut down both engines. Expect one `block_in`:
-   - timed at the set,
-   - `shutdown_time` when the last engine stopped,
-   - `block_time_s` equal to in − out.
-5. On the 777: engine shutdown makes `eng_running` all false and produces `block_in`. This hasn't been tested
-   before.
-6. After a block in, go to the main menu and load another flight with the brake off. Expect no `block_out` until
-   a real push.
-7. Optional: quit MSFS after block out. Expect `sim_disconnected` and then `flight_interrupted` with `sim_quit`.
-8. Ctrl+C exits cleanly (`recorder_stopped`, no error).
+**Unverified (Dave to test in the sim with 0.2.0):** one MSFS load covers everything. Quitting MSFS is the
+last step. Start the recorder first, then fly a KOAK pattern in the PMDG 737 from a GSX gate.
+
+*PMDG 737, KOAK pattern:*
+1. **At the gate:** startup profile set and release, then GSX set, release for the push, set after the push, and
+   release to taxi.
+   - Expect exactly **one** `block_out`, timed at the push release.
+   - Its `fuel_lb` should equal the fuel at that moment.
+   - The console prints `BLOCK OUT`.
+2. **Hold short:** set and release the brake before takeoff. Expect no new events.
+3. **After landing:** set and release at a taxiway stop. Expect no `block_in`.
+4. **At the gate:** set the brake, then shut down both engines. Expect one `block_in`:
+   - `time` = the moment of the brake set
+   - `shutdown_time` = when the last engine stopped
+   - `block_time_s` = block in − block out
+   - The console prints `BLOCK IN`.
+
+*Main menu, then the PMDG 777 at a KOAK gate (no sim restart):*
+
+5. Load the 777 at a gate with the parking brake **off** at load. Expect no `block_out`: a brake that is already
+   off at load isn't a release.
+6. Set the brake, start the engines, then shut them down with the brake still set. Expect `eng_running` to go all
+   false. This hasn't been seen on the 777 before. There's no `block_in`, because this flight didn't take off.
+
+*Recorder restart (MSFS keeps running):*
+
+7. Press Ctrl+C in the recorder window. Expect `sim_disconnected` (`recorder_exit`), then `recorder_stopped`, and
+   no error. Start the recorder again; it reconnects.
+
+*Last, because it ends the sim session:*
+
+8. On the 777, release the brake and taxi at least 10 m. Expect `block_out`. Then quit MSFS. Expect
+   `sim_disconnected` (`sim_quit`), then `flight_interrupted` with `sim_quit`.
 
 **Deferred review items:**
 - A failed write of a block event is only reported on stderr (the 0.1.2 deferred item; it matters more now).
