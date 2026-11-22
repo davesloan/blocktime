@@ -4,16 +4,20 @@ Context from a brainstorming chat with Dave on 2026-11-22. Read this before work
 (D-050, D-051) or before deciding what comes after them. It records how we got here, what Dave cares about, and
 what the test has to answer, so a future session doesn't have to rediscover it.
 
-Status: **UI test 1 built (2026-11-22), waiting on Dave's sim flight.** UI test 2 not started. The work is on the
+Status: **UI test 1 passed in the sim (2026-11-22).** UI test 2 not started. The work is on the
 branch `qt-ui-spike` (Dave's name; D-051 first said `spike/qt-ui`). It's built inside the recorder project so it can
 be merged as it is if Qt wins (D-052). Plan: `docs/plans/2026-11-22-qt-ui-test-1.md`. D-001 (two programs) and
 D-004 (local web app + SQLite) stay in force until the test's decision point.
 
-**Test 1 findings so far (without the sim):**
-- **Memory:** the release app uses about 87–92 MB at idle (working set and private bytes, `--demo` and waiting
-  for the sim). That's close to the 100 MB limit, before it has connected to a sim. Dave's Task Manager reading
-  during a flight is the real number.
-- **CPU:** 0% measured over 10 s at idle with values on screen. Nothing animates; only the 1 s block clock ticks.
+**Test 1 result: passed all four criteria** (Dave's flight, KSAN → KSAN in the 737-800, 2026-11-22):
+- **Memory:** never above **30 MB** in Task Manager during the flight (limit 100 MB). Task Manager's Memory column
+  is the private working set. The 87–92 MB measured at idle without the sim was working set / private bytes,
+  which also count shared and committed pages, so the two aren't the same measure.
+- **CPU:** never above **0.2%** during the flight (limit 1%). At idle, 0% over 10 s. Nothing animates; only the
+  1 s block clock ticks.
+- **Look:** Dave: "beautiful and exactly what I was looking for."
+- **Recording:** block out, block in and the clean stop on window close all logged exactly as the console
+  recorder does.
 - **Change → see-it loop:** in debug builds, saving a QML file reloads the window in about 1.5 s with no rebuild
   (D-055). A C++ change needs a rebuild of the app (not timed yet).
 - **QML back-and-forth:** the first full build of the screen needed 4 fixes: a property named `onAccent` (QML

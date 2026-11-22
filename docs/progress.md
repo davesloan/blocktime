@@ -22,6 +22,29 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-22 — Qt UI test 1 flown: passed
+
+**Done:**
+- Dave flew KSAN → KSAN in the PMDG 737-800 (N818SX) with the release `blocktime-app.exe` in place of the console
+  recorder.
+
+**Working / verified (in the sim):**
+- Log (`events-2026-11-22.jsonl`, 21:02–21:55Z): `recorder_started`, `sim_connected`, `block_out` 21:28:23Z
+  (15,316 lb), `block_in` 21:55:15Z (12,141 lb, 26 min 52 s), then `sim_disconnected` (`recorder_exit`) and
+  `recorder_stopped` when the window closed. No warnings, no lost events.
+- Dave's Task Manager readings during the flight: **CPU never above 0.2%, memory never above 30 MB.** Both are well
+  inside the limits (1%, 100 MB). Task Manager's Memory column is the private working set, so it reads lower than
+  the 87–92 MB working set / private bytes measured at idle without the sim; the two aren't the same number.
+- Dave on the look: "beautiful and exactly what I was looking for."
+- All four test 1 pass criteria are met (see `docs/qt-ui-test-context.md`).
+
+**Unverified or broken:**
+- Nothing new. The stderr-only errors from `EventLog` / `SimConnection` are still not shown in the app (accepted).
+
+**Next step:**
+- UI test 2 on `qt-ui-spike`: post-flight route map, fleet list from SQLite, side menu (D-051). Write its plan
+  first. The Qt decision comes after test 2.
+
 ## 2026-11-22 — Qt UI test 1 built (branch qt-ui-spike)
 
 **Done:**
