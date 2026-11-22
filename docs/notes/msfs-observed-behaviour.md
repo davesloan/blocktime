@@ -18,6 +18,13 @@ observations at the top.
 - `GENERAL ENG COMBUSTION:n` works on the PMDG 777. Engine 2 started first. On shutdown engine 2 stopped first,
   then engine 1.
 
+### APU fuel burn isn't in fuel flow
+- `fuel_flow_pph` is the sum of `ENG FUEL FLOW PPH:n`, so it covers the engines only. On the 777 with the engines
+  off and the APU running, fuel flow decayed to about 0 while `FUEL TOTAL QUANTITY WEIGHT` kept dropping about
+  4 lb/min (about 230 lb/h). Dave saw the same on the 737.
+- **For fuel burn, use the change in tank totals, never fuel flow added up over time.** Block fuel (out − in)
+  already includes APU burn, as it does in real operations.
+
 ### Force-terminating MSFS
 - Killing MSFS (Dave force-terminated it during a flight) logs `sim_stopped`, then the process is gone about 5 s
   later with no SimConnect QUIT. The recorder logs `sim_process_gone`, as designed. A normal quit from the main
