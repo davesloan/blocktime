@@ -11,8 +11,8 @@ Two programs live in this repo:
 
 | Folder | What | Language | Status |
 |---|---|---|---|
-| `/recorder` | Native Windows app that connects to MSFS through the SimConnect SDK, detects flight events and phases, and writes them to a local log | C++ | **Building first** |
-| `/app` | Local web app (runs on localhost, no hosting, no login) that runs the airline: fleet, rotations, background flights, money, dashboards | Node.js + TypeScript | Later |
+| `/recorder` | Native Windows app that connects to MSFS through the SimConnect SDK, detects flight events and phases, and writes them to a local log | C++ | **Milestone 1 built** |
+| `/webapp` | Local web app (runs on localhost, no hosting, no login) that runs the airline: fleet, rotations, background flights, money, dashboards | Node.js + TypeScript | Later |
 
 The full product design is in `docs/design.md`. The recorder's spec is in `docs/recorder.md`.
 Do not re-decide things that are already in `docs/decisions.md` without asking Dave.
@@ -63,7 +63,7 @@ build setup, where the MSFS SDK lives, a SimVar that doesn't behave as documente
 
 ### 5. Build and run instructions
 
-`/recorder/README.md` (and later `/app/README.md`) must always contain working, copy-pasteable steps to
+`/recorder/README.md` (and later `/webapp/README.md`) must always contain working, copy-pasteable steps to
 build and run from a clean checkout. Update them whenever the steps change.
 
 ## Working style
@@ -76,6 +76,24 @@ build and run from a clean checkout. Update them whenever the steps change.
 - **Dave tests in the sim.** You can't run MSFS. When a change needs in-sim verification, say exactly what
   to check and what result to expect, and record unverified items in `docs/progress.md`.
 - **Commit messages** explain why, not just what. Reference decision IDs (e.g. `D-014`) when relevant.
+
+## Superpowers skills (D-033)
+
+This file overrides the plugin's "invoke a skill on any 1% chance" rule. Use only these:
+
+- **Now (milestone 1 fixes):** `systematic-debugging` for bugs found in sim tests.
+- **From milestone 2 on:** `writing-plans` and `executing-plans` for each milestone (save plans under
+  `docs/plans/`), `test-driven-development` for logic that can be tested without the sim (phase and block
+  detection, log writing, crash recovery), and `verification-before-completion` before saying work is done.
+  Without the sim, "done" means it builds with no warnings and the tests pass; in-sim checks still go to
+  Dave via `docs/progress.md`.
+- **Each milestone merge to `main`, starting with milestone 1:** the milestone's work goes on its own branch
+  (e.g. `milestone-1`), then `requesting-code-review` (and `receiving-code-review` for the findings), then
+  `finishing-a-development-branch` to open the pull request and merge it.
+- **Sometimes:** `brainstorming` for undesigned areas (mainly the web app), but start from
+  `docs/decisions.md` and don't reopen settled decisions.
+- **Skip:** `using-git-worktrees`, `subagent-driven-development`, `dispatching-parallel-agents`. This is a
+  one-person project with one branch at a time.
 
 ## Recorder ground rules (summary — details in `docs/recorder.md`)
 
@@ -92,7 +110,7 @@ build and run from a clean checkout. Update them whenever the steps change.
 ## Tech conventions
 
 ### Recorder (C++)
-- C++20, MSVC (Visual Studio 2022 toolchain), CMake as the build system.
+- C++20, MSVC (Visual Studio 2022 or newer; developed on VS 18 / 2026), CMake as the build system.
 - Third-party libraries via vcpkg (manifest mode, `vcpkg.json`) unless a decision says otherwise.
 - SimConnect from the MSFS 2020 SDK (typically `C:\MSFS SDK\SimConnect SDK`). Don't commit SDK files;
   locate them via a CMake variable/environment variable and document it in `/recorder/README.md`.
@@ -100,7 +118,7 @@ build and run from a clean checkout. Update them whenever the steps change.
   If code is copied or adapted, keep the license header/attribution and log it in `docs/decisions.md`.
 - Keep the UI minimal (tray icon / small status). All rich visuals live in the web app.
 
-### App (Node/TypeScript) — later
+### Web app (`/webapp`, Node/TypeScript) — later
 - TypeScript, runs locally, SQLite single-file database.
 - Airline catalog/configuration in YAML; SimBrief is the source of truth for airframe weights/limits.
 
@@ -115,6 +133,6 @@ docs/
   decisions.md       ← decision log (append-only)
   progress.md        ← session log (newest first)
   notes/             ← small how-to / quirk notes discovered while building
-recorder/            ← C++ Windows recorder (to be created)
-app/                 ← Node/TS web app (later)
+recorder/            ← C++ Windows recorder (see recorder/README.md)
+webapp/              ← Node/TS web app (later)
 ```

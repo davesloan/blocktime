@@ -65,6 +65,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Decision: A flight starts at parking brake release at the gate and ends at parking brake set at the destination.
   Block time is measured between these.
 - Why: Matches how Dave defines block time for rotations.
+- Refined by D-031 (which release counts) and D-032 (which set counts).
 
 ## D-006 — Plan-aware, forward-only phase detection
 - Date: 2026-11-21
@@ -178,3 +179,228 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Decision: The project is called **BlockTime**; the Windows app is "BlockTime Recorder".
 - Why: The whole design is built on block time (parking brake release to parking brake set).
 - Alternatives considered: Tailbook, Loopline.
+
+## D-019 — Link SimConnect statically; use the DLL C runtime
+- Date: 2026-11-21
+- Status: Accepted (approved by Dave 2026-11-21)
+- Decided by: Claude, approved by Dave
+- Area: build
+- Decision: Link `lib\static\SimConnect.lib`, so no `SimConnect.dll` ships next to the exe. Build with `/MD` and the
+  vcpkg triplet `x64-windows-static-md`.
+- Why: A single exe is simpler. The SDK's static lib is built with `/MD`, so `/MT` fails with LNK2038. The VC++
+  runtime is always installed alongside MSFS.
+- Alternatives considered: Dynamic `SimConnect.lib` + copying the DLL; a fully static CRT (impossible with this lib).
+
+## D-020 — Event log: JSON Lines, one file per UTC day, in %LOCALAPPDATA%
+- Date: 2026-11-21
+- Status: Accepted (approved by Dave 2026-11-21)
+- Decided by: Claude, approved by Dave
+- Area: recorder, data
+- Decision: Events are appended to `%LOCALAPPDATA%\BlockTime\events\events-YYYY-MM-DD.jsonl`, one JSON object per
+  line, `{"ts": UTC ISO-8601 ms, "type", "data"}`, and flushed after every line. `--log-dir` overrides the folder.
+- Why: Append-only, easy for the web app to read, still readable if a line is torn in a crash. Daily files keep
+  each file small. Outside the repo, so rebuilds and `git clean` can't touch it.
+- Alternatives considered: SQLite in the recorder (heavier, and the app owns the DB); one ever-growing file; a
+  binary format.
+
+## D-021 — nlohmann-json for JSON
+- Date: 2026-11-21
+- Status: Accepted (approved by Dave 2026-11-21)
+- Decided by: Claude, approved by Dave
+- Area: build
+- Decision: Use `nlohmann-json` from vcpkg. `vcpkg.json` pins a `builtin-baseline`.
+- Why: Header-only, widely used, MIT license. The VS-bundled vcpkg requires a baseline.
+- Alternatives considered: Writing JSON by hand; RapidJSON; Glaze.
+
+## D-022 — Console app first, tray icon later
+- Date: 2026-11-21
+- Status: Accepted (approved by Dave 2026-11-21)
+- Decided by: Claude, approved by Dave
+- Area: recorder
+- Decision: Milestone 1 is a console program that prints a short form of each event. The tray icon (D-007) comes
+  later.
+- Why: Easier to see and debug while sim behaviour is still being verified.
+
+## D-023 — Telemetry: once a second, only on change, single thread
+- Date: 2026-11-21
+- Status: Accepted (approved by Dave 2026-11-21)
+- Decided by: Claude, approved by Dave
+- Area: recorder
+- Decision: One data definition on the user aircraft, requested with `SIMCONNECT_PERIOD_SECOND` +
+  `DATA_REQUEST_FLAG_CHANGED`. The thresholds are: lat/lon 0.00001°, altitudes 1 ft, VS 10 fpm, speeds 0.5 kt,
+  fuel 1 lb / 0.1 gal. A one-off `PERIOD_ONCE` snapshot is requested on sim running, aircraft loaded and unpause,
+  so a parked aircraft still produces a sample. The main loop drains `GetNextDispatch` and then sleeps 100 ms,
+  on one thread. `ZULU TIME` is left out of the definition, because it changes every second and would defeat the
+  CHANGED flag. It will be read on demand at block events (milestone 2).
+- Why: The lightest load on the sim that still gives about 1 Hz live data while moving. Simpler than Little
+  Navmap's 500 ms one-shot polling thread, which is built for AI traffic and live maps.
+- Alternatives considered: Little Navmap-style polling; `PERIOD_SIM_FRAME` (only near touchdown, milestone 5).
+
+## D-024 — Reconnect and connection-loss rules
+- Date: 2026-11-21
+- Status: Superseded by D-028
+- Decided by: Claude, approved by Dave
+- Area: recorder
+- Decision: Try `SimConnect_Open` every 10 s, then every 20 s after 30 min of waiting and every 40 s after 60 min.
+  The session counts as lost on `QUIT`, after 10 SimConnect calls fail in a row, or when nothing at all arrives for
+  30 s despite a `RequestSystemState("Sim")` heartbeat every 5 s. After a loss it closes and goes back to retrying;
+  it never stops for good.
+- Why: The back-off copies Little Navmap's workaround for leaked SimConnect handles (its issue #891). A crashed sim
+  sends no QUIT, so a heartbeat is needed.
+- Alternatives considered: A fixed 5 s retry; stopping after 10 errors (as Little Navmap does).
+
+## D-025 — Junk-data filter for telemetry
+- Date: 2026-11-21
+- Status: Accepted (approved by Dave 2026-11-21)
+- Decided by: Claude, approved by Dave
+- Area: recorder
+- Decision: Reject samples unless the sim is running, the title is a valid non-empty string, altitude is within
+  −2,000…200,000 ft and finite, and the aircraft isn't at 0/0 (±0.1°) below 5 kt. Log `telemetry_invalid` only
+  when the reason changes. Details are in `docs/notes/msfs-junk-data.md`.
+- Why: MSFS sends junk while loading. Later block-out detection must never fire on it. Thresholds from Little Navmap.
+
+## D-026 — Little Navmap used as a reference only
+- Date: 2026-11-21
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: recorder
+- Decision: We studied atools `simconnecthandler.cpp` / `datareaderthread.cpp` and littlenavmap `mapwidget.cpp`
+  for ideas and thresholds. No code was copied. Notes are in `docs/notes/little-navmap-reference.md`.
+- Why: Dave asked for the plan to be checked against Little Navmap. Copying wasn't needed for milestone 1.
+
+## D-027 — Build with Visual Studio's bundled CMake/Ninja/vcpkg
+- Date: 2026-11-21
+- Status: Accepted (approved by Dave 2026-11-21)
+- Decided by: Claude, approved by Dave
+- Area: build
+- Decision: `CMakePresets.json` (`x64-debug`, `x64-release`) uses Ninja and `$env:VCPKG_ROOT`, run from a VS
+  Developer PowerShell. VS 2022 or newer is supported. Development is on VS 18 (2026), so CLAUDE.md now says
+  "2022 or newer".
+- Why: Nothing extra to install. Presets give copy-pasteable commands.
+
+## D-028 — Connection lifecycle: handshake first, watch the process, silence only warns
+- Date: 2026-11-22
+- Status: Accepted (approved by Dave in the fix plan, 2026-11-22)
+- Decided by: Claude, approved by Dave
+- Area: recorder
+- Decision:
+  - **Retry interval:** unchanged from D-024 (10 s, then 20 s after 30 min, then 40 s after 60 min).
+  - **Handshake:** a session only counts as connected when SimConnect's OPEN reply arrives. Only then is
+    `sim_connected` logged. Before that, the recorder waits without timing out.
+  - **Process watch:** at open, the recorder finds `FlightSimulator.exe` and checks every loop whether it has
+    exited. If it has, the session is lost with reason `sim_process_gone`.
+  - **Other ways a session ends:** `QUIT`, or 10 failed calls in a row.
+  - **Silence:** 30 s with no messages logs `sim_unresponsive`, and `sim_responsive` when messages return. Silence
+    never ends a session.
+  - **Exe not found:** if `FlightSimulator.exe` can't be found, a `warning` is logged, and the handshake wait is
+    capped at 5 min.
+  - **Log pairing:** `sim_disconnected` is logged only if `sim_connected` was.
+- Why: In the first sim test, MSFS accepted the connection minutes before answering. It also didn't answer the
+  heartbeat during loading screens. The 30 s silence timeout of D-024 caused 6 false disconnects, and some
+  `sim_disconnected` lines had no matching `sim_connected`. A process check finds a crash right away, without
+  guessing from silence.
+- Alternatives considered: A longer silence timeout (still guesswork, and slow to notice a crash).
+
+## D-029 — Less log noise: skip duplicate telemetry; aircraft_loaded only on change
+- Date: 2026-11-22
+- Status: Accepted (approved by Dave in the fix plan, 2026-11-22)
+- Decided by: Claude, approved by Dave
+- Area: recorder
+- Decision:
+  - **Duplicate telemetry:** a valid sample that is byte-identical to the last one logged is skipped. The first
+    good sample after an invalid stretch, or after a reconnect, is always logged.
+  - **`aircraft_loaded`:** empty paths are skipped. Otherwise it is logged only when the normalized path changes.
+    The path is normalized by lower-casing it and keeping only the part from `simobjects\` on. The raw path is
+    kept in the log.
+- Why: In the first test, the snapshot request and the periodic request produced identical lines. The same
+  aircraft was also reported in two path formats, sometimes with an empty path.
+
+## D-030 — Pause via Pause_EX1, raw flags logged
+- Date: 2026-11-22
+- Status: Accepted (approved by Dave in the fix plan, 2026-11-22)
+- Decided by: Claude, approved by Dave
+- Area: recorder
+- Decision: Subscribe to `Pause_EX1` instead of `Pause`. Log `paused` with `"flags"` set to the raw value, again
+  whenever the non-zero value changes, and log `unpaused` when it returns to 0. The bits will be named in code
+  once a sim test has confirmed them. From memory of the MSFS docs: 1 = full pause, 4 = active pause, 8 = sim
+  paused.
+- Why: `Pause` fired for both the Escape menu and active pause, with no way to tell them apart.
+
+## D-031 — Block out: the brake release that leads to movement
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: recorder
+- Decision:
+  - **Candidates:** before a flight is open, every parking brake release on the ground is a candidate.
+  - **Confirmation:** a candidate counts once the aircraft has moved **≥ 10 m** from where the brake was released,
+    with the brake still off.
+  - **Dropped candidates:** if the brake is set again first, the candidate is dropped.
+  - **Block-out time:** the time of the confirmed release, like ACARS OUT.
+  - **After block out:** once the flight is open, further sets and releases don't matter. That covers after
+    pushback, during taxi and at hold short.
+- Why: The brake is toggled several times at the gate. The PMDG startup profile may set it, Dave sets it for GSX,
+  GSX asks for it again after pushback, and he may set it at hold short. Only the release that leads to the
+  aircraft actually leaving the gate is block out.
+- Alternatives considered: First movement, ignoring the brake. Timing block out from the start of movement rather
+  than from the release.
+- Implemented in milestone 2. The 10 m threshold may be tuned.
+
+## D-032 — Block in: brake set, then engines shut down
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: recorder
+- Decision:
+  - **Rule:** after a landing, block in is a parking brake set while stopped that **stays set until all engines are
+    shut down**.
+  - **Block-in time:** the time of that set.
+  - **Ignored sets:** a set that is released again while an engine is still running is ignored, e.g. at hold
+    short or while waiting for a gate.
+- Why: Brake sets during taxi-in must not end the flight. Shutdown at the gate is the clear end of a flight.
+- Alternatives considered: Brake set plus stopped for 2 minutes or more. That doesn't need engine data, but a long
+  wait could end the flight early.
+- Depends on `GENERAL ENG COMBUSTION:n`, now recorded in telemetry (`eng_running`), which still has to be verified
+  on PMDG. Implemented in milestone 2.
+
+## D-033 — Which Superpowers skills to use
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: build
+- Decision: Use systematic-debugging now, for the milestone 1 sim-test fixes. From milestone 2 on, also use
+  writing-plans, executing-plans, test-driven-development and verification-before-completion. Every milestone,
+  starting with milestone 1, is built on its own branch and merged to `main` by pull request after
+  requesting-code-review and finishing-a-development-branch. Use brainstorming only sometimes. Skip the
+  worktree and multi-agent skills. The list is in `CLAUDE.md`.
+- Why: Claude can't run MSFS, so logic that can be tested without the sim should have tests, and work done
+  across sessions needs written plans. A reviewed pull request per milestone gives `main` a clean history of
+  milestones. The worktree and agent skills add overhead to a one-person project.
+- Alternatives considered: Following the plugin's default rule of invoking any skill that might apply. Not
+  using the plugin at all.
+
+## D-034 — Flight reloads are not tracked
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: recorder
+- Decision: Escape → Reload of the same aircraft isn't detected or logged. The `aircraft_loaded` dedup of D-029
+  stays as it is.
+- Why: Dave only reloads at the gate, when PMDG fails to load, so it's always before block out. Block out
+  (D-031) needs a brake release plus movement, so a reload at the gate can't start or split a flight.
+- Alternatives considered: A probe to log raw `AircraftLoaded` and `FlightLoaded` events on reload, then a
+  `flight_loaded` event. Not worth the effort for a rare case at the gate.
+
+## D-035 — Pause_EX1 bits named in the log
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: recorder
+- Decision: `paused` keeps the raw `flags` and adds `kinds`, a list of names for the bits that are set:
+  1 = `full` (main menu, loading screens), 2 = `legacy`, 4 = `active` (active pause), 8 = `sim` (Escape menu).
+  Unknown bits are logged as `bit_<value>`. Recorder version 0.1.2.
+- Why: The 0.1.1 sim test confirmed 1, 4 and 8, which match the SDK's list (D-030 said to name them once
+  confirmed). Keeping `flags` means old and new log lines can be read the same way. A list allows for several
+  bits being set at once.
+- Alternatives considered: Replacing `flags` with a single name. That would lose information if two bits were
+  ever set together.

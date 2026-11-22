@@ -39,8 +39,18 @@ what to test and what result to expect.
 
 ## Flight lifecycle
 
-- **Block out (flight start):** parking brake released while on the ground at the departure gate.
-- **Block in (flight end):** parking brake set while on the ground after a landing.
+- **Block out (flight start):** parking brake released while on the ground at the departure gate (D-005, D-031).
+  - **Typical gate sequence:** the PMDG startup profile may set the brake (or Dave sets it), Dave sets it for GSX
+    pushback, releases it for the push, sets it after the push, releases it to taxi, and may set and release it
+    again at hold short.
+  - **Which release counts:** before a flight is open, each release on the ground is a candidate. It is confirmed
+    only when the aircraft moves **≥ 10 m** from where the brake was released, with the brake still off. If the
+    brake is set first, the candidate is dropped.
+  - **Recorded time:** the block-out time is the time of the confirmed release (like ACARS OUT).
+  - **After block out:** later sets and releases don't affect it.
+- **Block in (flight end):** parking brake set while stopped on the ground after a landing, and kept set until all
+  engines are shut down (D-005, D-032). Block in = the time of that set. A set that is released again with an
+  engine still running (hold short, waiting for a gate) is ignored.
 - Block time = block in − block out. This is the definition used by the whole app.
 - A flight that has started but not ended is **open**. Open-flight state must be persisted so a recorder or sim
   restart can resume it.
@@ -107,6 +117,8 @@ At minimum (exact SimVar names to be confirmed against the MSFS 2020 SDK docs an
 - On-ground flag
 - Total fuel weight (lb) — SimBrief and the app work in weight, not gallons
 - Latitude / longitude, altitude (MSL and AGL), vertical speed, ground speed, indicated airspeed
+- Engines running (`GENERAL ENG COMBUSTION:n`) and fuel flow (`ENG FUEL FLOW PPH:n`). These are needed for block in
+  (D-032).
 - Aircraft title (so the app can check the loaded aircraft matches the selected airframe)
 - Touchdown vertical speed (use a dedicated touchdown SimVar if MSFS 2020 provides a reliable one; otherwise sample
   vertical speed at high rate around the moment on-ground changes)
@@ -120,10 +132,15 @@ parking brake and fuel read correctly with the PMDG 737 and 777; record findings
 - Use change-based or once-per-second updates for most values.
 - Switch to fast sampling only briefly near the ground on approach/landing to capture touchdown, then drop back.
 - Live data for the web app's dashboard: about once per second is enough.
+- Implemented (D-023): one definition, `PERIOD_SECOND` + `CHANGED` with per-variable thresholds, and a one-off snapshot
+  on sim start, aircraft load and unpause. Junk samples are filtered before logging (D-025).
+- Connection: retry with back-off. A session counts as connected only after SimConnect's OPEN reply. It ends on
+  QUIT, when `FlightSimulator.exe` exits, or after 10 failed calls in a row. Silence only logs a warning (D-028).
 
 ## Output: local event log
 
-- Append-only file on disk (format to be decided and logged; JSON Lines is a natural fit).
+- Append-only JSON Lines files, one per UTC day: `%LOCALAPPDATA%\BlockTime\events\events-YYYY-MM-DD.jsonl` (D-020).
+  The event types implemented so far are listed in `recorder/README.md`.
 - One record per event, each with a timestamp (UTC), event type, and payload.
 - Example event types: `sim_connected`, `sim_disconnected`, `block_out`, `phase_changed`, `level_off`,
   `touchdown`, `go_around`, `block_in`, `flight_interrupted`, `telemetry` (periodic live sample).

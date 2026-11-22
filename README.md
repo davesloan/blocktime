@@ -55,8 +55,8 @@ up on background flights whenever it's opened.
 
 Build and run instructions live with each component:
 
-- Recorder: [`recorder/README.md`](recorder/README.md) *(coming soon)*
-- Web app: [`app/README.md`](app/README.md) *(later)*
+- Recorder: [`recorder/README.md`](recorder/README.md)
+- Web app: [`webapp/README.md`](webapp/README.md) *(later)*
 
 ## Documentation
 
