@@ -108,7 +108,13 @@ qt_standard_project_setup(REQUIRES 6.8)
 # next to the module's qmldir and see each other and the Theme singleton without imports.
 set(BLOCKTIME_QML_FILES
   qml/Main.qml
-  qml/Theme.qml)
+  qml/Theme.qml
+  qml/Card.qml
+  qml/StatTile.qml
+  qml/PrimaryButton.qml
+  qml/StatusPill.qml
+  qml/FlightPanel.qml
+  qml/EventFeed.qml)
 foreach(_qml IN LISTS BLOCKTIME_QML_FILES)
   get_filename_component(_name "${_qml}" NAME)
   set_source_files_properties("${_qml}" PROPERTIES QT_RESOURCE_ALIAS "${_name}")
@@ -122,8 +128,19 @@ qt_add_qml_module(blocktime-app
   QML_FILES ${BLOCKTIME_QML_FILES}
   SOURCES
     src/event_feed_model.h src/event_feed_model.cpp
-    src/recorder_bridge.h src/recorder_bridge.cpp)
+    src/recorder_bridge.h src/recorder_bridge.cpp
+    src/qml_hot_reload.h src/qml_hot_reload.cpp)
 target_link_libraries(blocktime-app PRIVATE blocktime-sim Qt6::Quick Qt6::QuickControls2)
+# The C++ that qmlcachegen generates from our QML trips C4702 (unreachable code) inside Qt's qjsengine.h. It's raised
+# by the optimizer, so /external:W0 can't hide it. Silence it for those generated files only.
+foreach(_qml IN LISTS BLOCKTIME_QML_FILES)
+  get_filename_component(_base "${_qml}" NAME_WE)
+  set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/.rcc/qmlcache/blocktime-app_qml_${_base}_qml.cpp"
+    TARGET_DIRECTORY blocktime-app PROPERTIES COMPILE_OPTIONS "/wd4702")
+endforeach()
+# Debug builds read QML from the source folder and reload it on save (D-055); release uses the compiled copy only.
+target_compile_definitions(blocktime-app PRIVATE
+  "$<$<CONFIG:Debug>:BLOCKTIME_QML_SOURCE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/qml\">")
 
 # Copy the Qt DLLs and QML plugins next to the exe, so it runs from the build folder without Qt on PATH (D-056).
 find_program(BLOCKTIME_WINDEPLOYQT windeployqt HINTS "${BLOCKTIME_QT_DIR}/bin" NO_DEFAULT_PATH REQUIRED)

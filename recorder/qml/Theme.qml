@@ -21,18 +21,25 @@ QtObject {
 
     // Meaning
     readonly property color accent: "#3B82F6"
+    // Text on an accent fill. (Not "onAccent": QML reads on<Capital> as a signal handler.)
+    readonly property color textOnAccent: "#FFFFFF"
     readonly property color good: "#22C55E"
     readonly property color warn: "#F59E0B"
     readonly property color bad: "#EF4444"
 
     // Shape
     readonly property int radius: 10
+    readonly property int radiusSmall: 8
     readonly property int spacing: 16
+    readonly property int pagePadding: 20
 
     // Type
     readonly property string fontFamily: "Segoe UI Variable"
+    readonly property int fontSizeLabel: 11  // small caps labels above values
     readonly property int fontSizeSmall: 12
     readonly property int fontSizeBody: 14
     readonly property int fontSizeTitle: 18
     readonly property int fontSizeValue: 28
+    readonly property int fontSizeClock: 44
+    readonly property real labelLetterSpacing: 1.2
 }
