@@ -42,6 +42,7 @@ set_target_properties(SimConnect PROPERTIES
 
 # --- Third-party --------------------------------------------------------------
 find_package(nlohmann_json CONFIG REQUIRED)
+find_package(unofficial-sqlite3 CONFIG REQUIRED)  # fleet store, UI test 2 (D-061)
 
 # --- Shared build settings ----------------------------------------------------
 # /external:W0 keeps third-party headers (gtest) from breaking the /W4 no-warnings rule.
@@ -57,12 +58,13 @@ add_library(blocktime-core STATIC
   src/event_log.cpp
   src/event_outbox.cpp
   src/block_detector.cpp
+  src/fleet_store.cpp
   src/flight_history.cpp
   src/geo.cpp
   src/open_flight.cpp
   src/telemetry_filter.cpp)
 target_include_directories(blocktime-core PUBLIC src)
-target_link_libraries(blocktime-core PUBLIC blocktime-options nlohmann_json::nlohmann_json)
+target_link_libraries(blocktime-core PUBLIC blocktime-options nlohmann_json::nlohmann_json unofficial::sqlite3::sqlite3)
 
 # --- Sim: the recorder loop and SimConnect, shared by the console recorder and the Qt app (D-053) ---
 add_library(blocktime-sim STATIC
@@ -87,6 +89,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/block_detector_test.cpp
     tests/event_log_test.cpp
     tests/event_outbox_test.cpp
+    tests/fleet_store_test.cpp
     tests/flight_history_test.cpp
     tests/geo_test.cpp
     tests/open_flight_test.cpp)
