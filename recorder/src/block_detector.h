@@ -66,6 +66,10 @@ class BlockDetector {
 public:
     std::optional<BlockEvent> onSample(const BlockSample& s);
 
+    // The junk filter rejected a sample (main menu, loading screen). With no flight open, the next valid sample
+    // only sets a new brake baseline, so loading a flight with the brake off isn't a release (D-045).
+    void onInvalidSample();
+
     // The sim session ended. Reports an open flight as interrupted and forgets all state (D-044).
     std::optional<FlightInterrupted> onSessionEnded(std::string_view reason);
 

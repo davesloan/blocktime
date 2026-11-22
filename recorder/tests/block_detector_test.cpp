@@ -72,6 +72,14 @@ struct Script {
         s.altAglFt = 8;
         step(at);
     }
+    // One sample with SIM ON GROUND false at ground height (a flicker), then back on the ground.
+    void flicker(seconds at) {
+        s.onGround = false;
+        step(at);
+        s.onGround = true;
+    }
+    // The junk filter rejected a sample (main menu, loading screen).
+    void invalid() { det.onInvalidSample(); }
     // Set, release at +5 s, move 20 m at +40 s: block out at kT0 + 5 s.
     void blockOut() {
         brake(true, 0s);
@@ -417,4 +425,61 @@ TEST(Json, InterruptedFields) {
     EXPECT_EQ(eventType(e), "flight_interrupted");
     EXPECT_EQ(keys(j), (std::vector<std::string>{"flight_id", "reason"}));
     EXPECT_EQ(j["reason"], "sim_quit");
+}
+
+// --- Review fixes: ground flicker and invalid stretches ----------------------
+
+TEST(BlockOut, GroundFlickerAfterReleaseKeepsCandidate) {
+    Script f;
+    f.brake(true, 0s);
+    f.brake(false, 5s);
+    f.s.latDeg += 3 / kMetersPerDegLat;
+    f.flicker(10s);
+    f.north(8, 20s);  // 11 m from the release, back on the ground
+    EXPECT_EQ(only<BlockOut>(f.events).time, kT0 + 5s);
+}
+
+TEST(BlockIn, GroundFlickerDuringShutdownKeepsCandidate) {
+    Script f;
+    f.flyAndLand();
+    f.brake(true, 4000s);
+    f.flicker(4030s);
+    f.engines(0, 4090s);
+    ASSERT_EQ(f.events.size(), 2u);
+    EXPECT_EQ(std::get<BlockIn>(f.events[1]).time, kT0 + 4000s);
+}
+
+TEST(Session, InvalidStretchResetsBrakeBaselineWithNoFlight) {
+    Script f;
+    f.flyAndLand();
+    f.brake(true, 4000s);
+    f.engines(0, 4090s);  // block in; the last brake state seen is "set"
+    f.invalid();          // main menu, then the next flight loads
+    f.s.fuelLb = 23031;   // PMDG default before its fuel restore
+    f.brake(false, 9000s);  // loads with the brake off: not a release
+    f.north(50, 9100s);
+    ASSERT_EQ(f.events.size(), 2u);
+    EXPECT_FALSE(f.det.flightOpen());
+}
+
+TEST(Session, InvalidStretchDropsBlockOutCandidate) {
+    Script f;
+    f.brake(true, 0s);
+    f.brake(false, 5s);  // candidate at KSAN
+    f.invalid();         // main menu; a flight at another airport loads
+    f.s.latDeg = 37.6213;
+    f.s.lonDeg = -122.379;
+    f.step(600s);
+    f.north(20, 660s);
+    EXPECT_TRUE(f.events.empty());
+}
+
+TEST(Session, InvalidSampleKeepsOpenFlightState) {
+    Script f;
+    f.flyAndLand();
+    f.brake(true, 4000s);
+    f.invalid();  // e.g. a brief junk sample at the gate
+    f.engines(0, 4090s);
+    ASSERT_EQ(f.events.size(), 2u);
+    EXPECT_EQ(std::get<BlockIn>(f.events[1]).time, kT0 + 4000s);
 }

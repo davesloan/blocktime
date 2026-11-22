@@ -216,7 +216,10 @@ int wmain(int argc, wchar_t** argv) {
     BlockDetector detector;
     SimConnection sim(log, [&](const TelemetrySample& s, bool running) {
         // Only samples that pass the junk filter may start or end a flight (D-025).
-        if (!telemetry.onSample(s, running)) return;
+        if (!telemetry.onSample(s, running)) {
+            detector.onInvalidSample();
+            return;
+        }
         if (auto e = detector.onSample(toBlockSample(s, std::chrono::system_clock::now()))) logBlockEvent(log, *e);
     });
 

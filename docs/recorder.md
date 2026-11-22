@@ -63,6 +63,9 @@ what to test and what result to expect.
   - "Landed" means on the ground after being airborne, and airborne means `SIM ON GROUND` false and at least
     100 ft AGL.
   - Engines off means no `GENERAL ENG COMBUSTION:n` is true.
+  - **D-045:** a set drops a block-out candidate and a release drops a block-in candidate. A `SIM ON GROUND`
+    flicker drops neither. After junk samples (main menu, loading) with no flight open, the brake state starts
+    over.
   - Times are real-world UTC when the sample arrives (up to about 1 s late).
 - **Not handled yet:** a flight that returns to the gate without taking off stays open.
 - Block time = block in − block out. This is the definition used by the whole app.

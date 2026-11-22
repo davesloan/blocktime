@@ -45,8 +45,9 @@ std::optional<BlockEvent> BlockDetector::onSampleNoFlight(const BlockSample& s, 
         outCandidate_ = s;
         return std::nullopt;
     }
-    if (s.parkingBrake || !s.onGround) outCandidate_.reset();
-    if (!outCandidate_) return std::nullopt;
+    // Only a set drops the candidate; a one-sample SIM ON GROUND flicker must not lose the flight (D-045).
+    if (s.parkingBrake) outCandidate_.reset();
+    if (!outCandidate_ || !s.onGround) return std::nullopt;
 
     const BlockSample& c = *outCandidate_;
     const double moved = distanceMeters(c.latDeg, c.lonDeg, s.latDeg, s.lonDeg);
@@ -78,8 +79,9 @@ std::optional<BlockEvent> BlockDetector::onSampleInFlight(const BlockSample& s, 
     if (airborne_ && s.onGround) landed_ = true;
     if (!landed_) return std::nullopt;
 
+    // Only a release drops the candidate (D-045).
     if (set && s.onGround) inCandidate_ = s;
-    else if (released || !s.onGround) inCandidate_.reset();
+    else if (released) inCandidate_.reset();
     if (!inCandidate_ || s.enginesRunning > 0) return std::nullopt;
 
     const BlockSample& c = *inCandidate_;
@@ -99,6 +101,12 @@ std::optional<BlockEvent> BlockDetector::onSampleInFlight(const BlockSample& s, 
     airborne_ = false;
     landed_ = false;
     return in;
+}
+
+void BlockDetector::onInvalidSample() {
+    if (open_) return;  // keep an open flight's state; what ends it is still to be decided with Dave
+    lastBrake_.reset();
+    outCandidate_.reset();
 }
 
 // Milestone 2 stopgap (D-044): nothing survives a lost session. Milestone 3 decides about resuming.

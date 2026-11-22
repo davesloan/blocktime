@@ -547,3 +547,24 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   and the recorder may resume them. Milestone 3 adds persistence and decides the resume rules.
 - Alternatives considered: Keeping the flight open across a reconnect with no persistence. It would be lost
   anyway if the recorder restarted.
+
+## D-045 — Ground flicker and invalid stretches in block detection
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude (from the milestone 2 code review)
+- Area: recorder
+- Decision:
+  - **Dropping candidates:** a block-out candidate is dropped only by a brake set, and a block-in candidate only
+    by a release. A sample with `SIM ON GROUND` false doesn't drop either one. Block out is still only confirmed
+    on a sample that is on the ground.
+  - **Invalid stretches:** when the junk filter rejects a sample (main menu, loading screen) and no flight is
+    open, the detector forgets the brake baseline and any block-out candidate. So the next valid sample, e.g. a
+    newly loaded flight with the brake off, is not a release. That stops it from becoming a block out at the
+    load time with PMDG's default fuel.
+  - **Open flights:** an invalid stretch doesn't change an open flight. What should happen to an open flight when
+    Dave goes to the main menu or loads another flight is open, and is a question for Dave.
+- Why: The review found that one flicker sample between the push release and 10 m would lose the whole flight. A
+  flicker between the gate set and engine shutdown would leave it open. It also found that brake state survived
+  a trip to the main menu.
+- Alternatives considered: Re-baselining an open flight too. That could miss a brake set made during the gap and
+  leave the flight stuck open.

@@ -22,6 +22,70 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-22 — Recorder milestone 2: block out / block in (0.2.0)
+
+**Done:**
+- Plan: `docs/plans/2026-11-22-recorder-milestone-2.md`.
+- **Unit tests (D-041):** GoogleTest, a `blocktime-core` library, and `ctest --preset x64-release`. 33 tests.
+- **Block detection:** `BlockDetector` implements block out (D-031) and block in (D-032), with the details in
+  D-042 and D-045.
+- **New events (D-043):** `block_out`, `block_in` and `flight_interrupted`.
+- **Lost session (D-044):** an open flight is logged as `flight_interrupted` and forgotten. Resume comes in
+  milestone 3.
+- **Code review** (requesting/receiving-code-review), two findings fixed:
+  - A single `on_ground=false` sample could lose the flight or leave it stuck open.
+  - Brake state survived a trip to the main menu, so a flight loaded with the brake off counted as a release.
+
+**Working / verified (without the sim):**
+- Release and debug builds have no warnings, and 33/33 tests pass in both.
+- With MSFS closed:
+  - The exe starts and logs `recorder_started`.
+  - A second copy exits with code 3.
+  - `--help` works.
+- Not checked: Ctrl+C exiting with code 0. It couldn't be signalled from Claude's shell; only one call was added to
+  the exit path.
+
+**Decisions for Dave to confirm:**
+- D-042 (detection details), D-043 (event fields: fuel at the set **and** after shutdown), D-044 (lost session) and
+  D-045 (flicker / invalid stretches) are Proposed.
+- **Open question 1:** a flight that is open when you go to the main menu, or load another flight, without
+  quitting MSFS. The recorder keeps it open, which has two effects:
+  - The next flight's push is swallowed.
+  - Its landing and shutdown close the old `flight_id`, with the old block-out time and fuel. If the old flight
+    had taken off, a brake set at the new gate with the engines off even gives an immediate `block_in`.
+  - Options: treat "back to the main menu" as `flight_interrupted`, or interrupt only when the position jumps
+    when the next flight loads. How often do you leave a flight open like that?
+- **Open question 2:** at the gate, do you ever release the brake after shutdown (chocks in) and then push the
+  next flight without setting it again? If so, block out would be timed at that early release, with fuel from
+  before refuelling.
+- A return to the gate without taking off leaves the flight open, with the same effect as question 1.
+
+**Unverified (Dave to test in the sim with 0.2.0):** fly a KSAN pattern in the PMDG 737, and repeat the shutdown on
+the 777.
+1. Profile set/release, GSX set, release for the push, set after the push, release to taxi. Expect exactly **one**
+   `block_out`, timed at the push release, with `fuel_lb` equal to the fuel at that moment. The console prints
+   `BLOCK OUT`.
+2. Set and release the brake at hold short before takeoff. Expect no new events.
+3. After landing, set and release at a taxiway stop. Expect no `block_in`.
+4. Set at the gate, then shut down both engines. Expect one `block_in`:
+   - timed at the set,
+   - `shutdown_time` when the last engine stopped,
+   - `block_time_s` equal to in − out.
+5. On the 777: engine shutdown makes `eng_running` all false and produces `block_in`. This hasn't been tested
+   before.
+6. After a block in, go to the main menu and load another flight with the brake off. Expect no `block_out` until
+   a real push.
+7. Optional: quit MSFS after block out. Expect `sim_disconnected` and then `flight_interrupted` with `sim_quit`.
+8. Ctrl+C exits cleanly (`recorder_stopped`, no error).
+
+**Deferred review items:**
+- A failed write of a block event is only reported on stderr (the 0.1.2 deferred item; it matters more now).
+- A block-out candidate never expires (see open question 2).
+
+**Next step:**
+- Dave runs the sim checklist and answers the open questions. Then milestone 3 (durable log and resume of an open
+  flight), which is also where open question 1 is settled.
+
 ## 2026-11-22 — Planning: flight analysis milestone
 
 **Done:**
