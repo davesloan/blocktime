@@ -22,6 +22,39 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-22 — Recorder 0.2.0 sim test at KOAK
+
+**Done:**
+- Dave ran the 0.2.0 checklist in one MSFS load: a PMDG 737-800 pattern from a GSX gate, then the 777-300ER at a
+  gate. Log: `events-2026-11-22.jsonl`, from line 450.
+- New observations are in `docs/notes/msfs-observed-behaviour.md`.
+
+**Working / verified in the sim:**
+1. **Push:** exactly one `block_out`, timed at the push release (16:42:53.237). `fuel_lb` 15,761.7 matches the
+   release sample, after GSX refuelling. It was confirmed 11 s later at 11.1 m. The set after the push and the
+   release to taxi made no events.
+2. **Hold short:** skipped (Dave forgot). Still covered by the unit tests.
+3. **Taxiway stop after landing:** set and released with the engines running. No `block_in`.
+4. **Gate:** `block_in` with `time` = the set (17:06:13.713), `shutdown_time` = the last engine off (17:06:15.671)
+   and `block_time_s` 1400, which equals in − out. Fuel at the set and at shutdown are both right.
+5. **777 loaded with the brake off:** no `block_out`, across two invalid stretches during the load.
+6. **777 engines:** `eng_running` went `[false,true]` → `[true,true]` → `[true,false]` → `[false,false]`. No
+   `block_in`, because it didn't fly.
+7. **Ctrl+C:** `sim_disconnected` (`recorder_exit`), then `recorder_stopped`. The restart reconnected at once. The
+   exit code itself wasn't captured, but the exit path ran to the end.
+8. **777 push, then quit:** `block_out` (13.8 m), then `flight_interrupted`. The reason was `sim_process_gone`,
+   not the expected `sim_quit` (see below).
+
+**Unverified or odd:**
+- **No QUIT message on this exit.** MSFS stopped (`sim_stopped`) and its process was gone 5 s later without
+  sending SimConnect QUIT. In the 0.1.1 test, quitting did send QUIT. How Dave quit this time is still to be
+  asked. Detection still worked; this matters only if milestone 3 treats a crash differently from a quit.
+- The hold-short set/release (step 2) hasn't been seen in the sim.
+
+**Next step:**
+- Dave confirms D-042 to D-045 and answers the two open questions in the milestone 2 entry below.
+- Then milestone 3: durable log and resume of an open flight.
+
 ## 2026-11-22 — Recorder milestone 2: block out / block in (0.2.0)
 
 **Done:**

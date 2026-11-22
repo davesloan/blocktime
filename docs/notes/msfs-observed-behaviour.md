@@ -3,6 +3,27 @@
 These facts come from BlockTime Recorder logs. Each entry says when and with what it was seen. Add new
 observations at the top.
 
+## 2026-11-22: PMDG 737-800 and 777-300ER at KOAK, recorder 0.2.0
+
+### Block detection
+- **737 push with GSX:** the push release was confirmed by 10 m of movement 11 s after the release. On the 777 it
+  took 15 s.
+- **GSX refuelling** raised the 737's fuel from 8,934 lb (at the first brake set) to 15,762 lb before the push.
+  This is why block-out fuel is read at the release, not at load or at the first set.
+- **Shutdown is quick:** on the 737 the last engine read `false` 2 s after the gate brake set.
+- **Brake set within 1 s of a release** (after shutdown at the gate) shows up as two separate samples. A
+  release/set pair faster than the 1 s sample period could still be missed.
+
+### 777-300ER engines
+- `GENERAL ENG COMBUSTION:n` works on the PMDG 777. Engine 2 started first. On shutdown engine 2 stopped first,
+  then engine 1.
+
+### Quitting MSFS doesn't always send QUIT
+- After a flight, MSFS logged `sim_stopped` and its process was gone about 5 s later with **no SimConnect QUIT
+  message**, so the recorder logged `sim_process_gone`. In the 0.1.1 test, quitting did send QUIT (`sim_quit`
+  1.4 s after `sim_stopped`). How MSFS was closed this time is not yet known. **Don't rely on `sim_quit` vs
+  `sim_process_gone` to tell a clean quit from a crash.**
+
 ## 2026-11-22: PMDG 737-800 and 777-300ER at KSAN, recorder 0.1.1
 
 ### Pause_EX1 flags
