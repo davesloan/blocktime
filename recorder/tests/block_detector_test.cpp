@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <numbers>
@@ -364,4 +365,56 @@ TEST(Session, LandedStateDoesNotSurvive) {
     ASSERT_EQ(f.events.size(), 2u);
     EXPECT_EQ(std::get<BlockOut>(f.events[1]).time, kT0 + 5100s);
     EXPECT_TRUE(f.det.flightOpen());
+}
+
+// --- Log format (D-043) ------------------------------------------------------
+
+namespace {
+std::vector<std::string> keys(const nlohmann::json& j) {
+    std::vector<std::string> k;
+    for (const auto& [key, value] : j.items()) k.push_back(key);
+    std::sort(k.begin(), k.end());
+    return k;
+}
+}  // namespace
+
+TEST(Json, BlockOutFields) {
+    Script f;
+    f.blockOut();
+    const BlockEvent& e = f.events.at(0);
+    const nlohmann::json j = toJson(e);
+
+    EXPECT_EQ(eventType(e), "block_out");
+    EXPECT_EQ(keys(j), (std::vector<std::string>{"atc_id", "flight_id", "fuel_gal", "fuel_lb", "lat", "lon",
+                                                 "moved_m", "time", "title"}));
+    EXPECT_EQ(j["flight_id"], "2026-11-22T14:00:05.000Z");
+    EXPECT_EQ(j["time"], "2026-11-22T14:00:05.000Z");
+    EXPECT_EQ(j["fuel_lb"], 9000.0);
+    EXPECT_EQ(j["atc_id"], "N738DV");
+}
+
+TEST(Json, BlockInFields) {
+    Script f;
+    f.flyAndLand();
+    f.brake(true, 4000s);
+    f.engines(0, 4090s);
+    const BlockEvent& e = f.events.at(1);
+    const nlohmann::json j = toJson(e);
+
+    EXPECT_EQ(eventType(e), "block_in");
+    EXPECT_EQ(keys(j), (std::vector<std::string>{"block_time_s", "flight_id", "fuel_gal", "fuel_lb", "lat", "lon",
+                                                 "shutdown_fuel_lb", "shutdown_time", "time"}));
+    EXPECT_EQ(j["time"], "2026-11-22T15:06:40.000Z");
+    EXPECT_EQ(j["shutdown_time"], "2026-11-22T15:08:10.000Z");
+    EXPECT_TRUE(j["block_time_s"].is_number_integer());
+    EXPECT_EQ(j["block_time_s"], 3995);
+}
+
+TEST(Json, InterruptedFields) {
+    const BlockEvent e = FlightInterrupted{"2026-11-22T14:00:05.000Z", "sim_quit"};
+    const nlohmann::json j = toJson(e);
+
+    EXPECT_EQ(eventType(e), "flight_interrupted");
+    EXPECT_EQ(keys(j), (std::vector<std::string>{"flight_id", "reason"}));
+    EXPECT_EQ(j["reason"], "sim_quit");
 }

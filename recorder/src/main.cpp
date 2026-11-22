@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Milestone 1: connect to MSFS, read telemetry, log it. See docs/recorder.md and docs/progress.md.
+// Milestone 2: connect to MSFS, log telemetry, and detect block out / block in (D-031, D-032).
+// See docs/recorder.md and docs/progress.md.
 
 #include <windows.h>
 
@@ -15,7 +16,10 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <type_traits>
+#include <variant>
 
+#include "block_detector.h"
 #include "event_log.h"
 #include "sim_connection.h"
 #include "telemetry_filter.h"
@@ -101,7 +105,8 @@ class TelemetryLogger {
 public:
     explicit TelemetryLogger(EventLog& log) : log_(log) {}
 
-    void onSample(const TelemetrySample& s, bool simRunning) {
+    // Logs the sample (or why it was rejected). Returns whether it is valid, i.e. safe for block detection.
+    bool onSample(const TelemetrySample& s, bool simRunning) {
         const SampleProblem p = checkSample(s, simRunning);
         if (p != SampleProblem::None) {
             ++skipped_;
@@ -111,10 +116,10 @@ public:
             }
             lastProblem_ = p;
             hasLast_ = false;  // always log the first good sample after an invalid stretch
-            return;
+            return false;
         }
         // Skip a sample identical to the last one logged (snapshot + periodic often coincide; D-029).
-        if (hasLast_ && std::memcmp(&s, &last_, sizeof(s)) == 0) return;
+        if (hasLast_ && std::memcmp(&s, &last_, sizeof(s)) == 0) return true;
         last_ = s;
         hasLast_ = true;
         nlohmann::json data = toJson(s);
@@ -130,6 +135,7 @@ public:
                                  s.parkingBrake ? "SET" : "off", s.onGround ? 1 : 0, s.fuelTotalLb, totalFuelFlow(s),
                                  engString(s), s.altitudeFt, s.altitudeAglFt, s.verticalSpeedFpm, s.groundSpeedKt,
                                  s.indicatedAirspeedKt, s.latitudeDeg, s.longitudeDeg);
+        return true;
     }
 
     void reset() {
@@ -145,6 +151,32 @@ private:
     TelemetrySample last_{};
     bool hasLast_ = false;
 };
+
+std::string hhmmss(TimePoint t) { return formatUtc(t).substr(11, 8); }
+
+// Writes a block event to the log, then prints a short line for it.
+void logBlockEvent(EventLog& log, const BlockEvent& event) {
+    log.write(eventType(event), toJson(event));
+    const std::string now = utcTimestamp().substr(11, 8);
+    std::visit(
+        [&](const auto& e) {
+            using T = std::decay_t<decltype(e)>;
+            if constexpr (std::is_same_v<T, BlockOut>) {
+                std::cout << std::format("{}  BLOCK OUT  {}  released {}  fuel {:.0f} lb\n", now, e.atcId,
+                                         hhmmss(e.time), e.fuelLb);
+            } else if constexpr (std::is_same_v<T, BlockIn>) {
+                std::cout << std::format("{}  BLOCK IN  brake set {}  fuel {:.0f} lb  block {}:{:02}\n", now,
+                                         hhmmss(e.time), e.fuelLb, e.blockTimeS / 3600, e.blockTimeS / 60 % 60);
+            } else {
+                std::cout << std::format("{}  FLIGHT INTERRUPTED  ({})\n", now, e.reason);
+            }
+        },
+        event);
+}
+
+void endSession(EventLog& log, BlockDetector& detector, std::string_view reason) {
+    if (auto e = detector.onSessionEnded(reason)) logBlockEvent(log, *e);
+}
 
 }  // namespace
 
@@ -181,7 +213,12 @@ int wmain(int argc, wchar_t** argv) {
               << "\nPress Ctrl+C to stop.\n";
 
     TelemetryLogger telemetry(log);
-    SimConnection sim(log, [&](const TelemetrySample& s, bool running) { telemetry.onSample(s, running); });
+    BlockDetector detector;
+    SimConnection sim(log, [&](const TelemetrySample& s, bool running) {
+        // Only samples that pass the junk filter may start or end a flight (D-025).
+        if (!telemetry.onSample(s, running)) return;
+        if (auto e = detector.onSample(toBlockSample(s, std::chrono::system_clock::now()))) logBlockEvent(log, *e);
+    });
 
     auto waitingSince = std::chrono::steady_clock::now();
     bool announcedWaiting = false;
@@ -212,7 +249,9 @@ int wmain(int argc, wchar_t** argv) {
         if (!alive) {
             std::cout << (announcedConnected ? "Disconnected (" : "Gave up waiting for sim (") << sim.lostReason()
                       << ").\n";
-            sim.close(sim.lostReason());
+            const std::string reason = sim.lostReason();
+            sim.close(reason);
+            endSession(log, detector, reason);
             waitingSince = std::chrono::steady_clock::now();
             continue;
         }
@@ -220,6 +259,7 @@ int wmain(int argc, wchar_t** argv) {
     }
 
     sim.close("recorder_exit");
+    endSession(log, detector, "recorder_exit");
     log.write("recorder_stopped");
     std::cout << "Stopped.\n";
     return 0;

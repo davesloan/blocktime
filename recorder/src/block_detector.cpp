@@ -109,8 +109,40 @@ std::optional<FlightInterrupted> BlockDetector::onSessionEnded(std::string_view 
     return result;
 }
 
-std::string_view eventType(const BlockEvent&) { return {}; }
+namespace {
 
-nlohmann::json toJson(const BlockEvent&) { return {}; }
+nlohmann::json toJsonOf(const BlockOut& e) {
+    return {{"flight_id", e.flightId}, {"time", formatUtc(e.time)}, {"lat", e.latDeg},     {"lon", e.lonDeg},
+            {"fuel_lb", e.fuelLb},     {"fuel_gal", e.fuelGal},     {"moved_m", e.movedM}, {"atc_id", e.atcId},
+            {"title", e.title}};
+}
+
+nlohmann::json toJsonOf(const BlockIn& e) {
+    return {{"flight_id", e.flightId},
+            {"time", formatUtc(e.time)},
+            {"lat", e.latDeg},
+            {"lon", e.lonDeg},
+            {"fuel_lb", e.fuelLb},
+            {"fuel_gal", e.fuelGal},
+            {"shutdown_time", formatUtc(e.shutdownTime)},
+            {"shutdown_fuel_lb", e.shutdownFuelLb},
+            {"block_time_s", e.blockTimeS}};
+}
+
+nlohmann::json toJsonOf(const FlightInterrupted& e) { return {{"flight_id", e.flightId}, {"reason", e.reason}}; }
+
+std::string_view typeOf(const BlockOut&) { return "block_out"; }
+std::string_view typeOf(const BlockIn&) { return "block_in"; }
+std::string_view typeOf(const FlightInterrupted&) { return "flight_interrupted"; }
+
+}  // namespace
+
+std::string_view eventType(const BlockEvent& e) {
+    return std::visit([](const auto& v) { return typeOf(v); }, e);
+}
+
+nlohmann::json toJson(const BlockEvent& e) {
+    return std::visit([](const auto& v) { return toJsonOf(v); }, e);
+}
 
 }  // namespace blocktime
