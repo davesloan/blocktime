@@ -105,6 +105,7 @@ This file overrides the plugin's "invoke a skill on any 1% chance" rule. Use onl
 - Flights start at **parking brake release at the gate** and end at **parking brake set at the destination**.
 - Phase detection follows the rules in `docs/recorder.md` (forward-only phases, plan-aware climb/cruise).
 - Must survive a sim crash or recorder restart mid-flight without corrupting or silently dropping the flight.
+- **Only the PMDG 737 and 777 families on MSFS 2020** (D-039). Don't test or add support for other aircraft.
 
 ## Tech conventions
 

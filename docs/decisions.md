@@ -442,3 +442,33 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: It's a one-person project; pull requests added steps without adding review that the review subagent
   doesn't already give.
 - Alternatives considered: One branch and pull request per milestone (D-033), used once, for milestone 1.
+
+## D-039 — Only the PMDG 737 and 777 on MSFS 2020 are supported
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: recorder
+- Decision: The recorder is built and tested only for the PMDG 737 and 777 families on MSFS 2020. All 737
+  variants use the same variables, and so do all 777 variants, so one of each is enough to test. Default and other
+  add-on aircraft aren't tested or supported. MSFS 2024 is out of scope.
+- Why: These are the only aircraft the airline flies (design.md section 1). Testing others is wasted effort.
+- Alternatives considered: Also testing a default aircraft, which earlier test checklists asked for. Dropped.
+
+## D-040 — End-of-flight analysis and 0–100 score by Claude
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: app, recorder
+- Decision: When a flight ends, the web app sends Claude, through the Claude API:
+  - the recorder's events for the flight,
+  - the SayIntentions ATC log,
+  - the ATIS for the origin and destination airports.
+
+  Claude returns a written analysis and a 0–100 score. Examples of what it checks: configured and stable by
+  1,000 ft, beacon on before pushback, landing lights below 10,000 ft, seatbelt signs below 18,000 ft, and
+  altimeter settings. The recorder gets a new milestone 7, procedure capture, which logs this cockpit state as
+  facts; delivery to the app moves to milestone 8.
+- Why: Dave wants feedback on how well each flight was flown. Keeping the recorder to facts and the judging in the
+  app follows the recorder ground rules.
+- Alternatives considered: None yet. The full list of checks, how they're scored, whether the score affects the
+  airline, and how SayIntentions data is fetched will be brainstormed when milestone 7 starts.

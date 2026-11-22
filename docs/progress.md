@@ -22,6 +22,17 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-22 — Planning: flight analysis milestone
+
+**Done:**
+- Added recorder milestone 7, **procedure capture**, to `docs/recorder.md`. Delivery to the app is now
+  milestone 8.
+- Added the end-of-flight analysis by Claude (0–100 score) to `docs/design.md` section 13 (D-040).
+- Limited aircraft support to the PMDG 737 and 777 on MSFS 2020 (D-039).
+
+**Next step:**
+- Milestone 2 (block out / block in) is still next. Brainstorm what to capture at the start of milestone 7.
+
 ## 2026-11-22 — Second sim test (recorder 0.1.1)
 
 **Sim test (PMDG 737-800, then PMDG 777-300ER, KSAN gate 32):** the details are in
@@ -46,7 +57,8 @@ Newest entries at the top. Add an entry at the end of every working session.
 - **B. 777 parking brake: not a bug.** Dave set it once and never released it, which matches the log (set at
   07:02:17).
 
-**Not tested:** 7 (ending `FlightSimulator.exe` mid-flight), a default aircraft, and engine shutdown on the 777.
+**Not tested:** 7 (ending `FlightSimulator.exe` mid-flight) and engine shutdown on the 777. Default aircraft no
+longer need testing (D-039).
 
 **Done after the test (recorder 0.1.2):**
 - `paused` now has `kinds` with the `Pause_EX1` bits named (`full`, `active`, `sim`, ...), alongside the raw

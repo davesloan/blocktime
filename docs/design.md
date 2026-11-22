@@ -299,6 +299,24 @@ Full detail in `recorder.md`.
   position until repositioned.
 - Phases are detected by the recorder (plan-aware, forward-only) and displayed in the web app.
 
+### Flight analysis (D-040)
+
+At the end of each of Dave's flights, the web app sends Claude, through the Claude API:
+- the recorder's events for the flight,
+- the SayIntentions ATC log,
+- the ATIS for the origin and destination airports.
+
+Claude sends back a written analysis and a **0–100 score**. Examples of what it checks:
+- Fully configured and stable by 1,000 ft.
+- Beacon on before pushback.
+- Landing lights on below 10,000 ft.
+- Seatbelt signs on below 18,000 ft.
+- Altimeters set to the right pressure at the right time (standard above the transition altitude, local QNH from
+  the ATIS below the transition level).
+
+The full list of checks, how they're scored, and whether the score affects anything in the airline get brainstormed
+when the recorder's procedure-capture milestone starts.
+
 ## 14. Reference data
 
 - **Airports:** OurAirports public dataset (coordinates, runways). Time zones derived from coordinates.
@@ -306,8 +324,8 @@ Full detail in `recorder.md`.
 
 ## 15. Later
 
-- **SayIntentions integration:** e.g. check altimeter setting before takeoff against the ATIS from SayIntentions;
-  capture ATC logs as part of the flight record for analysis.
+- **SayIntentions integration:** now part of the flight analysis (section 13, D-040). How to get the ATC log and
+  ATIS out of SayIntentions is still to be found out.
 - Optional flavour ideas: special cargo jobs with supernumeraries on the 777F; display-only "published schedule"
   labels.
 

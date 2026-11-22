@@ -31,7 +31,12 @@ It is being built **first**, because everything else depends on reliable flight 
 4. **Phases.** Implement the phase rules below, including level-off sub-states and go-arounds.
 5. **Touchdown capture.** Fast sampling near the ground; record touchdown rate.
 6. **SimBrief plan.** Fetch the latest OFP to get planned cruise altitude, origin, destination (needed by phase rules).
-7. **Delivery to the app.** Send events to the local web app (mechanism TBD; log the decision). Until the app exists,
+7. **Procedure capture.** Log the cockpit state the end-of-flight analysis needs (D-040). Examples: lights
+   (beacon, landing, seatbelt signs), gear and flaps, altimeter settings, and whether the aircraft is configured
+   and stable at 1,000 ft. The recorder only reports what changed and when; judging it is the app's job. What to
+   capture gets brainstormed at the start of this milestone. Many PMDG switches may not show up in standard
+   SimVars, so start with a probe flight on the 737 and the 777.
+8. **Delivery to the app.** Send events to the local web app (mechanism TBD; log the decision). Until the app exists,
    the log file is the output.
 
 Each milestone should be verifiable in the sim by Dave. When finishing one, write in `docs/progress.md` exactly
@@ -122,10 +127,15 @@ At minimum (exact SimVar names to be confirmed against the MSFS 2020 SDK docs an
 - Aircraft title (so the app can check the loaded aircraft matches the selected airframe)
 - Touchdown vertical speed (use a dedicated touchdown SimVar if MSFS 2020 provides a reliable one; otherwise sample
   vertical speed at high rate around the moment on-ground changes)
-- Later (SayIntentions features): altimeter setting, for checking it against the ATIS
+- Later (milestone 7, procedure capture): cockpit state for the flight analysis, including the altimeter setting
+  to check against the SayIntentions ATIS (D-040)
+
+**Aircraft scope (D-039):** only the PMDG 737 and 777 families on MSFS 2020. Every 737 variant uses the same
+variables, and so does every 777 variant, so testing one of each is enough. Default and other add-on aircraft are
+not tested or supported.
 
 **PMDG note:** PMDG aircraft sometimes expose systems through their own SDK rather than standard SimVars. Verify that
-parking brake and fuel read correctly with the PMDG 737 and 777; record findings in `docs/notes/`.
+each value reads correctly on the 737 and 777; record findings in `docs/notes/`.
 
 ## Sampling strategy
 
