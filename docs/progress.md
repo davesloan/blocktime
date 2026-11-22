@@ -52,6 +52,19 @@ Newest entries at the top. Add an entry at the end of every working session.
 - `paused` now has `kinds` with the `Pause_EX1` bits named (`full`, `active`, `sim`, ...), alongside the raw
   `flags` (D-035, Proposed). Release and debug build with no warnings. The new field hasn't been seen in the sim
   yet: on the next run, Escape should log `"kinds":["sim"]` and active pause `"kinds":["active"]`.
+- **Code review fixes:**
+  - A torn last line in the log is repaired when the log is opened (D-036).
+  - Only one recorder can run at a time (D-037).
+  - Messages that already arrived are processed before a sim crash ends the session.
+  - The vcpkg version now matches (0.1.2).
+- **Review items left for later:**
+  - Logoff and shutdown don't write `recorder_stopped`: console handlers don't get those events once `user32` is
+    loaded. The tray app will fix this.
+  - Non-ANSI log paths make `path::string()` throw.
+  - An event that fails to write is only reported on stderr, not queued and retried.
+  - The `FlightSimulator.exe`-not-found warning isn't logged if the handshake times out.
+  - There's no delay before reconnecting after a lost session.
+  - The README doesn't list a few minor fields (`skipped_invalid`, the exception `send_id`/`index`).
 
 **Next step:**
 - Commit and merge milestone 1 by pull request, then start milestone 2 (block out / block in, D-031, D-032)

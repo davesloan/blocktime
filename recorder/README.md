@@ -67,6 +67,8 @@ From anywhere else, use the full path, e.g.:
   several minutes. While MSFS isn't running it prints `Waiting for sim...` and retries
   every 10 s. It slows to every 20 s after 30 min and every 40 s after 60 min.
 - Press **Ctrl+C** to stop it cleanly.
+- Only one recorder can run at a time. A second copy prints `BlockTime Recorder is already running` and exits
+  with code 3.
 - `--log-dir <folder>` writes the log somewhere else.
 
 ### Output

@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <format>
+#include <fstream>
 #include <iostream>
 
 namespace blocktime {
@@ -43,6 +44,13 @@ bool EventLog::ensureOpenFor(const std::string& utcDate) {
         std::cerr << "ERROR: cannot open event log " << path_.string() << "\n";
         openDate_.clear();
         return false;
+    }
+    // If a crash left a torn last line, start on a fresh line so our first event isn't glued to it (D-036).
+    std::error_code sizeEc;
+    if (const auto size = std::filesystem::file_size(path_, sizeEc); !sizeEc && size > 0) {
+        std::ifstream in(path_, std::ios::binary);
+        char last = '\n';
+        if (in.seekg(-1, std::ios::end) && in.get(last) && last != '\n') out_ << '\n';
     }
     openDate_ = utcDate;
     return true;

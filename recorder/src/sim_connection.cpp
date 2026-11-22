@@ -247,7 +247,8 @@ void SimConnection::heartbeat() {
 
 bool SimConnection::pump() {
     if (handle_ == nullptr) return false;
-    if (simProcessGone()) markLost("sim_process_gone");
+    // Drain the queue before checking the process, so messages that already arrived aren't dropped.
+    const bool processGone = simProcessGone();
     // GetNextDispatch returns E_FAIL when the queue is empty, so failures here are not counted as errors.
     for (int i = 0; i < 1000 && !lost_; ++i) {
         SIMCONNECT_RECV* msg = nullptr;
@@ -260,6 +261,7 @@ bool SimConnection::pump() {
         lastMessage_ = Clock::now();
         handleMessage(msg, size);
     }
+    if (processGone && !lost_) markLost("sim_process_gone");
     if (!lost_) heartbeat();
     return !lost_;
 }

@@ -168,6 +168,13 @@ int wmain(int argc, wchar_t** argv) {
     std::cout << std::unitbuf;  // keep console/redirected output current even if we're killed
     SetConsoleCtrlHandler(onConsoleCtrl, TRUE);
 
+    // Only one recorder at a time; a second one would write every event twice (D-037). The handle is held until
+    // the process exits.
+    if (CreateMutexW(nullptr, FALSE, L"Local\\BlockTimeRecorder") != nullptr && GetLastError() == ERROR_ALREADY_EXISTS) {
+        std::cerr << "BlockTime Recorder is already running. Close the other window first.\n";
+        return 3;
+    }
+
     EventLog log(logDir);
     if (!log.write("recorder_started", {{"version", BLOCKTIME_VERSION}})) return 1;
     std::cout << "BlockTime Recorder " BLOCKTIME_VERSION "\nLogging to " << log.dir().string()

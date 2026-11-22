@@ -404,3 +404,29 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   bits being set at once.
 - Alternatives considered: Replacing `flags` with a single name. That would lose information if two bits were
   ever set together.
+
+## D-036 — Repair a torn last line when opening the log
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude (from the milestone 1 code review)
+- Area: recorder
+- Decision: When the recorder opens a day's log file and the file doesn't end in `\n`, it writes a `\n` first.
+  The torn fragment stays as one bad line, and the readers skip lines they can't parse (D-020). Lines are still
+  flushed only to the OS cache, not forced to disk with `FlushFileBuffers`.
+- Why: After an OS crash or power loss, the next `recorder_started` would otherwise be glued onto the fragment,
+  and that's the line crash recovery relies on. A recorder crash on its own doesn't lose data, because the OS
+  cache survives it.
+- Alternatives considered: `FlushFileBuffers` after every line. That costs a disk write a second and only helps
+  with OS crashes; it can be added for key events (block out and block in) later.
+
+## D-037 — Only one recorder at a time
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude (from the milestone 1 code review)
+- Area: recorder
+- Decision: At startup, the recorder creates the named mutex `Local\BlockTimeRecorder`. If it already exists, the
+  recorder prints a message and exits with code 3, before writing anything to the log.
+- Why: Two recorders would append every event to the same file twice, which would give two block outs in
+  milestone 2.
+- Alternatives considered: A lock file next to the log. It can go stale after a crash; a mutex is released by
+  Windows when the process exits.
