@@ -8,6 +8,8 @@ import QtQuick.Controls.Basic
 ApplicationWindow {
     id: window
 
+    required property RecorderBridge recorder
+
     width: 1100
     height: 720
     minimumWidth: 900
@@ -24,5 +26,16 @@ ApplicationWindow {
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSizeTitle
         font.weight: Font.DemiBold
+    }
+
+    // Temporary check for Task 3; Task 4 replaces it with the flight panel.
+    Text {
+        x: Theme.spacing
+        y: 60
+        text: window.recorder.connection + "  alt " + window.recorder.altitudeFt.toFixed(0) + "  events "
+              + window.recorder.events.rowCount()
+        color: Theme.textSecondary
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSizeBody
     }
 }

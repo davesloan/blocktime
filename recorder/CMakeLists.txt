@@ -119,7 +119,10 @@ qt_add_executable(blocktime-app WIN32 src/app_main.cpp)
 qt_add_qml_module(blocktime-app
   URI BlockTime
   VERSION 1.0
-  QML_FILES ${BLOCKTIME_QML_FILES})
+  QML_FILES ${BLOCKTIME_QML_FILES}
+  SOURCES
+    src/event_feed_model.h src/event_feed_model.cpp
+    src/recorder_bridge.h src/recorder_bridge.cpp)
 target_link_libraries(blocktime-app PRIVATE blocktime-sim Qt6::Quick Qt6::QuickControls2)
 
 # Copy the Qt DLLs and QML plugins next to the exe, so it runs from the build folder without Qt on PATH (D-056).
