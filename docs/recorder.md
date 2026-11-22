@@ -27,6 +27,7 @@ It is being built **first**, because everything else depends on reliable flight 
 1. **Connect and read.** Connect to MSFS, subscribe to a handful of SimVars, print/log them. Handle "sim not running"
    and reconnect.
 2. **Block out / block in.** Detect parking brake release and set; write events with time, position, fuel.
+   **Built in 0.2.0** (D-041 to D-044); the in-sim checks are listed in `docs/progress.md`.
 3. **Durable local log.** Append-only event log on disk; recorder restart mid-flight resumes the open flight.
 4. **Phases.** Implement the phase rules below, including level-off sub-states and go-arounds.
 5. **Touchdown capture.** Fast sampling near the ground; record touchdown rate.
@@ -56,6 +57,14 @@ what to test and what result to expect.
 - **Block in (flight end):** parking brake set while stopped on the ground after a landing, and kept set until all
   engines are shut down (D-005, D-032). Block in = the time of that set. A set that is released again with an
   engine still running (hold short, waiting for a gate) is ignored.
+- **Details (D-042):**
+  - A release or set is a change between two valid samples. The first sample after start or after a lost session
+    only sets the baseline.
+  - "Landed" means on the ground after being airborne, and airborne means `SIM ON GROUND` false and at least
+    100 ft AGL.
+  - Engines off means no `GENERAL ENG COMBUSTION:n` is true.
+  - Times are real-world UTC when the sample arrives (up to about 1 s late).
+- **Not handled yet:** a flight that returns to the gate without taking off stays open.
 - Block time = block in − block out. This is the definition used by the whole app.
 - A flight that has started but not ended is **open**. Open-flight state must be persisted so a recorder or sim
   restart can resume it.
@@ -70,6 +79,9 @@ leaves the resolution to the user (in the web app):
 
 If the sim reconnects and the user carries on flying the same flight, the recorder may resume it (design the
 resume rules carefully and log the decision).
+
+**Until milestone 3 (D-044):** state is in memory only. When the sim session ends or the recorder exits with a
+flight open, the recorder logs `flight_interrupted` and forgets the flight. There is no resume yet.
 
 ### Diversions
 
@@ -154,6 +166,13 @@ each value reads correctly on the 737 and 777; record findings in `docs/notes/`.
 - One record per event, each with a timestamp (UTC), event type, and payload.
 - Example event types: `sim_connected`, `sim_disconnected`, `block_out`, `phase_changed`, `level_off`,
   `touchdown`, `go_around`, `block_in`, `flight_interrupted`, `telemetry` (periodic live sample).
+- Block events (D-043). Times in `data` are the moment of the brake change; the line's `ts` is when it was written:
+  - `block_out`: `flight_id` (= block-out time), `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` (at the release),
+    `moved_m`, `atc_id`, `title`.
+  - `block_in`: `flight_id`, `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` (at the set), `shutdown_time`,
+    `shutdown_fuel_lb` (when the last engine stopped), `block_time_s`.
+  - `flight_interrupted`: `flight_id`, `reason` (the session's lost reason, or `recorder_exit`).
+  - The recorder doesn't name airports; the app resolves them from `lat`/`lon`.
 - The log must be readable by the web app later to catch up on anything it missed.
 
 ## Fuel tracking context (for the app, but the recorder must supply the data)

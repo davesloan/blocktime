@@ -3,8 +3,9 @@
 A small Windows console program that connects to Microsoft Flight Simulator 2020 through SimConnect and writes what
 it observes to a local JSON Lines event log. The spec is in [`docs/recorder.md`](../docs/recorder.md).
 
-**Current status: milestone 1 ("Connect and read").** It connects, reconnects, and logs sim state and telemetry.
-It doesn't detect block out, block in or phases yet.
+**Current status: milestone 2 ("Block out / block in"), version 0.2.0.** It connects, reconnects, logs sim state
+and telemetry, and detects when a flight starts and ends from the parking brake (D-031, D-032). It doesn't detect
+phases yet, and an open flight isn't kept across a recorder or sim restart (milestone 3).
 
 ## Prerequisites
 
@@ -16,7 +17,7 @@ It doesn't detect block out, block in or phases yet.
   1. `-DSIMCONNECT_SDK_DIR=<path to the "SimConnect SDK" folder>`, if you pass it
   2. `%MSFS_SDK%\SimConnect SDK` (the SDK installer sets `MSFS_SDK`)
   3. `C:\MSFS SDK\SimConnect SDK`
-- An internet connection on the first build, because vcpkg downloads `nlohmann-json`.
+- An internet connection on the first build, because vcpkg downloads `nlohmann-json` and `gtest`.
 
 ## Build
 
@@ -43,6 +44,18 @@ Visual Studio edition or version:
 ```powershell
 $vs = "C:\Program Files\Microsoft Visual Studio\18\Community"; $env:PATH = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer;$env:PATH"; Import-Module "$vs\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"; Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64"
 ```
+
+## Test
+
+The unit tests cover the logic that can run without the sim: block detection, timestamps and distances. After a
+build:
+
+```powershell
+ctest --preset x64-release
+```
+
+The test exe is `buildd-releaselocktime-tests.exe`. The tests also show up in Visual Studio's Test Explorer.
+Pass `-DBLOCKTIME_BUILD_TESTS=OFF` to the configure step to skip building them.
 
 Notes:
 - The presets need `VCPKG_ROOT`. The developer shell sets it to Visual Studio's bundled vcpkg.
@@ -93,6 +106,9 @@ Event types logged so far:
 | `aircraft_loaded` | Path of the loaded `aircraft.cfg`; logged only when the aircraft changes |
 | `telemetry` | A valid sample: on change, at most once a second; identical repeats are skipped. Includes `engines`, `eng_running` (per engine) and `fuel_flow_pph` (total) |
 | `telemetry_invalid` | Samples start being rejected as junk; `reason` says why |
+| `block_out` | The flight started: the parking brake release that was followed by 10 m of movement. `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` are from the release; also `flight_id` (= that time), `moved_m`, `atc_id`, `title` |
+| `block_in` | The flight ended: after landing, a brake set held until every engine was off. `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` are from the set; also `flight_id`, `shutdown_time`, `shutdown_fuel_lb`, `block_time_s` |
+| `flight_interrupted` | The sim session ended, or the recorder exited, with a flight open; `flight_id`, `reason`. The flight is dropped (no resume until milestone 3) |
 | `simconnect_exception` | SimConnect reported an exception; `call` names the request that caused it |
 | `warning` | Something unexpected but not fatal (e.g. `FlightSimulator.exe` not found) |
 

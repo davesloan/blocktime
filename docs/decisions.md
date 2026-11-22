@@ -223,7 +223,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-023 — Telemetry: once a second, only on change, single thread
 - Date: 2026-11-21
-- Status: Accepted (approved by Dave 2026-11-21)
+- Status: Accepted (approved by Dave 2026-11-21); the plan to read `ZULU TIME` at block events is dropped by D-042
 - Decided by: Claude, approved by Dave
 - Area: recorder
 - Decision: One data definition on the user aircraft, requested with `SIMCONNECT_PERIOD_SECOND` +
@@ -472,3 +472,78 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   app follows the recorder ground rules.
 - Alternatives considered: None yet. The full list of checks, how they're scored, whether the score affects the
   airline, and how SayIntentions data is fetched will be brainstormed when milestone 7 starts.
+
+## D-041 — GoogleTest and a core library for unit tests
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave (GoogleTest), Claude (layout)
+- Area: build
+- Decision: Unit tests use GoogleTest from vcpkg (`gtest`). Code that doesn't touch SimConnect or `windows.h`
+  (event log, junk filter, geometry, block detection) builds as the static library `blocktime-core`. Both
+  `blocktime-recorder.exe` and `blocktime-tests.exe` link it. `ctest --preset x64-release` runs the tests.
+  `/external:W0` keeps third-party headers out of the `/W4` no-warnings rule. `BLOCKTIME_BUILD_TESTS=OFF` skips
+  the tests.
+- Why: Claude can't run the sim, so the flight logic has to be testable without it (D-033). GoogleTest is the most
+  widely used framework and shows up in Visual Studio's Test Explorer.
+- Alternatives considered: doctest (lighter, single header) and Catch2 v3.
+
+## D-042 — Block detection details
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: recorder
+- Decision: These details fill in D-031 and D-032:
+  - **Release / set:** a change in the brake between two valid samples. The first sample after start or after a
+    lost session only sets the baseline, so a brake that is already off is never a release.
+  - **Block-out candidate:** only a release on the ground counts. Movement is the haversine distance from the
+    release point; it is confirmed at ≥ 10 m with the brake off and on the ground.
+  - **Airborne:** `SIM ON GROUND` false **and** `PLANE ALT ABOVE GROUND` ≥ 100 ft. **Landed:** on the ground
+    after being airborne.
+  - **Block-in candidate:** only a set on the ground after landing counts. Speed isn't checked: a brake held
+    through engine shutdown on the ground only happens when stopped, and a speed check could leave a flight
+    stuck open.
+  - **Engines off:** no `GENERAL ENG COMBUSTION:n` true for n up to `NUMBER OF ENGINES` (fuel flow decays for
+    about 50 s after shutdown, so it isn't used).
+  - **Times:** real-world UTC when the sample arrives, so they can be up to about 1 s late. Sim `ZULU TIME` isn't
+    read. The airline runs on real time (design.md), so this drops D-023's plan to read it at block events.
+- Why: The 100 ft AGL check means a one-sample `on_ground` flicker during taxi can't count as a flight; PMDG
+  reads 8–14 ft on the ground. Needing a transition stops a recorder started mid-taxi from inventing a block
+  out.
+- Alternatives considered: Treating a brake that is off on the first sample as a release. A gate speed check for
+  block in. Reading sim time.
+- Known gap: a return to the gate without taking off leaves the flight open. This is rare, and milestone 3 can
+  revisit it.
+
+## D-043 — Block event fields
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: recorder, data
+- Decision:
+  - `block_out`: `flight_id, time, lat, lon, fuel_lb, fuel_gal, moved_m, atc_id, title`. Position and fuel are
+    taken at the release.
+  - `block_in`: `flight_id, time, lat, lon, fuel_lb, fuel_gal, shutdown_time, shutdown_fuel_lb, block_time_s`.
+    Position and fuel are taken at the set, and `shutdown_*` when the last engine stopped.
+  - `flight_interrupted`: `flight_id, reason`.
+  - `flight_id` is the block-out time (`2026-11-22T14:00:05.000Z`).
+  - Times in `data` are the moment of the brake change; the line's `ts` is when it was written.
+  - The airport isn't resolved; the app finds it from lat/lon (OurAirports, D-017). That also covers diversions.
+- Why: Fuel at the set is the block-in fact. Fuel after shutdown is what is left in the tanks for the next
+  flight's fuel check (recorder.md, "Fuel tracking"). Giving both lets the app choose. One flight is open at a
+  time, so its start time is a unique ID.
+- Alternatives considered: A GUID flight ID. Fuel at block in only. Looking up the nearest airport in the recorder.
+
+## D-044 — Lost session ends the open flight as interrupted (until milestone 3)
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: recorder
+- Decision: When the sim session ends (`sim_quit`, `sim_process_gone`, `too_many_errors`, `handshake_timeout`) or
+  the recorder exits (`recorder_exit`) with a flight open, `flight_interrupted` is logged after
+  `sim_disconnected`. The detector then forgets everything: the flight, any candidate, the brake baseline and the
+  landed state. There is no resume yet.
+- Why: State is in memory only in milestone 2. Keeping stale state across a reconnect could turn a new session's
+  first samples into a false block out or block in. D-009 wants interrupted flights kept and resolved in the app,
+  and the recorder may resume them. Milestone 3 adds persistence and decides the resume rules.
+- Alternatives considered: Keeping the flight open across a reconnect with no persistence. It would be lost
+  anyway if the recorder restarted.
