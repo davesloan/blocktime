@@ -28,11 +28,13 @@ It is being built **first**, because everything else depends on reliable flight 
    and reconnect.
 2. **Block out / block in.** Detect parking brake release and set; write events with time, position, fuel.
    **Built in 0.2.0** (D-041 to D-044); the in-sim checks are listed in `docs/progress.md`.
-3. **Ending flights cleanly (no resume, D-046).** Suggested scope, to be planned:
-   - Exiting to the main menu with a flight open logs `flight_interrupted`.
+3. **Ending flights cleanly (no resume, D-046).** **Built in 0.3.0** (D-047 to D-049); the in-sim checks are in
+   `docs/progress.md`.
+   - Exiting to the main menu with a flight open logs `flight_interrupted` (`sim_stopped`).
    - If the recorder itself is killed or the PC loses power mid-flight, no `flight_interrupted` gets written. On
-     the next start, the recorder closes a flight left open in the log as interrupted, so it isn't silently lost.
-   - A failed write of a block event is made visible (deferred from milestone 2).
+     the next start, the recorder closes a flight left open in the log as interrupted (`recorder_crash`), so it
+     isn't silently lost.
+   - A block event whose write failed is held, retried, and shown on the console.
 4. **Phases.** Implement the phase rules below, including level-off sub-states and go-arounds.
 5. **Touchdown capture.** Fast sampling near the ground; record touchdown rate.
 6. **SimBrief plan.** Fetch the latest OFP to get planned cruise altitude, origin, destination (needed by phase rules).
@@ -92,7 +94,14 @@ The recorder must not guess. It marks the open flight as **interrupted** and lea
 
 **No resume (D-046):** when the sim session ends, the recorder exits, or Dave exits to the main menu with a
 flight open, the recorder logs `flight_interrupted` and forgets the flight. It never picks it up again, even if
-the sim reconnects. As of 0.2.0 the main-menu case isn't built yet (milestone 3).
+the sim reconnects.
+- **Main menu (D-047):** the signal is the sim's `Sim` state changing to stopped. It comes within about 1 s of
+  leaving a flight (main menu, restart, Escape → Quit) and never during a flight, the Escape menu or active pause.
+  Reason `sim_stopped`.
+- **Recorder killed or power cut (D-048):** at the next start, after the single-instance check, the recorder looks
+  at up to 7 daily log files, newest first. If the last `block_out` / `block_in` / `flight_interrupted` line is a
+  `block_out`, it logs `flight_interrupted` for it with reason `recorder_crash`. Known gap: if the sim is still in
+  that flight, a later brake set, release and 10 m of taxi opens a new flight there.
 
 ### Diversions
 
@@ -182,7 +191,11 @@ each value reads correctly on the 737 and 777; record findings in `docs/notes/`.
     `moved_m`, `atc_id`, `title`.
   - `block_in`: `flight_id`, `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` (at the set), `shutdown_time`,
     `shutdown_fuel_lb` (when the last engine stopped), `block_time_s`.
-  - `flight_interrupted`: `flight_id`, `reason` (the session's lost reason, or `recorder_exit`).
+  - `flight_interrupted`: `flight_id`, `reason` (the session's lost reason, `recorder_exit`, `sim_stopped` or
+    `recorder_crash`).
+- **Failed writes (D-049):** block events go through an outbox. One whose write fails is held and retried every
+  5 s, oldest first, and shown on the console; any still held at exit are printed to stderr as `LOST:`. A late
+  write only moves the line's `ts`; the event's own times are in `data`.
   - The recorder doesn't name airports; the app resolves them from `lat`/`lon`.
 - The log must be readable by the web app later to catch up on anything it missed.
 

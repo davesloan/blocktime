@@ -589,3 +589,51 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   (the old milestone 3 plan). Ending an open flight only if the position jumps when the next flight loads.
 - Replaces: D-044's "until milestone 3", D-045's open question about open flights, and the resume wording in
   `docs/recorder.md`.
+
+## D-047 — Leaving the flight is detected from the Sim stopped state
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: recorder
+- Decision: When the sim's `Sim` system state changes to stopped and a flight is open, log `flight_interrupted`
+  with reason `sim_stopped` and reset the detector as for a lost session (D-044). This covers exiting to the main
+  menu, restarting a flight and Escape → Quit. A stop with no flight open also resets the detector.
+- Why: D-046 says leaving the flight ends it. In the 2026-11-22 logs every exit to the main menu logged
+  `sim_stopped` within about 1 s, and it never appeared during a flight, the Escape menu (pause flag 8) or active
+  pause (flag 4). The first junk sample sometimes came about 60 s after the exit.
+- Alternatives considered: The first junk sample (`onInvalidSample`), which is late and could be a one-off glitch
+  at the gate. `Pause_EX1` flag 1 (`full`), which arrives at the same moment but is a pause flag rather than the
+  flight state.
+
+## D-048 — A flight left open by a killed recorder is closed on the next start
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: recorder
+- Decision: At startup, after the single-instance check (D-037) and `recorder_started`, scan up to 7 daily log
+  files (`events-YYYY-MM-DD.jsonl`), newest first. In the newest file with any `block_out`, `block_in` or
+  `flight_interrupted` line, the last one decides: a `block_out` means the flight was left open, so log
+  `flight_interrupted` with its `flight_id` and reason `recorder_crash`, and say so on the console. Lines that
+  don't parse are skipped.
+- Why: A killed recorder or a power cut writes no `flight_interrupted`, and CLAUDE.md says a flight must never be
+  silently dropped. Doing it after the mutex means a second copy can't close a running copy's flight. Seven files
+  covers a long flight across UTC midnight and a restart days later, without reading years of logs.
+- Alternatives considered: Leaving it to the web app to treat an unended `block_out` as interrupted. Persisting
+  the open flight in a state file.
+- Known gap: if the sim is still in that flight after the restart, a later brake set, release and 10 m of taxi
+  opens a new flight there (e.g. a stop on the taxiway). The main menu or the session end then interrupts it.
+  Only possible after a recorder crash, so it's accepted.
+
+## D-049 — Block events whose write failed are held and retried
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: recorder
+- Decision: `block_out`, `block_in` and `flight_interrupted` go through an `EventOutbox`. A failed write is held,
+  with a console warning showing the event's JSON, and retried every 5 s, oldest first; a new event waits behind
+  held ones. At exit the outbox is flushed once more, and anything still held is printed to stderr as `LOST:`.
+  The line's `ts` is when it was finally written; the event's own times are in `data` (D-043). Telemetry and
+  connection events are not retried.
+- Why: "Nothing may be lost" (CLAUDE.md), and the milestone 2 review deferred this. Block events exist only in
+  memory, so a failed write lost the flight with only a stderr line.
+- Alternatives considered: A console warning only. A separate fallback file.

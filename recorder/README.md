@@ -3,9 +3,9 @@
 A small Windows console program that connects to Microsoft Flight Simulator 2020 through SimConnect and writes what
 it observes to a local JSON Lines event log. The spec is in [`docs/recorder.md`](../docs/recorder.md).
 
-**Current status: milestone 2 ("Block out / block in"), version 0.2.0.** It connects, reconnects, logs sim state
-and telemetry, and detects when a flight starts and ends from the parking brake (D-031, D-032). It doesn't detect
-phases yet, and an open flight isn't kept across a recorder or sim restart (milestone 3).
+**Current status: milestone 3 ("Ending flights cleanly"), version 0.3.0.** It connects, reconnects, logs sim state
+and telemetry, and detects when a flight starts and ends from the parking brake (D-031, D-032). Every flight ends
+with `block_in` or `flight_interrupted`; a flight is never resumed (D-046). It doesn't detect phases yet.
 
 ## Prerequisites
 
@@ -108,8 +108,13 @@ Event types logged so far:
 | `telemetry_invalid` | Samples start being rejected as junk; `reason` says why |
 | `block_out` | The flight started: the parking brake release that was followed by 10 m of movement. `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` are from the release; also `flight_id` (= that time), `moved_m`, `atc_id`, `title` |
 | `block_in` | The flight ended: after landing, a brake set held until every engine was off. `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` are from the set; also `flight_id`, `shutdown_time`, `shutdown_fuel_lb`, `block_time_s` |
-| `flight_interrupted` | The sim session ended, or the recorder exited, with a flight open; `flight_id`, `reason`. The flight is dropped (no resume until milestone 3) |
+| `flight_interrupted` | A flight ended without block in; `flight_id`, `reason`. The reason is the session's lost reason (`sim_quit`, `sim_process_gone`, ...), `recorder_exit`, `sim_stopped` (Dave left the flight: main menu, restart) or `recorder_crash` (logged on the next start for a flight a killed recorder left open). The flight is never resumed (D-046) |
 | `simconnect_exception` | SimConnect reported an exception; `call` names the request that caused it |
 | `warning` | Something unexpected but not fatal (e.g. `FlightSimulator.exe` not found) |
 
 A copy of each event is also printed to the console in a short form.
+
+If a block event (`block_out`, `block_in`, `flight_interrupted`) can't be written, the console prints
+`WARNING: <type> could not be written to the log; retrying every 5 s.` with the event's data. It is retried until it
+succeeds (`Held events written to the log.`). Any still unwritten at exit are printed to stderr as `LOST: <type>
+<data>` (D-049).
