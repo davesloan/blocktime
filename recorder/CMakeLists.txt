@@ -124,7 +124,9 @@ set(BLOCKTIME_QML_FILES
   qml/LivePage.qml
   qml/FlightsPage.qml
   qml/FleetPage.qml
-  qml/RouteMap.qml)
+  qml/RouteMap.qml
+  qml/TrackDot.qml
+  qml/FlightCard.qml)
 foreach(_qml IN LISTS BLOCKTIME_QML_FILES)
   get_filename_component(_name "${_qml}" NAME)
   set_source_files_properties("${_qml}" PROPERTIES QT_RESOURCE_ALIAS "${_name}")
@@ -139,7 +141,8 @@ qt_add_qml_module(blocktime-app
   SOURCES
     src/event_feed_model.h src/event_feed_model.cpp
     src/recorder_bridge.h src/recorder_bridge.cpp
-    src/qml_hot_reload.h src/qml_hot_reload.cpp)
+    src/qml_hot_reload.h src/qml_hot_reload.cpp
+    src/flight_list_model.h src/flight_list_model.cpp)
 target_link_libraries(blocktime-app PRIVATE blocktime-sim Qt6::Quick Qt6::QuickControls2 Qt6::Location Qt6::Positioning)
 # The C++ that qmlcachegen generates from our QML trips C4702 (unreachable code) inside Qt's qjsengine.h. It's raised
 # by the optimizer, so /external:W0 can't hide it. Silence it for those generated files only.

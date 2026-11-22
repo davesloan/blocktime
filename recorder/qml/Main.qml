@@ -12,6 +12,7 @@ ApplicationWindow {
     id: window
 
     required property RecorderBridge recorder
+    required property FlightListModel flights
     // Map settings from app_main (D-059). The tile URL holds the CARTO key: never shown or logged.
     required property string mapTileUrl
     required property string mapCacheDir
@@ -93,6 +94,7 @@ ApplicationWindow {
 
                 FlightsPage {
                     recorder: window.recorder
+                    flights: window.flights
                     mapTileUrl: window.mapTileUrl
                     mapCacheDir: window.mapCacheDir
                     mapUserAgent: window.mapUserAgent

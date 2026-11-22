@@ -27,6 +27,7 @@
 
 #include "app_settings.h"
 #include "event_log.h"
+#include "flight_list_model.h"
 #include "qml_hot_reload.h"
 #include "recorder.h"
 #include "recorder_bridge.h"
@@ -146,9 +147,15 @@ int main(int argc, char* argv[]) {
     };
     QObject::connect(&app, &QCoreApplication::aboutToQuit, stopRecorder);
 
+    // Flights come from the log (D-060). A block out or block in changes the list; the recorder writes the line to the
+    // log before it tells the bridge, so the reload sees it.
+    FlightListModel flights(logDir);
+    QObject::connect(&bridge, &RecorderBridge::flightChanged, &flights, &FlightListModel::reload);
+
     QQmlApplicationEngine engine;
     const MapSettings map = mapSettings();
     const QVariantMap props{{"recorder", QVariant::fromValue(&bridge)},
+                            {"flights", QVariant::fromValue(&flights)},
                             {"mapTileUrl", map.tileUrl},
                             {"mapCacheDir", map.cacheDir},
                             {"mapUserAgent", map.userAgent}};
