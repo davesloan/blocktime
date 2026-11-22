@@ -22,6 +22,64 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-22 — Recorder milestone 3: flights always end (0.3.0)
+
+**Done:**
+- Plan: `docs/plans/2026-11-22-recorder-milestone-3.md`. 52 tests (19 new).
+- **Main menu (D-047):** when the sim's `Sim` state changes to stopped with a flight open, `flight_interrupted`
+  is logged with reason `sim_stopped`. This covers the main menu, restarting a flight and Escape → Quit.
+- **Killed recorder (D-048):** at the next start, a flight left open in the log is closed with reason
+  `recorder_crash`, and the console says so.
+- **Failed writes (D-049):** a block event whose write fails is held, shown on the console, retried, and printed
+  as `LOST:` at exit if it still couldn't be written.
+- Code review: no Critical findings and one Important one. A sim kill logs `sim_stopped` about 5 s before the
+  process is gone, so a killed MSFS now reports `sim_stopped` rather than `sim_process_gone`. The behaviour was
+  kept and the docs corrected (D-047). The Minor doc slips were fixed too.
+
+**Working / verified (without the sim):**
+- Release and debug builds have no warnings, and 52/52 tests pass in both.
+- Smoke run with a log folder holding a lone `block_out`: the first start logged `flight_interrupted`
+  (`recorder_crash`) and printed the console line. The second start logged nothing new.
+
+**Changed since 0.2.0:**
+- Force-terminating MSFS during a flight now gives `flight_interrupted` with `sim_stopped`, not
+  `sim_process_gone`. The 0.2.0 test's step 8 would read differently today.
+
+**Decisions for Dave to confirm:** D-047, D-048 and D-049 are Proposed.
+
+**Deferred review items:**
+- A file in the log folder with a name outside the Windows code page could make the startup scan throw, so the
+  recorder would fail at every start until the file is removed.
+- Mixing an elevated ("Run as administrator") recorder with a normal one gets past the single-instance check. The
+  second copy could then close the first one's flight as `recorder_crash`. This is pre-existing D-037 code.
+- No test pins that a sim stop with no flight open also resets the brake baseline.
+
+**Unverified (Dave to test in the sim with 0.3.0):** one MSFS load, two flights from the main menu. Use the PMDG 737
+at a KOAK GSX gate. Start the recorder first.
+
+*Flight 1: the main menu ends it.*
+1. Push and taxi ≥ 10 m. Expect `block_out`.
+2. Open and close the Escape menu, then turn active pause on and off. Expect no `sim_stopped` and no
+   `flight_interrupted`.
+3. Escape → exit to the main menu. Expect `sim_stopped`, then `flight_interrupted` with reason `sim_stopped`,
+   within a few seconds.
+
+*Flight 2: a killed recorder. Load the 737 at a KOAK gate again from the main menu.*
+
+4. Push and taxi ≥ 10 m. Expect `block_out`.
+5. Start a second recorder. Expect it to say it's already running and close. The first keeps recording, and there's
+   no `flight_interrupted`.
+6. In PowerShell, run `taskkill /F /IM blocktime-recorder.exe`, then start the recorder again. Expect:
+   - the console line `Previous flight <id> was left open ...`
+   - in the log, `recorder_started`, then `flight_interrupted` with that `flight_id` and reason `recorder_crash`
+   - no new `block_out` while you keep taxiing. Don't stop and set the brake: that opens a new flight (the
+     accepted D-048 gap).
+7. Last: exit to the main menu, then quit MSFS. Expect `sim_stopped` with no `flight_interrupted` (no flight is
+   open), then `sim_disconnected` (`sim_quit`).
+
+**Next step:**
+- Dave runs the checklist and confirms D-047 to D-049. Then milestone 4 (phases).
+
 ## 2026-11-22 — Recorder 0.2.0 sim test at KOAK
 
 **Done:**

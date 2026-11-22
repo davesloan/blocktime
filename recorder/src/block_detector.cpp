@@ -104,7 +104,7 @@ std::optional<BlockEvent> BlockDetector::onSampleInFlight(const BlockSample& s, 
 }
 
 void BlockDetector::onInvalidSample() {
-    if (open_) return;  // keep an open flight's state; what ends it is still to be decided with Dave
+    if (open_) return;  // a junk sample doesn't end a flight; leaving it does (onSimStopped, D-047)
     lastBrake_.reset();
     outCandidate_.reset();
 }

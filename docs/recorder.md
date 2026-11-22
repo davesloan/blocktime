@@ -96,8 +96,9 @@ The recorder must not guess. It marks the open flight as **interrupted** and lea
 flight open, the recorder logs `flight_interrupted` and forgets the flight. It never picks it up again, even if
 the sim reconnects.
 - **Main menu (D-047):** the signal is the sim's `Sim` state changing to stopped. It comes within about 1 s of
-  leaving a flight (main menu, restart, Escape → Quit) and never during a flight, the Escape menu or active pause.
-  Reason `sim_stopped`.
+  leaving a flight (main menu, restart, Escape → Quit). It doesn't come while flying, in the Escape menu or in
+  active pause. Reason `sim_stopped`. Killing MSFS also logs `sim_stopped` first (about 5 s before the process is
+  gone), so a sim kill shows as `sim_stopped`, not `sim_process_gone`.
 - **Recorder killed or power cut (D-048):** at the next start, after the single-instance check, the recorder looks
   at up to 7 daily log files, newest first. If the last `block_out` / `block_in` / `flight_interrupted` line is a
   `block_out`, it logs `flight_interrupted` for it with reason `recorder_crash`. Known gap: if the sim is still in
@@ -193,10 +194,11 @@ each value reads correctly on the 737 and 777; record findings in `docs/notes/`.
     `shutdown_fuel_lb` (when the last engine stopped), `block_time_s`.
   - `flight_interrupted`: `flight_id`, `reason` (the session's lost reason, `recorder_exit`, `sim_stopped` or
     `recorder_crash`).
-- **Failed writes (D-049):** block events go through an outbox. One whose write fails is held and retried every
-  5 s, oldest first, and shown on the console; any still held at exit are printed to stderr as `LOST:`. A late
-  write only moves the line's `ts`; the event's own times are in `data`.
   - The recorder doesn't name airports; the app resolves them from `lat`/`lon`.
+- **Failed writes (D-049):** block events go through an outbox. One whose write fails is held, shown on the
+  console, and retried oldest first: about every 5 s, or at each reconnect try (10–40 s) while waiting for the sim.
+  Any still held at exit are printed to stderr as `LOST:`. A late write only moves the line's `ts`; the event's
+  own times are in `data`.
 - The log must be readable by the web app later to catch up on anything it missed.
 
 ## Fuel tracking context (for the app, but the recorder must supply the data)

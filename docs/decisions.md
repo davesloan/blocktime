@@ -599,8 +599,11 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   with reason `sim_stopped` and reset the detector as for a lost session (D-044). This covers exiting to the main
   menu, restarting a flight and Escape → Quit. A stop with no flight open also resets the detector.
 - Why: D-046 says leaving the flight ends it. In the 2026-11-22 logs every exit to the main menu logged
-  `sim_stopped` within about 1 s, and it never appeared during a flight, the Escape menu (pause flag 8) or active
+  `sim_stopped` within about 1 s. It never appeared while flying, in the Escape menu (pause flag 8) or in active
   pause (flag 4). The first junk sample sometimes came about 60 s after the exit.
+- Side effect: force-terminating MSFS also logged `sim_stopped`, about 5 s before the process was gone. So a sim
+  kill (and maybe a crash to desktop, not yet seen) is reported as `sim_stopped`, not `sim_process_gone`. Both are
+  interrupted flights that Dave resolves the same way (D-009), so the reason isn't used to tell them apart.
 - Alternatives considered: The first junk sample (`onInvalidSample`), which is late and could be a one-off glitch
   at the gate. `Pause_EX1` flag 1 (`full`), which arrives at the same moment but is a pause flag rather than the
   flight state.
@@ -630,8 +633,8 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Decided by: Claude
 - Area: recorder
 - Decision: `block_out`, `block_in` and `flight_interrupted` go through an `EventOutbox`. A failed write is held,
-  with a console warning showing the event's JSON, and retried every 5 s, oldest first; a new event waits behind
-  held ones. At exit the outbox is flushed once more, and anything still held is printed to stderr as `LOST:`.
+  with a console warning showing the event's JSON, and retried about every 5 s (at each reconnect try, 10–40 s,
+  while waiting for the sim), oldest first; a new event waits behind held ones. At exit the outbox is flushed once more, and anything still held is printed to stderr as `LOST:`.
   The line's `ts` is when it was finally written; the event's own times are in `data` (D-043). Telemetry and
   connection events are not retried.
 - Why: "Nothing may be lost" (CLAUDE.md), and the milestone 2 review deferred this. Block events exist only in

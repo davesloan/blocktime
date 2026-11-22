@@ -29,6 +29,8 @@ observations at the top.
 - Killing MSFS (Dave force-terminated it during a flight) logs `sim_stopped`, then the process is gone about 5 s
   later with no SimConnect QUIT. The recorder logs `sim_process_gone`, as designed. A normal quit from the main
   menu sends QUIT (`sim_quit`, seen in the 0.1.1 test).
+- Because `sim_stopped` comes first, from 0.3.0 (D-047) an open flight is interrupted with reason `sim_stopped` when
+  MSFS is killed, before the session is lost.
 
 ## 2026-11-22: PMDG 737-800 and 777-300ER at KSAN, recorder 0.1.1
 

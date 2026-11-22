@@ -54,7 +54,7 @@ struct BlockIn {
 
 struct FlightInterrupted {
     std::string flightId;
-    std::string reason;  // the sim session's lost reason, "recorder_exit" or "sim_stopped"
+    std::string reason;  // the sim session's lost reason, "recorder_exit", "sim_stopped" or "recorder_crash"
 };
 
 using BlockEvent = std::variant<BlockOut, BlockIn, FlightInterrupted>;

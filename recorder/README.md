@@ -108,7 +108,7 @@ Event types logged so far:
 | `telemetry_invalid` | Samples start being rejected as junk; `reason` says why |
 | `block_out` | The flight started: the parking brake release that was followed by 10 m of movement. `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` are from the release; also `flight_id` (= that time), `moved_m`, `atc_id`, `title` |
 | `block_in` | The flight ended: after landing, a brake set held until every engine was off. `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` are from the set; also `flight_id`, `shutdown_time`, `shutdown_fuel_lb`, `block_time_s` |
-| `flight_interrupted` | A flight ended without block in; `flight_id`, `reason`. The reason is the session's lost reason (`sim_quit`, `sim_process_gone`, ...), `recorder_exit`, `sim_stopped` (Dave left the flight: main menu, restart) or `recorder_crash` (logged on the next start for a flight a killed recorder left open). The flight is never resumed (D-046) |
+| `flight_interrupted` | A flight ended without block in; `flight_id`, `reason`. The reason is the session's lost reason (`sim_quit`, `sim_process_gone`, ...), `recorder_exit`, `sim_stopped` (the flight was left: main menu, restart, or MSFS killed) or `recorder_crash` (logged on the next start for a flight a killed recorder left open). The flight is never resumed (D-046) |
 | `simconnect_exception` | SimConnect reported an exception; `call` names the request that caused it |
 | `warning` | Something unexpected but not fatal (e.g. `FlightSimulator.exe` not found) |
 
@@ -116,5 +116,8 @@ A copy of each event is also printed to the console in a short form.
 
 If a block event (`block_out`, `block_in`, `flight_interrupted`) can't be written, the console prints
 `WARNING: <type> could not be written to the log; retrying every 5 s.` with the event's data. It is retried until it
-succeeds (`Held events written to the log.`). Any still unwritten at exit are printed to stderr as `LOST: <type>
+succeeds (`Held events written to the log.`); while waiting for the sim, only at each reconnect try. Any still unwritten at exit are printed to stderr as `LOST: <type>
 <data>` (D-049).
+
+At startup, if the log shows a flight that a killed recorder left open, the console prints `Previous flight <id> was
+left open (the recorder didn't close cleanly); logged as interrupted.` (D-048).
