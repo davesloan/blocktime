@@ -673,3 +673,84 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: Trying something out and then merging or pruning it is exactly what branches are for, and it keeps
   throwaway code off `main`.
 - Alternatives considered: A `spikes/` folder on `main` (throwaway code on `main` while it's being judged).
+- Note (2026-11-22): Dave named the branch `qt-ui-spike` instead (D-052).
+
+## D-052 — The Qt test app is built inside the recorder project
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: build
+- Decision: On the branch `qt-ui-spike`, the Qt app is one more target (`blocktime-app`) in `recorder/CMakeLists.txt`.
+  Its C++ is in `recorder/src/`, its QML in `recorder/qml/`, and the existing presets build it, so Qt is a normal
+  requirement of the one build. Qt comes from the installer kit through the cache variable `BLOCKTIME_QT_DIR`
+  (default `C:/Qt/6.12.0/msvc2022_64`, or `%BLOCKTIME_QT_DIR%`). The console recorder stays as a second target
+  during the test. Dave also named the branch `qt-ui-spike` (D-051 said `spike/qt-ui`).
+- Why: If Qt wins there is one app and one build, so the test is built that way from the start and can be merged as
+  it is.
+- Alternatives considered: An `app/` subfolder with an on/off option and its own presets (Claude's first plan). A
+  top-level `app/` with its own build.
+
+## D-053 — The recorder loop is a library with an observer
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: recorder
+- Decision: The loop that was in `main.cpp` is now `Recorder::run()` (`recorder/src/recorder.{h,cpp}`). It reports
+  everything through a `RecorderObserver` (`onStarted`, `onLine`, `onConnection`, `onTelemetry`, `onBlockEvent`).
+  With `sim_connection.cpp` and the single-instance mutex (`single_instance.{h,cpp}`), it forms the static library
+  `blocktime-sim`. The console recorder and the Qt app both use it. The app runs it on a `std::jthread`, and its
+  observer only posts copies to the GUI thread with queued calls. Closing the window stops and joins the thread,
+  so the clean exit (an open flight is interrupted with `recorder_exit`, then `recorder_stopped`) still happens.
+- Why: One copy of the loop, so the app's log is exactly the recorder's log, and the logic stays plain C++ with no
+  Qt in it (the context doc's rule: QML only displays).
+- Alternatives considered: Copying the loop into the app. Making the loop a QObject.
+
+## D-054 — QML look: Basic style, one Theme singleton, Segoe UI Variable, dark only
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision: Qt Quick Controls' **Basic** style, the one meant to be fully re-skinned. Every colour, size and font is
+  in the `Theme` singleton (`recorder/qml/Theme.qml`); components never hard-code them. The font is Segoe UI
+  Variable (Windows 11's system font, nothing to bundle) with tabular figures for numbers.
+  `QStyleHints::setColorScheme(Dark)` also makes the Windows title bar dark. No continuous animations; the only
+  timer is the 1 s block clock while a flight is open.
+- Why: Dave wants a polished, FlyHub / Sim Toolkit Pro style and dark only, at the lowest CPU cost.
+- Alternatives considered: The Material or Fusion styles (harder to make look like our own). Bundling Inter.
+
+## D-055 — QML hot reload in debug builds
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision: In debug builds, a URL interceptor maps the module's `qrc:/qt/qml/BlockTime/<name>.qml` to
+  `recorder/qml/<name>.qml`. A file watcher reloads the window about 200 ms after a `.qml` file is saved. The
+  reload clears the singletons, so Theme changes show too. The recorder thread and the event feed keep running.
+  Each QML file has an explicit `import BlockTime`, because a file loaded from the source folder can't otherwise
+  see the module's C++ types. A failed reload shows a small error window, so the app can still be closed (and the
+  recorder still stops cleanly). Release builds only use the QML compiled into the exe.
+- Why: The change → see-it loop is a pass criterion. Without a rebuild, a QML change shows in about 1.5 s.
+- Alternatives considered: Qt Creator's QML Preview (ties UI work to Qt Creator). Rebuilding for every change.
+
+## D-056 — windeployqt after every app build
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: build
+- Decision: A POST_BUILD step runs `windeployqt` (`--qmldir recorder/qml --no-translations --no-system-d3d-compiler
+  --no-opengl-sw --no-compiler-runtime`) on `blocktime-app.exe`. The exe then runs from `build\x64-*\` without Qt on
+  PATH.
+- Why: Dave starts the app from PowerShell or Explorer; it has to find Qt's DLLs and QML plugins next to it.
+- Alternatives considered: Putting the Qt `bin` folder on PATH. An install step.
+
+## D-057 — The app has a --demo mode
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision: `blocktime-app.exe --demo` fills the panel with made-up cruise values and an open flight. It doesn't
+  start the recorder and writes no log.
+- Why: UI work shouldn't need a 20-minute MSFS load to see a filled-in screen. It also gives Dave a screen to react
+  to before flying.
+- Alternatives considered: Replaying a recorded log into the panel (more work, and better left until a later UI
+  test needs it).

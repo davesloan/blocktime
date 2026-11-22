@@ -17,3 +17,4 @@ _Add a link here for every file created in `notes/`._
 - [little-navmap-reference.md](notes/little-navmap-reference.md) — what we learned from Little Navmap's SimConnect code
 - [msfs-observed-behaviour.md](notes/msfs-observed-behaviour.md) — facts from our own sim tests (loading, pause, PMDG fuel/brake, AGL quirks)
 - [msfs-junk-data.md](notes/msfs-junk-data.md) — junk samples while loading / at 0,0 and the filter for them
+- [qt-setup.md](notes/qt-setup.md) — Qt install, build quirks (C4702, windeployqt), QML gotchas, hot reload (branch `qt-ui-spike`)

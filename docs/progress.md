@@ -22,6 +22,66 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-22 — Qt UI test 1 built (branch qt-ui-spike)
+
+**Done:**
+- Plan: `docs/plans/2026-11-22-qt-ui-test-1.md`. All work is on the branch **`qt-ui-spike`** (Dave's name; D-051 said
+  `spike/qt-ui`), built inside the recorder project so it can merge as it is if Qt wins (D-052).
+- The recorder loop moved out of `main.cpp` into `Recorder` (library `blocktime-sim`, D-053). The console recorder
+  is a thin front end and behaves as before.
+- New `blocktime-app.exe` (Qt 6.12, Qt Quick, Basic style): it runs the recorder on its own thread and has a dark
+  theme with four building blocks. The screen shows a header with the connection pill and Open log folder,
+  aircraft, eight live tiles, a flight card with a running block clock, and an event feed (D-054).
+- QML hot reload in debug builds (D-055), windeployqt after each build (D-056), and a `--demo` mode (D-057).
+- Docs: D-052..D-057, `docs/notes/qt-setup.md`, the README's Qt section, and the status and findings in
+  `docs/qt-ui-test-context.md`.
+
+**Working / verified (without the sim):**
+- Release and debug build with no warnings. 52/52 tests pass in both. qmllint reports nothing.
+- Console recorder smoke run (lone `block_out`): same console lines and log lines as 0.3.0. A second copy exits
+  with code 3.
+- App, without the sim:
+  - Closing the window writes `recorder_stopped` and the process is gone in about 0.2 s.
+  - A left-open flight is closed as `recorder_crash`.
+  - With the console recorder running, the app shows "Recorder already running" and writes nothing.
+- Hot reload: a Theme colour change shows in about 1.5 s with no rebuild. A QML typo shows an error window and the
+  app keeps running. The fix brings the window back, and closing still writes `recorder_stopped`.
+- Release app at idle: about **87–92 MB** (working set and private bytes) and **0% CPU** over 10 s. That's close to
+  the 100 MB limit before any sim connection.
+- QML back-and-forth for the first full screen: 4 fixes, each found and fixed in one pass (listed in the context
+  doc).
+
+**Unverified or broken:**
+- Nothing has been seen with the sim yet. The live values, the block events in the app and the in-flight
+  memory/CPU are all unverified.
+- The windowed app doesn't show the few errors `EventLog` / `SimConnection` print straight to stderr (accepted for
+  now, see `docs/notes/qt-setup.md`).
+- Decisions for Dave to confirm: D-053..D-057 are Proposed.
+
+**Dave's sim test (Qt UI test 1):** one MSFS load, PMDG 737 at a KOAK gate. Build the branch first
+(`git switch qt-ui-spike`, then the usual release configure and build). Use
+`recorder\build\x64-release\blocktime-app.exe`, and **don't** start the console recorder.
+1. Start the app before MSFS. Expect the pill to go "Waiting for sim" → "Sim starting" → "Connected".
+2. In the cockpit at the gate, expect the tiles to fill in: brake SET (amber), GROUND, fuel matching the FMC,
+   engines 0 / 2, and the aircraft title and tail in the top card.
+3. Push and taxi ≥ 10 m. Expect a BLOCK OUT line in the event feed, and the flight card to show the block out time
+   with the clock running.
+4. Fly the leg as normal. Now and then, check Task Manager → Details for `blocktime-app.exe`: Memory (expect under
+   100 MB) and CPU (expect under 1%). Note the highest values you see.
+5. Park and set the brake with the engines off. Expect BLOCK IN in the feed, and the flight card to show "Last
+   flight: Block in H:MM · <fuel out> → <fuel in> lb".
+6. Close the app window. Expect the newest lines in `events-*.jsonl` to be `sim_disconnected` (`recorder_exit`) and
+   `recorder_stopped`.
+7. Your verdict: does it look like FlyHub / Sim Toolkit Pro rather than an "Intro to Programming" app? What would
+   you change first?
+
+**Next step:**
+- Dave reacts to the screenshots and flies the test above. Then UI test 2 (route map, fleet list from SQLite, side
+  menu). If memory in flight goes over 100 MB, look at where Qt's baseline goes (the renderer, loaded QML modules)
+  before test 2.
+
+---
+
 ## 2026-11-22 — Recorder 0.3.0 sim test at KOAK
 
 PMDG 737-800 at a KOAK gate, one MSFS load (Dave reloaded the flight once at the start). Log:

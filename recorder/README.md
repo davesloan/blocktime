@@ -7,6 +7,10 @@ it observes to a local JSON Lines event log. The spec is in [`docs/recorder.md`]
 and telemetry, and detects when a flight starts and ends from the parking brake (D-031, D-032). Every flight ends
 with `block_in` or `flight_interrupted`; a flight is never resumed (D-046). It doesn't detect phases yet.
 
+**Branch `qt-ui-spike`:** this branch also builds **`blocktime-app.exe`**, the Qt UI test app (D-050, D-052). It runs
+the same recorder inside a dark Qt Quick window. See [Qt UI test app](#qt-ui-test-app-branch-qt-ui-spike) below.
+On this branch Qt is required to build.
+
 ## Prerequisites
 
 - Windows 10/11 x64.
@@ -18,6 +22,11 @@ with `block_in` or `flight_interrupted`; a flight is never resumed (D-046). It d
   2. `%MSFS_SDK%\SimConnect SDK` (the SDK installer sets `MSFS_SDK`)
   3. `C:\MSFS SDK\SimConnect SDK`
 - An internet connection on the first build, because vcpkg downloads `nlohmann-json` and `gtest`.
+- **On the `qt-ui-spike` branch: Qt 6.8 or newer** (developed with 6.12.0), from the official Qt online installer
+  (free Qt account) with the **MSVC 2022 64-bit** component. The build looks for the kit in this order:
+  1. `-DBLOCKTIME_QT_DIR=<kit folder>`, if you pass it
+  2. `%BLOCKTIME_QT_DIR%`
+  3. `C:\Qt\6.12.0\msvc2022_64`
 
 ## Build
 
@@ -121,3 +130,48 @@ succeeds (`Held events written to the log.`); while waiting for the sim, only at
 
 At startup, if the log shows a flight that a killed recorder left open, the console prints `Previous flight <id> was
 left open (the recorder didn't close cleanly); logged as interrupted.` (D-048).
+
+## Qt UI test app (branch qt-ui-spike)
+
+`blocktime-app.exe` is built by the same presets as the recorder, next to it in `build\<preset>\`. A post-build
+step copies Qt's DLLs next to it, so it runs from there (D-056).
+
+```powershell
+.\build\x64-release\blocktime-app.exe
+```
+
+- It records exactly like the console recorder, to the same log (D-053). Use it **instead of** the console recorder,
+  not alongside it. Only one can record at a time: if the console recorder is running, the app's pill shows
+  "Recorder already running" and it records nothing.
+- Closing the window stops recording cleanly, like Ctrl+C. An open flight is logged as interrupted
+  (`recorder_exit`), then `recorder_stopped`.
+- `--log-dir <folder>` works as for the recorder.
+- `--demo` shows made-up values (an open flight at cruise) and records nothing. Use it to look at the UI without the
+  sim (D-057).
+- Use the **release** build for flights and for memory/CPU readings. The debug build is much heavier.
+
+### Changing the UI
+
+The QML is in `recorder/qml/`, and every colour and size is in `Theme.qml`. Run the **debug** build:
+
+```powershell
+.\build\x64-debug\blocktime-app.exe --demo
+```
+
+In debug builds the app reads QML straight from `recorder/qml/` and reloads the window about 200 ms after you save
+a `.qml` file, with no rebuild (D-055). If the QML has an error, a small error window says so. Fix and save, and
+the real window comes back. C++ changes still need a rebuild.
+
+To see QML errors, start it with `QT_FORCE_STDERR_LOGGING` set and stderr captured:
+
+```powershell
+$env:QT_FORCE_STDERR_LOGGING = "1"; .\build\x64-debug\blocktime-app.exe --demo 2> qml-errors.txt
+```
+
+To lint the QML:
+
+```powershell
+cmake --build --preset x64-debug --target blocktime-app_qmllint
+```
+
+Quirks found while setting this up are in [`docs/notes/qt-setup.md`](../docs/notes/qt-setup.md).

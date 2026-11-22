@@ -4,8 +4,22 @@ Context from a brainstorming chat with Dave on 2026-11-22. Read this before work
 (D-050, D-051) or before deciding what comes after them. It records how we got here, what Dave cares about, and
 what the test has to answer, so a future session doesn't have to rediscover it.
 
-Status: **test not started.** It runs between recorder milestones 3 and 4, on the branch `spike/qt-ui`.
-D-001 (two programs) and D-004 (local web app + SQLite) stay in force until the test's decision point.
+Status: **UI test 1 built (2026-11-22), waiting on Dave's sim flight.** UI test 2 not started. The work is on the
+branch `qt-ui-spike` (Dave's name; D-051 first said `spike/qt-ui`). It's built inside the recorder project so it can
+be merged as it is if Qt wins (D-052). Plan: `docs/plans/2026-11-22-qt-ui-test-1.md`. D-001 (two programs) and
+D-004 (local web app + SQLite) stay in force until the test's decision point.
+
+**Test 1 findings so far (without the sim):**
+- **Memory:** the release app uses about 87–92 MB at idle (working set and private bytes, `--demo` and waiting
+  for the sim). That's close to the 100 MB limit, before it has connected to a sim. Dave's Task Manager reading
+  during a flight is the real number.
+- **CPU:** 0% measured over 10 s at idle with values on screen. Nothing animates; only the 1 s block clock ticks.
+- **Change → see-it loop:** in debug builds, saving a QML file reloads the window in about 1.5 s with no rebuild
+  (D-055). A C++ change needs a rebuild of the app (not timed yet).
+- **QML back-and-forth:** the first full build of the screen needed 4 fixes: a property named `onAccent` (QML
+  reads `on<Capital>` as a signal handler), `width`/`height` on an item inside a layout (qmllint caught it), and
+  C4702 warnings in Qt's generated code. The fourth was hot reload not seeing the module's C++ types until each
+  file imported `BlockTime`. Each was found and fixed in one pass.
 
 ## The question
 
@@ -51,7 +65,8 @@ running inside it?
 
 ## The test
 
-Two builds on `spike/qt-ui`, throwaway by design (light on tests, no code review). Milestone 4 (phases) can
+Two builds on `qt-ui-spike`, light on tests and with no code review until Dave decides. They're written to be kept:
+if Qt wins they get their tests and a review, then merge (D-051). Milestone 4 (phases) can
 carry on on `main` in parallel; merge `main` into the branch now and then.
 
 **UI test 1: Qt shell and live data**
