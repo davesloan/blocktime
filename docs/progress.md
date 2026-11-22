@@ -69,7 +69,7 @@ Newest entries at the top. Add an entry at the end of every working session.
 **Next step:**
 - Milestone 1 is merged to `main` (no pull request, D-038). Next is milestone 2 (block out / block in, D-031,
   D-032), with a written plan and TDD (D-033).
-- Dave to confirm the Proposed decisions D-035, D-036 and D-037.
+- D-035, D-036 and D-037 were approved by Dave.
 
 ## 2026-11-22 — First sim test; milestone 1 fixes (recorder 0.1.1)
 

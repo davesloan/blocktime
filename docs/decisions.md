@@ -393,7 +393,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-035 — Pause_EX1 bits named in the log
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (approved by Dave, 2026-11-22)
 - Decided by: Claude
 - Area: recorder
 - Decision: `paused` keeps the raw `flags` and adds `kinds`, a list of names for the bits that are set:
@@ -407,7 +407,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-036 — Repair a torn last line when opening the log
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (approved by Dave, 2026-11-22)
 - Decided by: Claude (from the milestone 1 code review)
 - Area: recorder
 - Decision: When the recorder opens a day's log file and the file doesn't end in `\n`, it writes a `\n` first.
@@ -421,7 +421,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-037 — Only one recorder at a time
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (approved by Dave, 2026-11-22)
 - Decided by: Claude (from the milestone 1 code review)
 - Area: recorder
 - Decision: At startup, the recorder creates the named mutex `Local\BlockTimeRecorder`. If it already exists, the
