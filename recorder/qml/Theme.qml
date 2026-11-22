@@ -13,6 +13,7 @@ QtObject {
     readonly property color bg: "#0E1116"
     readonly property color surface: "#161B22"
     readonly property color surfaceRaised: "#1C222B"
+    readonly property color surfaceHover: "#1A1F27"  // between surface and surfaceRaised
     readonly property color border: "#262D37"
 
     // Text
@@ -32,6 +33,9 @@ QtObject {
     readonly property int radiusSmall: 8
     readonly property int spacing: 16
     readonly property int pagePadding: 20
+    readonly property int headerHeight: 64
+    readonly property int sidebarWidth: 200
+    readonly property int navItemHeight: 40
 
     // Type
     readonly property string fontFamily: "Segoe UI Variable"
@@ -42,4 +46,8 @@ QtObject {
     readonly property int fontSizeValue: 28
     readonly property int fontSizeClock: 44
     readonly property real labelLetterSpacing: 1.2
+
+    // Icons: Windows 11 system icon font, nothing to bundle (D-062)
+    readonly property string iconFontFamily: "Segoe Fluent Icons"
+    readonly property int fontSizeIcon: 16
 }

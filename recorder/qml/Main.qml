@@ -7,101 +7,94 @@ import BlockTime  // explicit, so hot reload from the source folder still sees t
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
+// The shell: the side menu on the left, and on the right a header above the current page (D-062).
 ApplicationWindow {
     id: window
 
     required property RecorderBridge recorder
 
-    width: 1100
-    height: 720
-    minimumWidth: 900
+    // 200 px wider than test 1, so the Live page keeps test 1's width beside the side menu.
+    width: 1300
+    height: 760
+    minimumWidth: 1100
     minimumHeight: 600
     visible: true
-    title: "BlockTime — Qt UI test 1"
+    title: "BlockTime — Qt UI test 2"
     color: Theme.bg
-
-    header: Rectangle {
-        implicitHeight: 64
-        color: Theme.surface
-
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            height: 1
-            color: Theme.border
-        }
-
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Theme.pagePadding
-            anchors.rightMargin: Theme.pagePadding
-            spacing: 14
-
-            // Brand mark
-            Rectangle {
-                Layout.preferredWidth: 30
-                Layout.preferredHeight: 30
-                radius: Theme.radiusSmall
-                color: Theme.accent
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "B"
-                    color: Theme.textOnAccent
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeTitle
-                    font.weight: Font.Bold
-                }
-            }
-
-            Column {
-                Text {
-                    text: "BlockTime"
-                    color: Theme.textPrimary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeTitle
-                    font.weight: Font.DemiBold
-                }
-                Text {
-                    text: "Qt UI test 1"
-                    color: Theme.textSecondary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeLabel
-                }
-            }
-
-            Item {
-                Layout.fillWidth: true
-            }
-
-            StatusPill {
-                status: window.recorder.connection
-            }
-
-            PrimaryButton {
-                text: "Open log folder"
-                enabled: window.recorder.logDir !== ""
-                onClicked: window.recorder.openLogFolder()
-            }
-        }
-    }
 
     RowLayout {
         anchors.fill: parent
-        anchors.margins: Theme.pagePadding
-        spacing: Theme.spacing
+        spacing: 0
 
-        FlightPanel {
-            Layout.fillWidth: true
+        Sidebar {
+            id: sidebar
+
             Layout.fillHeight: true
-            recorder: window.recorder
         }
 
-        EventFeed {
+        ColumnLayout {
+            Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.preferredWidth: 360
-            recorder: window.recorder
+            spacing: 0
+
+            // Header: page name, connection pill, Open log folder
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Theme.headerHeight
+                color: Theme.surface
+
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    height: 1
+                    color: Theme.border
+                }
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: Theme.pagePadding
+                    anchors.rightMargin: Theme.pagePadding
+                    spacing: 14
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: sidebar.pageNames[sidebar.currentIndex]
+                        color: Theme.textPrimary
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeTitle
+                        font.weight: Font.DemiBold
+                    }
+
+                    StatusPill {
+                        status: window.recorder.connection
+                    }
+
+                    PrimaryButton {
+                        text: "Open log folder"
+                        enabled: window.recorder.logDir !== ""
+                        onClicked: window.recorder.openLogFolder()
+                    }
+                }
+            }
+
+            StackLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                currentIndex: sidebar.currentIndex
+
+                LivePage {
+                    recorder: window.recorder
+                }
+
+                FlightsPage {
+                    recorder: window.recorder
+                }
+
+                FleetPage {
+                    recorder: window.recorder
+                }
+            }
         }
     }
 }

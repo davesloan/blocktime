@@ -114,7 +114,12 @@ set(BLOCKTIME_QML_FILES
   qml/PrimaryButton.qml
   qml/StatusPill.qml
   qml/FlightPanel.qml
-  qml/EventFeed.qml)
+  qml/EventFeed.qml
+  qml/Sidebar.qml
+  qml/NavButton.qml
+  qml/LivePage.qml
+  qml/FlightsPage.qml
+  qml/FleetPage.qml)
 foreach(_qml IN LISTS BLOCKTIME_QML_FILES)
   get_filename_component(_name "${_qml}" NAME)
   set_source_files_properties("${_qml}" PROPERTIES QT_RESOURCE_ALIAS "${_name}")
