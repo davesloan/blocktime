@@ -15,5 +15,5 @@ _Add a link here for every file created in `notes/`._
 
 - [simconnect-setup.md](notes/simconnect-setup.md) — where the SDK lives, linking (/MD!), pack(1), dispatch quirks
 - [little-navmap-reference.md](notes/little-navmap-reference.md) — what we learned from Little Navmap's SimConnect code
-- [msfs-observed-behaviour.md](notes/msfs-observed-behaviour.md) — facts from our own sim tests (loading, pause, PMDG fuel/brake, AGL quirks)
+- [msfs-observed-behaviour.md](notes/msfs-observed-behaviour.md) — facts from our own sim tests (loading, pause, scenery freezes, PMDG fuel/brake, AGL quirks)
 - [msfs-junk-data.md](notes/msfs-junk-data.md) — junk samples while loading / at 0,0 and the filter for them

@@ -3,6 +3,18 @@
 These facts come from BlockTime Recorder logs. Each entry says when and with what it was seen. Add new
 observations at the top.
 
+## 2026-11-22: PMDG 737-800 at KSAN, Qt UI test 1 app (recorder 0.3.0)
+
+### Scenery-loading freezes (D-058)
+- **MSFS froze for 51 s** on the climb out of KSAN runway 9, 57 s after liftoff at about 2,500 ft and 210 kt
+  (last sample 21:34:01.9Z, next 21:34:53.6Z). The recorder logged `sim_unresponsive` at 30 s and
+  `sim_responsive` (`silent_s` 51) when it came back.
+- **Sim time stops too.** Across the gap the aircraft moved about 120 m and 15 ft, about one second of flight. The
+  flight carries on from where it stopped; nothing jumps.
+- **It isn't a pause.** No `paused` or `sim_stopped` event: to SimConnect it is just a very long frame.
+- Dave sees this on most KSAN departures, on runway 27 too, once the aircraft gets near land. He puts it down to
+  scenery loading. It always recovers.
+
 ## 2026-11-22: PMDG 737-800 at KOAK, recorder 0.3.0
 
 ### Leaving a flight (D-047)

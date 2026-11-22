@@ -673,3 +673,22 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: Trying something out and then merging or pruning it is exactly what branches are for, and it keeps
   throwaway code off `main`.
 - Alternatives considered: A `spikes/` folder on `main` (throwaway code on `main` while it's being judged).
+
+_D-052 to D-057 are on the branch `qt-ui-spike` (Qt UI test 1). Main skips those numbers so the two don't clash
+when the branch is merged._
+
+## D-058 — Sim freezes don't count toward phase-detection holds
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: recorder
+- Decision: Phase detection (milestone 4) times its debounce holds and other timers only while the sim is
+  sending messages. Any silence from the sim (no messages at all, as tracked for `sim_unresponsive`) adds
+  nothing, however short. The recorder itself keeps logging freezes as facts (`sim_unresponsive` /
+  `sim_responsive`, D-028) and does nothing else about them; the debrief can report them from the log.
+- Why: On Dave's KSAN departure (2026-11-22, Qt UI test 1) MSFS froze for 51 s at 2,500 ft while loading scenery,
+  with sim time stopped (the aircraft moved about 1 s worth across the gap). Dave sees this regularly near KSAN.
+  Timing a 30–60 s hold by the clock would let a freeze after a level-off fake a sustained level-off.
+- Alternatives considered: Timing holds by the wall clock (a freeze fakes a hold). Counting samples (telemetry
+  is sent on change, so a sample count isn't a steady clock). Using a sim-time SimVar (not checked yet; the
+  silence the recorder already measures is enough).
