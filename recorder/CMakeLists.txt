@@ -62,11 +62,17 @@ add_library(blocktime-core STATIC
 target_include_directories(blocktime-core PUBLIC src)
 target_link_libraries(blocktime-core PUBLIC blocktime-options nlohmann_json::nlohmann_json)
 
+# --- Sim: the recorder loop and SimConnect, shared by the console recorder and the Qt app (D-053) ---
+add_library(blocktime-sim STATIC
+  src/recorder.cpp
+  src/sim_connection.cpp
+  src/single_instance.cpp)
+target_link_libraries(blocktime-sim PUBLIC blocktime-core SimConnect)
+
 # --- Recorder -----------------------------------------------------------------
 add_executable(blocktime-recorder
-  src/main.cpp
-  src/sim_connection.cpp)
-target_link_libraries(blocktime-recorder PRIVATE blocktime-core SimConnect)
+  src/main.cpp)
+target_link_libraries(blocktime-recorder PRIVATE blocktime-sim)
 
 # --- Tests --------------------------------------------------------------------
 option(BLOCKTIME_BUILD_TESTS "Build the unit tests" ON)
