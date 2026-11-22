@@ -365,7 +365,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-033 — Which Superpowers skills to use
 - Date: 2026-11-22
-- Status: Accepted
+- Status: Accepted; the branch and pull request part is superseded by D-038
 - Decided by: Dave + Claude
 - Area: build
 - Decision: Use systematic-debugging now, for the milestone 1 sim-test fixes. From milestone 2 on, also use
@@ -430,3 +430,15 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   milestone 2.
 - Alternatives considered: A lock file next to the log. It can go stale after a crash; a mutex is released by
   Windows when the process exits.
+
+## D-038 — No pull requests; work goes straight to main
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: build
+- Decision: There are no pull requests and no feature branches. Work is committed to `main` and pushed. A code
+  review (requesting-code-review / receiving-code-review) still runs before each milestone's final commit.
+  `finishing-a-development-branch` is no longer used. This supersedes the branch and pull request part of D-033.
+- Why: It's a one-person project; pull requests added steps without adding review that the review subagent
+  doesn't already give.
+- Alternatives considered: One branch and pull request per milestone (D-033), used once, for milestone 1.

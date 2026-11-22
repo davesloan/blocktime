@@ -87,13 +87,12 @@ This file overrides the plugin's "invoke a skill on any 1% chance" rule. Use onl
   detection, log writing, crash recovery), and `verification-before-completion` before saying work is done.
   Without the sim, "done" means it builds with no warnings and the tests pass; in-sim checks still go to
   Dave via `docs/progress.md`.
-- **Each milestone merge to `main`, starting with milestone 1:** the milestone's work goes on its own branch
-  (e.g. `milestone-1`), then `requesting-code-review` (and `receiving-code-review` for the findings), then
-  `finishing-a-development-branch` to open the pull request and merge it.
+- **Before each milestone's final commit:** `requesting-code-review`, then `receiving-code-review` for the
+  findings. No pull requests and no feature branches: work is committed straight to `main` (D-038).
 - **Sometimes:** `brainstorming` for undesigned areas (mainly the web app), but start from
   `docs/decisions.md` and don't reopen settled decisions.
-- **Skip:** `using-git-worktrees`, `subagent-driven-development`, `dispatching-parallel-agents`. This is a
-  one-person project with one branch at a time.
+- **Skip:** `using-git-worktrees`, `finishing-a-development-branch`, `subagent-driven-development`,
+  `dispatching-parallel-agents`. This is a one-person project that works on `main`.
 
 ## Recorder ground rules (summary — details in `docs/recorder.md`)
 
