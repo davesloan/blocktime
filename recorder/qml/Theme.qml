@@ -15,6 +15,7 @@ QtObject {
     readonly property color surfaceRaised: "#1C222B"
     readonly property color surfaceHover: "#1A1F27"  // between surface and surfaceRaised
     readonly property color border: "#262D37"
+    readonly property color mapCreditBg: "#B30E1116"  // bg at 70%, behind the map's credit line
 
     // Text
     readonly property color textPrimary: "#E6EAF0"

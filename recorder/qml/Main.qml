@@ -12,6 +12,10 @@ ApplicationWindow {
     id: window
 
     required property RecorderBridge recorder
+    // Map settings from app_main (D-059). The tile URL holds the CARTO key: never shown or logged.
+    required property string mapTileUrl
+    required property string mapCacheDir
+    required property string mapUserAgent
 
     // 200 px wider than test 1, so the Live page keeps test 1's width beside the side menu.
     width: 1300
@@ -89,6 +93,9 @@ ApplicationWindow {
 
                 FlightsPage {
                     recorder: window.recorder
+                    mapTileUrl: window.mapTileUrl
+                    mapCacheDir: window.mapCacheDir
+                    mapUserAgent: window.mapUserAgent
                 }
 
                 FleetPage {

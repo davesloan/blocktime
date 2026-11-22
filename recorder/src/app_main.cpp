@@ -9,10 +9,12 @@
 //   --log-dir <folder>  as the console recorder
 //   --demo              show made-up values and record nothing, to look at the UI without the sim
 
+#include <QCryptographicHash>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
 #include <QStyleHints>
+#include <QUrl>
 
 #include <algorithm>
 #include <atomic>
@@ -23,6 +25,7 @@
 #include <string_view>
 #include <thread>
 
+#include "app_settings.h"
 #include "event_log.h"
 #include "qml_hot_reload.h"
 #include "recorder.h"
@@ -65,6 +68,32 @@ void fillDemo(RecorderBridge& bridge) {
                      false);
     bridge.applySample(s);
     bridge.applyBlockEvent(out);
+}
+
+struct MapSettings {
+    QString tileUrl;  // holds the CARTO key: never print or log it
+    QString cacheDir;
+    QString userAgent;
+};
+
+// Map tiles (D-059): CARTO Dark Matter through the osm plugin's custom URL, which fills in %z/%x/%y even with the
+// key after them (probed 2026-11-22, docs/notes/qt-setup.md). Each URL gets its own cache folder: CARTO answers a
+// wrong key with a normal 200 "API KEY REQUIRED" tile, and the cache's file names don't include the URL, so those
+// tiles would otherwise outlive a fixed key.
+MapSettings mapSettings() {
+    // CARTO's terms allow caching tiles for 30 days at most; this also clears folders of old keys.
+    blocktime::pruneOldFiles(blocktime::defaultTileCacheDir(), blocktime::kTileMaxAge);
+
+    MapSettings m;
+    m.userAgent = QStringLiteral("BlockTime/" BLOCKTIME_VERSION " (Qt UI test; open source)");
+    const std::string key = blocktime::loadAppSettings(blocktime::defaultSettingsFile()).cartoKey;
+    if (key.empty()) return m;
+    m.tileUrl = QStringLiteral("https://basemaps.cartocdn.com/rastertiles/dark_all/%z/%x/%y.png?key=") +
+                QString::fromLatin1(QUrl::toPercentEncoding(QString::fromStdString(key)));
+    const QString folder =
+        QString::fromLatin1(QCryptographicHash::hash(m.tileUrl.toUtf8(), QCryptographicHash::Sha256).toHex().left(12));
+    m.cacheDir = QString::fromStdWString((blocktime::defaultTileCacheDir() / folder.toStdWString()).wstring());
+    return m;
 }
 
 }  // namespace
@@ -118,7 +147,11 @@ int main(int argc, char* argv[]) {
     QObject::connect(&app, &QCoreApplication::aboutToQuit, stopRecorder);
 
     QQmlApplicationEngine engine;
-    const QVariantMap props{{"recorder", QVariant::fromValue(&bridge)}};
+    const MapSettings map = mapSettings();
+    const QVariantMap props{{"recorder", QVariant::fromValue(&bridge)},
+                            {"mapTileUrl", map.tileUrl},
+                            {"mapCacheDir", map.cacheDir},
+                            {"mapUserAgent", map.userAgent}};
 
 #ifdef BLOCKTIME_QML_SOURCE_DIR
     // Debug: QML from the source folder, reloaded on save (D-055). A QML error leaves no window until the next good

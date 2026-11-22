@@ -53,6 +53,7 @@ target_compile_options(blocktime-options INTERFACE /W4 /permissive- /utf-8 /exte
 
 # --- Core: logic with no SimConnect or windows.h, so it can be unit tested (D-041) ---
 add_library(blocktime-core STATIC
+  src/app_settings.cpp
   src/event_log.cpp
   src/event_outbox.cpp
   src/block_detector.cpp
@@ -82,6 +83,7 @@ if(BLOCKTIME_BUILD_TESTS)
   find_package(GTest CONFIG REQUIRED)
   include(GoogleTest)
   add_executable(blocktime-tests
+    tests/app_settings_test.cpp
     tests/block_detector_test.cpp
     tests/event_log_test.cpp
     tests/event_outbox_test.cpp
@@ -103,7 +105,7 @@ endif()
 set(BLOCKTIME_QT_DIR "${_qt_default}" CACHE PATH "Path to the Qt 6 MSVC 64-bit kit (the folder holding bin/ and lib/)")
 list(APPEND CMAKE_PREFIX_PATH "${BLOCKTIME_QT_DIR}")
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Quick QuickControls2)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Quick QuickControls2 Location Positioning)
 qt_standard_project_setup(REQUIRES 6.8)
 
 # QML lives in qml/. Each file is aliased to the module root (qrc:/qt/qml/BlockTime/<name>.qml), so the files sit
@@ -121,7 +123,8 @@ set(BLOCKTIME_QML_FILES
   qml/NavButton.qml
   qml/LivePage.qml
   qml/FlightsPage.qml
-  qml/FleetPage.qml)
+  qml/FleetPage.qml
+  qml/RouteMap.qml)
 foreach(_qml IN LISTS BLOCKTIME_QML_FILES)
   get_filename_component(_name "${_qml}" NAME)
   set_source_files_properties("${_qml}" PROPERTIES QT_RESOURCE_ALIAS "${_name}")
@@ -137,7 +140,7 @@ qt_add_qml_module(blocktime-app
     src/event_feed_model.h src/event_feed_model.cpp
     src/recorder_bridge.h src/recorder_bridge.cpp
     src/qml_hot_reload.h src/qml_hot_reload.cpp)
-target_link_libraries(blocktime-app PRIVATE blocktime-sim Qt6::Quick Qt6::QuickControls2)
+target_link_libraries(blocktime-app PRIVATE blocktime-sim Qt6::Quick Qt6::QuickControls2 Qt6::Location Qt6::Positioning)
 # The C++ that qmlcachegen generates from our QML trips C4702 (unreachable code) inside Qt's qjsengine.h. It's raised
 # by the optimizer, so /external:W0 can't hide it. Silence it for those generated files only.
 foreach(_qml IN LISTS BLOCKTIME_QML_FILES)
@@ -150,9 +153,11 @@ target_compile_definitions(blocktime-app PRIVATE
   "$<$<CONFIG:Debug>:BLOCKTIME_QML_SOURCE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/qml\">")
 
 # Copy the Qt DLLs and QML plugins next to the exe, so it runs from the build folder without Qt on PATH (D-056).
+# Position plugins are skipped: the app never reads a position source, and the NMEA one needs Qt SerialPort.
 find_program(BLOCKTIME_WINDEPLOYQT windeployqt HINTS "${BLOCKTIME_QT_DIR}/bin" NO_DEFAULT_PATH REQUIRED)
 add_custom_command(TARGET blocktime-app POST_BUILD
   COMMAND "${BLOCKTIME_WINDEPLOYQT}" --qmldir "${CMAKE_CURRENT_SOURCE_DIR}/qml" --no-translations
-          --no-system-d3d-compiler --no-opengl-sw --no-compiler-runtime --verbose 0 "$<TARGET_FILE:blocktime-app>"
+          --no-system-d3d-compiler --no-opengl-sw --no-compiler-runtime
+          --skip-plugin-types position --verbose 0 "$<TARGET_FILE:blocktime-app>"
   COMMENT "windeployqt blocktime-app"
   VERBATIM)

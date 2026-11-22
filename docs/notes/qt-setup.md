@@ -41,6 +41,28 @@ Found while building Qt UI test 1 (branch `qt-ui-spike`, 2026-11-22).
   C++ types (`RecorderBridge`) or the `Theme` singleton unless it has `import BlockTime`. Every QML file has it.
 - `QQmlEngine::clearSingletons()` is needed on reload, or Theme keeps its old values.
 
+## Map tiles (UI test 2, D-059)
+
+Probed 2026-11-22 with Qt 6.12.0 and CARTO Dark Matter:
+- **CARTO's raster URL is** `https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?key=<key>`. It
+  serves 256 px PNGs with `Cache-Control: public, max-age=2592000` (30 days).
+- **A missing or wrong key still gets HTTP 200**, with a grey "API KEY REQUIRED" image in place of the map. The
+  app can't detect it from the response, so a bad key shows up as those tiles.
+- **`osm.mapping.custom.host` accepts a full template with the key after it:**
+  `…/dark_all/%z/%x/%y.png?key=<key>`. Qt fills in `%z/%x/%y` wherever they are; it only appends its own
+  `%z/%x/%y.png` when there are none. The alternative, a local provider file via
+  `osm.mapping.providersrepository.address` with a `file:///` URL, also works but isn't needed.
+- **The custom URL map type is the last entry** of `supportedMapTypes` ("Custom URL Map"). Select it after the
+  plugin loads.
+- `osm.mapping.providersrepository.disabled: true` stops the plugin asking Qt's server for its provider list.
+- **The tile cache's file names don't include the URL** (`osm_100-l-8-10-177-412.png`). Tiles from an old or wrong
+  key would be reused after the key changes, so the app gives each URL its own cache folder (a hash of the URL).
+- **Qt's copyright notice** is a light-grey box whose background can't be set from QML. The app hides it
+  (`copyrightsVisible: false`) and draws CARTO's credit line itself.
+- **windeployqt and position plugins:** with Qt Positioning linked, windeployqt tries to deploy the NMEA position
+  plugin, which needs Qt SerialPort (not installed) and warns on every build. The app reads no position source,
+  so the build passes `--skip-plugin-types position`.
+
 ## Errors from the windowed app
 
 `blocktime-app.exe` is a Windows GUI program, so `qWarning` and stderr go nowhere by default. To see QML errors, set
