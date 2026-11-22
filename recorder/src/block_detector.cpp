@@ -101,7 +101,13 @@ std::optional<BlockEvent> BlockDetector::onSampleInFlight(const BlockSample& s, 
     return in;
 }
 
-std::optional<FlightInterrupted> BlockDetector::onSessionEnded(std::string_view) { return std::nullopt; }
+// Milestone 2 stopgap (D-044): nothing survives a lost session. Milestone 3 decides about resuming.
+std::optional<FlightInterrupted> BlockDetector::onSessionEnded(std::string_view reason) {
+    std::optional<FlightInterrupted> result;
+    if (open_) result = FlightInterrupted{open_->flightId, std::string(reason)};
+    *this = BlockDetector{};
+    return result;
+}
 
 std::string_view eventType(const BlockEvent&) { return {}; }
 

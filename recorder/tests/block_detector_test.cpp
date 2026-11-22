@@ -321,3 +321,47 @@ TEST(BlockIn, NewFlightAfterBlockIn) {
     EXPECT_NE(second.flightId, first.flightId);
     EXPECT_TRUE(f.det.flightOpen());
 }
+
+// --- Session end (D-044) -----------------------------------------------------
+
+TEST(Session, EndWithOpenFlightReportsInterrupted) {
+    Script f;
+    f.blockOut();
+    const auto end = f.det.onSessionEnded("sim_quit");
+
+    ASSERT_TRUE(end.has_value());
+    EXPECT_EQ(end->flightId, std::get<BlockOut>(f.events.at(0)).flightId);
+    EXPECT_EQ(end->reason, "sim_quit");
+    EXPECT_FALSE(f.det.flightOpen());
+}
+
+TEST(Session, EndWithoutFlightReportsNothing) {
+    Script f;
+    f.brake(true, 0s);
+    EXPECT_FALSE(f.det.onSessionEnded("recorder_exit").has_value());
+}
+
+TEST(Session, CandidateAndBrakeStateDoNotSurvive) {
+    Script f;
+    f.brake(true, 0s);
+    f.brake(false, 5s);  // candidate
+    EXPECT_FALSE(f.det.onSessionEnded("sim_process_gone").has_value());
+    f.north(50, 300s);   // first sample of the new session: brake off, 50 m away
+    f.north(100, 330s);
+    EXPECT_TRUE(f.events.empty());
+    EXPECT_FALSE(f.det.flightOpen());
+}
+
+TEST(Session, LandedStateDoesNotSurvive) {
+    Script f;
+    f.flyAndLand();
+    f.det.onSessionEnded("sim_quit");
+    f.brake(true, 5000s);   // new session at a gate: baseline only
+    f.brake(false, 5100s);
+    f.north(20, 5160s);     // a fresh block out
+    f.brake(true, 5200s);
+    f.engines(0, 5260s);    // no landing in this flight: no block in
+    ASSERT_EQ(f.events.size(), 2u);
+    EXPECT_EQ(std::get<BlockOut>(f.events[1]).time, kT0 + 5100s);
+    EXPECT_TRUE(f.det.flightOpen());
+}
