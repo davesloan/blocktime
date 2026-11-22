@@ -14,6 +14,7 @@
 #include <fstream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -45,5 +46,9 @@ std::string formatUtc(std::chrono::system_clock::time_point t);
 
 // formatUtc() of the current time.
 std::string utcTimestamp();
+
+// The events-YYYY-MM-DD.jsonl files in `dir`, oldest first (the date in the name sorts as text). Empty if `dir`
+// is missing or unreadable.
+std::vector<std::filesystem::path> dailyLogFiles(const std::filesystem::path& dir);
 
 }  // namespace blocktime

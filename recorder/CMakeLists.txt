@@ -56,6 +56,7 @@ add_library(blocktime-core STATIC
   src/event_log.cpp
   src/event_outbox.cpp
   src/block_detector.cpp
+  src/flight_history.cpp
   src/geo.cpp
   src/open_flight.cpp
   src/telemetry_filter.cpp)
@@ -84,6 +85,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/block_detector_test.cpp
     tests/event_log_test.cpp
     tests/event_outbox_test.cpp
+    tests/flight_history_test.cpp
     tests/geo_test.cpp
     tests/open_flight_test.cpp)
   target_link_libraries(blocktime-tests PRIVATE blocktime-core GTest::gtest_main)

@@ -4,11 +4,10 @@
 
 #include "open_flight.h"
 
+#include "event_log.h"
+
 #include <algorithm>
-#include <cctype>
 #include <fstream>
-#include <functional>
-#include <string_view>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -16,20 +15,6 @@
 namespace blocktime {
 
 namespace {
-
-// events-YYYY-MM-DD.jsonl, as EventLog names its daily files (D-020).
-bool isDailyLog(const std::string& name) {
-    constexpr std::string_view prefix = "events-";
-    constexpr std::string_view suffix = ".jsonl";
-    if (name.size() != prefix.size() + 10 + suffix.size()) return false;
-    if (!name.starts_with(prefix) || !name.ends_with(suffix)) return false;
-    const std::string_view date = std::string_view(name).substr(prefix.size(), 10);
-    for (std::size_t i = 0; i < date.size(); ++i) {
-        const bool dash = i == 4 || i == 7;
-        if (dash ? date[i] != '-' : !std::isdigit(static_cast<unsigned char>(date[i]))) return false;
-    }
-    return true;
-}
 
 bool isFlightLine(const std::string& line) {
     return line.find(R"("type":"block_out")") != std::string::npos ||
@@ -64,13 +49,8 @@ std::optional<LastFlightEvent> lastFlightEvent(const std::filesystem::path& file
 }  // namespace
 
 std::optional<std::string> findOpenFlight(const std::filesystem::path& dir, std::size_t maxFiles) {
-    std::vector<std::filesystem::path> files;
-    std::error_code ec;
-    for (std::filesystem::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
-        if (it->is_regular_file(ec) && isDailyLog(it->path().filename().string())) files.push_back(it->path());
-    }
-    // The date in the name sorts as text, so newest first is a reverse sort by name.
-    std::sort(files.begin(), files.end(), std::greater<>());
+    std::vector<std::filesystem::path> files = dailyLogFiles(dir);
+    std::reverse(files.begin(), files.end());  // newest first
     if (files.size() > maxFiles) files.resize(maxFiles);
 
     for (const auto& file : files) {

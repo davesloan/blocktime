@@ -4,6 +4,8 @@
 
 #include "event_log.h"
 
+#include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdlib>
 #include <format>
@@ -17,6 +19,34 @@ std::string formatUtc(std::chrono::system_clock::time_point t) {
 }
 
 std::string utcTimestamp() { return formatUtc(std::chrono::system_clock::now()); }
+
+namespace {
+
+// events-YYYY-MM-DD.jsonl, as EventLog names its daily files (D-020).
+bool isDailyLog(const std::string& name) {
+    constexpr std::string_view prefix = "events-";
+    constexpr std::string_view suffix = ".jsonl";
+    if (name.size() != prefix.size() + 10 + suffix.size()) return false;
+    if (!name.starts_with(prefix) || !name.ends_with(suffix)) return false;
+    const std::string_view date = std::string_view(name).substr(prefix.size(), 10);
+    for (std::size_t i = 0; i < date.size(); ++i) {
+        const bool dash = i == 4 || i == 7;
+        if (dash ? date[i] != '-' : !std::isdigit(static_cast<unsigned char>(date[i]))) return false;
+    }
+    return true;
+}
+
+}  // namespace
+
+std::vector<std::filesystem::path> dailyLogFiles(const std::filesystem::path& dir) {
+    std::vector<std::filesystem::path> files;
+    std::error_code ec;
+    for (std::filesystem::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
+        if (it->is_regular_file(ec) && isDailyLog(it->path().filename().string())) files.push_back(it->path());
+    }
+    std::sort(files.begin(), files.end());
+    return files;
+}
 
 std::filesystem::path EventLog::defaultDir() {
     wchar_t* base = nullptr;
