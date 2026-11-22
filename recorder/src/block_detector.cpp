@@ -71,7 +71,35 @@ std::optional<BlockEvent> BlockDetector::onSampleNoFlight(const BlockSample& s, 
     return out;
 }
 
-std::optional<BlockEvent> BlockDetector::onSampleInFlight(const BlockSample&, bool, bool) { return std::nullopt; }
+// Block in (D-032): after a landing, a set on the ground that stays set until every engine is off.
+std::optional<BlockEvent> BlockDetector::onSampleInFlight(const BlockSample& s, bool released, bool set) {
+    // SIM ON GROUND alone can flicker during taxi; also require a real height (D-042).
+    if (!s.onGround && s.altAglFt >= kAirborneMinAglFt) airborne_ = true;
+    if (airborne_ && s.onGround) landed_ = true;
+    if (!landed_) return std::nullopt;
+
+    if (set && s.onGround) inCandidate_ = s;
+    else if (released || !s.onGround) inCandidate_.reset();
+    if (!inCandidate_ || s.enginesRunning > 0) return std::nullopt;
+
+    const BlockSample& c = *inCandidate_;
+    BlockIn in;
+    in.flightId = open_->flightId;
+    in.time = c.time;
+    in.latDeg = c.latDeg;
+    in.lonDeg = c.lonDeg;
+    in.fuelLb = c.fuelLb;
+    in.fuelGal = c.fuelGal;
+    in.shutdownTime = s.time;
+    in.shutdownFuelLb = s.fuelLb;
+    in.blockTimeS = std::chrono::duration_cast<std::chrono::seconds>(c.time - open_->time).count();
+
+    open_.reset();
+    inCandidate_.reset();
+    airborne_ = false;
+    landed_ = false;
+    return in;
+}
 
 std::optional<FlightInterrupted> BlockDetector::onSessionEnded(std::string_view) { return std::nullopt; }
 

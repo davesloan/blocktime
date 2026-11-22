@@ -216,3 +216,108 @@ TEST(BlockOut, ToBlockSampleCopiesFieldsAndCountsRunningEngines) {
     EXPECT_EQ(s.title, "PMDG 737-800");
     EXPECT_EQ(s.atcId, "N738DV");
 }
+
+// --- Block in (D-032) --------------------------------------------------------
+
+TEST(BlockIn, TimedAtSetWithShutdownFuel) {
+    Script f;
+    f.flyAndLand();
+    f.fuel(5000);
+    f.brake(true, 4000s);
+    f.engines(1, 4060s);
+    f.fuel(4990);
+    f.engines(0, 4090s);
+
+    ASSERT_EQ(f.events.size(), 2u);
+    const auto& out = std::get<BlockOut>(f.events[0]);
+    const auto& in = std::get<BlockIn>(f.events[1]);
+    EXPECT_EQ(in.flightId, out.flightId);
+    EXPECT_EQ(in.time, kT0 + 4000s);
+    EXPECT_EQ(in.fuelLb, 5000);
+    EXPECT_EQ(in.fuelGal, 1343);
+    EXPECT_EQ(in.latDeg, f.s.latDeg);
+    EXPECT_EQ(in.lonDeg, f.s.lonDeg);
+    EXPECT_EQ(in.shutdownTime, kT0 + 4090s);
+    EXPECT_EQ(in.shutdownFuelLb, 4990);
+    EXPECT_EQ(in.blockTimeS, 4000 - 5);
+    EXPECT_FALSE(f.det.flightOpen());
+}
+
+TEST(BlockIn, SetReleasedWithEngineRunningIsIgnored) {
+    Script f;
+    f.flyAndLand();
+    f.brake(true, 3800s);   // taxiway stop
+    f.engines(1, 3850s);    // single-engine taxi
+    f.brake(false, 3900s);
+    f.north(300, 4000s);
+    f.brake(true, 4100s);   // gate
+    f.engines(0, 4150s);
+
+    ASSERT_EQ(f.events.size(), 2u);
+    EXPECT_EQ(std::get<BlockIn>(f.events[1]).time, kT0 + 4100s);
+}
+
+TEST(BlockIn, EnginesAlreadyOffAtSet) {
+    Script f;
+    f.flyAndLand();
+    f.engines(0, 3800s);
+    f.brake(true, 3900s);
+
+    ASSERT_EQ(f.events.size(), 2u);
+    const auto& in = std::get<BlockIn>(f.events[1]);
+    EXPECT_EQ(in.time, kT0 + 3900s);
+    EXPECT_EQ(in.shutdownTime, kT0 + 3900s);
+}
+
+TEST(BlockIn, GroundFlickerIsNotALanding) {
+    Script f;
+    f.blockOut();
+    f.s.onGround = false;  // one bad sample during taxi, still at ground AGL
+    f.step(100s);
+    f.s.onGround = true;
+    f.north(100, 110s);
+    f.brake(true, 200s);
+    f.engines(0, 260s);
+
+    ASSERT_EQ(f.events.size(), 1u);
+    EXPECT_TRUE(f.det.flightOpen());
+}
+
+TEST(BlockIn, ReturnToGateWithoutFlyingStaysOpen) {
+    Script f;
+    f.blockOut();
+    f.brake(true, 300s);
+    f.engines(0, 360s);
+
+    ASSERT_EQ(f.events.size(), 1u);
+    EXPECT_TRUE(f.det.flightOpen());
+}
+
+TEST(BlockIn, SetWhileAirborneDoesNotCount) {
+    Script f;
+    f.blockOut();
+    f.airborne(600s);
+    f.brake(true, 700s);  // brake set in the air, still set on landing
+    f.landed(3600s);
+    f.engines(0, 3700s);
+
+    ASSERT_EQ(f.events.size(), 1u);
+    EXPECT_TRUE(f.det.flightOpen());
+}
+
+TEST(BlockIn, NewFlightAfterBlockIn) {
+    Script f;
+    f.flyAndLand();
+    f.brake(true, 4000s);
+    f.engines(0, 4090s);
+    f.engines(2, 7000s);
+    f.brake(false, 7200s);
+    f.north(20, 7260s);
+
+    ASSERT_EQ(f.events.size(), 3u);
+    const auto& first = std::get<BlockOut>(f.events[0]);
+    const auto& second = std::get<BlockOut>(f.events[2]);
+    EXPECT_EQ(second.time, kT0 + 7200s);
+    EXPECT_NE(second.flightId, first.flightId);
+    EXPECT_TRUE(f.det.flightOpen());
+}
