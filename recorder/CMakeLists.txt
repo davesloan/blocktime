@@ -89,3 +89,43 @@ if(BLOCKTIME_BUILD_TESTS)
   target_link_libraries(blocktime-tests PRIVATE blocktime-core GTest::gtest_main)
   gtest_discover_tests(blocktime-tests)
 endif()
+
+# --- Qt app (Qt UI test, D-050, D-052) -----------------------------------------
+# Qt comes from the official Qt installer, not vcpkg. Defaults to $env:BLOCKTIME_QT_DIR, else the 6.12.0 kit.
+# This section comes last: qt_standard_project_setup() turns on AUTOMOC for every target defined after it.
+if(DEFINED ENV{BLOCKTIME_QT_DIR})
+  file(TO_CMAKE_PATH "$ENV{BLOCKTIME_QT_DIR}" _qt_default)
+else()
+  set(_qt_default "C:/Qt/6.12.0/msvc2022_64")
+endif()
+set(BLOCKTIME_QT_DIR "${_qt_default}" CACHE PATH "Path to the Qt 6 MSVC 64-bit kit (the folder holding bin/ and lib/)")
+list(APPEND CMAKE_PREFIX_PATH "${BLOCKTIME_QT_DIR}")
+
+find_package(Qt6 6.8 REQUIRED COMPONENTS Quick QuickControls2)
+qt_standard_project_setup(REQUIRES 6.8)
+
+# QML lives in qml/. Each file is aliased to the module root (qrc:/qt/qml/BlockTime/<name>.qml), so the files sit
+# next to the module's qmldir and see each other and the Theme singleton without imports.
+set(BLOCKTIME_QML_FILES
+  qml/Main.qml
+  qml/Theme.qml)
+foreach(_qml IN LISTS BLOCKTIME_QML_FILES)
+  get_filename_component(_name "${_qml}" NAME)
+  set_source_files_properties("${_qml}" PROPERTIES QT_RESOURCE_ALIAS "${_name}")
+endforeach()
+set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+
+qt_add_executable(blocktime-app WIN32 src/app_main.cpp)
+qt_add_qml_module(blocktime-app
+  URI BlockTime
+  VERSION 1.0
+  QML_FILES ${BLOCKTIME_QML_FILES})
+target_link_libraries(blocktime-app PRIVATE blocktime-sim Qt6::Quick Qt6::QuickControls2)
+
+# Copy the Qt DLLs and QML plugins next to the exe, so it runs from the build folder without Qt on PATH (D-056).
+find_program(BLOCKTIME_WINDEPLOYQT windeployqt HINTS "${BLOCKTIME_QT_DIR}/bin" NO_DEFAULT_PATH REQUIRED)
+add_custom_command(TARGET blocktime-app POST_BUILD
+  COMMAND "${BLOCKTIME_WINDEPLOYQT}" --qmldir "${CMAKE_CURRENT_SOURCE_DIR}/qml" --no-translations
+          --no-system-d3d-compiler --no-opengl-sw --no-compiler-runtime --verbose 0 "$<TARGET_FILE:blocktime-app>"
+  COMMENT "windeployqt blocktime-app"
+  VERBATIM)

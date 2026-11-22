@@ -1,0 +1,38 @@
+// BlockTime
+// Copyright (C) 2026 Dave Sloan
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// The one place colours, sizes and fonts are written (D-054). Dark only.
+
+pragma Singleton
+
+import QtQuick
+
+QtObject {
+    // Surfaces, darkest first
+    readonly property color bg: "#0E1116"
+    readonly property color surface: "#161B22"
+    readonly property color surfaceRaised: "#1C222B"
+    readonly property color border: "#262D37"
+
+    // Text
+    readonly property color textPrimary: "#E6EAF0"
+    readonly property color textSecondary: "#8B95A3"
+
+    // Meaning
+    readonly property color accent: "#3B82F6"
+    readonly property color good: "#22C55E"
+    readonly property color warn: "#F59E0B"
+    readonly property color bad: "#EF4444"
+
+    // Shape
+    readonly property int radius: 10
+    readonly property int spacing: 16
+
+    // Type
+    readonly property string fontFamily: "Segoe UI Variable"
+    readonly property int fontSizeSmall: 12
+    readonly property int fontSizeBody: 14
+    readonly property int fontSizeTitle: 18
+    readonly property int fontSizeValue: 28
+}
