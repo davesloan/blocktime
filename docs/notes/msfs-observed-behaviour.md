@@ -18,11 +18,10 @@ observations at the top.
 - `GENERAL ENG COMBUSTION:n` works on the PMDG 777. Engine 2 started first. On shutdown engine 2 stopped first,
   then engine 1.
 
-### Quitting MSFS doesn't always send QUIT
-- After a flight, MSFS logged `sim_stopped` and its process was gone about 5 s later with **no SimConnect QUIT
-  message**, so the recorder logged `sim_process_gone`. In the 0.1.1 test, quitting did send QUIT (`sim_quit`
-  1.4 s after `sim_stopped`). How MSFS was closed this time is not yet known. **Don't rely on `sim_quit` vs
-  `sim_process_gone` to tell a clean quit from a crash.**
+### Force-terminating MSFS
+- Killing MSFS (Dave force-terminated it during a flight) logs `sim_stopped`, then the process is gone about 5 s
+  later with no SimConnect QUIT. The recorder logs `sim_process_gone`, as designed. A normal quit from the main
+  menu sends QUIT (`sim_quit`, seen in the 0.1.1 test).
 
 ## 2026-11-22: PMDG 737-800 and 777-300ER at KSAN, recorder 0.1.1
 

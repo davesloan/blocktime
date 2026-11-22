@@ -42,13 +42,11 @@ Newest entries at the top. Add an entry at the end of every working session.
    `block_in`, because it didn't fly.
 7. **Ctrl+C:** `sim_disconnected` (`recorder_exit`), then `recorder_stopped`. The restart reconnected at once. The
    exit code itself wasn't captured, but the exit path ran to the end.
-8. **777 push, then quit:** `block_out` (13.8 m), then `flight_interrupted`. The reason was `sim_process_gone`,
-   not the expected `sim_quit` (see below).
+8. **777 push, then MSFS ended:** `block_out` (13.8 m), then `flight_interrupted` with `sim_process_gone`.
+   Dave force-terminated MSFS rather than quitting from the main menu, so that is the correct reason. This also
+   checks the crash path.
 
 **Unverified or odd:**
-- **No QUIT message on this exit.** MSFS stopped (`sim_stopped`) and its process was gone 5 s later without
-  sending SimConnect QUIT. In the 0.1.1 test, quitting did send QUIT. How Dave quit this time is still to be
-  asked. Detection still worked; this matters only if milestone 3 treats a crash differently from a quit.
 - The hold-short set/release (step 2) hasn't been seen in the sim.
 
 **Next step:**
