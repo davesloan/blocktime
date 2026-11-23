@@ -38,6 +38,7 @@ PlannedFlightModel::PlannedFlightModel(db::Database& db, QString airlineIcao, Pl
     connect(&bridge_, &RecorderBridge::connectionChanged, this, &PlannedFlightModel::changed);
     connect(&bridge_, &RecorderBridge::connectionChanged, this, &PlannedFlightModel::notRecordingChanged);
     connect(&bridge_, &RecorderBridge::matchChanged, this, &PlannedFlightModel::notRecordingChanged);
+    connect(&bridge_, &RecorderBridge::releaseRefusedChanged, this, &PlannedFlightModel::notRecordingChanged);
     connect(&bridge_, &RecorderBridge::blockEvent, this, [this](const QString& type) { onBlockEvent(type); });
     rates_ = loadRates(ratesFile_, nullptr).value_or(Rates{});
     flight_ = currentPlannedFlight(db_);
@@ -77,7 +78,15 @@ void PlannedFlightModel::checkFlown() {
     if (!flight_) return;
     const std::string registration = flight_->registration;
     std::string error;
-    const auto result = settleIfFlown(db_, logDir_, loadRates(ratesFile_, nullptr).value_or(Rates{}), &error);
+    // Ledger lines are permanent, so a flight is never settled at default rates: it waits until rates.yaml reads
+    // (the next block event or start settles it).
+    const auto rates = loadRates(ratesFile_, &error);
+    if (!rates) {
+        notice_ = "Flight not settled yet: " + q(error) + ". Fix rates.yaml and restart BlockTime.";
+        emit changed();
+        return;
+    }
+    const auto result = settleIfFlown(db_, logDir_, *rates, &error);
     if (!result) {
         if (!error.empty()) {
             notice_ = q(error);
@@ -96,12 +105,14 @@ void PlannedFlightModel::checkFlown() {
 void PlannedFlightModel::doneForNow() {
     summaryFlightId_.clear();
     emit changed();
+    emit notRecordingChanged();
 }
 
 void PlannedFlightModel::turnaround() {
     const QString registration = summaryRegistration_;
     summaryFlightId_.clear();
     emit changed();
+    emit notRecordingChanged();
     if (!registration.isEmpty()) emit turnaroundRequested(registration);
 }
 
@@ -109,8 +120,17 @@ QString PlannedFlightModel::notRecording() const {
     const auto& match = bridge_.match();
     if (!match || bridge_.connection() != "connected" || bridge_.flightOpen()) return {};
     switch (match->problem) {
-        case MatchProblem::None: return {};
-        case MatchProblem::NoPlannedFlight: return "Not recording: no flight is planned. Plan one from Fleet.";
+        case MatchProblem::None:
+            // The sim matches now, but the release that came before it was refused: only a new one opens the flight.
+            if (bridge_.releaseRefused() && !bridge_.parkingBrake()) {
+                return "Not recording yet: set the parking brake, then release it. The last release came before the "
+                       "sim matched this flight.";
+            }
+            return {};
+        case MatchProblem::NoPlannedFlight:
+            // Right after a flight is settled nothing is planned; that's the summary's moment, not a warning's.
+            if (!summaryFlightId_.isEmpty()) return {};
+            return "Not recording: no flight is planned. Plan one from Fleet.";
         case MatchProblem::WrongAircraftType: {
             if (!flight_) return {};
             QString loaded = q(match->aircraftFolder);
@@ -192,6 +212,7 @@ void PlannedFlightModel::importPlan() {
 }
 
 void PlannedFlightModel::cancelFlight() {
+    if (bridge_.flightOpen()) return;  // it's being flown: cancelling would lose it without a word
     std::string error;
     if (!cancelPlannedFlight(db_, &error)) {
         message_ = q(error);

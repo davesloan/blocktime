@@ -80,6 +80,9 @@ public:
     void applyMatch(const blocktime::MatchResult& m);
     // The matching check's latest answer (D-088); empty until the first one and after the connection is lost.
     const std::optional<blocktime::MatchResult>& match() const { return match_; }
+    // A brake release was refused and the brake hasn't been set since, so no flight can open until it's set and
+    // released again (the detector arms only on a new release).
+    bool releaseRefused() const { return releaseRefused_; }
     // Another recorder holds the single-instance mutex, so this app doesn't record.
     void setBlocked();
     // Recorder::run() returned; non-zero means the log couldn't be written.
@@ -91,6 +94,7 @@ signals:
     void sampleChanged();
     void flightChanged();
     void matchChanged();
+    void releaseRefusedChanged();
     // Every block event, after it's applied: "block_out", "block_in", "flight_interrupted" or "block_out_refused",
     // with its flight id ("" for a refusal).
     void blockEvent(const QString& type, const QString& flightId);
@@ -110,6 +114,8 @@ private:
     double blockOutFuelLb_ = 0;
     QString lastFlightSummary_;
     std::optional<blocktime::MatchResult> match_;
+    bool releaseRefused_ = false;
+    void setReleaseRefused(bool refused);
     EventFeedModel events_;
 };
 

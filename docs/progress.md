@@ -22,6 +22,114 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-23 — Milestone 6 built: record the planned flight (version 0.7.0)
+
+**Done:**
+- Plan `docs/plans/2026-11-23-milestone-6-record-the-planned-flight.md`, all 10 tasks, executed inline (D-033):
+  - **`rates.yaml`** (D-107): every fare and cost rate and the fuel price, read when New Flight opens and at settling.
+  - **Schema 4:** `flight`, `flight_cabin`, `flight_plan`, `flight_money_line`, 17 money categories, and each type's
+    `sim_folder` (D-112, D-115).
+  - **The matching check:** the type by the loaded aircraft's folder, within 3 km of the origin, and fuel of at least
+    the amount on record minus 300 lb. A refused release logs `block_out_refused`; a matched `block_out` carries its
+    `planned_flight_id`.
+  - **The Not recording banner** on Live, from the recorder's own check.
+  - **Settling** reads the flight from the log, on every block event and at startup, in one transaction (D-109,
+    D-113).
+  - **Fleet:** slots from hours (D-083, D-114), and the Flights and Hours columns are back.
+  - **Live:** after an interruption the plan stays, with a notice (D-108). After block in it shows the summary, with
+    At Gate Turnaround and Done for now.
+  - **Flights** lists the settled flights from the database, each with the same summary (D-111).
+  - **`--probe`** for the test flights (D-116, `docs/notes/probe-flight.md`). The release build includes the PMDG
+    halves, from the headers in Dave's PMDG install.
+  - **`--grab <png> [--page n]`** renders a screen offscreen, so screens can be checked without taking over the
+    desktop (`docs/notes/qt-setup.md`).
+- **Whole-milestone review** by a fresh reviewer: 0 Critical, 2 Important, 9 Minor. Fixed, each with a test that
+  failed first (D-117):
+  - a release refused before the sim matched now keeps a "set the parking brake, then release it" banner (otherwise
+    the flight could be lost without a word);
+  - no settling at the built-in rates when `rates.yaml` can't be read;
+  - Cancel flight is hidden, and refused, while recording;
+  - no "no flight is planned" warning over a summary;
+  - the startup summary no longer depends on the tracks arriving.
+- **Docs:**
+  - README: the screens, `rates.yaml`, the catalog upgrade, `--probe`;
+  - design.md §6, §11, §13.4, §13.7, §13.8 and §14;
+  - recorder.md (matching, events), database.md (schema 4 and its processes), the roadmap;
+  - D-108..D-117.
+
+**Working / verified (without the sim):**
+- Clean release and debug builds have no warnings. **333 tests pass:** blocktime-tests 275 (one timing check
+  skipped) and blocktime-qt-tests 58. qmllint reports nothing.
+- **Scratch run.** I used a scratch copy of Dave's data folder, with a hand-written log of the KBFI–KSAN delivery
+  flight:
+  - migration 4 ran, and the flight settled at startup;
+  - N814SX ended up at KSAN with 9,400 lb on board, no longer awaiting delivery, with 2.8 h;
+  - cash: $4,087,945, which is $4.1M minus $12,055 of costs;
+  - Live, Flights, Fleet and Money looked right, checked with `--grab`.
+- The probe builds with and without the PMDG headers. Without the sim it logs nothing extra.
+
+**Unverified or broken:**
+- Everything that needs the sim: Dave's checks below.
+- **Proposed, for Dave to confirm:** D-117 (the four review fixes).
+- **Deferred minors from the review:**
+  - At startup, the lease settle runs before the flight settle. A lease month that falls due between block in and a
+    restart is checked against cash without that flight's money. This only matters with very little cash.
+  - A diverted summary's title reads "KBFI → KSHT (planned KSAN)" rather than "Diverted to KSHT". The Flights row
+    says "diverted to".
+  - With one planned flight at a time, its row id is normally 1. "Reused id" is the usual case; the `planned_at`
+    guard handles it. The docs call it rare.
+  - A `block_in` held by the outbox (D-049) settles only at the next block event or start.
+  - No test for a failure partway through the money lines. The rollback is correct by reading.
+  - Finding the flown flight reads up to 7 logs on the GUI thread at block in and at startup.
+
+**Dave's checks.** Your real database already has XLY8 KBFI–KSAN, the delivery flight, planned with its SimBrief plan.
+The steps are ordered to need one sim session.
+
+1. **No sim. Copy the new catalog and the rates file, then start BlockTime with the probe:**
+   `Copy-Item config\catalog.yaml, config\rates.yaml "$env:LOCALAPPDATA\BlockTime\"`, then
+   `build\x64-release\BlockTime.exe --probe`. Expected:
+   - v0.7.0 in the sidebar, and no notices;
+   - Fleet: "0.0 h flown · 1 of 1 slots in use · slot 2 at 10 h", and N814SX with 0 flights and 0.0 hours;
+   - Live: XLY8 KBFI → KSAN, "Waiting for sim";
+   - the event feed says "Probe on".
+2. **Sim, wrong aircraft.** Start MSFS and load the PMDG 737-800 (Soxxly) at KBFI. Expected: "Not recording: you're
+   in a 737-800; this flight expects the 737-800 BBJ2 N814SX." Release the parking brake and taxi a few metres.
+   Expected: a "NOT RECORDING wrong_aircraft_type" feed line, and no flight. Exit to the main menu.
+3. **BBJ2 at the wrong airport.** Load the BBJ2 at KSEA. Expected: "Not recording: you're at KSEA; load in at KBFI."
+   Main menu again.
+4. **The delivery leg.** Load the BBJ2 at KBFI. Expected: the banner goes. This confirms D-112 for the BBJ2.
+   - If the startup profile released the brake before the sim matched, the banner instead says to set the brake and
+     release it. Do that.
+   - Fly KBFI → KSAN with GSX. Note the gate SayIntentions' ATC gives you at KSAN.
+   - At block in, expected:
+     - the summary: fuel, landing fee, ATC, pilots and maintenance, with the total;
+     - Money: cash down by that total;
+     - Fleet: N814SX at KSAN with the fuel left at shutdown, Parked (no longer awaiting delivery), 1 flight and its
+       hours.
+5. **Turnaround and the fuel check.**
+   - Click At Gate Turnaround. Expected: New Flight for N814SX at KSAN.
+   - Plan a short VIP leg (KLAX is about 100 nm), generate and import the plan.
+   - Release the brake with less fuel than N814SX had at block in, minus 300 lb. Expected: "Not recording: load at
+     least … lb of fuel", and a "NOT RECORDING fuel_below_record" line.
+   - Refuel, set the brake, release it and fly the leg. Expected: a VIP summary whose Fuel line charges only the fuel
+     you added.
+6. **A discarded flight.**
+   - Plan one more leg and push back until the feed shows BLOCK OUT. Expected: Cancel flight is gone while recording.
+   - Exit to the main menu. Expected: "… interrupted and discarded", the plan still waiting, the airplane where it
+     was, and no new money lines.
+7. **No sim.** Expected:
+   - Flights lists exactly your two flights, each with its summary and map;
+   - after closing and reopening, everything is the same.
+
+   Then send the day's log file (`events-YYYY-MM-DD.jsonl` in the log folder), so the probe's GSX, PMDG and airport
+   data go into `docs/notes/probe-flight.md`.
+
+**Next step:**
+- Dave's checks above, and his answer on D-117. Then milestone 7 (phases and the six stages), planned with what the
+  probe found.
+
+---
+
 ## 2026-11-23 — Milestone 6 planning (docs only)
 
 **Done:**

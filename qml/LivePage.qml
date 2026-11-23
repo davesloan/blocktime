@@ -35,6 +35,8 @@ Item {
     }
 
     onShowSummaryChanged: refreshSummary()
+    // A flight settled at startup is already showing its summary when the page is built.
+    Component.onCompleted: refreshSummary()
 
     Connections {
         target: page.flights

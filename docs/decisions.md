@@ -1645,3 +1645,21 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: The roadmap puts the probe in milestone 6's sim tests. A flag keeps it off Dave's normal flights (the
   resource budget) and can come out once milestones 8–10 read what they need.
 - Alternatives considered: a separate probe build; logging the PMDG data block as raw bytes to decode later.
+
+## D-117 — Review fixes for milestone 6
+- Date: 2026-11-23
+- Status: Proposed
+- Decided by: Claude (from the milestone 6 code review)
+- Area: app
+- Decision:
+  - A brake release refused before the sim matched leaves "Not recording yet: set the parking brake, then release
+    it" on Live until the brake is set again, since only a new release can open the flight.
+  - A flight isn't settled while `rates.yaml` can't be read. Live says why, and the flight settles at the next block
+    event or start once the file is fixed. (The Live estimate still falls back to the built-in rates.)
+  - Cancel flight is hidden, and refused, while a flight is being recorded.
+  - "No flight is planned" isn't shown over a flight's summary.
+- Why: The review found that the first could lose a whole flight with no warning, the second could post permanent
+  money at the wrong rates, the third could drop a flight in progress silently, and the fourth showed a warning after
+  every good landing.
+- Alternatives considered: the recorder reporting whether a release is armed (more plumbing for the same answer);
+  settling at the built-in rates with a notice (the lines could never be corrected).

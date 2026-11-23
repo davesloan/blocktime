@@ -30,6 +30,7 @@
 #include "ledger_model.h"
 #include "flight_list_model.h"
 #include "new_flight_model.h"
+#include "flight_settlement.h"
 #include "planned_flight.h"
 #include "planned_flight_model.h"
 #include "planner.h"
@@ -1083,4 +1084,75 @@ TEST_F(LiveFlight, DestroyingTheFlightListWhileLoadingDoesNotWait) {
     }  // stops and joins the worker; the posted result is dropped with the model
     QCoreApplication::processEvents();
     SUCCEED();
+}
+
+// --- Review fixes (milestone 6) -----------------------------------------------------------------------------------
+
+namespace {
+
+TelemetrySample brake(bool set) {
+    TelemetrySample t{};
+    t.parkingBrake = set ? 1 : 0;
+    t.onGround = 1;
+    return t;
+}
+
+}  // namespace
+
+TEST_F(LiveFlight, RefusedReleaseNeedsANewRelease) {  // review finding 1
+    auto m = model();
+    bridge_.applyConnection(ConnectionState::Connected);
+    bridge_.applySample(brake(false));
+    MatchResult r;
+    r.plannedFlightId = plannedId_;
+    r.problem = MatchProblem::FuelBelowRecord;
+    r.minFuelLb = 4700;
+    bridge_.applyMatch(r);
+    bridge_.applyBlockEvent(BlockOutRefused{{}, r, 47.53, -122.302});
+    r.problem = MatchProblem::None;  // refuelled: the sim matches now, but that release is spent
+    bridge_.applyMatch(r);
+    EXPECT_EQ(m->notRecording(),
+              "Not recording yet: set the parking brake, then release it. The last release came before the sim "
+              "matched this flight.");
+    bridge_.applySample(brake(true));
+    EXPECT_EQ(m->notRecording(), "");
+    bridge_.applySample(brake(false));  // the new release the detector is waiting for
+    EXPECT_EQ(m->notRecording(), "");
+}
+
+TEST_F(LiveFlight, UnreadableRatesDontSettle) {  // review finding 2
+    write({liveOut(plannedId_), liveIn()});
+    PlannedFlightModel m(db_, "XLY", planner_, bridge_, target_, dir_, dir_ / "no-rates.yaml");
+    int settled = 0;
+    QObject::connect(&m, &PlannedFlightModel::settled, [&] { ++settled; });
+    m.checkFlown();
+    EXPECT_EQ(settled, 0);
+    EXPECT_TRUE(m.hasFlight());
+    EXPECT_TRUE(m.notice().contains("no-rates.yaml")) << m.notice().toStdString();
+    std::string error;
+    EXPECT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << "still there to settle later: " << error;
+}
+
+TEST_F(LiveFlight, CancelWhileFlyingKeepsThePlan) {  // review finding 4
+    auto m = model();
+    BlockOut out;
+    out.flightId = kLiveOut;
+    bridge_.applyBlockEvent(out);
+    m->cancelFlight();
+    EXPECT_TRUE(m->hasFlight());
+    EXPECT_EQ(m->state(), "flying");
+}
+
+TEST_F(LiveFlight, NoBannerOverTheSummary) {  // review finding 6
+    write({liveOut(plannedId_), liveIn()});
+    auto m = model();
+    m->checkFlown();
+    ASSERT_EQ(m->state(), "summary");
+    bridge_.applyConnection(ConnectionState::Connected);
+    MatchResult r;
+    r.problem = MatchProblem::NoPlannedFlight;
+    bridge_.applyMatch(r);
+    EXPECT_EQ(m->notRecording(), "");
+    m->doneForNow();
+    EXPECT_EQ(m->notRecording(), "Not recording: no flight is planned. Plan one from Fleet.");
 }

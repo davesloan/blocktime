@@ -188,6 +188,7 @@ Card {
                 }
 
                 SecondaryButton {
+                    visible: panel.flight.state !== "flying"  // cancelling mid-flight would lose the flight
                     text: "Cancel flight"
                     tone: Theme.bad
                     onClicked: confirmCancel.open()

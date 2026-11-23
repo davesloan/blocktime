@@ -81,6 +81,7 @@ void RecorderBridge::applyConnection(ConnectionState state) {
         match_.reset();
         emit matchChanged();
     }
+    if (state != ConnectionState::Connected) setReleaseRefused(false);
 }
 
 void RecorderBridge::applySample(const TelemetrySample& s) {
@@ -96,6 +97,7 @@ void RecorderBridge::applySample(const TelemetrySample& s) {
     engineCount_ = std::clamp(s.numEngines, 0, 4);
     aircraft_ = QString::fromUtf8(simString(s.title, sizeof(s.title)));
     atcId_ = QString::fromUtf8(simString(s.atcId, sizeof(s.atcId)));
+    if (parkingBrake_) setReleaseRefused(false);
     emit sampleChanged();
 }
 
@@ -104,6 +106,7 @@ void RecorderBridge::applyBlockEvent(const BlockEvent& event) {
         [this](const auto& e) {
             using T = std::decay_t<decltype(e)>;
             if constexpr (std::is_same_v<T, BlockOut>) {
+                setReleaseRefused(false);
                 flightOpen_ = true;
                 blockOutTime_ = toQDateTime(e.time);
                 blockOutFuelLb_ = e.fuelLb;
@@ -115,6 +118,7 @@ void RecorderBridge::applyBlockEvent(const BlockEvent& event) {
                                          .arg(pounds(blockOutFuelLb_), pounds(e.fuelLb));
             } else if constexpr (std::is_same_v<T, BlockOutRefused>) {
                 // No flight opened; the feed line says why (D-088).
+                setReleaseRefused(true);
             } else {
                 // A recorder_crash at startup closes a flight this app never saw open; the summary still applies.
                 flightOpen_ = false;
@@ -131,6 +135,12 @@ void RecorderBridge::applyBlockEvent(const BlockEvent& event) {
         event);
     if (!std::holds_alternative<BlockOutRefused>(event)) emit flightChanged();
     emit blockEvent(type, id);
+}
+
+void RecorderBridge::setReleaseRefused(bool refused) {
+    if (refused == releaseRefused_) return;
+    releaseRefused_ = refused;
+    emit releaseRefusedChanged();
 }
 
 void RecorderBridge::applyMatch(const MatchResult& m) {
