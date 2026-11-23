@@ -854,3 +854,28 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   plan); C# + .NET; a native shell with WebView2 + React.
 - Still to settle before the merge (D-051): the repo layout for one app, whether the console recorder stays,
   tests and a code review on the branch, and reworking milestones 4–8.
+
+## D-064 — One app, one build, at the repo root
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: build
+- Decision: Before `qt-ui-spike` is merged, the project moves from `recorder/` to the repo root: `CMakeLists.txt`,
+  `CMakePresets.json`, `vcpkg.json`, `src/`, `qml/` and `tests/` sit next to `docs/`. The empty `webapp/`
+  placeholder is removed. The build runs `cmake --preset ...` from the root. The move uses `git mv`, so each file
+  keeps its history.
+- Why: with one app (D-063) there's one build. A folder named `recorder/` holding the whole app would mislead, and
+  moving before the merge means `main` gets the final layout in one step.
+- Alternatives considered: merging with `recorder/` and moving later.
+
+## D-065 — The console recorder is dropped
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: `blocktime-recorder.exe` (the console front end, `main.cpp`) is removed. The Qt app is the only program.
+  The recording code itself stays as the `Recorder` library (D-053), and the single-instance lock (D-037) stays so
+  two copies of the app can't both record.
+- Why: one program to maintain. The app already records exactly as the console recorder did (D-053), and it
+  passed two sim flights.
+- Alternatives considered: keeping it as a fallback and smoke-test tool.
