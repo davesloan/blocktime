@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include <cstdint>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -41,5 +43,18 @@ int airportCount(db::Database& db);
 
 // The airplane's limits (D-100), or nullopt if it has none yet.
 std::optional<AirplaneLimits> airplaneLimits(db::Database& db, std::int64_t airplaneId);
+
+struct NearestAirport {
+    std::int64_t id = 0;
+    std::string icao, name;
+    double distanceM = 0;
+};
+
+// The imported airport closest to the position, at any distance (D-113); nullopt only with no airports.
+std::optional<NearestAirport> nearestAirport(db::Database& db, double lat, double lon);
+
+std::set<std::string> settledLogFlightIds(db::Database& db);  // every flight's log_flight_id
+
+double hoursFlown(db::Database& db);  // the sum of every flight's block time, in hours (D-114)
 
 }  // namespace blocktime

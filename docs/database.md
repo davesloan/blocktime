@@ -398,4 +398,23 @@ Fuel").
 
 ## Milestone 6's processes
 
-Filled in with the settling code (milestone 6, Task 5).
+**Settling a flight (D-109, D-113).** The recorder logs `block_out` with the `planned_flight_id` it matched. The app
+settles the planned flight when the event log (the last 7 daily files) has such a `block_out`, released after the
+flight was planned and not already a `flight`, followed by its `block_in`. An interrupted attempt is skipped, so the
+same planned flight can be flown again (D-108). The app looks on every block event and once at startup, so a crash
+between block in and settling only delays it. Settling is one transaction:
+
+1. The arrival airport is the imported airport nearest the block-in position, at any distance.
+2. A `flight` row, from the planned flight and the log; `flight_cabin` and `flight_plan` copied with
+   `INSERT … SELECT`.
+3. The money: the planned flight's preview inputs, with the real block time for crew and maintenance and the fuel
+   added (`max(0, fuel_out_lb − fuel_on_board_lb)`) for fuel. Each line is a `ledger_line` posted at `block_in_at`
+   plus a `flight_money_line`.
+4. The airplane moves to the arrival airport, its `fuel_on_board_lb` becomes `fuel_in_lb`, and `awaiting_delivery`
+   becomes 0.
+5. The planned flight is deleted, with its cabins and plan.
+
+`flight.log_flight_id` is `UNIQUE`, so a flight can never be settled twice, even if a planned flight's row id is
+reused.
+
+**Hours (D-114).** Dave's hours are `SUM(block_in_at − block_out_at)` over `flight`; nothing stores a total.

@@ -287,9 +287,14 @@ Fixed rates, the same at every airport. No leases, discounts or airport-size pri
 - **The rates** of this section and section 12, and the fuel price, live in `rates.yaml` (D-107). It's read whenever
   New Flight opens and when a flight is settled. The fuel price is locked when a flight is planned. ($41/100 lb ≈ $2.75/gal at
   6.7 lb/gal.)
-- **Fuel stays in the tanks.** Each airplane remembers its fuel at block in. Fuel charged = fuel at block out − fuel
-  remaining. Fuel can't be removed: extra stays on board and isn't charged again. The app warns if the sim shows less
-  fuel than stored and won't accept the departure until it matches. Preview warns if landing weight approaches MLW.
+- **Fuel stays in the tanks.** Each airplane remembers its fuel when the engines were shut down after its last
+  flight (D-110). Fuel charged = fuel at block out − fuel on record: the fuel **added**, never below zero, at the
+  price locked when the flight was planned. Fuel can't be removed: extra stays on board and isn't charged again. A
+  departure with more than 300 lb less than on record isn't accepted (section 13.4). Preview warns if landing weight
+  approaches MLW.
+- **Settled money (D-109).** At block in, pilots, flight attendants and maintenance are charged for the real block
+  time. Every other line (fares, cargo, charter, landing, gate, handling, ATC, catering) is as previewed, from the
+  planned distance and the plan's block time.
 
 ## 12. Revenue
 
@@ -446,6 +451,9 @@ fuel, hours or leg-template data. GSX services from that attempt go too. The app
 "KSFO–KSEA interrupted and discarded") so a missing flight never looks like a bug. The recorder still logs
 `flight_interrupted` as a fact.
 
+**The planned flight stays (D-108):** same loads, same SimBrief plan. Live goes back to "Waiting for sim", so Dave
+can load in and fly it again, or cancel it.
+
 ## 14. Flight recording (summary)
 
 Full detail in `recorder.md`.
@@ -453,8 +461,9 @@ Full detail in `recorder.md`.
 - Flights start at parking brake release at the gate and end when it's set at the destination.
 - **Interrupted flight** (sim crash, main menu, app killed): discarded as if it never happened (section 13.8,
   D-072).
-- **Diversion:** the flight closes where the plane actually parked; revenue counts; a rotation plane is flagged out of
-  position until repositioned.
+- **Diversion:** the flight closes where the plane actually parked (the imported airport nearest the block-in
+  position, D-113); revenue counts, and every line but crew, maintenance and fuel is as previewed (D-109); a rotation
+  plane is flagged out of position until repositioned.
 - Phases are detected by the recorder (plan-aware, forward-only) and displayed in the app.
 
 ### Flight analysis (D-040)

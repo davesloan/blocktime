@@ -1,0 +1,60 @@
+// BlockTime
+// Copyright (C) 2026 Dave Sloan
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Settling a flown flight (design.md §13.7, D-109, D-113): the planned flight's block_out and block_in are read back
+// from the event log, which is written first (D-008), and turned into a `flight` with its money, in one transaction.
+// Runs on every block event and once at startup, so a crash between block in and settling loses nothing; a flight is
+// never settled twice.
+
+#pragma once
+
+#include <cstdint>
+#include <filesystem>
+#include <optional>
+#include <set>
+#include <string>
+#include <string_view>
+
+#include "open_flight.h"
+#include "planned_flight.h"
+#include "pricing.h"
+#include "rates.h"
+#include "sqlite_db.h"
+
+namespace blocktime {
+
+struct FlownFlight {
+    std::string logFlightId;            // the log's flight_id
+    std::string blockOutAt, blockInAt;  // instants, whole seconds (the log's milliseconds dropped)
+    int fuelOutLb = 0;                  // block_out fuel_lb
+    int fuelInLb = 0;                   // block_in shutdown_fuel_lb: what's left in the tanks (D-110)
+    double inLat = 0, inLon = 0;        // where it parked
+    long long blockS = 0;               // block_in block_time_s
+};
+
+// Reads up to maxFiles daily logs in `logDir`, oldest first, as one stream. The first block_out with this
+// planned_flight_id, released after `plannedAt` and not in `alreadySettled`, that is followed by a block_in with its
+// flight_id is the flown flight. An interrupted attempt is skipped (D-108). Lines that don't parse are skipped.
+std::optional<FlownFlight> findFlownFlight(const std::filesystem::path& logDir, std::int64_t plannedFlightId,
+                                           std::string_view plannedAt, const std::set<std::string>& alreadySettled,
+                                           std::size_t maxFiles = kOpenFlightLookbackFiles);
+
+struct SettledFlight {
+    std::string logFlightId, arrivalIcao;
+    bool diverted = false;  // parked somewhere other than the planned destination
+    Preview money;          // the posted lines and their total
+};
+
+// One transaction: the flight with its cabins and plan; its money lines, each a ledger_line posted at block in plus a
+// flight_money_line; the airplane moved to the arrival airport with fuelInLb on board and no longer awaiting
+// delivery; and the planned flight deleted. Money (D-109): the planned flight's prices with the real block time for
+// crew and maintenance, and fuel charged for what was added. On failure nothing is written and `error` says why.
+std::optional<SettledFlight> settleFlight(db::Database& db, const PlannedFlightView& planned, const FlownFlight& flown,
+                                          const Rates& rates, std::string* error);
+
+// findFlownFlight, then settleFlight, for the current planned flight. nullopt with `error` "" when nothing was flown.
+std::optional<SettledFlight> settleIfFlown(db::Database& db, const std::filesystem::path& logDir, const Rates& rates,
+                                           std::string* error);
+
+}  // namespace blocktime

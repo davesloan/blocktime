@@ -70,6 +70,7 @@ add_library(blocktime-core STATIC
   src/csv.cpp
   src/flight_history.cpp
   src/flight_match.cpp
+  src/flight_settlement.cpp
   src/geo.cpp
   src/leasing.cpp
   src/loads.cpp
@@ -120,6 +121,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/event_outbox_test.cpp
     tests/flight_history_test.cpp
     tests/flight_match_test.cpp
+    tests/flight_settlement_test.cpp
     tests/geo_test.cpp
     tests/leasing_test.cpp
     tests/loads_test.cpp

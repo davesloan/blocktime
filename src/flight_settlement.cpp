@@ -1,0 +1,193 @@
+// BlockTime
+// Copyright (C) 2026 Dave Sloan
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#include "flight_settlement.h"
+
+#include <algorithm>
+#include <cmath>
+#include <fstream>
+#include <map>
+#include <vector>
+
+#include <nlohmann/json.hpp>
+
+#include "airline_queries.h"
+#include "event_log.h"
+
+namespace blocktime {
+
+namespace {
+
+bool isFlightLine(const std::string& line) {
+    return line.find(R"("type":"block_out")") != std::string::npos ||
+           line.find(R"("type":"block_in")") != std::string::npos ||
+           line.find(R"("type":"flight_interrupted")") != std::string::npos;
+}
+
+// "2026-11-23T10:30:05.120Z" -> "2026-11-23T10:30:05Z" (D-081: the database keeps whole seconds).
+std::string wholeSeconds(const std::string& logTime) {
+    return logTime.size() >= 19 ? logTime.substr(0, 19) + "Z" : logTime;
+}
+
+double number(const nlohmann::json& data, const char* key) {
+    const auto it = data.find(key);
+    return it != data.end() && it->is_number() ? it->get<double>() : 0.0;
+}
+
+int pounds(double lb) { return std::max(0, static_cast<int>(std::lround(lb))); }
+
+}  // namespace
+
+std::optional<FlownFlight> findFlownFlight(const std::filesystem::path& logDir, std::int64_t plannedFlightId,
+                                           std::string_view plannedAt, const std::set<std::string>& alreadySettled,
+                                           std::size_t maxFiles) {
+    std::vector<std::filesystem::path> files = dailyLogFiles(logDir);  // oldest first
+    if (files.size() > maxFiles) files.erase(files.begin(), files.end() - static_cast<std::ptrdiff_t>(maxFiles));
+
+    std::map<std::string, FlownFlight> attempts;  // this planned flight's open block_outs, by flight_id
+    for (const auto& file : files) {
+        std::ifstream in(file, std::ios::binary);
+        std::string line;
+        while (std::getline(in, line)) {
+            if (!isFlightLine(line)) continue;  // most lines are telemetry
+            const auto j = nlohmann::json::parse(line, nullptr, false);
+            if (j.is_discarded() || !j.is_object() || !j.contains("data") || !j["data"].is_object()) continue;
+            const auto& data = j["data"];
+            if (!j.value("type", std::string()).size() || !data.contains("flight_id") || !data["flight_id"].is_string()) {
+                continue;
+            }
+            const std::string type = j["type"].get<std::string>();
+            const std::string id = data["flight_id"].get<std::string>();
+            if (type == "block_out") {
+                const auto planned = data.find("planned_flight_id");
+                if (planned == data.end() || !planned->is_number_integer() ||
+                    planned->get<std::int64_t>() != plannedFlightId) {
+                    continue;
+                }
+                FlownFlight f;
+                f.logFlightId = id;
+                f.blockOutAt = wholeSeconds(data.value("time", id));
+                f.fuelOutLb = pounds(number(data, "fuel_lb"));
+                if (f.blockOutAt > plannedAt && !alreadySettled.contains(id)) attempts[id] = f;
+            } else if (type == "flight_interrupted") {
+                attempts.erase(id);
+            } else if (const auto it = attempts.find(id); it != attempts.end()) {  // block_in
+                FlownFlight f = it->second;
+                f.blockInAt = wholeSeconds(data.value("time", std::string()));
+                f.fuelInLb = pounds(number(data, "shutdown_fuel_lb"));
+                f.inLat = number(data, "lat");
+                f.inLon = number(data, "lon");
+                f.blockS = static_cast<long long>(number(data, "block_time_s"));
+                return f;
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<SettledFlight> settleFlight(db::Database& db, const PlannedFlightView& planned, const FlownFlight& flown,
+                                          const Rates& rates, std::string* error) {
+    const auto fail = [&](const std::string& message) -> std::optional<SettledFlight> {
+        if (error) *error = "Couldn't settle " + planned.origin + "–" + planned.destination + ": " + message;
+        return std::nullopt;
+    };
+    const auto arrival = nearestAirport(db, flown.inLat, flown.inLon);
+    if (!arrival) return fail("no airports imported");
+
+    db::Transaction tx(db);
+    if (!tx.active()) return fail("couldn't start a transaction: " + tx.error());
+
+    db::Statement airplane(db, "SELECT a.airplane_id, a.fuel_on_board_lb FROM planned_flight f"
+                               " JOIN airplane a USING (airplane_id) WHERE f.planned_flight_id = ?");
+    airplane.bind(1, planned.id);
+    if (!airplane.next()) return fail("the planned flight is gone");
+    const std::int64_t airplaneId = airplane.integer(0);
+    const int fuelOnRecord = static_cast<int>(airplane.integer(1));
+
+    PriceInput in = priceInput(planned);
+    in.actualBlockHours = static_cast<double>(flown.blockS) / 3600.0;
+    in.fuelBurnLb = std::max(0, flown.fuelOutLb - fuelOnRecord);  // fuel added, not burned (design.md §11)
+    SettledFlight settled;
+    settled.logFlightId = flown.logFlightId;
+    settled.arrivalIcao = arrival->icao;
+    settled.diverted = arrival->icao != planned.destination;
+    settled.money = pricePreview(in, rates);
+
+    db::Statement flight(db,
+                         "INSERT INTO flight (log_flight_id, airplane_id, flight_number, kind, origin_airport_id,"
+                         " planned_destination_airport_id, arrival_airport_id, cargo_lb, fuel_price_cents_per_100lb,"
+                         " planned_at, block_out_at, block_in_at, fuel_on_record_lb, fuel_out_lb, fuel_in_lb,"
+                         " origin_runway, destination_runway)"
+                         " SELECT ?, airplane_id, flight_number, kind, origin_airport_id, destination_airport_id, ?,"
+                         " cargo_lb, fuel_price_cents_per_100lb, planned_at, ?, ?, ?, ?, ?, origin_runway,"
+                         " destination_runway FROM planned_flight WHERE planned_flight_id = ?");
+    flight.bind(1, flown.logFlightId);
+    flight.bind(2, arrival->id);
+    flight.bind(3, flown.blockOutAt);
+    flight.bind(4, flown.blockInAt);
+    flight.bind(5, static_cast<std::int64_t>(fuelOnRecord));
+    flight.bind(6, static_cast<std::int64_t>(flown.fuelOutLb));
+    flight.bind(7, static_cast<std::int64_t>(flown.fuelInLb));
+    flight.bind(8, planned.id);
+    if (!flight.run()) return fail(flight.error());
+    const std::int64_t flightId = db.lastInsertRowId();
+
+    std::string message;
+    if (!db.exec("INSERT INTO flight_cabin (flight_id, cabin_class, passengers) SELECT " + std::to_string(flightId) +
+                     ", cabin_class, passengers FROM planned_flight_cabin WHERE planned_flight_id = " +
+                     std::to_string(planned.id),
+                 &message) ||
+        !db.exec("INSERT INTO flight_plan (flight_id, request_id, generated_at, imported_at, route, origin_runway,"
+                 " destination_runway, cruise_altitude_ft, est_block_s, ramp_fuel_lb, enroute_burn_lb,"
+                 " est_landing_weight_lb, origin_transition_altitude_ft, destination_transition_level_ft, ofp_json)"
+                 " SELECT " + std::to_string(flightId) +
+                     ", request_id, generated_at, imported_at, route, origin_runway, destination_runway,"
+                     " cruise_altitude_ft, est_block_s, ramp_fuel_lb, enroute_burn_lb, est_landing_weight_lb,"
+                     " origin_transition_altitude_ft, destination_transition_level_ft, ofp_json FROM simbrief_plan"
+                     " WHERE planned_flight_id = " + std::to_string(planned.id),
+                 &message)) {
+        return fail(message);
+    }
+
+    db::Statement ledger(db, "INSERT INTO ledger_line (category, posted_at, amount_cents) VALUES (?, ?, ?)");
+    db::Statement link(db, "INSERT INTO flight_money_line (ledger_line_id, flight_id) VALUES (?, ?)");
+    for (const auto* lines : {&settled.money.income, &settled.money.costs}) {
+        for (const MoneyLine& m : *lines) {
+            ledger.reset();
+            ledger.bind(1, m.category);
+            ledger.bind(2, flown.blockInAt);
+            ledger.bind(3, m.cents);
+            if (!ledger.run()) return fail(m.category + ": " + ledger.error());
+            link.reset();
+            link.bind(1, db.lastInsertRowId());
+            link.bind(2, flightId);
+            if (!link.run()) return fail(link.error());
+        }
+    }
+
+    db::Statement move(db, "UPDATE airplane SET location_airport_id = ?, fuel_on_board_lb = ?, awaiting_delivery = 0"
+                           " WHERE airplane_id = ?");
+    move.bind(1, arrival->id);
+    move.bind(2, static_cast<std::int64_t>(flown.fuelInLb));
+    move.bind(3, airplaneId);
+    if (!move.run()) return fail(move.error());
+    if (!db.exec("DELETE FROM planned_flight WHERE planned_flight_id = " + std::to_string(planned.id), &message)) {
+        return fail(message);
+    }
+    if (!tx.commit(&message)) return fail(message);
+    if (error) error->clear();
+    return settled;
+}
+
+std::optional<SettledFlight> settleIfFlown(db::Database& db, const std::filesystem::path& logDir, const Rates& rates,
+                                           std::string* error) {
+    if (error) error->clear();
+    const auto planned = currentPlannedFlight(db);
+    if (!planned) return std::nullopt;
+    const auto flown = findFlownFlight(logDir, planned->id, planned->plannedAt, settledLogFlightIds(db));
+    if (!flown) return std::nullopt;
+    return settleFlight(db, *planned, *flown, rates, error);
+}
+
+}  // namespace blocktime

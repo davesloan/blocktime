@@ -4,6 +4,8 @@
 
 #include "airline_queries.h"
 
+#include "geo.h"
+
 namespace blocktime {
 
 namespace {
@@ -43,10 +45,16 @@ std::vector<AirplaneView> listAirplanes(db::Database& db) {
 std::vector<LedgerView> listLedger(db::Database& db) {
     std::vector<LedgerView> out;
     db::Statement q(db,
-                    "SELECT l.posted_at, l.amount_cents, c.label, a.registration, a.leased_on, lc.period_start"
+                    "SELECT l.posted_at, l.amount_cents, c.label, a.registration, a.leased_on, lc.period_start,"
+                    " fa.registration, o.icao_code, d.icao_code"
                     " FROM ledger_line l JOIN ledger_category c ON c.code = l.category"
                     " LEFT JOIN lease_charge lc ON lc.ledger_line_id = l.ledger_line_id"
                     " LEFT JOIN airplane a ON a.airplane_id = lc.airplane_id"
+                    " LEFT JOIN flight_money_line fm ON fm.ledger_line_id = l.ledger_line_id"
+                    " LEFT JOIN flight f ON f.flight_id = fm.flight_id"
+                    " LEFT JOIN airplane fa ON fa.airplane_id = f.airplane_id"
+                    " LEFT JOIN airport o ON o.airport_id = f.origin_airport_id"
+                    " LEFT JOIN airport d ON d.airport_id = f.arrival_airport_id"
                     " ORDER BY l.posted_at DESC, l.ledger_line_id DESC");
     while (q.next()) {
         LedgerView line{q.text(0), q.text(2), q.integer(1)};
@@ -55,6 +63,8 @@ std::vector<LedgerView> listLedger(db::Database& db) {
         if (leasedOn && start) {
             const Date next = leasePeriodStart(*leasedOn, periodIndex(*leasedOn, *start) + 1);
             line.text = "Lease " + q.text(3) + ", " + formatLeasePeriod(*start, next);
+        } else if (!q.isNull(6)) {
+            line.text = q.text(6) + " " + q.text(7) + "\u2013" + q.text(8) + " \u00b7 " + line.text;  // "N814SX KBFI–KSAN · Fuel"
         }
         out.push_back(std::move(line));
     }
@@ -70,6 +80,29 @@ Cents cashCentsAsOf(db::Database& db, std::string_view instant) {
     db::Statement q(db, "SELECT COALESCE(SUM(amount_cents), 0) FROM ledger_line WHERE posted_at <= ?");
     q.bind(1, instant);
     return q.next() ? q.integer(0) : 0;
+}
+
+std::optional<NearestAirport> nearestAirport(db::Database& db, double lat, double lon) {
+    // A few thousand airports: scanning them all is quicker than being clever, and it's done once per flight.
+    db::Statement q(db, "SELECT airport_id, icao_code, name, latitude, longitude FROM airport");
+    std::optional<NearestAirport> best;
+    while (q.next()) {
+        const double d = distanceMeters(lat, lon, q.real(3), q.real(4));
+        if (!best || d < best->distanceM) best = NearestAirport{q.integer(0), q.text(1), q.text(2), d};
+    }
+    return best;
+}
+
+std::set<std::string> settledLogFlightIds(db::Database& db) {
+    std::set<std::string> ids;
+    db::Statement q(db, "SELECT log_flight_id FROM flight");
+    while (q.next()) ids.insert(q.text(0));
+    return ids;
+}
+
+double hoursFlown(db::Database& db) {
+    db::Statement q(db, "SELECT COALESCE(SUM(unixepoch(block_in_at) - unixepoch(block_out_at)), 0) FROM flight");
+    return q.next() ? static_cast<double>(q.integer(0)) / 3600.0 : 0.0;
 }
 
 int airportCount(db::Database& db) {

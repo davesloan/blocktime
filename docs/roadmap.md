@@ -91,7 +91,7 @@ Each milestone still gets its own plan in `docs/plans/` (writing-plans) before w
 - **Interrupted flights are discarded** with a notice (section 13.8, D-072).
 - **Plain summary** (section 13.7): income and expense lines, total, the route map. No score yet.
 - **Settling the flight:** money posted to the ledger, the aircraft moved, fuel on board updated, Dave's hours
-  added (stored totals, not counted from the log; D-061 note).
+  added (counted from the flights in the database, not from the log; D-114).
 - **At Gate Turnaround** and **Done for now**.
 - **Probe flight** during the sim tests: log every GSX variable through a full turnaround, PMDG's switches
   (beacon, strobe, seatbelt, APU, lights), and the sim's parking and runway facility data, including what
