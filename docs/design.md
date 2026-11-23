@@ -353,7 +353,8 @@ here, including delivery and free flights.
 
 1. **Active runways from SayIntentions.** The app fetches the ATIS for both airports from SayIntentions' `getWX`
    endpoint (pilot API key plus a developer key; no active SayIntentions flight needed) and takes the active
-   runways. Without an ATIS the runway is left for SimBrief to choose.
+   runways. SayIntentions gives a runway even for an airport without an ATIS, and that guess is used (D-105). Only
+   when it gives none is the runway left for SimBrief to choose.
 2. **SimBrief dispatch page.** The app opens SimBrief's dispatch page in Dave's browser, pre-filled (the dispatch
    redirect, no API key): origin, destination, the airplane's SimBrief airframe, the runways (`origrwy`,
    `destrwy`), and the loads. Dave can change the route, then presses Generate.

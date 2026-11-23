@@ -1422,7 +1422,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-103 — The planned flight is current state in the database
 - Date: 2026-11-23
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude
 - Area: data
 - Decision: Planning writes a `planned_flight` row with its rolled loads (passengers per cabin class and a cargo
@@ -1436,7 +1436,8 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-104 — Preview and pricing details
 - Date: 2026-11-23
-- Status: Proposed (rates as code constants superseded by D-107: they go in a config file)
+- Status: Accepted (confirmed by Dave, 2026-11-23), except the rates as code constants, superseded by D-107: they go
+  in a config file
 - Decided by: Claude
 - Area: app
 - Decision:
@@ -1457,7 +1458,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-105 — ATIS runways and the import check
 - Date: 2026-11-23
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude
 - Area: app
 - Decision:
@@ -1473,10 +1474,12 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   (`docs/notes/sayintentions-api.md`). The import check catches forgetting to press Generate, which would otherwise
   import yesterday's plan for the same route.
 - Alternatives considered: comparing the OFP's passenger count with the rolled loads (the app's loads count anyway).
+- Note (Dave, 2026-11-23): an airport whose ATIS text is empty still gets SayIntentions' computed runways. That
+  guess is likely what its ATC will use, so it's kept rather than leaving the runway to SimBrief.
 
 ## D-106 — Each airplane has a default flight number for free flights
 - Date: 2026-11-23
-- Status: Accepted (storage details Proposed)
+- Status: Accepted (storage confirmed by Dave, 2026-11-23)
 - Decided by: Dave (rule), Claude (storage)
 - Area: app, data
 - Decision: Supersedes D-102. Each airplane has a **default flight number** for its free flights, unique across the
@@ -1492,7 +1495,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-107 — Fare and cost rates live in a config file
 - Date: 2026-11-23
-- Status: Accepted (file layout Proposed; not built yet)
+- Status: Accepted (layout confirmed by Dave, 2026-11-23; built in milestone 6)
 - Decided by: Dave (rule), Claude (layout)
 - Area: app
 - Decision: Supersedes D-104's "rates are constants in the code". The fare and cost rates of design.md §10–12 (fares,

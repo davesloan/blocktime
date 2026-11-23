@@ -136,9 +136,9 @@ Newest entries at the top. Add an entry at the end of every working session.
 - Milestone 6 (record the planned flight) starts in a new session: write its plan (`docs/roadmap.md`, milestone 6).
   Include **D-107**: move the fare and cost rates and the fuel price into `rates.yaml`, read when New Flight opens
   (Dave chose milestone 6 for it).
-- Open question for Dave (from the review, D-105): when an airport's ATIS text is empty, keep using SayIntentions'
-  computed runways (current behaviour, Claude's recommendation), or send none and let SimBrief choose?
-- D-103..D-106 are still Proposed until Dave confirms them. The deferred review minors are listed above.
+- Dave confirmed D-103..D-107 on 2026-11-23, and chose to keep SayIntentions' runway guess for airports without an
+  ATIS (D-105). No decision is Proposed now.
+- The deferred review minors are listed above.
 
 ---
 
