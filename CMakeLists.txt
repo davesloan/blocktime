@@ -166,7 +166,12 @@ set(BLOCKTIME_QML_FILES
   qml/MoneyPage.qml
   qml/RouteMap.qml
   qml/TrackDot.qml
-  qml/FlightCard.qml)
+  qml/FlightCard.qml
+  qml/SecondaryButton.qml
+  qml/TextInputField.qml
+  qml/MoneyLines.qml
+  qml/NewFlightDialog.qml
+  qml/PlannedFlightPanel.qml)
 foreach(_qml IN LISTS BLOCKTIME_QML_FILES)
   get_filename_component(_name "${_qml}" NAME)
   set_source_files_properties("${_qml}" PROPERTIES QT_RESOURCE_ALIAS "${_name}")

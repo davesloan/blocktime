@@ -47,6 +47,7 @@ QtObject {
     readonly property int fontSizeValue: 28
     readonly property int fontSizeClock: 44
     readonly property real labelLetterSpacing: 1.2
+    readonly property string monoFontFamily: "Consolas"  // the route box
 
     // Icons: Windows 11 system icon font, nothing to bundle (D-062)
     readonly property string iconFontFamily: "Segoe Fluent Icons"

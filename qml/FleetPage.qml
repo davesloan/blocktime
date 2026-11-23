@@ -4,6 +4,7 @@
 //
 // The airline's airplanes from the database, with the airline's notices above them (a missing config file, no
 // airport data, a lease that couldn't be paid). Click a column header to sort by it; click it again to reverse.
+// Click a row to select it, then New Flight (design.md §13.1).
 
 pragma ComponentBehavior: Bound
 
@@ -17,6 +18,11 @@ Item {
 
     required property RecorderBridge recorder
     required property FleetTableModel fleet
+    required property PlannedFlightModel plannedFlight
+
+    signal newFlightRequested(string registration)
+
+    property int selectedRow: -1  // the table row, or -1
 
     // Relative column widths: Registration, Type, Airframe, Fleet, Location, Fuel, Status.
     readonly property var columnWeights: [1.1, 1.2, 1.5, 1.0, 0.8, 0.9, 1.4]
@@ -28,6 +34,36 @@ Item {
         anchors.fill: parent
         anchors.margins: Theme.pagePadding
         title: "Fleet · " + table.rows + (table.rows === 1 ? " airplane" : " airplanes")
+
+        Connections {
+            target: page.fleet
+
+            // Rows move when the table is sorted or refreshed: drop the selection rather than point at another row.
+            function onSortChanged() { page.selectedRow = -1; }
+            function onModelReset() { page.selectedRow = -1; }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 12
+
+            Text {
+                Layout.fillWidth: true
+                text: page.plannedFlight.hasFlight
+                      ? page.plannedFlight.title.replace(" · ", " ").replace(" → ", "–") + " is planned (Live)"
+                      : page.selectedRow < 0 ? "Select an airplane to plan its next flight." : ""
+                color: Theme.textSecondary
+                elide: Text.ElideRight
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeBody
+            }
+
+            PrimaryButton {
+                text: "New Flight"
+                enabled: page.selectedRow >= 0 && !page.plannedFlight.hasFlight
+                onClicked: page.newFlightRequested(page.fleet.registrationAt(page.selectedRow))
+            }
+        }
 
         // The airline's notices, one line each.
         Repeater {
@@ -124,13 +160,28 @@ Item {
                 required property int row
                 required property int column
 
+                readonly property bool selected: row === page.selectedRow
                 readonly property bool isStatus: column === page.statusColumn
                 readonly property bool isNumber: column === page.fuelColumn
                 readonly property color tone: display === "Parked" ? Theme.good
                                             : display.startsWith("Returned") ? Theme.bad : Theme.accent
 
                 implicitHeight: 44
-                color: row % 2 === 0 ? Theme.surface : Theme.surfaceRaised
+                color: selected ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.14)
+                     : row % 2 === 0 ? Theme.surface : Theme.surfaceRaised
+
+                Rectangle {
+                    visible: cell.selected && cell.column === 0
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: 3
+                    color: Theme.accent
+                }
+
+                TapHandler {
+                    onTapped: page.selectedRow = cell.row
+                }
 
                 Text {
                     anchors.fill: parent

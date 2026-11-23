@@ -32,6 +32,14 @@ ApplicationWindow {
     title: "BlockTime"
     color: Theme.bg
 
+    // New Flight (design.md §13.1). Once the flight is planned, the Live page shows it.
+    NewFlightDialog {
+        id: newFlightDialog
+
+        flight: window.newFlight
+        onFlightPlanned: sidebar.currentIndex = 0
+    }
+
     RowLayout {
         anchors.fill: parent
         spacing: 0
@@ -97,6 +105,7 @@ ApplicationWindow {
 
                 LivePage {
                     recorder: window.recorder
+                    plannedFlight: window.plannedFlight
                 }
 
                 FlightsPage {
@@ -110,6 +119,10 @@ ApplicationWindow {
                 FleetPage {
                     recorder: window.recorder
                     fleet: window.fleet
+                    plannedFlight: window.plannedFlight
+                    onNewFlightRequested: registration => {
+                        if (window.newFlight.open(registration)) newFlightDialog.open();
+                    }
                 }
 
                 MoneyPage {
