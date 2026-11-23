@@ -69,8 +69,16 @@ Newest entries at the top. Add an entry at the end of every working session.
   - with the block expanded and collapsed;
   - at the smallest window size and full screen.
 
-  The release build must be relinked with BlockTime closed. At 1100 px wide, the live tiles' labels elide ("INDICATED
-  …"); that predates milestone 5.
+  The release build was relinked after Dave closed BlockTime: 265 tests pass and there are no warnings. At 1100 px
+  wide, the live tiles' labels elide ("INDICATED …"); that predates milestone 5.
+- **Idea for later (Dave, not needed for the MVP):** Fleet rows don't look clickable until one is selected. Claude's
+  recommendation:
+  - rows highlight on hover;
+  - each row ends in a "⋯" menu whose first item is New Flight (later: return the lease, set the default flight
+    number);
+  - the header's New Flight button stays for the selected row.
+
+  Dave also suggested an always-enabled New Flight that asks which airplane when none is selected.
 - **Deferred minors from the review:**
   - If the flight is cancelled during an import, `busy` stays set. It's invisible, since the panel hides.
   - `PlannedFlightModel::flightChanged` is connected to nothing.
