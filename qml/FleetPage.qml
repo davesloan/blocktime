@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// The airline's airframes, read from SQLite (D-061), with each one's flights and block hours from the log. Click a
-// column header to sort by it; click it again to reverse.
+// The airline's airplanes from the database, with the airline's notices above them (a missing config file, no
+// airport data, a lease that couldn't be paid). Click a column header to sort by it; click it again to reverse.
 
 pragma ComponentBehavior: Bound
 
@@ -18,25 +18,37 @@ Item {
     required property RecorderBridge recorder
     required property FleetTableModel fleet
 
-    // Relative column widths: Registration, Type, Configuration, Location, Status, Flights, Block hours.
-    readonly property var columnWeights: [1.1, 1.3, 1.3, 0.9, 1.2, 0.8, 1.0]
+    // Relative column widths: Registration, Type, Airframe, Fleet, Location, Fuel, Status.
+    readonly property var columnWeights: [1.1, 1.2, 1.5, 1.0, 0.8, 0.9, 1.4]
     readonly property real weightSum: columnWeights.reduce((a, b) => a + b, 0)
-    readonly property int firstNumberColumn: 5
-    readonly property int statusColumn: 4
+    readonly property int fuelColumn: 5
+    readonly property int statusColumn: 6
 
     Card {
         anchors.fill: parent
         anchors.margins: Theme.pagePadding
-        title: "Fleet · " + page.fleet.rowCount() + " aircraft"
+        title: "Fleet · " + table.rows + (table.rows === 1 ? " airplane" : " airplanes")
 
-        // The airline's notices (missing config, airport data, a lease that couldn't be paid), above the table.
+        // The airline's notices, one line each.
+        Repeater {
+            model: page.fleet.notices
+
+            Text {
+                required property string modelData
+
+                Layout.fillWidth: true
+                text: modelData
+                color: Theme.warn
+                wrapMode: Text.WordWrap
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeBody
+            }
+        }
+
         Text {
-            Layout.fillWidth: true
-            visible: page.fleet.notices.length > 0
-            text: page.fleet.notices.join("
-")
-            color: Theme.warn
-            wrapMode: Text.WordWrap
+            visible: table.rows === 0 && page.fleet.notices.length === 0
+            text: "No airplanes yet."
+            color: Theme.textSecondary
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeBody
         }
@@ -74,7 +86,7 @@ Item {
                     anchors.leftMargin: 12
                     anchors.rightMargin: 12
                     verticalAlignment: Text.AlignVCenter
-                    horizontalAlignment: headerCell.column >= page.firstNumberColumn ? Text.AlignRight : Text.AlignLeft
+                    horizontalAlignment: headerCell.column === page.fuelColumn ? Text.AlignRight : Text.AlignLeft
                     text: headerCell.display.toUpperCase()
                           + (headerCell.sorted ? (page.fleet.sortOrder === Qt.AscendingOrder ? "  ▲" : "  ▼") : "")
                     color: headerCell.sorted ? Theme.textPrimary : Theme.textSecondary
@@ -113,8 +125,9 @@ Item {
                 required property int column
 
                 readonly property bool isStatus: column === page.statusColumn
-                readonly property bool isNumber: column >= page.firstNumberColumn
-                readonly property color tone: display === "Parked" ? Theme.good : Theme.warn
+                readonly property bool isNumber: column === page.fuelColumn
+                readonly property color tone: display === "Parked" ? Theme.good
+                                            : display.startsWith("Returned") ? Theme.bad : Theme.accent
 
                 implicitHeight: 44
                 color: row % 2 === 0 ? Theme.surface : Theme.surfaceRaised
@@ -135,7 +148,7 @@ Item {
                     font.features: { "tnum": 1 }
                 }
 
-                // Status as a small pill: Parked is good, anything else (Maintenance) is a warning.
+                // Status as a small pill: Parked, Awaiting delivery, or Returned (the lease ended).
                 Rectangle {
                     anchors.left: parent.left
                     anchors.leftMargin: 12

@@ -37,6 +37,8 @@ ApplicationWindow {
         Sidebar {
             id: sidebar
 
+            airlineName: window.airlineName
+
             Layout.fillHeight: true
         }
 
@@ -106,6 +108,10 @@ ApplicationWindow {
                 FleetPage {
                     recorder: window.recorder
                     fleet: window.fleet
+                }
+
+                MoneyPage {
+                    ledger: window.ledger
                 }
             }
         }

@@ -151,6 +151,7 @@ set(BLOCKTIME_QML_FILES
   qml/LivePage.qml
   qml/FlightsPage.qml
   qml/FleetPage.qml
+  qml/MoneyPage.qml
   qml/RouteMap.qml
   qml/TrackDot.qml
   qml/FlightCard.qml)

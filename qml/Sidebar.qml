@@ -13,16 +13,19 @@ import QtQuick.Layouts
 Rectangle {
     id: sidebar
 
-    // 0 = Live, 1 = Flights, 2 = Fleet
+    // 0 = Live, 1 = Flights, 2 = Fleet, 3 = Money
     property int currentIndex: 0
+    // The airline's name under the brand; "" shows none.
+    property string airlineName
     // Page names, in the same order, for the header.
     readonly property var pageNames: entries.map(e => e.text)
 
-    // Glyphs are Segoe Fluent Icons code points: SpeedHigh, History, Airplane.
+    // Glyphs are Segoe Fluent Icons code points: SpeedHigh, History, Airplane, Money (E8C7).
     readonly property var entries: [
         { glyph: "", text: "Live" },
         { glyph: "", text: "Flights" },
-        { glyph: "", text: "Fleet" }
+        { glyph: "", text: "Fleet" },
+        { glyph: "", text: "Money" }
     ]
 
     implicitWidth: Theme.sidebarWidth
@@ -71,6 +74,13 @@ Rectangle {
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeTitle
                     font.weight: Font.DemiBold
+                }
+                Text {
+                    visible: sidebar.airlineName !== ""
+                    text: sidebar.airlineName
+                    color: Theme.textSecondary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeSmall
                 }
                 Text {
                     text: "v" + Qt.application.version
