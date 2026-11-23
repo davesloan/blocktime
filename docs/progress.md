@@ -89,15 +89,15 @@ Newest entries at the top. Add an entry at the end of every working session.
 - D-094..D-098 are Proposed.
 
 **Dave's checks (no sim needed; milestone 4 doesn't touch the recorder):**
-1. Download the airport files and run the import (README, "Airport data"). Expected: "Read 86383 airports, kept 4265" (the
-   numbers drift a little as OurAirports updates daily).
+1. Download the airport files and run the import (README, "Airport data"). Expected: "The Qt test's database was set aside as
+   blocktime.test-schema.db.", then "Read 86383 airports, kept 4265" (the numbers drift a little as OurAirports
+   updates daily). The old `blocktime.db` is now `blocktime.test-schema.db` next to the new one.
 2. Start `build\x64-release\BlockTime.exe`. Expected:
    - **Sidebar:** "Soxxly Airlines" under BlockTime.
-   - **Fleet:** N814SX, 737-800 BBJ2, 737-800 BBJ2 VIP, Executive, KBFI, 0 lb, a blue "Awaiting delivery" pill. The
-     only notice is "The Qt test's database was set aside as blocktime.test-schema.db."
+   - **Fleet:** N814SX, 737-800 BBJ2, 737-800 BBJ2 VIP, Executive, KBFI, 0 lb, a blue "Awaiting delivery" pill. No
+     notices (the import already set the old file aside).
    - **Money:** $4.1M ($4,100,000), with "Lease N814SX, 22 Nov – 21 Dec -$900,000" above "Opening cash $5,000,000".
-   - The old `blocktime.db` is now `blocktime.test-schema.db` next to the new one.
-3. Close and reopen. Expected: the same cash, no second lease line, and the set-aside notice gone.
+3. Close and reopen. Expected: the same cash and no second lease line.
 4. Break `airline.yaml`'s indentation and reopen. Expected: the same Fleet and Money, plus a notice starting
    "airline.yaml line". Then fix it.
 5. Check that the Money icon looks like money and that nothing clips at the smallest window size.
