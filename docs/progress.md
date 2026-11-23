@@ -22,6 +22,98 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-23 — Milestone 5 built: New Flight and plan (version 0.6.0)
+
+**Done:**
+- Plan `docs/plans/2026-11-23-milestone-5-new-flight-and-plan.md`, all 8 tasks, executed inline (D-033):
+  - **Airplane limits** (D-100): defaults on each catalog airframe, overridable per airplane, copied at lease time.
+    N814SX gets them at the next start.
+  - **Schema 3:** limits, the planned flight with its cabins, and the imported SimBrief plan. Each airplane also gets
+    a default free-flight number (D-106, added mid-task at Dave's request).
+  - **Loads** (design.md §9) and **pricing** (§10–12), each line rounded to $5.
+  - **SimBrief:** the dispatch URL (cargo in thousands, from Dave's check) and the OFP parser, with the import check
+    (D-105).
+  - **SayIntentions:** getWX runways.
+  - **The planned flight and the New Flight draft:** toggles never re-roll.
+  - **Qt models** behind a `Planner` interface, plus `QtPlanner` (Qt Network).
+  - **Screens:** a New Flight dialog from Fleet, and the before-departure panel on Live.
+- Whole-milestone review by a fresh reviewer: 0 Critical, 2 Important, 8 Minor. Both Important findings are fixed,
+  each with a test that failed first:
+  - Plan flight no longer completes after Cancel, or for another airplane if New Flight is reopened while the runways
+    are on their way.
+  - A wrong SayIntentions key now says so instead of looking like "no ATIS".
+- Docs:
+  - README: a "Keys and IDs" section, New Flight, and the upgrade note for `catalog.yaml`. The old map-key command
+    overwrote all of `settings.json`, so it's gone.
+  - `database.md` (built), `CLAUDE.md`, `design.md` §13.1, `docs/notes/simbrief-api.md` (the cargo unit).
+  - D-106.
+
+**Working / verified (without the sim):**
+- Clean release and debug builds have no warnings. **265 tests pass:**
+  - blocktime-tests 225, of which one timing check is skipped;
+  - blocktime-qt-tests 40.
+- qmllint reports nothing.
+- On a scratch copy of Dave's data folder:
+  - migration 3 ran, and N814SX got 7,000 / 146,300 / 190 / 55 / 36,113;
+  - the app started with a seeded planned flight on the Live page and no QML errors in `errors.log`.
+
+**Unverified or broken:**
+- **No one has looked at the new screens.** Claude can't see the window. Layout and the 1100 × 600 minimum size are
+  Dave's checks 5 and 9.
+- **The real OFP format.** The parser is built on a hand-written fixture: `params.time_generated` as ISO and
+  `times.est_block` as HH:MM:SS (from the research). If either is wrong, every import is refused with a message
+  saying which field is missing.
+- **Not yet tried with Dave's accounts:** whether `origrwy`/`destrwy` stick on the dispatch page, and a real getWX
+  answer.
+- **Deferred minors from the review:**
+  - If the flight is cancelled during an import, `busy` stays set. It's invisible, since the panel hides.
+  - `PlannedFlightModel::flightChanged` is connected to nothing.
+  - New Flight does nothing (no message) for a returned airplane.
+  - A planned flight outlives its airplane being returned for an unpaid lease.
+  - The dialog's modal overlay colour isn't a Theme token.
+  - Two new QML files lack `pragma ComponentBehavior: Bound`, like `PrimaryButton`.
+  - The Import button stays primary after the plan is in.
+  - `redact()` doesn't catch a percent-encoded key.
+- **Proposed, for Dave to confirm:** D-103, D-104, D-105, and D-106's storage (re-read from `airline.yaml` at every
+  start).
+
+**Dave's checks (no sim needed for any of them):**
+1. Copy the new catalog over yours. It's unchanged from the repo's old one apart from the new `limits`:
+   `Copy-Item config\catalog.yaml "$env:LOCALAPPDATA\BlockTime\catalog.yaml"`. In `airline.yaml`, add
+   `flight_number: 8` (or your number) under N814SX. In `settings.json`, add `simbrief_user_id`,
+   `sayintentions_api_key` and `sayintentions_developer_key` (README, "Keys and IDs").
+2. Start `build\x64-release\BlockTime.exe`. Expected: Fleet and Money as before, no notices, and `errors.log` with
+   only its "started" line.
+3. On Fleet, select N814SX and click New Flight. Expected: only "Delivery flight: no passengers or cargo", and the
+   flight number filled in.
+4. Type KSAN. Expected:
+   - costs only: landing fee $660, ATC about $920, pilots and maintenance;
+   - a negative total with "+ fuel";
+   - "N814SX ends up at KSAN".
+
+   Then try an airport with a runway shorter than 7,000 ft. Expected: the runway message, and Plan flight disabled.
+5. Check that nothing in the dialog is clipped. Then click Plan flight. Expected:
+   - the browser opens SimBrief's dispatch page with KBFI, KSAN, XLY and your number, N814SX's airframe and 0
+     passengers;
+   - the ATIS runways, if SayIntentions has them (note whether origin and destination runway stuck);
+   - the app switches to Live: "Waiting for plan", "Load in at KBFI, Boeing Field", and the runway line.
+6. Click Import Active SimBrief Plan before pressing Generate. Expected: a message that the latest plan is older or
+   for another route. Then press Generate on SimBrief and Import again. Expected:
+   - "Imported the plan generated HH:MMZ" and the plan line (FL, block time, burn);
+   - the route;
+   - an estimate that now has a Fuel line;
+   - "Waiting for sim".
+7. Click Copy route and paste it into Navigraph Charts.
+8. Close and reopen BlockTime. Expected: the same planned flight on Live, with its plan.
+9. Shrink the window to its smallest. Expected: the Live panel and Fleet stay readable.
+10. Click Cancel flight and confirm. Expected: the panel goes, and Fleet's New Flight is enabled again. Planning the
+    delivery flight again for milestone 6 is fine either way.
+
+**Next step:**
+- Dave's checks above, and confirming D-103..D-106. Then milestone 6 (record the planned flight): its plan.
+
+---
+
 ## 2026-11-23 — Milestone 5 planning (docs only)
 
 **Done:**
