@@ -68,7 +68,6 @@ add_library(blocktime-core STATIC
   src/catalog.cpp
   src/config_yaml.cpp
   src/csv.cpp
-  src/fleet_store.cpp
   src/flight_history.cpp
   src/geo.cpp
   src/leasing.cpp
@@ -111,7 +110,6 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/error_log_test.cpp
     tests/event_log_test.cpp
     tests/event_outbox_test.cpp
-    tests/fleet_store_test.cpp
     tests/flight_history_test.cpp
     tests/geo_test.cpp
     tests/leasing_test.cpp
@@ -172,7 +170,8 @@ qt_add_qml_module(blocktime-app
     src/recorder_bridge.h src/recorder_bridge.cpp
     src/qml_hot_reload.h src/qml_hot_reload.cpp
     src/flight_list_model.h src/flight_list_model.cpp
-    src/fleet_table_model.h src/fleet_table_model.cpp)
+    src/fleet_table_model.h src/fleet_table_model.cpp
+    src/ledger_model.h src/ledger_model.cpp)
 target_link_libraries(blocktime-app PRIVATE blocktime-sim Qt6::Quick Qt6::QuickControls2 Qt6::Location Qt6::Positioning)
 set_target_properties(blocktime-app PROPERTIES OUTPUT_NAME BlockTime)  # BlockTime.exe (D-066)
 # The C++ that qmlcachegen generates from our QML trips C4702 (unreachable code) inside Qt's qjsengine.h. It's raised
@@ -204,7 +203,8 @@ if(BLOCKTIME_BUILD_TESTS)
     src/event_feed_model.h src/event_feed_model.cpp
     src/recorder_bridge.h src/recorder_bridge.cpp
     src/flight_list_model.h src/flight_list_model.cpp
-    src/fleet_table_model.h src/fleet_table_model.cpp)
+    src/fleet_table_model.h src/fleet_table_model.cpp
+    src/ledger_model.h src/ledger_model.cpp)
   target_link_libraries(blocktime-qt-tests PRIVATE blocktime-sim Qt6::Gui Qt6::Qml Qt6::Positioning GTest::gtest_main)
   add_dependencies(blocktime-qt-tests blocktime-app)
   gtest_discover_tests(blocktime-qt-tests)

@@ -1329,3 +1329,14 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   rule for money events), and "cash as of the date" is what the airline actually had then.
 - Alternatives considered: charging missed months on the day the app opens (books dated wrong); checking
   affordability against today's cash (a later income could pay for an earlier month).
+
+## D-097 — The Fleet table drops its flight and hour counts until milestone 6
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision: The Fleet table shows registration, type, airframe, fleet, location, fuel and status. The flights and
+  block hours that D-061 counted from the event log are gone, along with the Qt test's `FleetStore`.
+- Why: The count matched the sim's registration (ATC ID) to the airplane's, which no longer holds (D-087), and
+  counting the last 30 days of log made totals drop over time (D-061 note). Milestone 6 stores hours per flight.
+- Alternatives considered: keeping the counts until milestone 6 (they'd show 0 for every real airplane).

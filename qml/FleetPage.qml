@@ -29,13 +29,12 @@ Item {
         anchors.margins: Theme.pagePadding
         title: "Fleet · " + page.fleet.rowCount() + " aircraft"
 
-        // The store didn't open: say why instead of an empty table.
+        // The airline's notices (missing config, airport data, a lease that couldn't be paid), above the table.
         Text {
             Layout.fillWidth: true
-            Layout.fillHeight: true  // takes the table's place, so the card's title stays at the top
-            verticalAlignment: Text.AlignTop
-            visible: page.fleet.error !== ""
-            text: "The fleet database couldn't be opened: " + page.fleet.error
+            visible: page.fleet.notices.length > 0
+            text: page.fleet.notices.join("
+")
             color: Theme.warn
             wrapMode: Text.WordWrap
             font.family: Theme.fontFamily
@@ -47,7 +46,6 @@ Item {
 
             Layout.fillWidth: true
             Layout.preferredHeight: 36
-            visible: page.fleet.error === ""
             syncView: table
             clip: true
             boundsBehavior: Flickable.StopAtBounds
@@ -100,7 +98,6 @@ Item {
 
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: page.fleet.error === ""
             clip: true
             boundsBehavior: Flickable.StopAtBounds
             model: page.fleet

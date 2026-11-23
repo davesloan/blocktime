@@ -13,7 +13,9 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
+#include <QStringList>
 #include <QStyleHints>
+#include <QTimer>
 #include <QUrl>
 
 #include <algorithm>
@@ -27,12 +29,13 @@
 #include <string_view>
 #include <thread>
 
+#include "airline_session.h"
 #include "app_settings.h"
 #include "error_log.h"
 #include "event_log.h"
-#include "fleet_store.h"
 #include "fleet_table_model.h"
 #include "flight_list_model.h"
+#include "ledger_model.h"
 #include "qml_hot_reload.h"
 #include "recorder.h"
 #include "recorder_bridge.h"
@@ -119,20 +122,10 @@ MapSettings mapSettings() {
     return m;
 }
 
-// %LOCALAPPDATA%\BlockTime\blocktime.db, seeded with the test fleet on first run. If it can't be opened the table is
-// empty and the Fleet page shows SQLite's message.
-FleetTableModel openFleet(const FlightListModel& flights) {
-    const std::filesystem::path dir = blocktime::defaultSettingsFile().parent_path();
-    std::error_code ec;
-    std::filesystem::create_directories(dir, ec);
-    const std::u8string file = (dir / "blocktime.db").u8string();  // sqlite3 takes UTF-8
-    std::string error;
-    std::vector<blocktime::Airframe> airframes;
-    if (auto store = blocktime::FleetStore::open(std::string(file.begin(), file.end()), &error)) {
-        store->seedIfEmpty();
-        airframes = store->airframes();
-    }
-    return FleetTableModel(std::move(airframes), QString::fromStdString(error), flights);
+QStringList toQStringList(const std::vector<std::string>& lines) {
+    QStringList out;
+    for (const std::string& line : lines) out << QString::fromStdString(line);
+    return out;
 }
 
 }  // namespace
@@ -216,14 +209,28 @@ int main(int argc, char* argv[]) {
     QObject::connect(&bridge, &RecorderBridge::flightChanged, &flights, &FlightListModel::reload);
     flights.reload();
 
-    // The fleet comes from SQLite (D-061), next to the log folder. --demo opens it too: it records no flight, and
-    // the database only holds the test fleet.
-    FleetTableModel fleet = openFleet(flights);
+    // The airline: the database, the config files and the leases (docs/database.md). --demo opens it too: it records
+    // no flight, and the airline is the same either way. Config drift warnings go to errors.log (D-067). Once a
+    // minute the leases are settled again, so a month that falls due while the app is open is charged (D-096).
+    blocktime::AirlineSession airline =
+        blocktime::AirlineSession::start(blocktime::defaultAirlinePaths(), blocktime::utcToday(), std::cerr);
+    FleetTableModel fleet(airline.airplanes(), toQStringList(airline.notices()));
+    LedgerModel ledger(airline.ledger(), airline.cash());
+    QTimer airlineTick;
+    airlineTick.setInterval(60'000);
+    QObject::connect(&airlineTick, &QTimer::timeout, [&] {
+        airline.tick(blocktime::utcToday());
+        fleet.reset(airline.airplanes(), toQStringList(airline.notices()));
+        ledger.reset(airline.ledger(), airline.cash());
+    });
+    airlineTick.start();
 
     QQmlApplicationEngine engine;
     const QVariantMap props{{"recorder", QVariant::fromValue(&bridge)},
                             {"flights", QVariant::fromValue(&flights)},
                             {"fleet", QVariant::fromValue(&fleet)},
+                            {"ledger", QVariant::fromValue(&ledger)},
+                            {"airlineName", QString::fromStdString(airline.airlineName())},
                             {"mapTileUrl", map.tileUrl},
                             {"mapCacheDir", map.cacheDir},
                             {"mapUserAgent", map.userAgent}};

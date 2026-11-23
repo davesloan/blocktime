@@ -25,6 +25,7 @@
 
 #include "event_feed_model.h"
 #include "fleet_table_model.h"
+#include "ledger_model.h"
 #include "flight_list_model.h"
 #include "recorder_bridge.h"
 
@@ -372,11 +373,20 @@ TEST_F(TempLog, DestroyingTheModelWhileLoadingDoesNotWait) {
 
 namespace {
 
-std::vector<Airframe> sampleFleet() {
-    return {{"N818SX", "737-800", "Two-class", "KSAN", "Parked"},
-            {"N601SX", "737-600", "all-economy", "KBFI", "Parked"},
-            {"N880SX", "737-800 BBJ2", "VIP", "KLAS", "Maintenance"},
-            {"N840SX", "737-800 BCF", "Freighter", "KONT", "Parked"}};
+AirplaneView plane(const std::string& registration, const std::string& airframe, int fuel) {
+    AirplaneView a;
+    a.registration = registration;
+    a.typeCode = "737-800";
+    a.airframeName = airframe;
+    a.fleet = "Main";
+    a.locationIcao = "KSAN";
+    a.fuelOnBoardLb = fuel;
+    return a;
+}
+
+std::vector<AirplaneView> sampleFleet() {
+    return {plane("N880SX", "VIP", 12128), plane("N601SX", "all-economy", 950), plane("N818SX", "Two-class", 3000),
+            plane("N840SX", "Freighter", 0)};
 }
 
 QString cell(const FleetTableModel& m, int row, int column) {
@@ -389,98 +399,111 @@ std::vector<QString> column(const FleetTableModel& m, int col) {
     return out;
 }
 
+constexpr Date day(int y, unsigned m, unsigned d) {
+    return Date{std::chrono::year{y}, std::chrono::month{m}, std::chrono::day{d}};
+}
+
 }  // namespace
 
-TEST_F(TempLog, FleetDefaultsToRegistrationAscending) {
-    FlightListModel flights(dir_);
-    flights.reloadBlocking();
-    FleetTableModel m(sampleFleet(), "", flights);
+TEST(Fleet, DefaultsToRegistrationAscending) {
+    FleetTableModel m(sampleFleet(), {});
     EXPECT_EQ(m.rowCount(), 4);
     EXPECT_EQ(m.columnCount(), FleetTableModel::ColumnCount);
     EXPECT_EQ(column(m, FleetTableModel::Registration),
               (std::vector<QString>{"N601SX", "N818SX", "N840SX", "N880SX"}));
-    EXPECT_EQ(m.headerData(FleetTableModel::BlockHours, Qt::Horizontal, Qt::DisplayRole).toString(), "Block hours");
+    EXPECT_EQ(m.headerData(FleetTableModel::Airframe, Qt::Horizontal, Qt::DisplayRole).toString(), "Airframe");
+    EXPECT_EQ(m.headerData(FleetTableModel::Fuel, Qt::Horizontal, Qt::DisplayRole).toString(), "Fuel");
     EXPECT_FALSE(m.headerData(0, Qt::Vertical, Qt::DisplayRole).isValid());
 }
 
-TEST_F(TempLog, FleetCountsBlockInFlightsPerTail) {
-    // N818SX: 10 flights of 1 h; N601SX: 9 of 2 h; N840SX: one interrupted flight, which doesn't count.
-    std::vector<std::tuple<std::string, int, int>> list;
-    for (int h = 0; h < 10; ++h) list.emplace_back("N818SX", h, 3600);
-    flights(list);
-    std::vector<std::string> more;
-    for (int h = 10; h < 19; ++h) {
-        const std::string id = std::format("2026-11-22T{:02}:00:00.000Z", h);
-        more.push_back(blockOut(id, "N601SX"));
-        more.push_back(blockIn(id, std::format("2026-11-22T{:02}:30:00.000Z", h), 7200));
-    }
-    more.push_back(blockOut("2026-11-22T20:00:00.000Z", "N840SX"));
-    more.push_back(interrupted("2026-11-22T20:00:00.000Z", "2026-11-22T20:05:00.000Z", "sim_stopped"));
-    write(more, true);
-
-    FlightListModel fl(dir_);
-
-    fl.reloadBlocking();
-    FleetTableModel m(sampleFleet(), "", fl);
-    // Rows in registration order: N601SX, N818SX, N840SX, N880SX.
-    EXPECT_EQ(column(m, FleetTableModel::Flights), (std::vector<QString>{"9", "10", "0", "0"}));
-    EXPECT_EQ(column(m, FleetTableModel::BlockHours), (std::vector<QString>{"18.0", "10.0", "0.0", "0.0"}));
-
-    // Numbers sort by value: "10" before "9" would be text order.
-    m.sort(FleetTableModel::Flights, Qt::DescendingOrder);
-    EXPECT_EQ(column(m, FleetTableModel::Registration),
-              (std::vector<QString>{"N818SX", "N601SX", "N840SX", "N880SX"}));  // ties by registration, ascending
-    m.sort(FleetTableModel::BlockHours, Qt::AscendingOrder);
-    EXPECT_EQ(column(m, FleetTableModel::Registration),
-              (std::vector<QString>{"N840SX", "N880SX", "N818SX", "N601SX"}));
-    EXPECT_EQ(m.sortColumn(), FleetTableModel::BlockHours);
-    EXPECT_EQ(m.sortOrder(), static_cast<int>(Qt::AscendingOrder));
-}
-
-TEST_F(TempLog, FleetTextSortIsCaseInsensitive) {
-    FlightListModel flights(dir_);
-    flights.reloadBlocking();
-    FleetTableModel m(sampleFleet(), "", flights);
+TEST(Fleet, TextSortIsCaseInsensitive) {
+    FleetTableModel m(sampleFleet(), {});
     int sortChanges = 0;
     QObject::connect(&m, &FleetTableModel::sortChanged, [&] { ++sortChanges; });
-    m.sort(FleetTableModel::Configuration, Qt::AscendingOrder);
+    m.sort(FleetTableModel::Airframe, Qt::AscendingOrder);
     // Case-sensitive order would put "all-economy" last.
-    EXPECT_EQ(column(m, FleetTableModel::Configuration),
+    EXPECT_EQ(column(m, FleetTableModel::Airframe),
               (std::vector<QString>{"all-economy", "Freighter", "Two-class", "VIP"}));
-    m.sort(FleetTableModel::Configuration, Qt::DescendingOrder);
-    EXPECT_EQ(column(m, FleetTableModel::Configuration),
+    m.sort(FleetTableModel::Airframe, Qt::DescendingOrder);
+    EXPECT_EQ(column(m, FleetTableModel::Airframe),
               (std::vector<QString>{"VIP", "Two-class", "Freighter", "all-economy"}));
     EXPECT_EQ(sortChanges, 2);
 }
 
-TEST_F(TempLog, FleetIgnoresABadSortColumn) {
-    FlightListModel flights(dir_);
-    flights.reloadBlocking();
-    FleetTableModel m(sampleFleet(), "", flights);
+TEST(Fleet, IgnoresABadSortColumn) {
+    FleetTableModel m(sampleFleet(), {});
     m.sort(-1);
     m.sort(FleetTableModel::ColumnCount);
     EXPECT_EQ(m.sortColumn(), FleetTableModel::Registration);
     EXPECT_EQ(cell(m, 0, FleetTableModel::Registration), "N601SX");
 }
 
-TEST_F(TempLog, FleetRecountsWhenFlightsReload) {
-    flights({{"N818SX", 1, 1800}});
-    FlightListModel fl(dir_);
-    fl.reloadBlocking();
-    FleetTableModel m(sampleFleet(), "", fl);
-    EXPECT_EQ(cell(m, 1, FleetTableModel::Flights), "1");  // N818SX is row 1
-    write({blockOut("2026-11-22T05:00:00.000Z", "N818SX"),
-           blockIn("2026-11-22T05:00:00.000Z", "2026-11-22T05:30:00.000Z", 1800)},
-          true);
-    fl.reloadBlocking();
-    EXPECT_EQ(cell(m, 1, FleetTableModel::Flights), "2");
-    EXPECT_EQ(cell(m, 1, FleetTableModel::BlockHours), "1.0");
+TEST(Fleet, FuelSortsByNumberAndShowsPounds) {
+    FleetTableModel m(sampleFleet(), {});
+    m.sort(FleetTableModel::Fuel, Qt::AscendingOrder);
+    // Text order would put "12,128 lb" before "3,000 lb".
+    EXPECT_EQ(column(m, FleetTableModel::Fuel), (std::vector<QString>{"0 lb", "950 lb", "3,000 lb", "12,128 lb"}));
 }
 
-TEST_F(TempLog, FleetCarriesTheStoreError) {
-    FlightListModel flights(dir_);
-    flights.reloadBlocking();
-    FleetTableModel m({}, "unable to open database file", flights);
+TEST(Fleet, StatusText) {
+    std::vector<AirplaneView> rows = sampleFleet();
+    rows[0].awaitingDelivery = true;                // N880SX
+    rows[1].returnedOn = day(2027, 1, 22);          // N601SX
+    rows[1].returnReason = "unpaid";
+    FleetTableModel m(rows, {});
+    EXPECT_EQ(column(m, FleetTableModel::Status),
+              (std::vector<QString>{"Returned 22 Jan 2027", "Parked", "Parked", "Awaiting delivery"}));
+}
+
+TEST(Fleet, ResetReplacesRowsAndNotices) {
+    FleetTableModel m(sampleFleet(), {"No airport data yet."});
+    EXPECT_EQ(m.notices(), QStringList{"No airport data yet."});
+    int noticeChanges = 0;
+    QObject::connect(&m, &FleetTableModel::noticesChanged, [&] { ++noticeChanges; });
+    m.sort(FleetTableModel::Fuel, Qt::DescendingOrder);
+    m.reset({plane("N1", "VIP", 5), plane("N2", "VIP", 7)}, {});
+    EXPECT_EQ(m.rowCount(), 2);
+    EXPECT_EQ(cell(m, 0, FleetTableModel::Registration), "N2");  // the sort is kept
+    EXPECT_TRUE(m.notices().isEmpty());
+    EXPECT_EQ(noticeChanges, 1);
+}
+
+// --- LedgerModel --------------------------------------------------------------------------------------------------
+
+namespace {
+
+QVariant ledgerData(const LedgerModel& m, int row, const char* role) {
+    return m.data(m.index(row), m.roleNames().key(role));
+}
+
+std::vector<LedgerView> sampleLedger() {
+    return {LedgerView{"2026-11-22T00:00:00Z", "Lease N814SX, 22 Nov – 21 Dec", -90'000'000},
+            LedgerView{"2026-11-22T00:00:00Z", "Opening cash", 500'000'000}};
+}
+
+}  // namespace
+
+TEST(Ledger, RowsAndCash) {
+    LedgerModel m(sampleLedger(), 410'000'000);
+    ASSERT_EQ(m.rowCount(), 2);
+    EXPECT_EQ(ledgerData(m, 0, "date").toString(), "22 Nov 2026");
+    EXPECT_EQ(ledgerData(m, 0, "text").toString(), QString::fromUtf8("Lease N814SX, 22 Nov – 21 Dec"));
+    EXPECT_EQ(ledgerData(m, 0, "amount").toString(), "-$900,000");
+    EXPECT_FALSE(ledgerData(m, 0, "income").toBool());
+    EXPECT_EQ(ledgerData(m, 1, "amount").toString(), "$5,000,000");
+    EXPECT_TRUE(ledgerData(m, 1, "income").toBool());
+    EXPECT_EQ(m.cashShort(), "$4.1M");
+    EXPECT_EQ(m.cashFull(), "$4,100,000");
+}
+
+TEST(Ledger, ResetEmitsChanged) {
+    LedgerModel m({}, 0);
     EXPECT_EQ(m.rowCount(), 0);
-    EXPECT_EQ(m.error(), "unable to open database file");
+    EXPECT_EQ(m.cashShort(), "$0");
+    int changes = 0;
+    QObject::connect(&m, &LedgerModel::changed, [&] { ++changes; });
+    m.reset(sampleLedger(), 410'000'000);
+    EXPECT_EQ(m.rowCount(), 2);
+    EXPECT_EQ(m.cashFull(), "$4,100,000");
+    EXPECT_EQ(changes, 1);
 }
