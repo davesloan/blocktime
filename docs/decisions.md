@@ -22,7 +22,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-001 — Two programs: native recorder + local web app
 - Date: 2026-11-21
-- Status: Accepted
+- Status: Superseded by D-063 (Qt won the UI test)
 - Decided by: Dave
 - Area: design
 - Decision: A native Windows recorder (C++, SimConnect SDK) runs as its own process; a Node.js/TypeScript web app runs
@@ -50,7 +50,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-004 — Runs locally, no hosting or login
 - Date: 2026-11-21
-- Status: Accepted
+- Status: Superseded by D-063 (Qt won the UI test)
 - Decided by: Dave
 - Area: app
 - Decision: The web app runs on Dave's PC (localhost). Single SQLite file for all data.
@@ -78,7 +78,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-007 — Visuals live in the web app
 - Date: 2026-11-21
-- Status: Accepted
+- Status: Superseded by D-063 (Qt won the UI test)
 - Decided by: Dave
 - Area: recorder
 - Decision: The recorder has only a tray icon/status; it detects phases and streams events; the web app shows phases,
@@ -830,3 +830,27 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: A side menu between screens is part of what makes it feel like FlyHub / Sim Toolkit Pro. A system icon
   font means nothing to bundle or license.
 - Alternatives considered: Tabs along the top; bundled SVG icons.
+
+## D-063 — BlockTime is one native Qt app
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: design
+- Decision: BlockTime becomes **one native Windows app** in C++20 with Qt 6 and a QML interface. The recorder runs
+  on its own thread inside it (D-053), and the app runs the airline too. Supersedes D-001 (two programs), D-004
+  (local web app with SQLite) and D-007 (visuals in the web app). What carries over:
+  - It runs only on Dave's PC, with no hosting and no login.
+  - Airline data lives in one SQLite file, reached through the sqlite3 C API in plain C++ (D-061).
+  - Airline logic lives in plain C++ libraries tested with GoogleTest. QML only displays.
+  - The event log is still written first and stays the record of every flight (D-008). The app reads it back
+    (D-060).
+  - The Node/TypeScript web app (`/webapp`) is dropped. Where older decisions say "the web app", read "the app".
+- Why: both Qt UI tests passed every criterion (`docs/qt-ui-test-context.md`):
+  - **In flight:** at most about 70 MB and 0.3% CPU with the map opened, against limits of 100 MB and 1%.
+  - **The look:** Dave: "beautiful and exactly what I was looking for".
+  - **Change loop:** working QML screens with about four one-pass fixes per test, and a 1.5 s hot-reload loop.
+  - **The route map:** Qt draws a dark post-flight route map.
+- Alternatives considered: the recorder plus a local Node/TypeScript web app in a browser (D-001, the previous
+  plan); C# + .NET; a native shell with WebView2 + React.
+- Still to settle before the merge (D-051): the repo layout for one app, whether the console recorder stays,
+  tests and a code review on the branch, and reworking milestones 4–8.

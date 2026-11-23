@@ -22,6 +22,16 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-22 — Decision: Qt wins (D-063)
+
+**Done:**
+- Dave chose one native Qt app (D-063). D-001, D-004 and D-007 are marked superseded.
+
+**Next step:**
+- Before the merge (D-051): settle the repo layout and the console recorder's future, add the missing tests, run a
+  code review on the branch, then rework the docs (CLAUDE.md, `design.md`, `recorder.md`, milestones 4–8) and
+  merge to `main`.
+
 ## 2026-11-22 — Qt UI test 2 flown: everything worked
 
 **Done:**
