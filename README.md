@@ -6,11 +6,12 @@ built around the parts that make flying feel meaningful and none of the busywork
 You lease aircraft, build rotations, and fly legs yourself while the rest of your fleet keeps flying in the background.
 Every flight you fly is recorded automatically, from parking brake release to parking brake set.
 
-> **Status:** early development, version 0.6.0. The app records flights (block out / block in), shows live flight
+> **Status:** early development, version 0.7.0. The app records flights (block out / block in), shows live flight
 > data and past flights with the route flown on a dark map, and runs the airline's foundation: your airline and
 > leased airplanes from config files, the monthly lease charges, and the money ledger. New Flight sets up a leg with
 > its loads and money preview, opens a pre-filled SimBrief dispatch page with SayIntentions' runways, and imports
-> the plan. Recording that planned flight and settling its money come next (`docs/roadmap.md`).
+> the plan. Only that planned flight is recorded, and at block in it's settled: money, the airplane's new airport,
+> fuel and hours, with a summary. Phases and the flight's stages come next (`docs/roadmap.md`).
 
 This project is built for one pilot's own use and shared in case others want to tinker. It isn't designed to be easy to
 set up, and there's no support — but you're welcome to clone it and play.
@@ -145,11 +146,19 @@ while the app is open. A month you can't pay returns the airplane (design.md §5
 - Start it before or after MSFS. The pill in the header goes from "Waiting for sim" to "Sim starting" to "Connected".
   MSFS can take several minutes to answer while it loads.
 - **Live:** live flight values, the block clock, and an event feed. A flight starts at the parking brake release that's
-  followed by 10 m of movement, and ends at a brake set held until every engine is off (`docs/recorder.md`).
-- **Flights:** every flight in the last 30 days of the log, newest first, with block times, fuel used, distance,
-  highest altitude and the route flown on a dark map. It updates after each block out and block in.
-- **Fleet:** your airplanes, with type, airframe, fleet, location, fuel on board and status (Parked, Awaiting
-  delivery, Returned), and any notices about the setup above them. Click a column header to sort by it, and click it
+  followed by 10 m of movement, and ends at a brake set held until every engine is off (`docs/recorder.md`). Only
+  the planned flight is recorded: the sim must have the planned airplane's type loaded, at the origin, with at least
+  its fuel on record less 300 lb. Otherwise a **Not recording** banner says what's wrong, and a brake release opens no
+  flight (D-088, D-110, D-112).
+- **After block in:** the flight is settled (money posted, the airplane moved to where it parked with the fuel left
+  at shutdown) and Live shows its **summary**: times, fuel used, every money line and the total, and the route. **At
+  Gate Turnaround** opens New Flight for the same airplane; **Done for now** closes the summary. A flight that ended
+  while BlockTime was closed is settled at the next start. A flight left for the main menu (or lost to a crash) is
+  discarded with a notice, and the planned flight stays for another try (D-072, D-108).
+- **Flights:** the settled flights, newest first, each with the same summary and its route on a dark map (D-111).
+- **Fleet:** your airplanes, with type, airframe, fleet, location, fuel on board, flights, hours and status (Parked,
+  Awaiting delivery, Returned), your hours flown and fleet slots (a new airplane waits for a free slot, D-083), and any
+  notices about the setup above them. Click a column header to sort by it, and click it
   again to reverse. Select an airplane and click **New Flight** to plan its next leg.
 - **New Flight:** type the destination's ICAO code (its longest runway must fit the airplane), check the flight
   number, and choose VIP airliner or charter on the BBJ2, or belly cargo on an airliner. An airplane awaiting delivery
@@ -159,7 +168,8 @@ while the app is open. A month you can't pay returns the airplane (design.md §5
 - **Live, before departure:** the planned flight, "Waiting for plan" until you press Generate on SimBrief and then
   **Import Active SimBrief Plan** (the app never polls SimBrief, D-101), then "Waiting for sim". It shows where to load
   in, the route with a copy button, the plan and the money estimate. **Cancel flight** is free.
-- **Money:** the cash and every ledger line, newest first: the opening cash and each lease month.
+- **Money:** the cash and every ledger line, newest first: the opening cash, each lease month and each flight's
+  money lines ("N814SX KBFI–KSAN · Fuel").
 - **Closing the window** stops recording cleanly. An open flight is logged as interrupted (`recorder_exit`), then
   `recorder_stopped`.
 - Only one copy records at a time (D-037). A second copy shows "Recorder already running" and records nothing.
