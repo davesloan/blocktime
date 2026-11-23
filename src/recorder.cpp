@@ -189,8 +189,8 @@ int enginesRunning(const TelemetrySample& s) {
     return n;
 }
 
-Recorder::Recorder(std::filesystem::path logDir, RecorderObserver& observer)
-    : logDir_(std::move(logDir)), observer_(observer) {}
+Recorder::Recorder(std::filesystem::path logDir, RecorderObserver& observer, const FlightTargetSlot& target)
+    : logDir_(std::move(logDir)), observer_(observer), target_(target) {}
 
 int Recorder::run(const std::atomic<bool>& stop) {
     RecorderObserver& observer = observer_;
@@ -210,16 +210,29 @@ int Recorder::run(const std::atomic<bool>& stop) {
     }
 
     TelemetryLogger telemetry(log, observer);
-    BlockDetector detector;
+    const FlightTargetSlot& target = target_;
+    BlockDetector detector([&target](const BlockSample& release) { return checkMatch(target.get(), release); });
+    std::optional<MatchResult> lastMatch;  // the last one reported; reset at each connect
+    SimConnection* simPtr = nullptr;
     SimConnection sim(log, [&](const TelemetrySample& s, bool running) {
         // Only samples that pass the junk filter may start or end a flight (D-025).
         if (!telemetry.onSample(s, running)) {
             detector.onInvalidSample();
             return;
         }
-        if (auto e = detector.onSample(toBlockSample(s, std::chrono::system_clock::now()))) {
-            logBlockEvent(outbox, observer, *e);
+        BlockSample b = toBlockSample(s, std::chrono::system_clock::now());
+        b.aircraftFolder = aircraftFolder(simPtr->aircraftPath());
+        // The banner's answer: the same check a release would get, reported when it changes (D-088).
+        // Distance and fuel change with every sample, so only a change of what the banner says is reported.
+        if (!detector.flightOpen()) {
+            MatchResult m = checkMatch(target.get(), b);
+            if (!lastMatch || lastMatch->problem != m.problem || lastMatch->plannedFlightId != m.plannedFlightId ||
+                lastMatch->aircraftFolder != m.aircraftFolder) {
+                observer.onMatch(m);
+                lastMatch = std::move(m);
+            }
         }
+        if (auto e = detector.onSample(b)) logBlockEvent(outbox, observer, *e);
     }, [&](bool running) {
         // Leaving the flight (main menu, restart, quit) ends it; it is never resumed (D-046, D-047).
         if (!running) {
@@ -227,6 +240,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
         }
     });
 
+    simPtr = &sim;
     auto waitingSince = std::chrono::steady_clock::now();
     bool announcedWaiting = false;
     bool announcedConnected = false;
@@ -253,6 +267,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
 
         const bool alive = sim.pump();
         if (sim.handshakeComplete() && !announcedConnected) {
+            lastMatch.reset();  // report afresh in this session
             observer.onLine("Connected to sim.", false);
             observer.onConnection(ConnectionState::Connected);
             announcedConnected = true;

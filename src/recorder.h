@@ -13,6 +13,7 @@
 #include <string>
 
 #include "block_detector.h"
+#include "flight_match.h"
 #include "sim_vars.h"
 
 namespace blocktime {
@@ -33,11 +34,15 @@ public:
     virtual void onTelemetry(const TelemetrySample& s) = 0;
     // A block event, after the outbox has taken it (written, or held for retry).
     virtual void onBlockEvent(const BlockEvent& e) = 0;
+    // The matching check's answer for the current sample changed, while no flight is open (D-088). Also sent once
+    // after each connect. The app shows "Not recording" from it.
+    virtual void onMatch(const MatchResult& /*match*/) {}
 };
 
 class Recorder {
 public:
-    Recorder(std::filesystem::path logDir, RecorderObserver& observer);
+    // `target` is the planned flight, set by the app; every brake release is checked against it (D-088).
+    Recorder(std::filesystem::path logDir, RecorderObserver& observer, const FlightTargetSlot& target);
 
     // Runs until `stop` is true, then closes cleanly: ends the sim session (an open flight is interrupted with
     // reason recorder_exit), flushes held block events and writes recorder_stopped. Returns 0, or 1 if
@@ -49,6 +54,7 @@ public:
 private:
     std::filesystem::path logDir_;
     RecorderObserver& observer_;
+    const FlightTargetSlot& target_;
 };
 
 // Engines with combustion, out of clamp(NUMBER OF ENGINES, 0, 4).

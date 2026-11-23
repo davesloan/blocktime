@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include <QDateTime>
 #include <QObject>
 #include <QString>
@@ -75,6 +77,9 @@ public:
     void applyConnection(blocktime::ConnectionState state);
     void applySample(const blocktime::TelemetrySample& s);
     void applyBlockEvent(const blocktime::BlockEvent& e);
+    void applyMatch(const blocktime::MatchResult& m);
+    // The matching check's latest answer (D-088); empty until the first one and after the connection is lost.
+    const std::optional<blocktime::MatchResult>& match() const { return match_; }
     // Another recorder holds the single-instance mutex, so this app doesn't record.
     void setBlocked();
     // Recorder::run() returned; non-zero means the log couldn't be written.
@@ -85,6 +90,10 @@ signals:
     void logDirChanged();
     void sampleChanged();
     void flightChanged();
+    void matchChanged();
+    // Every block event, after it's applied: "block_out", "block_in", "flight_interrupted" or "block_out_refused",
+    // with its flight id ("" for a refusal).
+    void blockEvent(const QString& type, const QString& flightId);
 
 private:
     void setConnection(const QString& c);
@@ -100,6 +109,7 @@ private:
     QDateTime blockOutTime_;
     double blockOutFuelLb_ = 0;
     QString lastFlightSummary_;
+    std::optional<blocktime::MatchResult> match_;
     EventFeedModel events_;
 };
 
@@ -112,6 +122,7 @@ public:
     void onConnection(blocktime::ConnectionState state) override;
     void onTelemetry(const blocktime::TelemetrySample& s) override;
     void onBlockEvent(const blocktime::BlockEvent& e) override;
+    void onMatch(const blocktime::MatchResult& m) override;
 
 private:
     RecorderBridge& bridge_;  // only used as the target of queued calls

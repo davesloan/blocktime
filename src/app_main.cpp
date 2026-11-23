@@ -172,6 +172,7 @@ int main(int argc, char* argv[]) {
     // Declared before the thread, so they outlive it.
     RecorderBridge bridge;
     BridgeObserver observer(bridge);
+    blocktime::FlightTargetSlot flightTarget;  // the planned flight, for the recorder's matching check (D-088)
     // Demo mode records nothing, so it doesn't take the recorder mutex (a recording copy can run beside it).
     std::optional<blocktime::SingleInstance> instance;
     if (!demo) instance.emplace();
@@ -191,7 +192,7 @@ int main(int argc, char* argv[]) {
         fillDemo(bridge);
     } else if (instance->acquired()) {
         worker = std::jthread([&] {
-            const int result = blocktime::Recorder(logDir, observer).run(stop);
+            const int result = blocktime::Recorder(logDir, observer, flightTarget).run(stop);
             QMetaObject::invokeMethod(&bridge, [&bridge, result] { bridge.applyStopped(result); },
                                       Qt::QueuedConnection);
         });

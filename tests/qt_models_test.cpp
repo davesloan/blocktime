@@ -233,6 +233,70 @@ TEST(Bridge, InterruptedSummary) {
     EXPECT_EQ(b.lastFlightSummary(), "Interrupted (recorder_crash)");
 }
 
+TEST(Bridge, MatchArrivesAndClearsOnDisconnect) {
+    RecorderBridge b;
+    int changes = 0;
+    QObject::connect(&b, &RecorderBridge::matchChanged, [&] { ++changes; });
+    EXPECT_FALSE(b.match().has_value());
+    MatchResult m;
+    m.problem = MatchProblem::WrongAirport;
+    m.plannedFlightId = 7;
+    m.distanceM = 4200;
+    b.applyConnection(ConnectionState::Connected);
+    b.applyMatch(m);
+    ASSERT_TRUE(b.match().has_value());
+    EXPECT_EQ(b.match()->problem, MatchProblem::WrongAirport);
+    EXPECT_EQ(changes, 1);
+    b.applyConnection(ConnectionState::WaitingForSim);
+    EXPECT_FALSE(b.match().has_value());
+    EXPECT_EQ(changes, 2);
+}
+
+TEST(Bridge, RefusedReleaseIsAFeedLineAndNoFlight) {
+    RecorderBridge b;
+    int flightChanges = 0;
+    QObject::connect(&b, &RecorderBridge::flightChanged, [&] { ++flightChanges; });
+    b.applyLine("09:12:40  NOT RECORDING  wrong_airport", false);
+    EXPECT_EQ(feedText(b, 0), "NOT RECORDING wrong_airport");
+    EXPECT_EQ(feedKind(b, 0), "warn");
+    BlockOutRefused r;
+    r.match.problem = MatchProblem::WrongAirport;
+    b.applyBlockEvent(r);
+    EXPECT_FALSE(b.flightOpen());
+    EXPECT_EQ(flightChanges, 0);
+}
+
+TEST(Bridge, BlockEventSignalCarriesTypeAndId) {
+    RecorderBridge b;
+    QStringList seen;
+    QObject::connect(&b, &RecorderBridge::blockEvent,
+                     [&](const QString& type, const QString& id) { seen << type + " " + id; });
+    BlockOut out;
+    out.flightId = "2026-11-23T10:30:05.120Z";
+    b.applyBlockEvent(out);
+    BlockOutRefused refused;
+    b.applyBlockEvent(refused);
+    BlockIn in;
+    in.flightId = "2026-11-23T10:30:05.120Z";
+    b.applyBlockEvent(in);
+    FlightInterrupted gone{"2026-11-23T11:00:00.000Z", "sim_stopped"};
+    b.applyBlockEvent(gone);
+    EXPECT_EQ(seen, (QStringList{"block_out 2026-11-23T10:30:05.120Z", "block_out_refused ",
+                                 "block_in 2026-11-23T10:30:05.120Z", "flight_interrupted 2026-11-23T11:00:00.000Z"}));
+}
+
+TEST(Bridge, ObserverPostsTheMatch) {
+    qtApp();
+    RecorderBridge b;
+    BridgeObserver observer(b);
+    MatchResult m;
+    m.problem = MatchProblem::FuelBelowRecord;
+    observer.onMatch(m);
+    QCoreApplication::processEvents();  // the queued call from onMatch
+    ASSERT_TRUE(b.match().has_value());
+    EXPECT_EQ(b.match()->problem, MatchProblem::FuelBelowRecord);
+}
+
 TEST(Bridge, ErrorLinesAlsoGoToStderrAtOnce) {
     // LOST: lines come while the app is shutting down, after the event loop has ended, so the posted copy never shows.
     // The observer writes them to std::cerr (the error log in the app, D-067) on the calling thread.

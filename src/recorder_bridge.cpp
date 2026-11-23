@@ -58,6 +58,8 @@ void RecorderBridge::applyLine(const QString& line, bool error) {
     QString kind = "info";
     if (error || text.startsWith("WARNING")) {
         kind = "warn";
+    } else if (text.startsWith("NOT RECORDING")) {
+        kind = "warn";
     } else if (text.startsWith("BLOCK ") || text.startsWith("FLIGHT INTERRUPTED")) {
         kind = "block";
     }
@@ -74,6 +76,10 @@ void RecorderBridge::applyConnection(ConnectionState state) {
     if (state != ConnectionState::Connected && hasSample_) {
         hasSample_ = false;
         emit sampleChanged();
+    }
+    if (state != ConnectionState::Connected && match_) {
+        match_.reset();
+        emit matchChanged();
     }
 }
 
@@ -116,7 +122,21 @@ void RecorderBridge::applyBlockEvent(const BlockEvent& event) {
             }
         },
         event);
-    emit flightChanged();
+    const QString type = QString::fromUtf8(std::string(eventType(event)));
+    const QString id = std::visit(
+        [](const auto& e) {
+            if constexpr (requires { e.flightId; }) return QString::fromStdString(e.flightId);
+            else return QString();
+        },
+        event);
+    if (!std::holds_alternative<BlockOutRefused>(event)) emit flightChanged();
+    emit blockEvent(type, id);
+}
+
+void RecorderBridge::applyMatch(const MatchResult& m) {
+    if (match_ && *match_ == m) return;
+    match_ = m;
+    emit matchChanged();
 }
 
 void RecorderBridge::setBlocked() {
@@ -153,4 +173,8 @@ void BridgeObserver::onTelemetry(const TelemetrySample& s) {
 
 void BridgeObserver::onBlockEvent(const BlockEvent& e) {
     QMetaObject::invokeMethod(&bridge_, [b = &bridge_, e] { b->applyBlockEvent(e); }, Qt::QueuedConnection);
+}
+
+void BridgeObserver::onMatch(const MatchResult& m) {
+    QMetaObject::invokeMethod(&bridge_, [b = &bridge_, m] { b->applyMatch(m); }, Qt::QueuedConnection);
 }

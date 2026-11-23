@@ -51,6 +51,8 @@ public:
     bool simRunning() const { return simRunning_ == 1; }
     bool paused() const { return pauseFlags_ > 0; }
     const std::string& lostReason() const { return lostReason_; }
+    // The loaded aircraft.cfg's path, lower-cased from "simobjects\" on; "" until the sim says (D-112).
+    const std::string& aircraftPath() const { return lastAircraft_; }
 
 private:
     bool setup();
