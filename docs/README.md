@@ -3,10 +3,11 @@
 | File | What it's for |
 |---|---|
 | [design.md](design.md) | Full product design: how the airline works, rules, numbers |
-| [recorder.md](recorder.md) | Spec for the native Windows flight recorder |
+| [recorder.md](recorder.md) | Spec for the flight recorder inside the app: events, phases, milestones, event log format |
 | [decisions.md](decisions.md) | Append-only log of decisions and why they were made |
 | [progress.md](progress.md) | Session-by-session progress log (newest first) |
-| [qt-ui-test-context.md](qt-ui-test-context.md) | Why the Qt UI test builds are being run, what Dave wants, and how to decide afterwards (D-050) |
+| [qt-ui-test-context.md](qt-ui-test-context.md) | Why the Qt UI test builds were run, what Dave wanted, and the result: Qt won (D-050, D-063) |
+| [plans/](plans/) | Implementation plans, one per milestone or test build |
 | [notes/](notes/) | Small how-to and quirk notes discovered while building |
 
 ## Notes
@@ -17,4 +18,4 @@ _Add a link here for every file created in `notes/`._
 - [little-navmap-reference.md](notes/little-navmap-reference.md) — what we learned from Little Navmap's SimConnect code
 - [msfs-observed-behaviour.md](notes/msfs-observed-behaviour.md) — facts from our own sim tests (loading, pause, scenery freezes, PMDG fuel/brake, AGL quirks)
 - [msfs-junk-data.md](notes/msfs-junk-data.md) — junk samples while loading / at 0,0 and the filter for them
-- [qt-setup.md](notes/qt-setup.md) — Qt install, build quirks (C4702, windeployqt), QML gotchas, hot reload (branch `qt-ui-spike`)
+- [qt-setup.md](notes/qt-setup.md) — Qt install, build quirks (C4702, windeployqt), map tiles, QML gotchas, hot reload

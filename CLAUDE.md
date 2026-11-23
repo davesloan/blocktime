@@ -5,16 +5,20 @@ Guidance for Claude Code working in this repository. Read this file first, every
 ## What this project is
 
 A personal virtual airline (VA) for Microsoft Flight Simulator 2020, built for one user (Dave) and published
-as open source (GPL-3.0 compatible). Name: **BlockTime** (the recorder is "BlockTime Recorder").
+as open source (GPL-3.0 compatible). Name: **BlockTime**.
 
-Two programs live in this repo:
+**One native Windows app** (D-063), `BlockTime.exe`, built from the repo root: C++20, Qt 6 with a QML interface.
 
-| Folder | What | Language | Status |
-|---|---|---|---|
-| `/recorder` | Native Windows app that connects to MSFS through the SimConnect SDK, detects flight events and phases, and writes them to a local log | C++ | **Milestone 1 built** |
-| `/webapp` | Local web app (runs on localhost, no hosting, no login) that runs the airline: fleet, rotations, background flights, money, dashboards | Node.js + TypeScript | Later |
+- **The recorder** (`Recorder`, D-053) runs on its own thread inside the app. It connects to MSFS through the
+  SimConnect SDK, detects flight events (block out/in; phases next) and writes them to a local event log first.
+  Milestones 1–3 are built.
+- **The airline** (fleet, rotations, background flights, money) is plain C++ on a SQLite database, still mostly to
+  be built. Today the app has three screens: Live, Flights (past flights with the route on a dark map) and Fleet
+  (a sample fleet).
+- **QML only displays.** Logic lives in plain C++ with GoogleTest tests, so the UI could be replaced without
+  rewriting it.
 
-The full product design is in `docs/design.md`. The recorder's spec is in `docs/recorder.md`.
+The full product design is in `docs/design.md`. The recorder's spec and milestones are in `docs/recorder.md`.
 Do not re-decide things that are already in `docs/decisions.md` without asking Dave.
 
 ## Start-of-session checklist
@@ -63,8 +67,8 @@ build setup, where the MSFS SDK lives, a SimVar that doesn't behave as documente
 
 ### 5. Build and run instructions
 
-`/recorder/README.md` (and later `/webapp/README.md`) must always contain working, copy-pasteable steps to
-build and run from a clean checkout. Update them whenever the steps change.
+The root `README.md` must always contain working, copy-pasteable steps to build, test and run from a clean
+checkout. Update it whenever the steps change.
 
 ## Working style
 
@@ -89,7 +93,7 @@ This file overrides the plugin's "invoke a skill on any 1% chance" rule. Use onl
   Dave via `docs/progress.md`.
 - **Before each milestone's final commit:** `requesting-code-review`, then `receiving-code-review` for the
   findings. No pull requests and no feature branches: work is committed straight to `main` (D-038).
-- **Sometimes:** `brainstorming` for undesigned areas (mainly the web app), but start from
+- **Sometimes:** `brainstorming` for undesigned areas (mainly the airline side of the app), but start from
   `docs/decisions.md` and don't reopen settled decisions.
 - **Skip:** `using-git-worktrees`, `finishing-a-development-branch`, `subagent-driven-development`,
   `dispatching-parallel-agents`. This is a one-person project that works on `main`.
@@ -98,41 +102,60 @@ This file overrides the plugin's "invoke a skill on any 1% chance" rule. Use onl
 
 - The recorder **reports facts**; it does not do airline logic (money, loads, schedules). Those belong to
   the app.
-- **Write every event to the local log file first**, then (later) deliver it to the app. Nothing may be lost
-  if the app isn't running.
+- **Write every event to the local log file first** (D-008); the rest of the app reads it back (D-060). Nothing
+  may be lost, even if the UI misbehaves.
 - **Be light on the sim.** Request only the SimVars needed, at the lowest rate that works; go fast only
   briefly (e.g. around touchdown).
 - Flights start at **parking brake release at the gate** and end at **parking brake set at the destination**.
 - Phase detection follows the rules in `docs/recorder.md` (forward-only phases, plan-aware climb/cruise).
-- Must survive a sim crash or recorder restart mid-flight without corrupting or silently dropping the flight.
+- Must survive a sim crash or app restart mid-flight without corrupting or silently dropping the flight.
 - **Only the PMDG 737 and 777 families on MSFS 2020** (D-039). Don't test or add support for other aircraft.
 
 ## Tech conventions
 
-### Recorder (C++)
-- C++20, MSVC (Visual Studio 2022 or newer; developed on VS 18 / 2026), CMake as the build system.
-- Third-party libraries via vcpkg (manifest mode, `vcpkg.json`) unless a decision says otherwise.
+### C++ and build
+- C++20, MSVC (Visual Studio 2022 or newer; developed on VS 18 / 2026), CMake presets + Ninja, one build at the
+  repo root (D-064). No warnings at `/W4 /permissive- /utf-8`.
+- Libraries are split by what they may depend on: `blocktime-core` (plain C++, no SimConnect, no Qt: logic,
+  event log, flight history, settings, SQLite), `blocktime-sim` (the recorder loop and SimConnect), and the app
+  (Qt models and QML). New airline logic goes in `blocktime-core` or a new plain library, with tests.
+- Third-party libraries via vcpkg (manifest mode, `vcpkg.json`) unless a decision says otherwise. SQLite through
+  the sqlite3 C API, not Qt SQL (D-061).
 - SimConnect from the MSFS 2020 SDK (typically `C:\MSFS SDK\SimConnect SDK`). Don't commit SDK files;
-  locate them via a CMake variable/environment variable and document it in `/recorder/README.md`.
+  locate them via a CMake variable/environment variable and document it in `README.md`.
 - Little Navmap (GPL-3.0, C++) may be used as a reference or source for SimConnect handling and edge cases.
   If code is copied or adapted, keep the license header/attribution and log it in `docs/decisions.md`.
-- Keep the UI minimal (tray icon / small status). All rich visuals live in the web app.
+- Airline data in one SQLite file; airline catalog/configuration in YAML; SimBrief is the source of truth for
+  airframe weights/limits.
 
-### Web app (`/webapp`, Node/TypeScript) — later
-- TypeScript, runs locally, SQLite single-file database.
-- Airline catalog/configuration in YAML; SimBrief is the source of truth for airframe weights/limits.
+### Qt and QML
+- Qt 6 from the official installer (not vcpkg), found through `BLOCKTIME_QT_DIR` (D-052). windeployqt runs after
+  each build (D-056).
+- Dark only. Every colour, size and font is in `qml/Theme.qml` (D-054); Qt Quick Controls Basic style. No
+  continuous animations: the budget is under 100 MB and under 1% CPU in flight.
+- Every QML file starts with the GPL header and `import BlockTime` (needed by hot reload, D-055). Use
+  `pragma ComponentBehavior: Bound` and `required` properties in delegates. `qmllint`
+  (`blocktime-app_qmllint`) must report nothing.
+- C++ talks to QML through models and the `RecorderBridge`, passed in as initial properties; the recorder thread
+  never touches Qt objects directly (queued calls only).
+- Check UI changes with the debug build's hot reload and `--demo`. QML gotchas are in `docs/notes/qt-setup.md`.
+- Secrets (the CARTO key) live in `%LOCALAPPDATA%\BlockTime\settings.json`: never commit, log or print them.
 
 ## Repo map
 
 ```
 CLAUDE.md            ← you are here
+README.md            ← build, test and run steps
+CMakeLists.txt       ← the one build (CMakePresets.json, vcpkg.json next to it)
+src/                 ← C++: recorder, logic, Qt models, app_main.cpp
+qml/                 ← the QML interface (Theme.qml holds the look)
+tests/               ← GoogleTest: blocktime-tests (plain C++) and blocktime-qt-tests (Qt models)
 docs/
   README.md          ← index of all docs
   design.md          ← the full product design (what the airline does and why)
-  recorder.md        ← recorder spec (events, phases, rules)
+  recorder.md        ← recorder spec (events, phases, milestones, event log format)
   decisions.md       ← decision log (append-only)
   progress.md        ← session log (newest first)
+  plans/             ← implementation plans
   notes/             ← small how-to / quirk notes discovered while building
-recorder/            ← C++ Windows recorder (see recorder/README.md)
-webapp/              ← Node/TS web app (later)
 ```

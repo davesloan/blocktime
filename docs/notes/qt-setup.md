@@ -23,7 +23,7 @@ Found while building Qt UI test 1 (branch `qt-ui-spike`, 2026-11-22).
   Qt changes that naming, the warnings come back rather than being silently hidden.
 - `qt_standard_project_setup()` turns AUTOMOC on for every target defined after it, so the Qt section is the last
   one in `CMakeLists.txt`.
-- QML files live in `recorder/qml/`, but each is given a `QT_RESOURCE_ALIAS`, so it sits at the module root
+- QML files live in `qml/`, but each is given a `QT_RESOURCE_ALIAS`, so it sits at the module root
   (`qrc:/qt/qml/BlockTime/<name>.qml`) next to the module's `qmldir`.
 - `windeployqt` runs after each build (D-056) and copies Qt's DLLs and QML plugins next to the exe. With them,
   `build\x64-debug` is about 430 MB (the debug DLLs are large). It also copies some modules we don't use, such as
@@ -74,7 +74,7 @@ Probed 2026-11-22 with Qt 6.12.0 and CARTO Dark Matter:
 
 ## Errors from the windowed app
 
-`blocktime-app.exe` is a Windows GUI program, so `qWarning` and stderr go nowhere by default. To see QML errors, set
+`BlockTime.exe` is a Windows GUI program, so `qWarning` and stderr go nowhere by default. To see QML errors, set
 `QT_FORCE_STDERR_LOGGING=1` and redirect stderr, or run it under the Visual Studio debugger. `EventLog` and
 `SimConnection` still write a few errors straight to `std::cerr` (a failed log write, a failed SimConnect call). The
 app doesn't show those; that's accepted until Dave decides on Qt. Block events that fail to write still show in the
