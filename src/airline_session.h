@@ -46,6 +46,11 @@ public:
     std::vector<LedgerView> ledger();
     Cents cash();
     std::string airlineName() const;  // "" without a valid airline.yaml
+    std::string airlineIcao() const;  // "" without a valid airline.yaml
+    Cents fuelPriceCentsPer100Lb() const;
+
+    // The open database for the planning code (planned_flight.h), or nullptr if it didn't open.
+    db::Database* database() { return db_ ? &*db_ : nullptr; }
 
 private:
     bool settle(Date today);  // true if it wrote anything

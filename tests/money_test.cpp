@@ -36,3 +36,11 @@ TEST(Money, ShortForm) {
     EXPECT_EQ(formatMoneyShort(99'995'000), "$1M");
     EXPECT_EQ(formatMoneyShort(0), "$0");
 }
+
+TEST(Money, NumberWithCommas) {
+    EXPECT_EQ(formatNumber(0), "0");
+    EXPECT_EQ(formatNumber(999), "999");
+    EXPECT_EQ(formatNumber(7000), "7,000");
+    EXPECT_EQ(formatNumber(1234567), "1,234,567");
+    EXPECT_EQ(formatNumber(-2530), "-2,530");
+}

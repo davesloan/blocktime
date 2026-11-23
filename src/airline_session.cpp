@@ -95,4 +95,8 @@ Cents AirlineSession::cash() { return db_ ? cashCents(*db_) : 0; }
 
 std::string AirlineSession::airlineName() const { return config_ ? config_->identity.name : std::string(); }
 
+std::string AirlineSession::airlineIcao() const { return config_ ? config_->identity.icaoCode : std::string(); }
+
+Cents AirlineSession::fuelPriceCentsPer100Lb() const { return config_ ? config_->fuelPriceCentsPer100Lb : AirlineConfig{}.fuelPriceCentsPer100Lb; }
+
 }  // namespace blocktime

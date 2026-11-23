@@ -33,11 +33,15 @@ Cents roundToFiveDollars(Cents cents) {
     return cents < 0 ? -rounded : rounded;
 }
 
+std::string formatNumber(std::int64_t value) {
+    std::string digits = std::to_string(value < 0 ? -value : value);
+    for (auto i = static_cast<std::ptrdiff_t>(digits.size()) - 3; i > 0; i -= 3) digits.insert(static_cast<std::size_t>(i), ",");
+    return (value < 0 ? "-" : "") + digits;
+}
+
 std::string formatMoneyFull(Cents cents) {
     const std::int64_t dollars = (cents < 0 ? -cents : cents) / 100;
-    std::string digits = std::to_string(dollars);
-    for (auto i = static_cast<std::ptrdiff_t>(digits.size()) - 3; i > 0; i -= 3) digits.insert(static_cast<std::size_t>(i), ",");
-    return (cents < 0 ? "-$" : "$") + digits;
+    return (cents < 0 ? "-$" : "$") + formatNumber(dollars);
 }
 
 std::string formatMoneyShort(Cents cents) {

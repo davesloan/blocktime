@@ -19,6 +19,9 @@ Cents roundToFiveDollars(Cents cents);
 // Whole dollars with thousands commas, for the ledger and summary lines: "$1,400,000", "-$900,000".
 std::string formatMoneyFull(Cents cents);
 
+// A whole number with thousands commas: "7,000", "-2,530". For pounds, feet and the like.
+std::string formatNumber(std::int64_t value);
+
 // The short form for tiles and the cash figure: "$1.4M", "$12.48M", "$382.5k", "$950".
 std::string formatMoneyShort(Cents cents);
 
