@@ -56,6 +56,7 @@ target_compile_options(blocktime-options INTERFACE /W4 /permissive- /utf-8 /exte
 add_library(blocktime-core STATIC
   src/airline_config.cpp
   src/airline_db.cpp
+  src/airline_queries.cpp
   src/airport_import.cpp
   src/app_settings.cpp
   src/dates.cpp
@@ -69,6 +70,7 @@ add_library(blocktime-core STATIC
   src/fleet_store.cpp
   src/flight_history.cpp
   src/geo.cpp
+  src/leasing.cpp
   src/money.cpp
   src/open_flight.cpp
   src/sqlite_db.cpp
@@ -110,6 +112,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/fleet_store_test.cpp
     tests/flight_history_test.cpp
     tests/geo_test.cpp
+    tests/leasing_test.cpp
     tests/money_test.cpp
     tests/open_flight_test.cpp)
   target_link_libraries(blocktime-tests PRIVATE blocktime-core GTest::gtest_main)

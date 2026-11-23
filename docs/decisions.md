@@ -1313,3 +1313,19 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   milestone 4 plan).
 - Alternatives considered: rapidyaml (faster, but speed doesn't matter for two small files); JSON config (no
   comments, harder to edit by hand).
+
+## D-096 — Lease settlement details
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: app, data
+- Decision: `founded_on` in `airline.yaml` dates the opening cash, and no lease may start before it. A new
+  airplane's first month is a lease event like any other month, so one pass settles everything in date order
+  (ties by registration), one transaction per month. Affordability is the cash as of the month's date (lines
+  posted at or before it). Config airplanes whose `leased_on` is still ahead are leased when the day comes, even
+  while the app is open. A month that can't be paid returns the airplane on that date, and it's never charged
+  again. Rare back-dated cases (adding an airplane leased before lines already posted) aren't rechecked.
+- Why: Charging missed months on their real dates keeps the books true when the app was closed (design.md §8's
+  rule for money events), and "cash as of the date" is what the airline actually had then.
+- Alternatives considered: charging missed months on the day the app opens (books dated wrong); checking
+  affordability against today's cash (a later income could pay for an earlier month).
