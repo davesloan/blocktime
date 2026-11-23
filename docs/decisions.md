@@ -879,3 +879,18 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: one program to maintain. The app already records exactly as the console recorder did (D-053), and it
   passed two sim flights.
 - Alternatives considered: keeping it as a fallback and smoke-test tool.
+
+## D-066 — The app is BlockTime.exe, version 0.4.0
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: build
+- Decision: With the move to the root (D-064), the CMake project is `blocktime` 0.4.0 (also in `vcpkg.json`). The app
+  target stays `blocktime-app`, but its file is `BlockTime.exe` (`OUTPUT_NAME`). The window title is "BlockTime",
+  the sidebar shows "v0.4.0", and the map's User-Agent is `BlockTime/0.4.0 (open source)`. `recorder_started`
+  events now say `"version": "0.4.0"`. The SimConnect client name stays "BlockTime Recorder", since the recorder is
+  still the part that talks to the sim.
+- Why: the first release of the one app (D-063) deserves its own version and a plain name. 0.3.0 was the last
+  console recorder.
+- Alternatives considered: keeping 0.3.0 until a feature milestone; renaming the target as well (more churn in
+  CMake, for the same file name).
