@@ -85,6 +85,10 @@ checkout. Update it whenever the steps change.
   small probe or test, and record the result in `docs/notes/`.
 - **Dave tests in the sim.** You can't run MSFS. When a change needs in-sim verification, say exactly what
   to check and what result to expect, and record unverified items in `docs/progress.md`.
+- **Print it, don't point to it.** When work is ready for Dave to test (in the sim or not), print the numbered test
+  steps with expected results in the reply itself. When decisions or questions wait on him, list each one there
+  with enough context to answer it, not just its D-number. They also go in `docs/progress.md`, but the reply must
+  stand on its own.
 - **Commit messages** explain why, not just what. Reference decision IDs (e.g. `D-014`) when relevant.
 
 ## Superpowers skills (D-033)
