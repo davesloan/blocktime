@@ -1436,7 +1436,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-104 — Preview and pricing details
 - Date: 2026-11-23
-- Status: Proposed
+- Status: Proposed (rates as code constants superseded by D-107: they go in a config file)
 - Decided by: Claude
 - Area: app
 - Decision:
@@ -1489,3 +1489,19 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   unless I'm flying a leg of a rotation."
 - Alternatives considered: typing it every time (D-102); copying it once at lease time like the limits (changing it
   would then need the settings screen).
+
+## D-107 — Fare and cost rates live in a config file
+- Date: 2026-11-23
+- Status: Accepted (file layout Proposed; not built yet)
+- Decided by: Dave (rule), Claude (layout)
+- Area: app
+- Decision: Supersedes D-104's "rates are constants in the code". The fare and cost rates of design.md §10–12 (fares,
+  cargo rate, charter rate and minimum, landing, gate, handling, GA services, ATC, catering bands, cargo handling,
+  crew and maintenance per hour, the VIP multipliers) live in a config file, so Dave can tune them without
+  rebuilding. A settings screen may edit them later. Proposed layout: a `rates.yaml` in `%LOCALAPPDATA%\BlockTime\`
+  with a commented example in `config/`, holding the fuel price too (moved from `airline.yaml`), and read whenever
+  New Flight opens, so a change applies to the next flight without restarting. A planned flight keeps the fuel price
+  it was planned with.
+- Why: Dave: "I want to be able to fiddle with them without having to rebuild the app every time."
+- Alternatives considered: constants in `pricing.cpp` (D-104); a section in `airline.yaml` (mixes the game's prices
+  with the airline's identity and fleet).
