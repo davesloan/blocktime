@@ -12,6 +12,7 @@
 #include <QCryptographicHash>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QQuickWindow>
 #include <QQuickStyle>
 #include <QStringList>
 #include <QStyleHints>
@@ -160,12 +161,18 @@ int main(int argc, char* argv[]) {
 
     std::filesystem::path logDir = blocktime::EventLog::defaultDir();
     bool demo = false;
+    QString grabFile;   // --grab <png>: a developer check of the screens; saves the window after 6 s and quits
+    int startPage = 0;  // --page <n>: the page shown first (0 Live, 1 Flights, 2 Fleet, 3 Money)
     const QStringList args = QGuiApplication::arguments();
     for (qsizetype i = 1; i < args.size(); ++i) {
         if (args[i] == "--log-dir" && i + 1 < args.size()) {
             logDir = args[++i].toStdWString();
         } else if (args[i] == "--demo") {
             demo = true;
+        } else if (args[i] == "--grab" && i + 1 < args.size()) {
+            grabFile = args[++i];
+        } else if (args[i] == "--page" && i + 1 < args.size()) {
+            startPage = args[++i].toInt();
         }
     }
 
@@ -211,9 +218,6 @@ int main(int argc, char* argv[]) {
     // Flights come from the log (D-060), read on a worker thread. A block out or block in changes the list: the
     // recorder writes the line before it tells the bridge, so the reload sees it. (A block event whose write was held,
     // D-049, appears at the next reload after it's written.)
-    FlightListModel flights(logDir);
-    QObject::connect(&bridge, &RecorderBridge::flightChanged, &flights, &FlightListModel::reload);
-    flights.reload();
 
     // The airline: the database, the config files and the leases (docs/database.md). --demo opens it too: it records
     // no flight, and the airline is the same either way. Config drift warnings go to errors.log (D-067). Once a
@@ -244,6 +248,9 @@ int main(int argc, char* argv[]) {
     blocktime::db::Database& planningDb = airline.database() ? *airline.database() : emptyDatabase;
     QtPlanner planner(settings);
     const QString airlineIcao = QString::fromStdString(airline.airlineIcao());
+    // Settled flights from the database, tracks from the log (D-111); refreshed when a flight is settled.
+    FlightListModel flights(planningDb, logDir, airlineIcao);
+    flights.reload();
     NewFlightModel newFlight(planningDb, airlineIcao, blocktime::defaultRatesFile(), planner);
     PlannedFlightModel plannedFlight(planningDb, airlineIcao, planner, bridge, flightTarget, logDir,
                                      blocktime::defaultRatesFile());
@@ -265,6 +272,7 @@ int main(int argc, char* argv[]) {
                             {"newFlight", QVariant::fromValue(&newFlight)},
                             {"plannedFlight", QVariant::fromValue(&plannedFlight)},
                             {"airlineName", QString::fromStdString(airline.airlineName())},
+                            {"startPage", startPage},
                             {"mapTileUrl", map.tileUrl},
                             {"mapCacheDir", map.cacheDir},
                             {"mapUserAgent", map.userAgent}};
@@ -283,5 +291,15 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 #endif
+    if (!grabFile.isEmpty()) {
+        // With QT_QPA_PLATFORM=offscreen nothing shows on screen (docs/notes/qt-setup.md).
+        QTimer::singleShot(6000, &app, [&engine, grabFile] {
+            const QList<QObject*> roots = engine.rootObjects();
+            if (auto* window = roots.isEmpty() ? nullptr : qobject_cast<QQuickWindow*>(roots.first())) {
+                window->grabWindow().save(grabFile);
+            }
+            QCoreApplication::quit();
+        });
+    }
     return QGuiApplication::exec();
 }

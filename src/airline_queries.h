@@ -16,6 +16,7 @@
 #include "catalog.h"
 #include "dates.h"
 #include "money.h"
+#include "pricing.h"
 #include "sqlite_db.h"
 
 namespace blocktime {
@@ -58,5 +59,19 @@ std::optional<NearestAirport> nearestAirport(db::Database& db, double lat, doubl
 std::set<std::string> settledLogFlightIds(db::Database& db);  // every flight's log_flight_id
 
 double hoursFlown(db::Database& db);  // the sum of every flight's block time, in hours (D-114)
+
+// A settled flight with its money, for the Flights screen and the summary (D-111).
+struct FlightView {
+    std::string logFlightId, flightNumber, registration, typeCode, kind;  // kind: planned_flight's codes
+    std::string origin, plannedDestination, arrival;                     // ICAO codes
+    double originLat = 0, originLon = 0, arrivalLat = 0, arrivalLon = 0;
+    std::string blockOutAt, blockInAt;  // UTC instants
+    long long blockS = 0;
+    int fuelOutLb = 0, fuelInLb = 0;
+    std::vector<MoneyLine> income, costs;  // in the order they were posted (the preview's order)
+    Cents totalCents = 0;
+};
+
+std::vector<FlightView> listFlights(db::Database& db);  // newest block in first
 
 }  // namespace blocktime

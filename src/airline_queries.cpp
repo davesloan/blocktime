@@ -110,6 +110,52 @@ double hoursFlown(db::Database& db) {
     return q.next() ? static_cast<double>(q.integer(0)) / 3600.0 : 0.0;
 }
 
+std::vector<FlightView> listFlights(db::Database& db) {
+    std::vector<FlightView> out;
+    db::Statement q(db,
+                    "SELECT f.flight_id, f.log_flight_id, f.flight_number, a.registration, t.code, f.kind,"
+                    " o.icao_code, d.icao_code, r.icao_code, o.latitude, o.longitude, r.latitude, r.longitude,"
+                    " f.block_out_at, f.block_in_at, unixepoch(f.block_in_at) - unixepoch(f.block_out_at),"
+                    " f.fuel_out_lb, f.fuel_in_lb"
+                    " FROM flight f JOIN airplane a USING (airplane_id) JOIN aircraft_type t USING (aircraft_type_id)"
+                    " JOIN airport o ON o.airport_id = f.origin_airport_id"
+                    " JOIN airport d ON d.airport_id = f.planned_destination_airport_id"
+                    " JOIN airport r ON r.airport_id = f.arrival_airport_id"
+                    " ORDER BY f.block_in_at DESC, f.flight_id DESC");
+    db::Statement lines(db, "SELECT l.category, c.label, l.amount_cents FROM flight_money_line m"
+                            " JOIN ledger_line l USING (ledger_line_id) JOIN ledger_category c ON c.code = l.category"
+                            " WHERE m.flight_id = ? ORDER BY l.ledger_line_id");
+    while (q.next()) {
+        FlightView f;
+        f.logFlightId = q.text(1);
+        f.flightNumber = q.text(2);
+        f.registration = q.text(3);
+        f.typeCode = q.text(4);
+        f.kind = q.text(5);
+        f.origin = q.text(6);
+        f.plannedDestination = q.text(7);
+        f.arrival = q.text(8);
+        f.originLat = q.real(9);
+        f.originLon = q.real(10);
+        f.arrivalLat = q.real(11);
+        f.arrivalLon = q.real(12);
+        f.blockOutAt = q.text(13);
+        f.blockInAt = q.text(14);
+        f.blockS = q.integer(15);
+        f.fuelOutLb = static_cast<int>(q.integer(16));
+        f.fuelInLb = static_cast<int>(q.integer(17));
+        lines.reset();
+        lines.bind(1, q.integer(0));
+        while (lines.next()) {
+            MoneyLine m{lines.text(0), lines.text(1), lines.integer(2)};
+            (m.cents > 0 ? f.income : f.costs).push_back(m);
+            f.totalCents += m.cents;
+        }
+        out.push_back(std::move(f));
+    }
+    return out;
+}
+
 int airportCount(db::Database& db) {
     db::Statement q(db, "SELECT COUNT(*) FROM airport");
     return q.next() ? static_cast<int>(q.integer(0)) : 0;

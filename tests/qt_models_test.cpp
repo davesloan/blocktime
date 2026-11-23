@@ -318,83 +318,7 @@ TEST(Bridge, BlockedShowsWarning) {
     EXPECT_EQ(feedKind(b, 0), "warn");
 }
 
-// --- FlightListModel ----------------------------------------------------------------------------------------------
-
-TEST_F(TempLog, FlightRolesFormatted) {
-    write({blockOut(kOut, "N818SX"), tel("2026-11-22T21:40:00.000Z", 32.74),
-           blockIn(kOut, "2026-11-22T21:55:15.475Z", 1612)});
-    FlightListModel m(dir_);
-    m.reloadBlocking();
-    ASSERT_EQ(m.count(), 1);
-    const QModelIndex i = m.index(0);
-    EXPECT_EQ(m.data(i, FlightListModel::DateTextRole).toString(), "22 Nov 2026");
-    EXPECT_EQ(m.data(i, FlightListModel::OutTextRole).toString(), "21:28Z");
-    EXPECT_EQ(m.data(i, FlightListModel::InTextRole).toString(), "21:55Z");
-    EXPECT_EQ(m.data(i, FlightListModel::BlockTextRole).toString(), "0:26");
-    EXPECT_NEAR(m.data(i, FlightListModel::FuelUsedLbRole).toDouble(), 3174.6, 1e-6);
-    EXPECT_EQ(m.data(i, FlightListModel::AtcIdRole).toString(), "N818SX");
-    EXPECT_EQ(m.data(i, FlightListModel::StatusRole).toString(), "block_in");
-    EXPECT_EQ(m.data(i, FlightListModel::StatusTextRole).toString(), "Block in");
-    EXPECT_FALSE(m.data(m.index(1), FlightListModel::AtcIdRole).isValid());  // past the end
-}
-
-TEST_F(TempLog, InterruptedFlightRoles) {
-    write({blockOut(kOut, "N818SX"), interrupted(kOut, "2026-11-22T21:31:50.032Z", "sim_stopped")});
-    FlightListModel m(dir_);
-    m.reloadBlocking();
-    ASSERT_EQ(m.count(), 1);
-    const QModelIndex i = m.index(0);
-    EXPECT_EQ(m.data(i, FlightListModel::InTextRole).toString(), "21:31Z");
-    EXPECT_EQ(m.data(i, FlightListModel::BlockTextRole).toString(), "0:03");  // from out to the interruption
-    EXPECT_EQ(m.data(i, FlightListModel::FuelUsedLbRole).toDouble(), -1.0);
-    EXPECT_EQ(m.data(i, FlightListModel::StatusRole).toString(), "interrupted");
-    EXPECT_EQ(m.data(i, FlightListModel::StatusTextRole).toString(), QString::fromUtf8("Interrupted · sim_stopped"));
-}
-
-TEST_F(TempLog, OpenFlightRoles) {
-    write({blockOut(kOut, "N818SX"), tel("2026-11-22T21:40:00.000Z", 32.74)});
-    FlightListModel m(dir_);
-    m.reloadBlocking();
-    const QModelIndex i = m.index(0);
-    EXPECT_EQ(m.data(i, FlightListModel::StatusRole).toString(), "open");
-    EXPECT_EQ(m.data(i, FlightListModel::StatusTextRole).toString(), "In progress");
-    EXPECT_EQ(m.data(i, FlightListModel::InTextRole).toString(), "");
-    EXPECT_EQ(m.data(i, FlightListModel::BlockTextRole).toString(), QString::fromUtf8("—"));
-}
-
-TEST_F(TempLog, TrackMatchesRecord) {
-    write({blockOut(kOut, "N818SX"), tel("2026-11-22T21:40:00.000Z", 32.74),
-           blockIn(kOut, "2026-11-22T21:55:15.475Z", 1612)});
-    FlightListModel m(dir_);
-    m.reloadBlocking();
-    const QGeoPath path = m.track(0);
-    ASSERT_EQ(path.size(), static_cast<qsizetype>(m.records()[0].track.size()));
-    EXPECT_DOUBLE_EQ(path.coordinateAt(0).latitude(), 32.73);
-    EXPECT_TRUE(m.track(-1).isEmpty());
-    EXPECT_TRUE(m.track(1).isEmpty());
-}
-
-TEST_F(TempLog, ReloadPicksUpAFlightThatJustEnded) {
-    write({blockOut(kOut, "N818SX")});
-    FlightListModel m(dir_);
-    m.reloadBlocking();
-    int countChanges = 0, resets = 0;
-    QObject::connect(&m, &FlightListModel::countChanged, [&] { ++countChanges; });
-    QObject::connect(&m, &QAbstractItemModel::modelReset, [&] { ++resets; });
-    EXPECT_EQ(m.data(m.index(0), FlightListModel::StatusRole).toString(), "open");
-
-    write({blockIn(kOut, "2026-11-22T21:55:15.475Z", 1612)}, true);
-    m.reloadBlocking();
-    EXPECT_EQ(m.count(), 1);
-    EXPECT_EQ(m.data(m.index(0), FlightListModel::StatusRole).toString(), "block_in");
-    EXPECT_EQ(resets, 1);
-    EXPECT_EQ(countChanges, 0);  // same number of flights
-
-    write({blockOut("2026-11-22T23:00:00.000Z", "N818SX")}, true);
-    m.reloadBlocking();
-    EXPECT_EQ(m.count(), 2);
-    EXPECT_EQ(countChanges, 1);
-}
+// --- FlightListModel: see "The flight's life on Live" below ------------------------------------------------------
 
 TEST(Bridge, ObserverCallsFromAnotherThreadArriveOnTheGuiThread) {
     // The recorder runs on its own thread (D-053); the observer only posts copies to the bridge.
@@ -410,34 +334,6 @@ TEST(Bridge, ObserverCallsFromAnotherThreadArriveOnTheGuiThread) {
     ASSERT_TRUE(processUntil([&] { return b.events()->rowCount() == 1; }));
     EXPECT_EQ(b.connection(), "connected");
     EXPECT_EQ(feedText(b, 0), "Connected to sim.");
-}
-
-TEST_F(TempLog, ReloadRunsOnAWorkerAndSwapsTheResultIn) {
-    write({blockOut(kOut, "N818SX"), blockIn(kOut, "2026-11-22T21:55:15.475Z", 1612)});
-    qtApp();
-    FlightListModel m(dir_);
-    EXPECT_EQ(m.count(), 0);  // construction doesn't read the log
-    int loadingChanges = 0, resets = 0;
-    QObject::connect(&m, &FlightListModel::loadingChanged, [&] { ++loadingChanges; });
-    QObject::connect(&m, &QAbstractItemModel::modelReset, [&] { ++resets; });
-    m.reload();
-    EXPECT_TRUE(m.loading());
-    m.reload();  // asked for again while loading: runs once more afterwards
-    ASSERT_TRUE(processUntil([&] { return !m.loading() && resets == 2; }));
-    EXPECT_EQ(m.count(), 1);
-    EXPECT_EQ(m.data(m.index(0), FlightListModel::StatusRole).toString(), "block_in");
-    EXPECT_EQ(loadingChanges, 4);  // true, false, true, false
-}
-
-TEST_F(TempLog, DestroyingTheModelWhileLoadingDoesNotWait) {
-    write({blockOut(kOut, "N818SX"), blockIn(kOut, "2026-11-22T21:55:15.475Z", 1612)});
-    qtApp();
-    {
-        FlightListModel m(dir_);
-        m.reload();
-    }  // stops and joins the worker; the posted result is dropped with the model
-    QCoreApplication::processEvents();
-    SUCCEED();
 }
 
 // --- FleetTableModel ----------------------------------------------------------------------------------------------
@@ -1081,4 +977,110 @@ TEST_F(LiveFlight, DoneForNowClearsTheSummary) {
     m->checkFlown();
     m->doneForNow();
     EXPECT_EQ(m->state(), "");
+}
+
+// --- Flights from the database (D-111) ----------------------------------------------------------------------------
+
+TEST_F(LiveFlight, FlightListRowsFromDatabaseAndTrackFromLog) {
+    write({liveOut(plannedId_), tel("2026-11-22T11:00:00.000Z", 45.0), tel("2026-11-22T12:00:00.000Z", 38.0),
+           liveIn()});
+    auto m = model();
+    m->checkFlown();
+    qtApp();
+    FlightListModel list(db_, dir_, "XLY");
+    list.reloadBlocking();
+    ASSERT_EQ(list.count(), 1);
+    const QModelIndex i = list.index(0);
+    EXPECT_EQ(list.data(i, FlightListModel::FlightIdRole).toString(), kLiveOut);
+    EXPECT_EQ(list.data(i, FlightListModel::DateTextRole).toString(), "22 Nov 2026");
+    EXPECT_EQ(list.data(i, FlightListModel::OutTextRole).toString(), "10:30Z");
+    EXPECT_EQ(list.data(i, FlightListModel::InTextRole).toString(), "13:20Z");
+    EXPECT_EQ(list.data(i, FlightListModel::RouteTextRole).toString(), QString::fromUtf8("KBFI–KSAN"));
+    EXPECT_EQ(list.data(i, FlightListModel::FlightNumberRole).toString(), "XLY8");
+    EXPECT_EQ(list.data(i, FlightListModel::RegistrationRole).toString(), "N814SX");
+    EXPECT_EQ(list.data(i, FlightListModel::BlockTextRole).toString(), "2:50");
+    EXPECT_EQ(list.data(i, FlightListModel::FuelUsedLbRole).toInt(), 10600);
+    EXPECT_LT(list.data(i, FlightListModel::TotalCentsRole).toLongLong(), 0);  // a delivery is a loss
+    EXPECT_TRUE(list.data(i, FlightListModel::TotalTextRole).toString().startsWith("-$"));
+    EXPECT_GT(list.track(0).path().size(), 2);  // the logged telemetry, not just the two airports
+    EXPECT_GT(list.data(i, FlightListModel::DistanceNmRole).toDouble(), 0.0);
+
+    const QVariantMap summary = list.summary(0);
+    EXPECT_EQ(summary["title"].toString(), QString::fromUtf8("XLY8 · KBFI → KSAN"));
+    EXPECT_EQ(summary["routeText"].toString(), QString::fromUtf8("N814SX · 737-800 BBJ2 · Delivery flight"));
+    EXPECT_EQ(summary["blockText"].toString(), "2:50");
+    EXPECT_EQ(summary["fuelText"].toString(), "10,600 lb used");
+    EXPECT_TRUE(summary["income"].toList().isEmpty());
+    const QVariantList costs = summary["costs"].toList();
+    ASSERT_EQ(costs.size(), 5);
+    EXPECT_EQ(costs[0].toMap()["label"].toString(), "Fuel");
+    EXPECT_EQ(costs[0].toMap()["amount"].toString(), "-$8,200");
+    EXPECT_TRUE(summary["totalText"].toString().startsWith("-$"));
+    EXPECT_EQ(list.rowOf(kLiveOut), 0);
+    EXPECT_EQ(list.rowOf("nope"), -1);
+}
+
+TEST_F(LiveFlight, FlightListShowsADiversion) {
+    write({liveOut(plannedId_),
+           liveLine("block_in", std::string(R"({"flight_id":")") + kLiveOut + R"(","time":")" + kLiveIn +
+                                    R"(","lat":47.0,"lon":-120.0,"shutdown_fuel_lb":9400,"block_time_s":10236})")});
+    auto m = model();
+    m->checkFlown();
+    FlightListModel list(db_, dir_, "XLY");
+    list.reloadBlocking();
+    ASSERT_EQ(list.count(), 1);
+    EXPECT_EQ(list.data(list.index(0), FlightListModel::RouteTextRole).toString(),
+              QString::fromUtf8("KBFI–KSAN, diverted to KSHT"));
+    EXPECT_EQ(list.summary(0)["title"].toString(), QString::fromUtf8("XLY8 · KBFI → KSHT (planned KSAN)"));
+}
+
+TEST_F(LiveFlight, FlightListWithoutALogTrackShowsTheTwoAirports) {
+    write({liveOut(plannedId_), liveIn()});
+    auto m = model();
+    m->checkFlown();
+    fs::remove_all(dir_);  // the log is gone (older than 30 days, say)
+    fs::create_directories(dir_);
+    FlightListModel list(db_, dir_, "XLY");
+    list.reloadBlocking();
+    ASSERT_EQ(list.count(), 1);
+    const QGeoPath track = list.track(0);
+    ASSERT_EQ(track.path().size(), 2);
+    EXPECT_DOUBLE_EQ(track.path()[0].latitude(), 47.53);
+    EXPECT_DOUBLE_EQ(track.path()[1].latitude(), 32.7336);
+    EXPECT_LT(list.data(list.index(0), FlightListModel::DistanceNmRole).toDouble(), 0.0);  // unknown
+}
+
+TEST_F(LiveFlight, FlightListLeavesOutInterruptedFlights) {
+    write({liveOut(plannedId_), interrupted(kLiveOut, "2026-11-22T10:40:00.000Z", "sim_stopped")});
+    FlightListModel list(db_, dir_, "XLY");
+    list.reloadBlocking();
+    EXPECT_EQ(list.count(), 0);
+}
+
+TEST_F(LiveFlight, FlightListReloadReadsRowsAtOnceAndTracksOnAWorker) {
+    write({liveOut(plannedId_), tel("2026-11-22T11:00:00.000Z", 45.0), liveIn()});
+    auto m = model();
+    m->checkFlown();
+    qtApp();
+    FlightListModel list(db_, dir_, "XLY");
+    EXPECT_EQ(list.count(), 0);  // construction reads nothing
+    int tracksChanges = 0;
+    QObject::connect(&list, &FlightListModel::tracksChanged, [&] { ++tracksChanges; });
+    list.reload();
+    EXPECT_EQ(list.count(), 1);  // rows come from the database straight away
+    EXPECT_TRUE(list.loading());
+    ASSERT_TRUE(processUntil([&] { return !list.loading(); }));
+    EXPECT_EQ(tracksChanges, 1);
+    EXPECT_GT(list.track(0).path().size(), 2);
+}
+
+TEST_F(LiveFlight, DestroyingTheFlightListWhileLoadingDoesNotWait) {
+    write({liveOut(plannedId_), liveIn()});
+    qtApp();
+    {
+        FlightListModel list(db_, dir_, "XLY");
+        list.reload();
+    }  // stops and joins the worker; the posted result is dropped with the model
+    QCoreApplication::processEvents();
+    SUCCEED();
 }

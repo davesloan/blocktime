@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Past flights from the event log (D-060): a list on the left, and for the selected flight its numbers and its
-// flown track on the dark map (D-059).
+// Past flights (D-111): the settled flights from the database on the left, and the selected one's summary on the
+// right, with its track on the dark map (D-059). Interrupted flights were discarded, so they aren't here (D-072).
 
 pragma ComponentBehavior: Bound
 
@@ -21,25 +21,24 @@ Item {
     required property string mapCacheDir
     required property string mapUserAgent
 
-    // The selected flight's roles, read through the list's current item.
-    readonly property var current: list.currentItem ? (list.currentItem as FlightCard) : null
+    property var summary: ({})
+    property var track
 
-    function grouped(x: real): string {
-        return String(Math.round(x)).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+    function showCurrent() {
+        page.summary = list.currentIndex >= 0 ? page.flights.summary(list.currentIndex) : ({})
+        page.track = list.currentIndex >= 0 ? page.flights.track(list.currentIndex) : undefined
     }
 
-    // The newest flight is selected whenever the list is (re)loaded, e.g. after a block in.
+    // The newest flight is selected whenever the list is (re)loaded, e.g. after a flight is settled. Tracks arrive
+    // from the log a little later.
     Connections {
         target: page.flights
 
         function onModelReset() {
             list.currentIndex = page.flights.count > 0 ? 0 : -1
-            page.showTrack()
+            page.showCurrent()
         }
-    }
-
-    function showTrack() {
-        routeMap.track = list.currentIndex >= 0 ? page.flights.track(list.currentIndex) : undefined
+        function onTracksChanged() { page.showCurrent() }
     }
 
     RowLayout {
@@ -57,7 +56,7 @@ Item {
             spacing: 8
             model: page.flights
             currentIndex: page.flights.count > 0 ? 0 : -1
-            onCurrentIndexChanged: page.showTrack()
+            onCurrentIndexChanged: page.showCurrent()
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: ScrollBar {}
 
@@ -70,76 +69,24 @@ Item {
             Text {
                 anchors.centerIn: parent
                 visible: page.flights.count === 0
-                text: page.flights.loading ? "Loading flights…" : "No flights in the log yet"
+                text: "No flights yet"
                 color: Theme.textSecondary
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeBody
             }
         }
 
-        // Selected flight
-        ColumnLayout {
+        FlightSummary {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: Theme.spacing
-
-            GridLayout {
-                Layout.fillWidth: true
-                columns: 3
-                columnSpacing: 12
-                rowSpacing: 12
-                visible: page.current !== null
-
-                StatTile {
-                    Layout.fillWidth: true
-                    label: "Block out"
-                    value: page.current ? page.current.outText : "—"
-                }
-                StatTile {
-                    Layout.fillWidth: true
-                    label: "Block in"
-                    value: page.current && page.current.inText !== "" ? page.current.inText : "—"
-                }
-                StatTile {
-                    Layout.fillWidth: true
-                    label: "Block time"
-                    value: page.current ? page.current.blockText : "—"
-                    accent: Theme.accent
-                }
-                StatTile {
-                    Layout.fillWidth: true
-                    label: "Fuel used"
-                    value: page.current && page.current.fuelUsedLb >= 0 ? page.grouped(page.current.fuelUsedLb) : "—"
-                    unit: "lb"
-                }
-                StatTile {
-                    Layout.fillWidth: true
-                    label: "Distance flown"
-                    value: page.current ? page.current.distanceNm.toFixed(1) : "—"
-                    unit: "nm"
-                }
-                StatTile {
-                    Layout.fillWidth: true
-                    label: "Highest altitude"
-                    value: page.current ? page.grouped(page.current.maxAltFt) : "—"
-                    unit: "ft"
-                }
-            }
-
-            RouteMap {
-                id: routeMap
-
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                radius: Theme.radius
-                border.color: Theme.border
-                border.width: 1
-                tileUrl: page.mapTileUrl
-                cacheDir: page.mapCacheDir
-                userAgent: page.mapUserAgent
-            }
+            visible: list.currentIndex >= 0
+            summary: page.summary
+            track: page.track
+            mapTileUrl: page.mapTileUrl
+            mapCacheDir: page.mapCacheDir
+            mapUserAgent: page.mapUserAgent
         }
     }
 
-    Component.onCompleted: showTrack()
+    Component.onCompleted: showCurrent()
 }

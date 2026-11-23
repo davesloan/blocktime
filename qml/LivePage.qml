@@ -6,6 +6,8 @@
 // before and during departure (§13.3), the summary after block in (§13.7), the flight panel and the event feed. The
 // page scrolls when the window is too short for all of it; the scroll bar shows only then.
 
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import BlockTime  // explicit, so hot reload from the source folder still sees the module (D-055)
 import QtQuick.Controls.Basic
@@ -16,6 +18,30 @@ Item {
 
     required property RecorderBridge recorder
     required property PlannedFlightModel plannedFlight
+    required property FlightListModel flights
+    required property string mapTileUrl
+    required property string mapCacheDir
+    required property string mapUserAgent
+
+    // The summary of the flight that just ended, from the Flights list (design.md §13.7).
+    readonly property bool showSummary: plannedFlight.state === "summary"
+    property var summary: ({})
+    property var summaryTrack
+
+    function refreshSummary() {
+        const row = page.showSummary ? page.flights.rowOf(page.plannedFlight.summaryFlightId) : -1
+        page.summary = row >= 0 ? page.flights.summary(row) : ({})
+        page.summaryTrack = row >= 0 ? page.flights.track(row) : undefined
+    }
+
+    onShowSummaryChanged: refreshSummary()
+
+    Connections {
+        target: page.flights
+
+        function onModelReset() { page.refreshSummary() }
+        function onTracksChanged() { page.refreshSummary() }
+    }
 
     ScrollView {
         id: scroll
@@ -53,14 +79,23 @@ Item {
                 font.pixelSize: Theme.fontSizeBody
             }
 
-            // The summary of the flight that just ended; FlightSummary replaces this placeholder (milestone 6, Task 8).
-            Text {
+            // Only built while it shows, so the map costs nothing the rest of the time.
+            Loader {
                 Layout.fillWidth: true
-                visible: page.plannedFlight.state === "summary"
-                text: "Flight " + page.plannedFlight.summaryFlightId + " settled."
-                color: Theme.textPrimary
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeBody
+                Layout.preferredHeight: 520
+                visible: active
+                active: page.showSummary
+
+                sourceComponent: FlightSummary {
+                    summary: page.summary
+                    track: page.summaryTrack
+                    mapTileUrl: page.mapTileUrl
+                    mapCacheDir: page.mapCacheDir
+                    mapUserAgent: page.mapUserAgent
+                    showActions: true
+                    onTurnaround: page.plannedFlight.turnaround()
+                    onDone: page.plannedFlight.doneForNow()
+                }
             }
 
             PlannedFlightPanel {

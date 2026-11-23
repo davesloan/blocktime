@@ -80,6 +80,24 @@ Probed 2026-11-22 with Qt 6.12.0 and CARTO Dark Matter:
 sends `std::cerr` to `%LOCALAPPDATA%\BlockTime\errors.log` (D-067), together with any `LOST:` block events. Block events that fail to write still show in the
 event feed as `WARNING` lines, through the observer.
 
+## Checking the screens without showing a window (`--grab`)
+
+`BlockTime.exe --grab <file.png> [--page <n>]` renders the app, saves the window to the PNG after 6 s and quits
+(`--page`: 0 Live, 1 Flights, 2 Fleet, 3 Money). With the offscreen platform nothing appears on the desktop, which
+matters when Dave is using the machine. Point `LOCALAPPDATA` at a scratch copy of the data folder so the real airline
+isn't touched:
+
+```powershell
+$env:LOCALAPPDATA = "C:\path\to\scratch"; $env:QT_QPA_PLATFORM = "offscreen"; $env:QT_QUICK_BACKEND = "software"; $env:QT_QPA_PLATFORM_PLUGIN_PATH = "C:\Qt\6.12.0\msvc2022_64\plugins\platforms"; $env:QT_QPA_FONTDIR = "C:\Windows\Fonts"; build\x64-release\BlockTime.exe --grab C:\path\to\live.png --page 0
+```
+
+- windeployqt deploys only `qwindows.dll`, so the offscreen plugin comes from the Qt kit
+  (`QT_QPA_PLATFORM_PLUGIN_PATH`). Without it the app dies before `errors.log` is opened (exit code 0xC0000409).
+- The offscreen platform has no fonts of its own: without `QT_QPA_FONTDIR` every glyph is a box.
+- Map tiles load as usual (from the scratch folder's `tiles\` and the CARTO key in its `settings.json`).
+- An event log written by hand must be compact JSON (`"type":"block_out"`, no spaces): the log readers find event
+  lines with a plain substring before parsing them, as `EventLog` writes them.
+
 ## Measured (no sim)
 
 Release build, idle, Windows 11: about 87–92 MB (working set and private bytes), 0% CPU over 10 s (UI test 1).

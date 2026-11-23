@@ -18,6 +18,7 @@ ApplicationWindow {
     required property NewFlightModel newFlight
     required property PlannedFlightModel plannedFlight
     required property string airlineName
+    property int startPage: 0  // --page; a developer option with --grab
     // Map settings from app_main (D-059). The tile URL holds the CARTO key: never shown or logged.
     required property string mapTileUrl
     required property string mapCacheDir
@@ -55,6 +56,8 @@ ApplicationWindow {
 
         Sidebar {
             id: sidebar
+
+            currentIndex: window.startPage
 
             airlineName: window.airlineName
 
@@ -115,6 +118,10 @@ ApplicationWindow {
                 LivePage {
                     recorder: window.recorder
                     plannedFlight: window.plannedFlight
+                    flights: window.flights
+                    mapTileUrl: window.mapTileUrl
+                    mapCacheDir: window.mapCacheDir
+                    mapUserAgent: window.mapUserAgent
                 }
 
                 FlightsPage {

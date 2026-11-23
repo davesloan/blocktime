@@ -2,8 +2,10 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// One flight in the Flights list. Its required properties are the FlightListModel roles, so the page also reads the
-// selected flight's numbers from the current card.
+// One settled flight in the Flights list (D-111): date and times, flight number and route, airplane, block time and
+// the money it made or lost. Its required properties are FlightListModel roles.
+
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import BlockTime  // explicit, so hot reload from the source folder still sees the module (D-055)
@@ -17,18 +19,17 @@ AbstractButton {
     required property string dateText
     required property string outText
     required property string inText
-    required property string atcId
-    required property string title
+    required property string flightNumber
+    required property string routeText
+    required property string registration
+    required property string typeCode
     required property string blockText
-    required property real fuelUsedLb
-    required property real distanceNm
-    required property real maxAltFt
-    required property string status
-    required property string statusText
+    required property string totalText
+    required property real totalCents
 
     property bool selected
 
-    readonly property color tone: status === "block_in" ? Theme.good : status === "open" ? Theme.accent : Theme.warn
+    readonly property color tone: totalCents >= 0 ? Theme.good : Theme.bad
 
     implicitHeight: column.implicitHeight + 24
     hoverEnabled: true
@@ -45,7 +46,7 @@ AbstractButton {
 
         spacing: 6
 
-        // Date and time, status
+        // Date and times, the money
         RowLayout {
             Layout.fillWidth: true
             Layout.leftMargin: 14
@@ -54,7 +55,7 @@ AbstractButton {
 
             Text {
                 Layout.fillWidth: true
-                text: card.dateText + " · " + card.outText + (card.inText !== "" ? " – " + card.inText : "")
+                text: card.dateText + " · " + card.outText + " – " + card.inText
                 color: Theme.textSecondary
                 elide: Text.ElideRight
                 font.family: Theme.fontFamily
@@ -62,29 +63,17 @@ AbstractButton {
                 font.features: { "tnum": 1 }
             }
 
-            Rectangle {
-                Layout.preferredHeight: 20
-                Layout.preferredWidth: statusLabel.implicitWidth + 14
-                radius: 10
-                color: Qt.rgba(card.tone.r, card.tone.g, card.tone.b, 0.12)
-                border.color: Qt.rgba(card.tone.r, card.tone.g, card.tone.b, 0.35)
-                border.width: 1
-
-                Text {
-                    id: statusLabel
-
-                    anchors.centerIn: parent
-                    // The pill shows the short form; the reason is on its own line below.
-                    text: card.status === "block_in" ? "Block in" : card.status === "open" ? "In progress" : "Interrupted"
-                    color: card.tone
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeLabel
-                    font.weight: Font.DemiBold
-                }
+            Text {
+                text: card.totalText
+                color: card.tone
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeBody
+                font.weight: Font.DemiBold
+                font.features: { "tnum": 1 }
             }
         }
 
-        // Tail and aircraft
+        // Flight number and route
         RowLayout {
             Layout.fillWidth: true
             Layout.leftMargin: 14
@@ -92,7 +81,7 @@ AbstractButton {
             spacing: 8
 
             Text {
-                text: card.atcId !== "" ? card.atcId : "—"
+                text: card.flightNumber
                 color: Theme.textPrimary
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeBody
@@ -101,25 +90,22 @@ AbstractButton {
 
             Text {
                 Layout.fillWidth: true
-                text: card.title
-                color: Theme.textSecondary
+                text: card.routeText
+                color: Theme.textPrimary
                 elide: Text.ElideRight
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.fontSizeBody
             }
         }
 
-        // Numbers, or why it was interrupted
+        // Airplane and block time
         Text {
             Layout.fillWidth: true
             Layout.leftMargin: 14
             Layout.rightMargin: 14
             Layout.bottomMargin: 12
-            text: card.status === "interrupted"
-                  ? card.statusText
-                  : card.blockText + " block · " + card.distanceNm.toFixed(0) + " nm"
-                    + (card.fuelUsedLb >= 0 ? " · " + String(Math.round(card.fuelUsedLb)).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " lb" : "")
-            color: card.status === "interrupted" ? Theme.warn : Theme.textSecondary
+            text: card.registration + " · " + card.typeCode + " · " + card.blockText + " block"
+            color: Theme.textSecondary
             elide: Text.ElideRight
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeSmall

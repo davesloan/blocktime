@@ -350,3 +350,33 @@ TEST_F(Settlement, LedgerTextForFlightLines) {
     for (const LedgerView& l : ledger) sawFuel |= l.text == "N814SX KBFI–KSAN · Fuel";
     EXPECT_TRUE(sawFuel);
 }
+
+TEST_F(Settlement, ListFlightsReadsLinesBack) {
+    const auto id = planDelivery();
+    writeLog({blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    std::string error;
+    const auto s = settleIfFlown(db_, dir_, Rates{}, &error);
+    ASSERT_TRUE(s.has_value()) << error;
+    const auto flights = listFlights(db_);
+    ASSERT_EQ(flights.size(), 1u);
+    const FlightView& f = flights[0];
+    EXPECT_EQ(f.logFlightId, kOut);
+    EXPECT_EQ(f.flightNumber, "8");
+    EXPECT_EQ(f.registration, "N814SX");
+    EXPECT_EQ(f.typeCode, "737-800 BBJ2");
+    EXPECT_EQ(f.kind, "delivery");
+    EXPECT_EQ(f.origin, "KBFI");
+    EXPECT_EQ(f.plannedDestination, "KSAN");
+    EXPECT_EQ(f.arrival, "KSAN");
+    EXPECT_DOUBLE_EQ(f.originLat, 47.53);
+    EXPECT_DOUBLE_EQ(f.arrivalLat, kSanLat);
+    EXPECT_EQ(f.blockOutAt, "2026-11-23T10:30:05Z");
+    EXPECT_EQ(f.blockInAt, "2026-11-23T13:20:41Z");
+    EXPECT_EQ(f.blockS, 10236);
+    EXPECT_EQ(f.fuelOutLb, 20000);
+    EXPECT_EQ(f.fuelInLb, 9400);
+    EXPECT_EQ(lines(f.income), lines(s->money.income));
+    EXPECT_EQ(lines(f.costs), lines(s->money.costs));
+    EXPECT_EQ(f.costs[0].label, "Fuel");
+    EXPECT_EQ(f.totalCents, s->money.totalCents);
+}

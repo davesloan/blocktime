@@ -440,7 +440,12 @@ Mid-flight (around top of descent or 200 nm out), the app picks an arrival gate 
 ### 13.7 After the flight
 
 - At block in, the app switches by itself to the **flight summary**: score and Claude's evaluation (section 14),
-  each income and expense line, and the total gained or lost. Plus the route map.
+  each income and expense line, and the total gained or lost. Plus the route map. **Built in milestone 6** without
+  the score and evaluation (milestone 10): the flight number and route, the airplane, block out and in, block time,
+  fuel used, the money lines with their total, and the track. A flight settled at startup (BlockTime was closed or
+  crashed at block in) shows its summary the same way.
+- **Flights (D-111)** lists the settled flights from the database, newest first, and shows the same summary for the
+  one selected. The track comes from the event log; once the log is gone (30 days), the map shows a straight line.
 - Two buttons:
   - **At Gate Turnaround:** back to New Flight with the same aircraft at its new airport and gate.
   - **Done for now**: the aircraft stays parked; the app remembers the gate for the next
