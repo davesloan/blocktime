@@ -22,6 +22,38 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-23 — Milestone 5 planning (docs only)
+
+**Done:**
+- Researched SimBrief's dispatch page and OFP fetch, and SayIntentions' `getWX`. Results are in
+  `docs/notes/simbrief-api.md` and `docs/notes/sayintentions-api.md`. Two surprises:
+  - SimBrief asks apps not to poll the OFP endpoint.
+  - The first part of a SimBrief airframe id isn't the pilot's id; `simbrief-airframes.md` is corrected.
+- Settled with Dave:
+  - the MVP is for him, not production, so config-file code gets the happy path only (D-099, also in `CLAUDE.md`);
+  - airplane limits are airframe defaults, overridable per airplane (D-100);
+  - an Import Active SimBrief Plan button replaces polling (D-101, supersedes D-070's polling);
+  - the flight number is typed each time (D-102).
+- Claude's calls, all **Proposed**:
+  - the planned flight is current state, one at a time (D-103);
+  - pricing and preview details, including delivery-flight costs and rates as code constants (D-104);
+  - ATIS runway choice and the import check (D-105).
+- Specs: milestone 5's schema (version 3) in `database.md`; design.md §3, §11 and §13.2; roadmap milestone 5.
+- Plan: `docs/plans/2026-11-23-milestone-5-new-flight-and-plan.md` (8 tasks).
+
+**Working / verified:**
+- No code changed.
+
+**Unverified or broken:**
+- The unit of SimBrief's `cargo` parameter: Dave's 2-minute check before Task 4 (in the plan).
+- Nothing is tested against Dave's SimBrief or SayIntentions accounts yet.
+
+**Next step:**
+- Dave reviews the plan and confirms D-103..D-105, then does the cargo-unit check. Then execute (executing-plans,
+  D-033) from Task 1.
+
+---
+
 ## 2026-11-23 — Milestone 4 verified by Dave
 
 **Done:**

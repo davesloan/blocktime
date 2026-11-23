@@ -1,0 +1,64 @@
+# SimBrief API: dispatch page and OFP fetch
+
+Researched 2026-11-23 for milestone 5 (design.md §13.2, D-070). Nothing here is tested against Dave's account yet;
+each item says where it comes from.
+
+Sources:
+- Dispatch redirect guide: https://forum.navigraph.com/t/dispatch-redirect-guide/5299
+- Fetching the latest OFP: https://forum.navigraph.com/t/fetching-a-users-latest-ofp-data/5297
+- API docs: https://developers.navigraph.com/docs/simbrief/using-the-api
+- A real JSON v2 OFP, used as a test fixture by an open-source Go client:
+  https://raw.githubusercontent.com/mrlm-net/simbrief/main/pkg/types/testdata/ofp_v2.json (not copied into the repo;
+  its licence wasn't checked)
+
+## The dispatch page (no API key)
+
+- `https://dispatch.simbrief.com/options/custom?` plus query parameters (guide 5299). Opens in the browser; the user
+  must be logged in to SimBrief.
+- Parameters: `orig`, `dest`, `airline`, `fltnum`, `callsign`, `type`, `origrwy`, `destrwy`, `pax`, `cargo`, `units`
+  (`LBS`/`KGS`), `date`, `deph`/`depm`, `route`, `static_id`; also `reg`, `fin`, `fl`, `manualzfw`, `acdata`.
+- **A custom airframe goes in `type`**, as its internal id (`type=730097_1790536204614`). Confirmed by SimBrief staff
+  (https://forum.navigraph.com/t/directly-call-dispatch-url-and-set-specific-aircraft/7315). A deleted airframe gives
+  "Unknown Aircraft".
+- Forum report, not checked: choosing an airframe on the page can recalculate and replace a route passed in the URL.
+- Still to check with Dave's account: the unit of `cargo` (pounds, or thousands), and that `origrwy`/`destrwy` stick.
+
+## Fetching the OFP
+
+- `https://www.simbrief.com/api/xml.fetcher.php?userid=<id>&json=v2` (or `username=`), plus `&client=<app name>`.
+  `&static_id=` fetches a specific flight.
+- **Don't poll it.** SimBrief asks apps to call it "only in response to a user action" and says excessive calls can
+  get an app blocked by its firewall (5297). No number is given. This changes D-070's "polls until one appears".
+- Wrong user id: HTTP 400 and `{"fetch":{"status":"Error: Unknown UserID", ...}}` (tried). Success has
+  `fetch.status == "Success"`. A user with no OFP isn't documented or tried.
+
+## JSON v2 fields (from the fixture)
+
+All values are strings, in the OFP's units (`params.units`, `lbs` or `kgs`).
+
+| What | Field | Note |
+|---|---|---|
+| Generated at | `params.time_generated` | ISO `2026-10-03T21:18:38Z` (the XML has Unix seconds) |
+| OFP id | `params.request_id` | unique per OFP; also `sequence_id`, `static_id` (empty unless set) |
+| Pilot id | `params.user_id`, `fetch.userid` | |
+| Airports | `origin.icao_code`, `destination.icao_code` | |
+| Runways | `origin.plan_rwy`, `destination.plan_rwy` | |
+| Transition altitude / level | `origin.trans_alt`, `destination.trans_level` | `"05000"`; both exist on both airports |
+| Route | `general.route` | also `route_navigraph`, `route_ifps` |
+| Cruise | `general.initial_altitude` | feet |
+| Distances | `general.air_distance`, `route_distance`, `gc_distance` | nm |
+| Fuel | `fuel.plan_ramp`, `fuel.enroute_burn` | there is no `est_burn` |
+| Times | `times.est_block`, `times.est_time_enroute` | **`HH:MM:SS` in JSON v2** (seconds in the XML); also `est_out`/`est_in` (ISO) |
+| Loads | `weights.pax_count`, `weights.cargo`, `weights.payload`, `weights.est_zfw`, `weights.est_ldw` | |
+| Airframe limits | `weights.oew`, `max_zfw`, `max_ldw`, `max_tow`, `pax_weight`, `bag_weight`; `aircraft.max_passengers` | from the airframe; only available once an OFP exists |
+| Airframe id | `aircraft.internal_id`, `aircraft.is_custom` | |
+
+- No minimum runway length was seen in the OFP.
+- Unclear: whether `weights.pax_weight` includes bags (the fixture's 80 kg + 15 kg don't match its airframe's
+  176 + 33 lb).
+
+## The airframe id isn't `<user id>_<number>`
+
+The fixture has `params.user_id` 857341 but `aircraft.internal_id` `80_1722530034323`, so the first part of an
+airframe id isn't reliably the pilot's id (it may have been a copied airframe). The second part looks like a creation
+time in Unix milliseconds. BlockTime takes the pilot id from settings, never from the airframe id.

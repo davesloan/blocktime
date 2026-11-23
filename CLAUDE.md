@@ -73,6 +73,9 @@ checkout. Update it whenever the steps change.
 
 ## Working style
 
+- **The MVP is for Dave, not production (D-099).** Code that reads the hand-edited config files gets the happy path
+  only: no drift warnings, extra validation or edge-case fixes. Spend tests and error handling on what can go wrong
+  in a real flight (the sim, network calls, money).
 - **Ask before big, hard-to-reverse choices** (overall architecture, a heavy dependency, changing a data
   format that's already written to disk). Make small reversible choices yourself and log them.
 - **Small, verifiable steps.** Get something running end-to-end early, then grow it.

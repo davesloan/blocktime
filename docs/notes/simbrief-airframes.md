@@ -6,9 +6,9 @@ registration (D-087). design.md §3 makes SimBrief the source of truth for weigh
 ## Where to find things on SimBrief
 
 - **Internal ID** (top right of the airframe's page), shaped `<SimBrief user id>_<number>`, for example
-  `730097_1790536204614`. This is what `airline.yaml`'s `simbrief_airframe_id` holds. The first part looks like
-  Dave's SimBrief user id. That's an assumption, to check in milestone 5 when the dispatch page and the OFP fetch
-  need the user id.
+  `730097_1790536204614`. This is what `airline.yaml`'s `simbrief_airframe_id` holds, and what the dispatch page's
+  `type` parameter takes. The first part is **not** reliably the pilot's SimBrief id (an OFP seen in research had
+  user 857341 and airframe `80_…`; `docs/notes/simbrief-api.md`), so the pilot id is a setting of its own.
 - **Civil Registration** is the airplane's registration. **Fin Number** is the tail number.
 - The page also has SELCAL, equipment codes, fuel policy and performance profiles. BlockTime doesn't use those.
 

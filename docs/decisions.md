@@ -946,7 +946,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-070 — Plans come from a pre-filled SimBrief dispatch page, with SayIntentions runways
 - Date: 2026-11-22
-- Status: Accepted
+- Status: Accepted (the polling is superseded by D-101: a button imports the plan)
 - Decided by: Dave
 - Area: app
 - Decision: Before planning, the app fetches both airports' ATIS from SayIntentions (`getWX`) for the active
@@ -1362,3 +1362,114 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   charge it again).
 - Alternatives considered: refusing to open a version-1 file with airline tables (safer, but needs a manual fix);
   retrying a busy transaction in a loop (the busy timeout already waits).
+
+## D-099 — MVP code is for Dave, not production
+- Date: 2026-11-23
+- Status: Accepted
+- Decided by: Dave
+- Area: design
+- Decision: Until the MVP is done, BlockTime only has to work for Dave. Code that reads the hand-edited config files
+  (`airline.yaml`, `catalog.yaml`) gets the happy path only: no drift warnings, no extra validation, no edge-case
+  fixes. Dave keeps the files correct. Tests and error handling go to what can go wrong in a real flight (the sim,
+  network calls, money). Written into `CLAUDE.md`.
+- Why: Dave: "there's little point in putting a lot of error handling and edge case fixes for stuff that is just a
+  placeholder until later editions." The config files give way to screens after the MVP (D-076, D-092). "It does not
+  have to be 'production ready' and 'safe for use by everyone' during the MVP stage."
+- Alternatives considered: milestone 4's approach (line-numbered errors, drift warnings). Already built, so it stays,
+  but it isn't extended.
+
+## D-100 — Airplane limits: airframe defaults, overridable per airplane
+- Date: 2026-11-23
+- Status: Accepted
+- Decided by: Dave
+- Area: data, app
+- Decision: The values New Flight needs before any SimBrief plan exists are stored with each catalog airframe as
+  defaults: minimum runway, MLW, passenger weight, bag weight and max payload (MZFW − empty weight). An airplane in
+  `airline.yaml` may override any of them. They're copied onto the airplane when it's leased, like seats and holds
+  (D-082). An airplane leased before milestone 5 gets its airframe's defaults at the next start. Later edits in
+  `airline.yaml` are ignored (D-099: no warning). For the settings screen (D-092): leasing pre-fills the airframe's
+  defaults, and changing any of them blanks the SimBrief airframe ID, because the SimBrief airframe has to match;
+  Dave makes a new one in SimBrief and pastes its ID in.
+- Why: Dave: "default values should be stored with the airframe. when leasing, the fields are pre-filled but I have
+  the ability to override them specifically for the airframe." SimBrief has no airframe API, and the OFP's weights
+  come too late for the preview and the runway check.
+- Alternatives considered: typing them per airplane only (retyped for every plane of a configuration); taking them
+  from the first OFP (too late for the runway check and the first preview).
+- Note: Claude first said passenger weight wasn't needed; it is, to cap cargo at max payload.
+
+## D-101 — The plan comes in with an "Import Active SimBrief Plan" button
+- Date: 2026-11-23
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: Supersedes D-070's polling. After pressing Generate on SimBrief, Dave clicks **Import Active SimBrief
+  Plan**. The app fetches the latest OFP once per click and stores it if it belongs to the planned flight. The
+  dashboard shows "Waiting for plan" until then.
+- Why: SimBrief asks apps to fetch the OFP only in response to a user action and may block apps that poll
+  (`docs/notes/simbrief-api.md`). Dave: "just have a button I can click."
+- Alternatives considered: fetching when the app window regains focus (still automatic, and could fire many times);
+  polling on a timer (against SimBrief's rules).
+
+## D-102 — The flight number is typed for each flight
+- Date: 2026-11-23
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: New Flight has a flight number field (1–4 digits), empty each time, which Dave fills in. The dispatch
+  page gets `airline` (the airline's ICAO code) and `fltnum`; SimBrief builds the callsign from them.
+- Why: Dave's choice.
+- Alternatives considered: an editable suggested next number; automatic numbers only.
+
+## D-103 — The planned flight is current state in the database
+- Date: 2026-11-23
+- Status: Proposed
+- Decided by: Claude
+- Area: data
+- Decision: Planning writes a `planned_flight` row with its rolled loads (passengers per cabin class and a cargo
+  total), the locked fuel price, the runways from the ATIS, and later its imported SimBrief plan (`simbrief_plan`,
+  with the OFP's JSON kept verbatim). Bags and the weight per hold aren't stored: they follow from passengers × bag
+  weight and the airplane's holds. One planned flight at a time: New Flight is disabled while one exists, and
+  **Cancel flight** deletes it (free, design rule 2). It isn't history; milestone 6 turns a flown one into a `flight`.
+  Importing again replaces the stored plan.
+- Why: The plan must survive an app restart between planning and flying. Deleting an unflown plan loses no fact.
+- Alternatives considered: one planned flight per airplane (the dashboard would have to choose which to show).
+
+## D-104 — Preview and pricing details
+- Date: 2026-11-23
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision:
+  - The cost and fare rates of design.md §10–12 are constants in one place in the code (`pricing.h`). The fuel price
+    is `fuel_price_per_100lb` in `airline.yaml` (optional, default $41), read at start and locked on the planned
+    flight.
+  - Before a plan exists, the preview uses the great-circle distance and an estimated block time (distance ÷ the
+    type's cruise speed + 30 min) and shows "+ fuel". Once a plan is imported, the dashboard's estimate uses
+    SimBrief's block time and en-route burn instead. Distances stay great-circle for fares and ATC.
+  - Day or night loads go by the origin's local time when New Flight opens (7:00–18:59 is day).
+  - An executive type (the BBJ2) always pays VIP crew and catering rates. A delivery flight pays fuel, landing fee,
+    ATC, pilots and maintenance: no gate, handling, flight attendants or catering.
+  - Each money line is computed in cents and rounded to $5 (D-080); totals add the rounded lines.
+  - Landing weight near MLW: the dashboard warns when the plan's estimated landing weight is 95% of MLW or more.
+- Why: The rates are tuned rarely, and a config section for them would be placeholder code (D-099). The rest fills
+  gaps the design leaves open.
+- Alternatives considered: rates in a config file (design.md's long-term wish; it can come with the settings screen).
+
+## D-105 — ATIS runways and the import check
+- Date: 2026-11-23
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision:
+  - One `getWX` call for both airports, when Dave presses Plan flight. The origin runway is the first of
+    `active_runways_departing`, and the destination's the first of `active_runways_arriving`. Either falls back to
+    `active_runway`, and then to none (SimBrief chooses). A single-digit runway gets a leading zero (9R → 09R).
+    Without keys, or after an error or an 8-second timeout, planning continues without runways and says so.
+  - An imported OFP is accepted only if its origin, destination and airframe (`aircraft.internal_id`) are the
+    planned flight's, its units are pounds, and it was generated after Plan flight was pressed (with 5 minutes'
+    allowance for clock differences). Otherwise nothing is stored and the dashboard says why ("The latest SimBrief
+    plan is KBFI–KSEA; this flight is KBFI–KSAN").
+- Why: The live getWX answer has these fields while the documented `active_runway` is missing
+  (`docs/notes/sayintentions-api.md`). The import check catches forgetting to press Generate, which would otherwise
+  import yesterday's plan for the same route.
+- Alternatives considered: comparing the OFP's passenger count with the rolled loads (the app's loads count anyway).

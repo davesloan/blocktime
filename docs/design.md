@@ -71,8 +71,12 @@ Exact seats per class, hold maximums and hold ratios are taken from the PMDG loa
 
 ### SimBrief is the source of truth
 
-Each airplane stores its SimBrief airframe ID (D-087). Weights and limits (empty weight, MZFW, MTOW, MLW, max fuel,
-passenger and bag weights, minimum runway) are synced from SimBrief rather than retyped. SimBrief OFP data is
+Each airplane stores its SimBrief airframe ID (D-087). SimBrief has no airframe API, and New Flight needs a few
+values before any plan exists, so they're typed in once (D-100): **minimum runway, MLW, passenger weight, bag weight
+and max payload** (MZFW − empty weight). Each catalog airframe holds them as defaults; an airplane may override
+them, and they're copied onto it at lease time. They must match the airplane's SimBrief airframe: changing one means
+a new SimBrief airframe (on the settings screen, a change blanks the ID). Everything else (MTOW, max fuel, the plan
+itself) is SimBrief's. SimBrief OFP data is
 available via `https://www.simbrief.com/api/xml.fetcher.php?userid=<id>&json=v2`; SimBrief deletes old OFPs after a
 few days, so store a copy of each plan when a flight is filed.
 
@@ -280,7 +284,8 @@ Fixed rates, the same at every airport. No leases, discounts or airport-size pri
 | Flight attendants | $55 each per block hour | same |
 | Maintenance | $300 per block hour | $700 per block hour |
 
-- **Fuel price** lives in a config file, editable any time; locked when a flight is planned. ($41/100 lb ≈ $2.75/gal at
+- **Fuel price** lives in `airline.yaml` (`fuel_price_per_100lb`, read at start; D-104); locked when a flight is
+  planned. The other rates in this section and section 12 are constants in the code until the settings screen. ($41/100 lb ≈ $2.75/gal at
   6.7 lb/gal.)
 - **Fuel stays in the tanks.** Each airplane remembers its fuel at block in. Fuel charged = fuel at block out − fuel
   remaining. Fuel can't be removed: extra stays on board and isn't charged again. The app warns if the sim shows less
@@ -349,9 +354,11 @@ here, including delivery and free flights.
 2. **SimBrief dispatch page.** The app opens SimBrief's dispatch page in Dave's browser, pre-filled (the dispatch
    redirect, no API key): origin, destination, the airplane's SimBrief airframe, the runways (`origrwy`,
    `destrwy`), and the loads. Dave can change the route, then presses Generate.
-3. **The app finds the plan by itself.** It polls the latest OFP (`xml.fetcher.php`) until one appears that was
-   generated after the page opened and matches the origin and destination. It stores a copy of the plan (section 3).
-   If none comes, the dashboard stays at "Waiting for plan" with a button to open the page again.
+3. **Dave imports the plan (D-101).** After Generate he clicks **Import Active SimBrief Plan**. The app fetches the
+   latest OFP (`xml.fetcher.php`) once and keeps it if it matches the planned origin, destination and airframe and
+   was generated after planning started (D-105). It stores a copy of the plan (section 3). SimBrief asks apps not to
+   poll, so nothing is fetched without a click. Until then the dashboard shows "Waiting for plan", with buttons to
+   open the dispatch page again and to cancel the flight.
 4. The destination runway is only a planning guess; the wind can change before arrival.
 
 ### 13.3 Before departure

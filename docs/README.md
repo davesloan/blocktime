@@ -24,3 +24,5 @@ _Add a link here for every file created in `notes/`._
 - [airport-data.md](notes/airport-data.md) — the airport import's sources, licences, columns and filter results
 - [simbrief-airframes.md](notes/simbrief-airframes.md) — what a SimBrief airframe holds, where its ID is, and N814SX's (BBJ2) checked weights
 - [pmdg-variables-from-spad.md](notes/pmdg-variables-from-spad.md) — PMDG 737/777 data values and switch events from Dave's SPAD.neXt profiles; the milestone 6 probe's target list
+- [simbrief-api.md](notes/simbrief-api.md) — the dispatch page's parameters, the OFP fetch (don't poll it), JSON v2 fields
+- [sayintentions-api.md](notes/sayintentions-api.md) — the two keys, getWX's real answer, assignGate and the ATC log for later

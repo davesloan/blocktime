@@ -4,8 +4,9 @@ The schema of `%LOCALAPPDATA%\BlockTime\blocktime.db`, the one SQLite file that 
 It follows the database rules in `CLAUDE.md` (D-078), applied for what they protect (D-090). Keep this file true: a
 schema change updates it in the same commit.
 
-**Status:** built in milestone 4 (schema version 2, `src/airline_db.cpp`). Tables for flights, flight money lines
-and hours come in milestones 5–6 and are only sketched here.
+**Status:** milestone 4 is built (schema version 2, `src/airline_db.cpp`). Milestone 5's tables (schema version 3)
+are specified below and built by `docs/plans/2026-11-23-milestone-5-new-flight-and-plan.md`. Tables for flights,
+flight money lines and hours come in milestone 6 and are only sketched here.
 
 ## Conventions
 
@@ -49,6 +50,11 @@ erDiagram
     ledger_category ||--o{ ledger_line : classifies
     ledger_line ||--o| lease_charge : "money for"
     airplane ||--o{ lease_charge : "charged for"
+    airplane ||--o| airplane_limits : "limits (m5)"
+    airplane ||--o| planned_flight : "planned (m5)"
+    airport ||--o{ planned_flight : "from / to (m5)"
+    planned_flight ||--o{ planned_flight_cabin : "passengers by class"
+    planned_flight ||--o| simbrief_plan : "imported plan"
 ```
 
 ## Tables
@@ -238,10 +244,96 @@ back and a notice says so (D-098).
 **Concurrency.** The app and `blocktime-import` may both have the file open. Every connection waits up to 5 s for a
 lock (`busy_timeout`), and a transaction that can't begin writes nothing (D-098).
 
+## Milestone 5's tables (schema version 3)
+
+Migration 3 adds four tables. Nothing in milestone 4's tables changes.
+
+### `airplane_limits`
+
+The values New Flight needs before a SimBrief plan exists (D-100): the airframe's defaults from the catalog, with any
+override from `airline.yaml`, copied when the airplane is leased. A separate table rather than new `airplane`
+columns because SQLite can only add a `NOT NULL` column with a default, and there's no right default for an airplane
+already leased: such an airplane gets its row at the next start, from its airframe. Until then it has no row, and New
+Flight says so.
+
+| Column | Type | Rules |
+|---|---|---|
+| `airplane_id` | INTEGER PK | FK → `airplane`, `ON DELETE CASCADE` |
+| `min_runway_ft` | INTEGER | > 0; compared with the destination's `longest_runway_ft` |
+| `mlw_lb` | INTEGER | > 0; the landing fee (design.md §11) and the landing-weight warning |
+| `passenger_weight_lb` | INTEGER | > 0; to cap cargo at max payload |
+| `bag_weight_lb` | INTEGER | ≥ 0; bags per passenger |
+| `max_payload_lb` | INTEGER | > 0; MZFW − empty weight |
+
+### `planned_flight`
+
+The flight set up in New Flight and not flown yet (D-103). **Current state, not history:** Cancel flight deletes it,
+and milestone 6 turns a flown one into a `flight`. One at a time, which the app checks (New Flight is disabled while
+one exists); `UNIQUE (airplane_id)` is the part the schema can say.
+
+| Column | Type | Rules |
+|---|---|---|
+| `planned_flight_id` | INTEGER PK | |
+| `airplane_id` | INTEGER | `UNIQUE`; FK → `airplane`, `ON DELETE RESTRICT` |
+| `origin_airport_id` | INTEGER | FK → `airport`, `ON DELETE RESTRICT`; indexed. Where the airplane was parked when the flight was planned |
+| `destination_airport_id` | INTEGER | FK → `airport`, `ON DELETE RESTRICT`; indexed. `CHECK (destination_airport_id <> origin_airport_id)` |
+| `flight_number` | TEXT | 1–4 digits (D-102) |
+| `kind` | TEXT | `CHECK (kind IN ('passenger', 'vip', 'charter', 'cargo', 'delivery'))` (design.md §13.1) |
+| `cargo_lb` | INTEGER | ≥ 0; belly cargo on a passenger flight, or a freighter's load. `CHECK (cargo_lb = 0 OR kind IN ('passenger', 'cargo'))`. 0 on a passenger flight means belly cargo wasn't chosen |
+| `fuel_price_cents_per_100lb` | INTEGER | > 0; locked when planned (design.md §11) |
+| `planned_at` | TEXT | UTC instant Dave pressed Plan flight; an imported OFP must be generated after it (D-105) |
+| `origin_runway` | TEXT NULL | from the origin's ATIS; NULL means none was found and SimBrief chose |
+| `destination_runway` | TEXT NULL | from the destination's ATIS; NULL as above |
+
+Bags (passengers × bag weight) and the weight per hold (the bags and cargo split by the airplane's hold ratios,
+design.md §9) aren't stored: they follow from what is.
+
+### `planned_flight_cabin`
+
+Passengers rolled per cabin class (design.md §9). A delivery or freighter flight has no rows.
+
+| Column | Type | Rules |
+|---|---|---|
+| `planned_flight_id` | INTEGER | FK → `planned_flight`, `ON DELETE CASCADE` |
+| `cabin_class` | TEXT | `CHECK (cabin_class IN ('economy', 'business', 'first'))` |
+| `passengers` | INTEGER | ≥ 0 |
+
+Primary key `(planned_flight_id, cabin_class)`.
+
+### `simbrief_plan`
+
+The imported SimBrief plan (D-101). The OFP's JSON is kept verbatim (the allowed source-document copy, D-078), next
+to the fields the app uses, taken from it at import. Importing again replaces the row.
+
+| Column | Type | Rules |
+|---|---|---|
+| `planned_flight_id` | INTEGER PK | FK → `planned_flight`, `ON DELETE CASCADE` |
+| `request_id` | TEXT | SimBrief's id for this OFP (`params.request_id`) |
+| `generated_at` | TEXT | UTC instant (`params.time_generated`) |
+| `imported_at` | TEXT | UTC instant |
+| `route` | TEXT | `general.route`, for the copy button |
+| `origin_runway`, `destination_runway` | TEXT | `origin.plan_rwy`, `destination.plan_rwy` |
+| `cruise_altitude_ft` | INTEGER | > 0; `general.initial_altitude` |
+| `est_block_s` | INTEGER | > 0; `times.est_block` (`HH:MM:SS` in the OFP) |
+| `ramp_fuel_lb` | INTEGER | > 0; `fuel.plan_ramp` |
+| `enroute_burn_lb` | INTEGER | > 0; `fuel.enroute_burn` |
+| `est_landing_weight_lb` | INTEGER | > 0; `weights.est_ldw` |
+| `origin_transition_altitude_ft` | INTEGER | > 0; `origin.trans_alt`, for milestone 7 |
+| `destination_transition_level_ft` | INTEGER | > 0; `destination.trans_level` (feet), for milestone 7 |
+| `ofp_json` | TEXT | the whole OFP as fetched |
+
+## Milestone 5's processes
+
+**Limits at lease time (D-100).** Leasing copies the airframe's `limits` from the catalog, each value replaced by
+the airplane's override in `airline.yaml` if it has one, in the same transaction as the airplane. At each start, an
+airplane with no `airplane_limits` row gets one the same way.
+
+**Planning (design.md §13.1–13.2).** Plan flight writes `planned_flight` and its cabins in one transaction, after the
+ATIS runways are fetched. Importing a plan writes or replaces `simbrief_plan`. Cancel flight deletes the planned
+flight (its cabins and plan go with it).
+
 ## Later milestones (sketch, not final)
 
-- **Milestone 5:** a `flight_plan` table with the stored copy of the SimBrief OFP (the allowed verbatim document,
-  D-078) and the normalised fields taken from it; rolled loads per cabin and hold, and the belly cargo choice.
 - **Milestone 6:** `flight` (origin, destination, block times, fuel, the plan), its money lines (each income or
   cost item pointing at a `ledger_line`, with new `ledger_category` rows), and `pilot_hours` as stored totals
   (D-061 note).

@@ -70,16 +70,16 @@ Each milestone still gets its own plan in `docs/plans/` (writing-plans) before w
 
 - **New Flight** from a parked aircraft (section 13.1): destination, runway check, the BBJ2's VIP airliner /
   charter choice, delivery flights forced empty. Loads rolled (section 9), with the **belly cargo option** on
-  passenger airliners that can carry it (D-089; never the BBJ2). The weights and limits it needs (passenger and
-  bag weight, MZFW, empty weight, MLW, min runway) come from each SimBrief airframe, typed in once
-  (`docs/notes/simbrief-airframes.md`); where they're stored is decided in this milestone's plan.
+  passenger airliners that can carry it (D-089; never the BBJ2). The flight number is typed each time (D-102). The
+  limits it needs (min runway, MLW, passenger and bag weight, max payload) are airframe defaults in the catalog,
+  overridable per airplane in `airline.yaml` (D-100).
 - **Money preview** before committing (design rule 1): revenue, each cost line, the total, where the plane ends up.
-- **Planning** (section 13.2, D-070): SayIntentions ATIS for both airports, the pre-filled SimBrief dispatch page,
-  picking up the new OFP automatically, storing a copy of it.
+- **Planning** (section 13.2, D-070, D-101): SayIntentions ATIS for both airports, the pre-filled SimBrief dispatch
+  page, an **Import Active SimBrief Plan** button, storing a copy of the plan.
 - The live dashboard's **before departure** state (section 13.3): "Waiting for plan" / "Waiting for sim", the route
-  with its copy button, where to load in.
+  with its copy button, where to load in, and Cancel flight.
 - **Done when:** Dave sets up the KBFI→KSAN delivery flight, the dispatch page opens filled in with ATIS runways,
-  and after Generate the plan shows up in the app by itself.
+  and after Generate, Import Active SimBrief Plan brings the plan into the app.
 
 ### Milestone 6 — Record the planned flight
 
@@ -132,7 +132,7 @@ instant delivery, boards, and whatever the deepening turns up.
 ## Before starting, Dave needs to
 
 - **Milestone 5:** request a **SayIntentions developer key** (`getWX` needs it alongside his pilot API key), and
-  have his **SimBrief username or user ID** for the settings file.
+  have his **SimBrief username or user ID** for the settings file. Done: Dave has both (2026-11-23).
 - **Milestone 5:** seats per class, hold maximums and hold ratios per configuration from the PMDG load pages
   (`design.md` section 17), at least for the configurations he flies first. Until then, the design's estimates.
 
