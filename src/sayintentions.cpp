@@ -50,6 +50,13 @@ AtisRunways parseAtisRunways(std::string_view body, std::string_view origin, std
     return {runwayFor(root, origin, "active_runways_departing"), runwayFor(root, destination, "active_runways_arriving")};
 }
 
+std::string atisError(std::string_view body) {
+    const json root = json::parse(body, nullptr, false);
+    if (root.is_discarded() || !root.is_object()) return {};
+    const auto e = root.find("error");
+    return e != root.end() && e->is_string() ? e->get<std::string>() : std::string();
+}
+
 std::string normalizeRunway(std::string_view runway) {
     while (!runway.empty() && runway.front() == ' ') runway.remove_prefix(1);
     while (!runway.empty() && runway.back() == ' ') runway.remove_suffix(1);

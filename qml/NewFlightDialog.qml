@@ -20,6 +20,8 @@ Dialog {
     signal flightPlanned
 
     modal: true
+    // While the runways are on their way, only Cancel closes it, so a plan can't land after the dialog is gone.
+    closePolicy: flight.busy ? Popup.NoAutoClose : Popup.CloseOnEscape | Popup.CloseOnPressOutside
     anchors.centerIn: Overlay.overlay
     width: Math.min(600, parent ? parent.width - 40 : 600)
     height: Math.min(implicitHeight, parent ? parent.height - 40 : implicitHeight)
@@ -255,7 +257,10 @@ Dialog {
 
                 SecondaryButton {
                     text: "Cancel"
-                    onClicked: dialog.close()
+                    onClicked: {
+                        dialog.flight.cancel();
+                        dialog.close();
+                    }
                 }
 
                 PrimaryButton {

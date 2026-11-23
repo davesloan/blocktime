@@ -50,8 +50,10 @@ public:
 
     // Starts a new draft for the airplane: rolls its loads now. False if it can't fly (unknown or returned).
     Q_INVOKABLE bool open(const QString& registration);
-    // Fetches the runways, writes the planned flight and opens the dispatch page; emits planned() when done.
+    // Fetches the runways, writes the planned flight and opens the dispatch page; emits planned() when done. The
+    // flight is taken as it is at the click; cancel() or open() before the runways arrive drops it.
     Q_INVOKABLE void plan();
+    Q_INVOKABLE void cancel();
 
     QString registration() const;
     QString airplaneText() const;
@@ -94,4 +96,5 @@ private:
     QString destination_;
     bool busy_ = false;
     QString error_;
+    int request_ = 0;  // bumped by open(), cancel() and plan(): an answer for an older request is dropped
 };

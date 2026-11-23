@@ -533,7 +533,14 @@ public:
     QStringList opened;
     int ofpFetches = 0;
 
+    bool deferRunways = false;  // keep the callback, to answer later like a slow SayIntentions
+    std::function<void(AtisRunways, QString)> pendingRunways;
+
     void fetchRunways(QString, QString, std::function<void(AtisRunways, QString)> done) override {
+        if (deferRunways) {
+            pendingRunways = std::move(done);
+            return;
+        }
         done(runways, runwayNote);
     }
     void fetchLatestOfp(std::function<void(QByteArray, QString)> done) override {
@@ -739,4 +746,39 @@ TEST(Fleet, RegistrationAtRow) {
     EXPECT_EQ(m.registrationAt(0), "N738BT");  // sorted by registration
     EXPECT_EQ(m.registrationAt(1), "N814SX");
     EXPECT_EQ(m.registrationAt(5), "");
+}
+
+TEST(NewFlightModel, CancelWhileGettingRunwaysPlansNothing) {  // review finding 1
+    db::Database db = deliveredAirline();
+    FakePlanner planner;
+    planner.deferRunways = true;
+    NewFlightModel m(db, "XLY", 4100, planner);
+    ASSERT_TRUE(m.open("N814SX"));
+    m.setDestination("KSAN");
+    int planned = 0;
+    QObject::connect(&m, &NewFlightModel::planned, [&] { ++planned; });
+    m.plan();
+    EXPECT_TRUE(m.busy());
+    m.cancel();
+    EXPECT_FALSE(m.busy());
+    ASSERT_TRUE(planner.pendingRunways);
+    planner.pendingRunways(planner.runways, {});
+    EXPECT_EQ(planned, 0);
+    EXPECT_TRUE(planner.opened.isEmpty());
+    EXPECT_FALSE(currentPlannedFlight(db).has_value());
+}
+
+TEST(NewFlightModel, ReopeningWhileGettingRunwaysPlansNothing) {  // review finding 1
+    db::Database db = deliveredAirline();
+    FakePlanner planner;
+    planner.deferRunways = true;
+    NewFlightModel m(db, "XLY", 4100, planner);
+    ASSERT_TRUE(m.open("N814SX"));
+    m.setDestination("KSAN");
+    m.plan();
+    ASSERT_TRUE(m.open("N738BT"));
+    planner.pendingRunways(planner.runways, {});
+    EXPECT_TRUE(planner.opened.isEmpty());
+    EXPECT_FALSE(currentPlannedFlight(db).has_value());
+    EXPECT_EQ(m.error(), "");
 }

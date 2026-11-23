@@ -47,6 +47,17 @@ void QtPlanner::fetchRunways(QString origin, QString destination,
             done({}, QStringLiteral("SayIntentions didn't answer"));
             return;
         }
+        // A wrong key or a server error must not look like an airport without an ATIS (D-105). SayIntentions' error
+        // text quotes no key.
+        if (const std::string error = blocktime::atisError(body.toStdString()); !error.empty()) {
+            done({}, "SayIntentions: " + QString::fromStdString(error));
+            return;
+        }
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (status >= 400) {
+            done({}, QStringLiteral("SayIntentions answered HTTP %1").arg(status));
+            return;
+        }
         done(blocktime::parseAtisRunways(body.toStdString(), origin.toStdString(), destination.toStdString()), {});
     });
 }

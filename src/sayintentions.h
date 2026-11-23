@@ -24,6 +24,9 @@ struct AtisRunways {
 // active_runway. Anything unreadable gives "".
 AtisRunways parseAtisRunways(std::string_view json, std::string_view origin, std::string_view destination);
 
+// The text of an {"error": "..."} answer (a wrong key, a server error), or "" when there's none.
+std::string atisError(std::string_view json);
+
 // "9R" → "09R"; "" for anything that isn't 1-2 digits and an optional L, R or C.
 std::string normalizeRunway(std::string_view runway);
 

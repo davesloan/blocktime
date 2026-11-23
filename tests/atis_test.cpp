@@ -64,3 +64,10 @@ TEST(Atis, NormalizeRunway) {
     EXPECT_EQ(normalizeRunway("127"), "");
     EXPECT_EQ(normalizeRunway(""), "");
 }
+
+TEST(Atis, ErrorText) {  // review finding 2: a bad key must not look like "no ATIS"
+    EXPECT_EQ(atisError(R"({"error":"The provided API key is invalid."})"), "The provided API key is invalid.");
+    EXPECT_EQ(atisError(fixture("getwx_live.json")), "");
+    EXPECT_EQ(atisError(R"({"airports":[]})"), "");
+    EXPECT_EQ(atisError("not json"), "");
+}

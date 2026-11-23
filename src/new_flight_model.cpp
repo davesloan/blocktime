@@ -61,6 +61,7 @@ bool NewFlightModel::open(const QString& registration) {
     auto engine = std::make_shared<std::mt19937_64>(std::random_device{}());
     Roll roll = [engine] { return std::uniform_real_distribution<double>(0.0, 1.0)(*engine); };
     draft_.emplace(*airplane, fuelPrice_, isDaytime(hour), std::move(roll));
+    ++request_;
     destination_.clear();
     error_.clear();
     busy_ = false;
@@ -73,12 +74,18 @@ void NewFlightModel::plan() {
     busy_ = true;
     error_.clear();
     emit changed();
-    const QString origin = QString::fromStdString(draft_->airplane().originIcao);
-    const QString destination = QString::fromStdString(draft_->destination().icao);
-    planner_.fetchRunways(origin, destination, [this](AtisRunways runways, QString note) {
+    // The flight as it is now, planned at the click (D-105); the runways are filled in when they arrive.
+    const NewPlannedFlight clicked = draft_->toNew(utcNowInstant(), {});
+    const std::string airframeId = draft_->airplane().simbriefAirframeId;
+    const int request = ++request_;
+    planner_.fetchRunways(QString::fromStdString(clicked.originIcao), QString::fromStdString(clicked.destinationIcao),
+                          [this, clicked, airframeId, request](AtisRunways runways, QString note) {
+        if (request != request_) return;  // cancelled, or New Flight reopened since
         busy_ = false;
         std::string error;
-        const NewPlannedFlight flight = draft_->toNew(utcNowInstant(), runways);
+        NewPlannedFlight flight = clicked;
+        flight.originRunway = runways.origin;
+        flight.destinationRunway = runways.destination;
         if (!createPlannedFlight(db_, flight, &error)) {
             error_ = QString::fromStdString(error);
             emit changed();
@@ -89,7 +96,7 @@ void NewFlightModel::plan() {
         r.destination = flight.destinationIcao;
         r.airlineIcao = airlineIcao_.toStdString();
         r.flightNumber = flight.flightNumber;
-        r.airframeId = draft_->airplane().simbriefAirframeId;
+        r.airframeId = airframeId;
         r.originRunway = flight.originRunway;
         r.destinationRunway = flight.destinationRunway;
         for (const CabinLoad& c : flight.cabins) r.passengers += c.passengers;
@@ -98,6 +105,14 @@ void NewFlightModel::plan() {
         emit changed();
         emit planned(note);
     });
+}
+
+void NewFlightModel::cancel() {
+    ++request_;
+    if (busy_) {
+        busy_ = false;
+        emit changed();
+    }
 }
 
 QString NewFlightModel::registration() const {
