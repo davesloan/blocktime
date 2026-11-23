@@ -63,12 +63,12 @@ protected:
 
 }  // namespace
 
-TEST(AirlineDb, EmptyDatabaseMigratesToVersion3) {
+TEST(AirlineDb, EmptyDatabaseMigratesToVersion4) {
     db::Database d = db::Database::openInMemory();
     std::string error;
     EXPECT_TRUE(migrateAirlineDatabase(d, &error)) << error;
-    EXPECT_EQ(d.userVersion(), 3);
-    EXPECT_EQ(kAirlineSchemaVersion, 3);
+    EXPECT_EQ(d.userVersion(), 4);
+    EXPECT_EQ(kAirlineSchemaVersion, 4);
 }
 
 TEST(AirlineDb, ForeignKeysAreOn) {
@@ -82,7 +82,7 @@ TEST(AirlineDb, MigratingTwiceIsANoOp) {
     db::Database d = migrated();
     std::string error;
     EXPECT_TRUE(migrateAirlineDatabase(d, &error)) << error;
-    EXPECT_EQ(d.userVersion(), 3);
+    EXPECT_EQ(d.userVersion(), 4);
 }
 
 TEST(AirlineDb, NewerSchemaIsRefused) {  // one above kAirlineSchemaVersion
@@ -104,7 +104,7 @@ TEST_F(AirlineDbFiles, TestSchemaIsSetAside) {
     AirlineDbOpen opened = openAirlineDatabase(file);
     ASSERT_TRUE(opened.db.has_value()) << opened.error;
     EXPECT_TRUE(opened.testSchemaSetAside);
-    EXPECT_EQ(opened.db->userVersion(), 3);
+    EXPECT_EQ(opened.db->userVersion(), 4);
 
     const fs::path aside = dir_ / "blocktime.test-schema.db";
     ASSERT_TRUE(fs::exists(aside));
@@ -120,7 +120,7 @@ TEST_F(AirlineDbFiles, NewFileIsNotSetAside) {
     AirlineDbOpen opened = openAirlineDatabase(dir_ / "blocktime.db");
     ASSERT_TRUE(opened.db.has_value()) << opened.error;
     EXPECT_FALSE(opened.testSchemaSetAside);
-    EXPECT_EQ(opened.db->userVersion(), 3);
+    EXPECT_EQ(opened.db->userVersion(), 4);
 }
 
 TEST(AirlineDb, ChecksRejectBadRows) {
@@ -163,6 +163,13 @@ TEST(AirlineDb, QueryPlansUseIndexes) {
              "SELECT 1 FROM lease_charge WHERE airplane_id = 1 AND period_start = '2026-11-22'",
              "SELECT planned_flight_id FROM planned_flight WHERE destination_airport_id = 1",
              "SELECT planned_flight_id FROM planned_flight WHERE origin_airport_id = 1",
+             "SELECT flight_id FROM flight WHERE airplane_id = 1",
+             "SELECT flight_id FROM flight WHERE origin_airport_id = 1",
+             "SELECT flight_id FROM flight WHERE planned_destination_airport_id = 1",
+             "SELECT flight_id FROM flight WHERE arrival_airport_id = 1",
+             "SELECT flight_id FROM flight ORDER BY block_in_at DESC",
+             "SELECT ledger_line_id FROM flight_money_line WHERE flight_id = 1",
+             "SELECT passengers FROM flight_cabin WHERE flight_id = 1",
          }) {
         const std::string plan = queryPlan(d, sql);
         EXPECT_NE(plan.find("USING"), std::string::npos) << sql << "\n" << plan;
@@ -197,7 +204,7 @@ TEST_F(AirlineDbFiles, ClobberedVersionOfARealAirlineIsRestored) {
     ASSERT_TRUE(again.db.has_value()) << again.error;
     EXPECT_FALSE(again.testSchemaSetAside);
     EXPECT_TRUE(again.versionRestored);
-    EXPECT_EQ(again.db->userVersion(), 3);
+    EXPECT_EQ(again.db->userVersion(), 4);
     EXPECT_FALSE(fs::exists(dir_ / "blocktime.test-schema.db"));
     db::Statement q(*again.db, "SELECT COUNT(*) FROM fleet");
     ASSERT_TRUE(q.next());
@@ -210,12 +217,12 @@ TEST(AirlineDb, Version2DatabaseMigratesTo3) {
     ASSERT_TRUE(migrateAirlineDatabaseTo(d, 2, &error)) << error;
     ASSERT_EQ(d.userVersion(), 2);
     EXPECT_FALSE(hasTable(d, "airplane_limits"));
-    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 3, &error)) << error;
     EXPECT_EQ(d.userVersion(), 3);
     EXPECT_TRUE(hasTable(d, "airplane_limits"));
 }
 
-TEST_F(AirlineDbFiles, RestoredVersionStillGetsMigration3) {
+TEST_F(AirlineDbFiles, RestoredVersionStillGetsMigrations3And4) {
     const fs::path file = dir_ / "blocktime.db";
     {
         std::string error;
@@ -228,8 +235,9 @@ TEST_F(AirlineDbFiles, RestoredVersionStillGetsMigration3) {
     AirlineDbOpen opened = openAirlineDatabase(file);
     ASSERT_TRUE(opened.db.has_value()) << opened.error;
     EXPECT_TRUE(opened.versionRestored);
-    EXPECT_EQ(opened.db->userVersion(), 3);
+    EXPECT_EQ(opened.db->userVersion(), 4);
     EXPECT_TRUE(hasTable(*opened.db, "planned_flight"));
+    EXPECT_TRUE(hasTable(*opened.db, "flight"));
 }
 
 TEST(AirlineDb, PlannedFlightChecks) {
@@ -264,4 +272,71 @@ TEST(AirlineDb, FreeFlightNumberIsUniqueDigits) {
     EXPECT_TRUE(d.exec("UPDATE airplane SET free_flight_number = '8' WHERE airplane_id = 1"));
     EXPECT_FALSE(d.exec("UPDATE airplane SET free_flight_number = '8' WHERE airplane_id = 2"));
     EXPECT_TRUE(d.exec("UPDATE airplane SET free_flight_number = '9' WHERE airplane_id = 2"));
+}
+
+TEST(AirlineDb, Version3DatabaseMigratesTo4) {
+    db::Database d = db::Database::openInMemory();
+    std::string error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 3, &error)) << error;
+    ASSERT_EQ(d.userVersion(), 3);
+    EXPECT_FALSE(hasTable(d, "flight"));
+    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    EXPECT_EQ(d.userVersion(), 4);
+    for (const char* table : {"flight", "flight_cabin", "flight_plan", "flight_money_line"}) {
+        EXPECT_TRUE(hasTable(d, table)) << table;
+    }
+    db::Statement q(d, "SELECT sim_folder FROM aircraft_type");
+    EXPECT_EQ(q.error(), "");
+}
+
+namespace {
+
+// A second airport and one settled flight's worth of parents (KBFI 1, KSAN 2).
+void addFlightParents(db::Database& d) {
+    addParents(d);
+    ASSERT_TRUE(d.exec(
+        "INSERT INTO airport (airport_id, icao_code, name, latitude, longitude, elevation_ft, country_code, time_zone,"
+        "  longest_runway_ft) VALUES (2, 'KSAN', 'San Diego', 32.73, -117.19, 17, 'US', 'America/Los_Angeles', 9401)"));
+}
+
+bool insertFlight(db::Database& d, const std::string& logId, const std::string& kind, const std::string& out,
+                  const std::string& in, int fuelOut) {
+    return d.exec(
+        "INSERT INTO flight (log_flight_id, airplane_id, flight_number, kind, origin_airport_id,"
+        " planned_destination_airport_id, arrival_airport_id, cargo_lb, fuel_price_cents_per_100lb, planned_at,"
+        " block_out_at, block_in_at, fuel_on_record_lb, fuel_out_lb, fuel_in_lb) VALUES ('" +
+        logId + "', 1, '8', '" + kind + "', 1, 2, 2, 0, 4100, '2026-11-23T10:00:00Z', '" + out + "', '" + in +
+        "', 0, " + std::to_string(fuelOut) + ", 9400)");
+}
+
+}  // namespace
+
+TEST(AirlineDb, FlightChecks) {
+    db::Database d = migrated();
+    addFlightParents(d);
+    const std::string out = "2026-11-23T10:30:05Z", in = "2026-11-23T13:20:41Z";
+    EXPECT_FALSE(insertFlight(d, "a", "delivery", in, in, 20000));     // block in not after block out
+    EXPECT_FALSE(insertFlight(d, "b", "delivery", in, out, 20000));
+    EXPECT_FALSE(insertFlight(d, "c", "delivery", out, in, -1));       // negative fuel
+    EXPECT_FALSE(insertFlight(d, "d", "ferry", out, in, 20000));       // not a kind
+    EXPECT_FALSE(insertFlight(d, "", "delivery", out, in, 20000));     // no log id
+    EXPECT_FALSE(insertFlight(d, "e", "delivery", "2026-11-23 10:30", in, 20000));  // not an instant
+    EXPECT_TRUE(insertFlight(d, "2026-11-23T10:30:05.120Z", "delivery", out, in, 20000));
+    EXPECT_FALSE(insertFlight(d, "2026-11-23T10:30:05.120Z", "delivery", out, in, 20000));  // the same log flight
+    ASSERT_TRUE(d.exec("INSERT INTO ledger_line (ledger_line_id, category, posted_at, amount_cents)"
+                       " VALUES (1, 'fuel', '2026-11-23T13:20:41Z', -820000)"));
+    EXPECT_FALSE(d.exec("INSERT INTO flight_money_line (ledger_line_id, flight_id) VALUES (1, 99)"));
+    EXPECT_TRUE(d.exec("INSERT INTO flight_money_line (ledger_line_id, flight_id) VALUES (1, 1)"));
+    EXPECT_FALSE(d.exec("DELETE FROM flight WHERE flight_id = 1"));  // its money points at it
+}
+
+TEST(AirlineDb, FlightLedgerCategoriesExist) {
+    db::Database d = migrated();
+    for (const char* code : {"economy_fares", "business_fares", "first_fares", "vip_fares", "charter", "cargo", "fuel",
+                             "landing_fee", "gate", "handling", "ga_services", "atc", "catering", "cargo_handling",
+                             "pilots", "flight_attendants", "maintenance"}) {
+        db::Statement q(d, "SELECT label FROM ledger_category WHERE code = ?");
+        q.bind(1, std::string_view(code));
+        EXPECT_TRUE(q.next()) << code;
+    }
 }

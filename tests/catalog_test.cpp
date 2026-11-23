@@ -19,6 +19,7 @@ const std::string kType = R"(types:
     turnaround_min: 60
     cruise_speed_kt: 490
     lease_per_month: 3000000
+    sim_folder: PMDG 777F
 )";
 
 std::string withAirframes(const std::string& airframes) { return kType + "airframes:\n" + airframes; }
@@ -123,4 +124,22 @@ TEST(Catalog, AirframeLimitsAreRead) {
     EXPECT_EQ(l.passengerWeightLb, 190);
     EXPECT_EQ(l.bagWeightLb, 55);
     EXPECT_EQ(l.maxPayloadLb, 36113);
+}
+
+TEST(Catalog, TypesHaveSimFolders) {
+    std::string error;
+    const auto catalog = loadCatalog(BLOCKTIME_SOURCE_DIR "/config/catalog.yaml", &error);
+    ASSERT_TRUE(catalog.has_value()) << error;
+    EXPECT_EQ(catalog->type("737-800 BBJ2")->simFolder, "PMDG 737-800BBJ2");
+    EXPECT_EQ(catalog->type("737-800")->simFolder, "PMDG 737-800");
+    EXPECT_EQ(catalog->type("777-200ER")->simFolder, "PMDG 777-200ER");
+}
+
+TEST(Catalog, SimFolderIsRequired) {
+    const std::string line = "    sim_folder: PMDG 777F\n";
+    std::string yaml = kType;
+    yaml.replace(yaml.find(line), line.size(), "");
+    std::string error;
+    EXPECT_FALSE(parseCatalog(yaml + "airframes: []\n", &error).has_value());
+    EXPECT_NE(error.find("sim_folder"), std::string::npos) << error;
 }

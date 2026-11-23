@@ -4,8 +4,7 @@ The schema of `%LOCALAPPDATA%\BlockTime\blocktime.db`, the one SQLite file that 
 It follows the database rules in `CLAUDE.md` (D-078), applied for what they protect (D-090). Keep this file true: a
 schema change updates it in the same commit.
 
-**Status:** built through milestone 5 (schema version 3, `src/airline_db.cpp`). Tables for flights, flight money
-lines and hours come in milestone 6 and are only sketched here.
+**Status:** built through milestone 6 (schema version 4, `src/airline_db.cpp`).
 
 ## Conventions
 
@@ -19,7 +18,7 @@ lines and hours come in milestone 6 and are only sketched here.
 | Weights | `INTEGER` pounds. |
 | Booleans | `INTEGER` with `CHECK (x IN (0, 1))`. |
 | Coordinates | `REAL` degrees, with range checks. |
-| History | Ledger lines are written once and never updated or deleted. A correction is a new, reversing line. |
+| History | Ledger lines and flights are written once and never updated or deleted. A correction is a new, reversing line. |
 | Changes | Anything that touches several tables (leasing an airplane, a month's lease charges) runs in one transaction. |
 | Migrations | Numbered, each in a transaction, tracked with `PRAGMA user_version`. Tests build an empty database through every migration. |
 
@@ -54,6 +53,12 @@ erDiagram
     airport ||--o{ planned_flight : "from / to (m5)"
     planned_flight ||--o{ planned_flight_cabin : "passengers by class"
     planned_flight ||--o| simbrief_plan : "imported plan"
+    airplane ||--o{ flight : "flew (m6)"
+    airport ||--o{ flight : "from / planned to / arrived at (m6)"
+    flight ||--o{ flight_cabin : "passengers by class"
+    flight ||--o| flight_plan : "the plan it flew"
+    flight ||--o{ flight_money_line : "its money"
+    ledger_line ||--o| flight_money_line : "money for"
 ```
 
 ## Tables
@@ -87,9 +92,7 @@ onto each airplane instead, so a catalog edit never changes an airplane already 
 | `role` | TEXT | `CHECK (role IN ('airliner', 'executive', 'freighter'))`. Decides the kind of flight (design.md §13.1): an airliner flies passengers and can carry belly cargo (D-089); an executive jet (the BBJ2) flies VIP or charter, never with belly cargo; a freighter flies cargo. |
 | `turnaround_min` | INTEGER | > 0 (35 for 737s, 60 for 777s) |
 | `cruise_speed_kt` | INTEGER | > 0, for previews |
-
-The value that identifies the type in the sim, for the matching check (D-088), is added here once a probe shows
-which SimVar tells the PMDG variants apart.
+| `sim_folder` | TEXT | added in schema 4 (D-112): the folder of the variant's `aircraft.cfg` in the sim (`PMDG 737-800BBJ2`), for the matching check (D-088). Written from the catalog at every start, so the column's default `''` never outlives a start |
 
 ### `airplane`
 
@@ -336,8 +339,63 @@ airplane with no `airplane_limits` row gets one the same way.
 ATIS runways are fetched. Importing a plan writes or replaces `simbrief_plan`. Cancel flight deletes the planned
 flight (its cabins and plan go with it).
 
-## Later milestones (sketch, not final)
+## Milestone 6's tables (schema version 4)
 
-- **Milestone 6:** `flight` (origin, destination, block times, fuel, the plan), its money lines (each income or
-  cost item pointing at a `ledger_line`, with new `ledger_category` rows), and `pilot_hours` as stored totals
-  (D-061 note).
+Migration 4 adds four tables, the column `aircraft_type.sim_folder` (D-112, in the `aircraft_type` table above) and
+17 `ledger_category` rows, one per money line a flight can have: `economy_fares`, `business_fares`, `first_fares`,
+`vip_fares`, `charter`, `cargo`, `fuel`, `landing_fee`, `gate`, `handling`, `ga_services`, `atc`, `catering`,
+`cargo_handling`, `pilots`, `flight_attendants`, `maintenance`. Each is labelled as the preview labels its line.
+
+### `flight`
+
+One settled flight (D-115). **History:** written once, when the flight is settled, and never updated or deleted.
+The planned flight it came from is deleted in the same transaction.
+
+| Column | Type | Rules |
+|---|---|---|
+| `flight_id` | INTEGER PK | |
+| `log_flight_id` | TEXT | `UNIQUE`, not empty: the event log's `flight_id` (the block-out time with milliseconds). A flight can't be settled twice (D-113) |
+| `airplane_id` | INTEGER | FK → `airplane`, `ON DELETE RESTRICT`; indexed |
+| `flight_number` | TEXT | 1–4 digits, as planned |
+| `kind` | TEXT | the same `CHECK` as `planned_flight.kind` |
+| `origin_airport_id` | INTEGER | FK → `airport`, `ON DELETE RESTRICT`; indexed |
+| `planned_destination_airport_id` | INTEGER | FK → `airport`, `ON DELETE RESTRICT`; indexed |
+| `arrival_airport_id` | INTEGER | FK → `airport`, `ON DELETE RESTRICT`; indexed. Where it parked: the imported airport nearest the block-in position (D-113). Differs from the planned destination after a diversion |
+| `cargo_lb` | INTEGER | ≥ 0; `CHECK (cargo_lb = 0 OR kind IN ('passenger', 'cargo'))` |
+| `fuel_price_cents_per_100lb` | INTEGER | > 0; the price locked when it was planned |
+| `planned_at` | TEXT | UTC instant |
+| `block_out_at`, `block_in_at` | TEXT | UTC instants, whole seconds; `CHECK (block_in_at > block_out_at)`. `block_in_at` is indexed (the Flights list sorts by it) |
+| `fuel_on_record_lb` | INTEGER | ≥ 0; the airplane's fuel on board before the flight (design.md §11) |
+| `fuel_out_lb` | INTEGER | ≥ 0; at block out |
+| `fuel_in_lb` | INTEGER | ≥ 0; when the last engine stopped (`shutdown_fuel_lb`, D-110), the airplane's new fuel on board |
+| `origin_runway`, `destination_runway` | TEXT NULL | the ATIS runways, as on `planned_flight`; NULL means none was found |
+
+Not stored, because they follow from the columns (D-114): the block time (`block_in_at − block_out_at`), the fuel
+added (`max(0, fuel_out_lb − fuel_on_record_lb)`) and the fuel used (`fuel_out_lb − fuel_in_lb`).
+
+### `flight_cabin`
+
+Passengers per cabin class, copied from `planned_flight_cabin`. Primary key `(flight_id, cabin_class)`.
+`flight_id` is FK → `flight`, `ON DELETE CASCADE` (only tests delete flights).
+
+### `flight_plan`
+
+The SimBrief plan the flight flew: a copy of its `simbrief_plan` row, with the same columns, keyed by `flight_id`
+(PK, FK → `flight`, `ON DELETE RESTRICT`) in place of `planned_flight_id`. Absent when Dave flew without importing a
+plan. A copy rather than one plan table pointed at by both, so each table stays simple (D-115).
+
+### `flight_money_line`
+
+Each money line of a flight. The money itself is a `ledger_line`, as with `lease_charge`.
+
+| Column | Type | Rules |
+|---|---|---|
+| `ledger_line_id` | INTEGER PK | FK → `ledger_line`, `ON DELETE RESTRICT` |
+| `flight_id` | INTEGER | FK → `flight`, `ON DELETE RESTRICT`; indexed |
+
+The line's category says what it's for, and the money screen builds its text from the flight ("XLY8 KBFI–KSAN ·
+Fuel").
+
+## Milestone 6's processes
+
+Filled in with the settling code (milestone 6, Task 5).

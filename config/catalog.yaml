@@ -4,6 +4,9 @@
 #
 # Two lists:
 #   types      what a plane is. Reference data: edits apply to every airplane of the type (D-093).
+#              sim_folder is the folder of the variant's aircraft.cfg in the sim. The matching check compares
+#              it with the loaded aircraft (D-112): that folder, or one starting with it plus a space
+#              ("PMDG 777-200ER GE"). Liveries point at their variant's folder, so every livery matches.
 #   airframes  templates: a type in one configuration. When an airplane is leased, its airframe's seats and holds
 #              and its type's lease rate are copied into the database, and later edits here don't change it (D-082).
 #
@@ -21,6 +24,7 @@ types:
     turnaround_min: 35
     cruise_speed_kt: 450      # estimate
     lease_per_month: 750000
+    sim_folder: PMDG 737-600
 
   - code: 737-800
     family: "737"
@@ -28,6 +32,7 @@ types:
     turnaround_min: 35
     cruise_speed_kt: 450      # estimate
     lease_per_month: 1400000
+    sim_folder: PMDG 737-800
 
   - code: 737-800 BBJ2
     family: "737"
@@ -35,6 +40,7 @@ types:
     turnaround_min: 35
     cruise_speed_kt: 450      # estimate
     lease_per_month: 900000
+    sim_folder: PMDG 737-800BBJ2
 
   - code: 737-800 BCF
     family: "737"
@@ -42,6 +48,7 @@ types:
     turnaround_min: 35
     cruise_speed_kt: 450      # estimate
     lease_per_month: 500000
+    sim_folder: PMDG 737-800BCF
 
   - code: 777-200ER
     family: "777"
@@ -49,6 +56,7 @@ types:
     turnaround_min: 60
     cruise_speed_kt: 490      # estimate
     lease_per_month: 1900000
+    sim_folder: PMDG 777-200ER
 
   - code: 777-300ER
     family: "777"
@@ -56,6 +64,7 @@ types:
     turnaround_min: 60
     cruise_speed_kt: 490      # estimate
     lease_per_month: 2300000
+    sim_folder: PMDG 777-300ER
 
   - code: 777F
     family: "777"
@@ -63,6 +72,7 @@ types:
     turnaround_min: 60
     cruise_speed_kt: 490      # estimate
     lease_per_month: 3000000
+    sim_folder: PMDG 777F
 
 airframes:
   - name: 737-600 Two-class

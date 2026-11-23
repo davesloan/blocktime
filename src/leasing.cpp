@@ -152,9 +152,11 @@ bool syncCatalogTypes(db::Database& db, const Catalog& catalog, std::string* err
         return false;
     }
     db::Statement upsert(db,
-                         "INSERT INTO aircraft_type (code, family, role, turnaround_min, cruise_speed_kt) VALUES (?, ?, ?, ?, ?)"
+                         "INSERT INTO aircraft_type (code, family, role, turnaround_min, cruise_speed_kt, sim_folder)"
+                         " VALUES (?, ?, ?, ?, ?, ?)"
                          " ON CONFLICT (code) DO UPDATE SET family = excluded.family, role = excluded.role,"
-                         " turnaround_min = excluded.turnaround_min, cruise_speed_kt = excluded.cruise_speed_kt");
+                         " turnaround_min = excluded.turnaround_min, cruise_speed_kt = excluded.cruise_speed_kt,"
+                         " sim_folder = excluded.sim_folder");
     for (const CatalogType& t : catalog.types) {
         upsert.reset();
         upsert.bind(1, t.code);
@@ -162,6 +164,7 @@ bool syncCatalogTypes(db::Database& db, const Catalog& catalog, std::string* err
         upsert.bind(3, t.role);
         upsert.bind(4, static_cast<std::int64_t>(t.turnaroundMin));
         upsert.bind(5, static_cast<std::int64_t>(t.cruiseSpeedKt));
+        upsert.bind(6, t.simFolder);
         if (!upsert.run()) {
             if (error) *error = t.code + ": " + upsert.error();
             return false;

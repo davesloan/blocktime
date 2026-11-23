@@ -288,3 +288,10 @@ TEST_F(Leasing, FreeFlightNumberFollowsTheConfig) {
     ASSERT_TRUE(syncFreeFlightNumbers(db_, config_, &error)) << error;
     EXPECT_EQ(count("SELECT CAST(free_flight_number AS INTEGER) FROM airplane WHERE registration = 'N738BT'"), 9);
 }
+
+TEST_F(Leasing, TypeSyncWritesSimFolders) {
+    sync();
+    db::Statement q(db_, "SELECT sim_folder FROM aircraft_type WHERE code = '737-800 BBJ2'");
+    ASSERT_TRUE(q.next());
+    EXPECT_EQ(q.text(0), "PMDG 737-800BBJ2");
+}

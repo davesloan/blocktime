@@ -118,8 +118,10 @@ New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\BlockTime" | Out-Null; Co
   `limits`, its own values in place of its airframe's (read only when it's leased, D-100).
 - **`catalog.yaml`:** aircraft types (lease rate, family, role) and airframes (seats, holds and `limits`: minimum
   runway, MLW, passenger and bag weight, and max payload, which must match the airplane's SimBrief airframe). Numbers
-  marked `estimate` are placeholders until they're read from the PMDG load pages. **Upgrading from 0.5:** copy the
-  repo's `catalog.yaml` again, since airframes now need `limits` (keep your own edits).
+  marked `estimate` are placeholders until they're read from the PMDG load pages. Each type also names its
+  `sim_folder`, the sim's folder for that PMDG variant, which the app compares with the loaded aircraft before it
+  records a flight (D-112). **Upgrading from 0.5 or 0.6:** copy the repo's `catalog.yaml` again, since airframes need
+  `limits` and types need `sim_folder` (keep your own edits).
 - **`rates.yaml`:** the fare and cost rates and the fuel price (design.md §10–12, D-107). It's read whenever New
   Flight opens and when a flight is settled, so an edit applies to the next flight without restarting. A planned
   flight keeps its fuel price. **Upgrading from 0.6:** copy it, then delete `fuel_price_per_100lb` from

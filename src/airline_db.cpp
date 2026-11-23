@@ -173,6 +173,78 @@ CREATE TABLE simbrief_plan (
 ) STRICT;
 )sql";
 
+// Migration 4: milestone 6's flights as history, the matching check's sim folder (docs/database.md, D-112, D-115).
+constexpr const char* kMigration4 = R"sql(
+ALTER TABLE aircraft_type ADD COLUMN sim_folder TEXT NOT NULL DEFAULT '';
+
+CREATE TABLE flight (
+  flight_id INTEGER PRIMARY KEY,
+  log_flight_id TEXT NOT NULL UNIQUE CHECK (log_flight_id <> ''),
+  airplane_id INTEGER NOT NULL REFERENCES airplane ON DELETE RESTRICT,
+  flight_number TEXT NOT NULL CHECK (length(flight_number) BETWEEN 1 AND 4 AND flight_number NOT GLOB '*[^0-9]*'),
+  kind TEXT NOT NULL CHECK (kind IN ('passenger', 'vip', 'charter', 'cargo', 'delivery')),
+  origin_airport_id INTEGER NOT NULL REFERENCES airport ON DELETE RESTRICT,
+  planned_destination_airport_id INTEGER NOT NULL REFERENCES airport ON DELETE RESTRICT,
+  arrival_airport_id INTEGER NOT NULL REFERENCES airport ON DELETE RESTRICT,
+  cargo_lb INTEGER NOT NULL CHECK (cargo_lb >= 0),
+  fuel_price_cents_per_100lb INTEGER NOT NULL CHECK (fuel_price_cents_per_100lb > 0),
+  planned_at TEXT NOT NULL CHECK (planned_at GLOB )sql" BT_INSTANT R"sql(),
+  block_out_at TEXT NOT NULL CHECK (block_out_at GLOB )sql" BT_INSTANT R"sql(),
+  block_in_at TEXT NOT NULL CHECK (block_in_at GLOB )sql" BT_INSTANT R"sql(),
+  fuel_on_record_lb INTEGER NOT NULL CHECK (fuel_on_record_lb >= 0),
+  fuel_out_lb INTEGER NOT NULL CHECK (fuel_out_lb >= 0),
+  fuel_in_lb INTEGER NOT NULL CHECK (fuel_in_lb >= 0),
+  origin_runway TEXT CHECK (origin_runway IS NULL OR origin_runway <> ''),
+  destination_runway TEXT CHECK (destination_runway IS NULL OR destination_runway <> ''),
+  CHECK (block_in_at > block_out_at),
+  CHECK (cargo_lb = 0 OR kind IN ('passenger', 'cargo'))
+) STRICT;
+CREATE INDEX flight_airplane ON flight (airplane_id);
+CREATE INDEX flight_origin ON flight (origin_airport_id);
+CREATE INDEX flight_planned_destination ON flight (planned_destination_airport_id);
+CREATE INDEX flight_arrival ON flight (arrival_airport_id);
+CREATE INDEX flight_block_in ON flight (block_in_at);
+
+CREATE TABLE flight_cabin (
+  flight_id INTEGER NOT NULL REFERENCES flight ON DELETE CASCADE,
+  cabin_class TEXT NOT NULL CHECK (cabin_class IN ('economy', 'business', 'first')),
+  passengers INTEGER NOT NULL CHECK (passengers >= 0),
+  PRIMARY KEY (flight_id, cabin_class)
+) STRICT;
+
+CREATE TABLE flight_plan (
+  flight_id INTEGER PRIMARY KEY REFERENCES flight ON DELETE RESTRICT,
+  request_id TEXT NOT NULL CHECK (request_id <> ''),
+  generated_at TEXT NOT NULL CHECK (generated_at GLOB )sql" BT_INSTANT R"sql(),
+  imported_at TEXT NOT NULL CHECK (imported_at GLOB )sql" BT_INSTANT R"sql(),
+  route TEXT NOT NULL,
+  origin_runway TEXT NOT NULL,
+  destination_runway TEXT NOT NULL,
+  cruise_altitude_ft INTEGER NOT NULL CHECK (cruise_altitude_ft > 0),
+  est_block_s INTEGER NOT NULL CHECK (est_block_s > 0),
+  ramp_fuel_lb INTEGER NOT NULL CHECK (ramp_fuel_lb > 0),
+  enroute_burn_lb INTEGER NOT NULL CHECK (enroute_burn_lb > 0),
+  est_landing_weight_lb INTEGER NOT NULL CHECK (est_landing_weight_lb > 0),
+  origin_transition_altitude_ft INTEGER NOT NULL CHECK (origin_transition_altitude_ft > 0),
+  destination_transition_level_ft INTEGER NOT NULL CHECK (destination_transition_level_ft > 0),
+  ofp_json TEXT NOT NULL CHECK (ofp_json <> '')
+) STRICT;
+
+CREATE TABLE flight_money_line (
+  ledger_line_id INTEGER PRIMARY KEY REFERENCES ledger_line ON DELETE RESTRICT,
+  flight_id INTEGER NOT NULL REFERENCES flight ON DELETE RESTRICT
+) STRICT;
+CREATE INDEX flight_money_line_flight ON flight_money_line (flight_id);
+
+INSERT INTO ledger_category (code, label) VALUES
+  ('economy_fares', 'Economy fares'), ('business_fares', 'Business fares'), ('first_fares', 'First fares'),
+  ('vip_fares', 'VIP fares'), ('charter', 'Charter'), ('cargo', 'Cargo'), ('fuel', 'Fuel'),
+  ('landing_fee', 'Landing fee'), ('gate', 'Departure / gate'), ('handling', 'Ground handling'),
+  ('ga_services', 'GA services'), ('atc', 'ATC / navigation'), ('catering', 'Catering'),
+  ('cargo_handling', 'Cargo handling'), ('pilots', 'Pilots'), ('flight_attendants', 'Flight attendants'),
+  ('maintenance', 'Maintenance');
+)sql";
+
 #undef BT_INSTANT
 #undef BT_DATE
 
@@ -181,7 +253,7 @@ struct Migration {
     const char* sql;
 };
 
-constexpr std::array kMigrations{Migration{2, kMigration2}, Migration{3, kMigration3}};
+constexpr std::array kMigrations{Migration{2, kMigration2}, Migration{3, kMigration3}, Migration{4, kMigration4}};
 
 constexpr int kFirstRealSchemaVersion = 2;  // what a clobbered milestone 4 airline really is (D-098)
 

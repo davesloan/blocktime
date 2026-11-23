@@ -21,6 +21,7 @@ struct CatalogType {
     std::string code, family, role;  // family "737" | "777"; role "airliner" | "executive" | "freighter"
     int turnaroundMin, cruiseSpeedKt;
     Cents monthlyLeaseCents;
+    std::string simFolder;  // the sim's aircraft.cfg folder for this type, "PMDG 737-800BBJ2" (D-112)
 };
 
 struct Cabin {
