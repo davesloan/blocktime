@@ -22,6 +22,42 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-23 — Milestone 6 planning (docs only)
+
+**Done:**
+- Found how to tell the PMDG variants apart (D-088's open question) without a probe flight:
+  - each variant has its own SimObjects folder in Dave's Community folder;
+  - every Soxxly livery points at its variant's folder;
+  - the logs show MSFS reporting that base folder when a livery loads.
+
+  So the type check compares the folder (D-112).
+- Settled with Dave:
+  - an interrupted flight keeps its planned flight (D-108);
+  - settled money uses the actual block time and the fuel added, with the rest as previewed (D-109);
+  - 300 lb of fuel slack (D-110);
+  - Flights lists the settled flights from the database (D-111).
+- Claude's calls, all **Proposed**:
+  - the folder rule (D-112);
+  - settling from the log, with the nearest airport as the arrival (D-113);
+  - hours counted from flights, with slots enforced (D-114);
+  - the flight tables (D-115);
+  - `--probe` (D-116);
+  - D-110's mechanism (the shutdown fuel is the fuel on record; the check runs at the release).
+- Plan: `docs/plans/2026-11-23-milestone-6-record-the-planned-flight.md` (10 tasks, version 0.7.0). It includes
+  D-107's `rates.yaml`.
+
+**Working / verified:**
+- No code changed.
+
+**Unverified or broken:**
+- D-112 for the BBJ2 specifically: the first sim check of milestone 6 confirms it.
+- The GSX L:var names in Task 9 come from community tools; the probe flight confirms them.
+
+**Next step:**
+- Dave reviews the plan and the Proposed decisions. Then execute it (executing-plans, D-033) from Task 1.
+
+---
+
 ## 2026-11-23 — Milestone 5 built: New Flight and plan (version 0.6.0)
 
 **Done:**

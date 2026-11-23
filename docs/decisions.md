@@ -1508,3 +1508,138 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: Dave: "I want to be able to fiddle with them without having to rebuild the app every time."
 - Alternatives considered: constants in `pricing.cpp` (D-104); a section in `airline.yaml` (mixes the game's prices
   with the airline's identity and fleet).
+
+## D-108 — An interrupted flight keeps its planned flight
+- Date: 2026-11-23
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: When a flight is interrupted and discarded (D-072), the planned flight stays: same loads, same SimBrief
+  plan. Live goes back to "Waiting for sim" with a notice ("KBFI–KSAN interrupted and discarded"), so Dave can
+  reload and fly it again, or Cancel flight.
+- Why: Dave's choice. Being forgiving (design rule 2): a crash doesn't cost the planning work.
+- Alternatives considered: deleting the planned flight too, so New Flight starts again with new loads.
+
+## D-109 — Settled money: actual block time and fuel added; the rest as previewed
+- Date: 2026-11-23
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: At settlement, pilots (and their count), flight attendants and maintenance use the real block time.
+  Fuel is the fuel added (block-out fuel − fuel on record, never below 0) at the planned flight's locked price.
+  Fares, cargo, charter, landing fee, ATC, gate, handling, GA services and catering are as previewed: the planned
+  distance and the plan's block time, even after a diversion. Rates come from `rates.yaml` as it is at settlement
+  (D-107).
+- Why: Dave's choice. The preview stays honest (design rule 1), and the costs that depend on how the flight went
+  follow what happened.
+- Alternatives considered: every line locked to the preview except fuel.
+
+## D-110 — The fuel check: 300 lb of slack, at the brake release
+- Date: 2026-11-23
+- Status: Accepted (the slack is Dave's; the mechanism is Claude's and Proposed)
+- Decided by: Dave + Claude
+- Area: recorder, app
+- Decision: A release is refused (`fuel_below_record`) when the sim's fuel is below the airplane's fuel on record
+  minus **300 lb**. The fuel on record after a flight is the block-in event's `shutdown_fuel_lb` (when the last engine
+  stopped), not the fuel at the brake set. A delivery (0 on record) is never refused.
+- Why: design.md §11 says fuel can't be removed. 300 lb covers about an hour of APU at the gate and rounding when
+  loading fuel through the PMDG CDU or EFB (Dave). The shutdown fuel is what's actually left in the tanks.
+- Alternatives considered: 100 lb (a long turnaround on the APU would be refused); 1,000 lb; checking at block-out
+  confirmation instead of at the release.
+
+## D-111 — The Flights screen lists the database's settled flights
+- Date: 2026-11-23
+- Status: Accepted (supersedes D-060 for the list; the tracks still come from the log)
+- Decided by: Dave
+- Area: app
+- Decision: Flights lists the settled flights from the `flight` table, newest first. Each opens the same summary
+  as Live shows after block in: money lines, total and route map. The track is still rebuilt from the event log by
+  `flight_id`. Interrupted flights don't appear.
+- Why: Dave's choice. Discarded means "as if it never happened" (D-072), and the money belongs with the flight.
+- Alternatives considered: leaving the log-based list until later.
+
+## D-112 — The aircraft type is matched by its sim folder
+- Date: 2026-11-23
+- Status: Proposed
+- Decided by: Claude
+- Area: recorder, data
+- Decision: Resolves D-088's open question. Each catalog type has a `sim_folder` (`PMDG 737-800BBJ2`), copied to
+  `aircraft_type.sim_folder`. The sim's aircraft is the folder that holds the loaded `aircraft.cfg` (the
+  `AircraftLoaded` path). A type matches if the folder equals its `sim_folder` or starts with it plus a space,
+  ignoring case. So `PMDG 777-200ER GE` is a 777-200ER, and `PMDG 737-800BBJ2` is not a 737-800.
+- Why: In Dave's Community folder, each PMDG variant has its own SimObjects folder (`PMDG 737-600`, `PMDG 737-800`,
+  `PMDG 737-800BBJ2`, `PMDG 737-800BCF`, `PMDG 777-200ER` and its GE/PW/RR folders, `PMDG 777-300ER`, `PMDG 777F`).
+  Every Soxxly livery has a `base_container` pointing at its variant's folder. The 2026-11-22 logs show MSFS reporting
+  the base folder's `aircraft.cfg` for the Soxxly 737-800 livery. `TITLE` comes from the livery, and `ATC MODEL` is
+  `B738` for the BBJ2 too, so neither tells the variants apart. Still to confirm in the sim: the same holds for the
+  BBJ2 (the first milestone 6 test).
+- Alternatives considered: `TITLE` patterns (livery-dependent); `ATC MODEL` (same for the 737-800 and the BBJ2);
+  a list of folders per type (a table for what one prefix rule covers).
+
+## D-113 — Settling reads the flown flight back from the log
+- Date: 2026-11-23
+- Status: Proposed
+- Decided by: Claude
+- Area: app, recorder
+- Decision:
+  - `block_out` carries the `planned_flight_id` it was matched against.
+  - The app settles the planned flight when the log has a `block_out` with that id, logged after the flight was
+    planned, followed by its `block_in`. It checks on every block event and once at startup.
+  - `flight.log_flight_id` is `UNIQUE`, and pairs already settled are skipped, so a flight is never settled twice.
+  - The arrival airport is the imported airport nearest the block-in position, at any distance.
+- Why: The log is written first and is the record (D-008, D-060). Reading it back means a crash between block in and
+  settling loses nothing. The "after it was planned" rule matters because SQLite can reuse a deleted planned flight's
+  row id. Diversions to an airport outside the import are rare (4,265 airports kept), so a radius would only add a
+  failure case.
+- Alternatives considered: settling from the observer's in-memory event (lost if the app dies before settling);
+  a radius around the airport with an error when none is found.
+
+## D-114 — Hours are counted from the flights; slots are enforced
+- Date: 2026-11-23
+- Status: Proposed
+- Decided by: Claude
+- Area: data, app
+- Decision: Dave's hours are the sum of block times over the `flight` table; no stored total. The sketch's
+  `pilot_hours` (and D-061's note about stored totals) meant "stored in the database, not counted from 30 days of
+  log". Flights are kept forever, so the sum is that. Every flight is Dave's until background flying exists. Fleet
+  slots (D-083) are enforced at lease time from these hours: a new airplane waits, with a notice, while the fleet
+  (airplanes not returned) fills every slot.
+- Why: A stored total would be derived data that could disagree with the flights (D-078).
+- Alternatives considered: a `pilot_hours` running total updated at each settlement.
+
+## D-115 — Milestone 6's flight tables
+- Date: 2026-11-23
+- Status: Proposed
+- Decided by: Claude
+- Area: data
+- Decision: Schema 4 adds:
+  - `flight`: one settled flight, written once. It holds the planned and arrival airports, the block times, three
+    fuel figures (on record, out, in) and the locked fuel price.
+  - `flight_cabin`: passengers per class.
+  - `flight_plan`: a copy of the imported `simbrief_plan` row.
+  - `flight_money_line`: each line points at its `ledger_line`, like `lease_charge`.
+  - 17 new `ledger_category` rows.
+
+  The planned flight is deleted in the same transaction. Block time and fuel added aren't stored; they follow from
+  the columns.
+- Why: The planned flight is current state (D-103) and the flight is history. Copying the plan keeps each table
+  simple. One shared plan table pointed at by both would need either nullable keys or a manual delete on Cancel.
+- Alternatives considered: a `simbrief_plan` row referenced by both `planned_flight` and `flight`; storing block
+  seconds.
+
+## D-116 — A --probe mode for milestone 6's test flights
+- Date: 2026-11-23
+- Status: Proposed
+- Decided by: Claude
+- Area: recorder
+- Decision: Started with `--probe`, the recorder also logs:
+  - GSX's L:vars (`probe_gsx`);
+  - PMDG SDK data for the switches in `docs/notes/pmdg-variables-from-spad.md`, next to the matching SimVars
+    (`probe_pmdg`). This needs `BLOCKTIME_PMDG_SDK_DIR` at build time, pointing at the headers in the PMDG install,
+    never committed;
+  - the origin's and destination's runways and parking spots from the sim's facility data (`probe_facility`).
+
+  Without the flag nothing extra is requested.
+- Why: The roadmap puts the probe in milestone 6's sim tests. A flag keeps it off Dave's normal flights (the
+  resource budget) and can come out once milestones 8–10 read what they need.
+- Alternatives considered: a separate probe build; logging the PMDG data block as raw bytes to decode later.
