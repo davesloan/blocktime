@@ -54,6 +54,7 @@ target_compile_options(blocktime-options INTERFACE /W4 /permissive- /utf-8 /exte
 
 # --- Core: logic with no SimConnect or windows.h, so it can be unit tested (D-041) ---
 add_library(blocktime-core STATIC
+  src/airline_db.cpp
   src/app_settings.cpp
   src/error_log.cpp
   src/event_log.cpp
@@ -63,6 +64,7 @@ add_library(blocktime-core STATIC
   src/flight_history.cpp
   src/geo.cpp
   src/open_flight.cpp
+  src/sqlite_db.cpp
   src/telemetry_filter.cpp)
 target_include_directories(blocktime-core PUBLIC src)
 target_link_libraries(blocktime-core PUBLIC blocktime-options nlohmann_json::nlohmann_json unofficial::sqlite3::sqlite3)
@@ -81,6 +83,7 @@ if(BLOCKTIME_BUILD_TESTS)
   find_package(GTest CONFIG REQUIRED)
   include(GoogleTest)
   add_executable(blocktime-tests
+    tests/airline_db_test.cpp
     tests/app_settings_test.cpp
     tests/block_detector_test.cpp
     tests/error_log_test.cpp
