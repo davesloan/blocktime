@@ -86,7 +86,7 @@ Newest entries at the top. Add an entry at the end of every working session.
   - Copy route gives Navigraph's form, `KBFI/14R <route> KSAN/27`. SimBrief's route alone couldn't be pasted
     (`SimBrief.RouteWithRunways`, test first).
   - The release build has no warnings and 266 tests pass; qmllint is clean.
-  - Not yet seen by Dave.
+  - Dave checked all three on 2026-11-23, along with the scroll and collapse fix: all work.
 - **Deferred minors from the review:**
   - If the flight is cancelled during an import, `busy` stays set. It's invisible, since the panel hides.
   - `PlannedFlightModel::flightChanged` is connected to nothing.
@@ -132,7 +132,9 @@ Newest entries at the top. Add an entry at the end of every working session.
     delivery flight again for milestone 6 is fine either way.
 
 **Next step:**
-- Dave's checks above, and confirming D-103..D-106. Then milestone 6 (record the planned flight): its plan.
+- **Milestone 5 is done:** all of Dave's checks pass, including the layout fix and the polish.
+- Milestone 6 (record the planned flight) starts in a new session: write its plan (`docs/roadmap.md`, milestone 6).
+- D-103..D-106 are still Proposed until Dave confirms them. The deferred review minors are listed above.
 
 ---
 
