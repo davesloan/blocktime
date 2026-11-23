@@ -5,8 +5,10 @@
 #include "airline_config.h"
 
 #include <algorithm>
+#include <cmath>
 #include <format>
 #include <set>
+#include <utility>
 
 #include "app_settings.h"
 #include "config_yaml.h"
@@ -38,6 +40,21 @@ bool notEmpty(YamlReader& r, const YAML::Node& map, const char* key, std::string
     return true;
 }
 
+// Happy path only (D-099): an override that isn't a number is simply not an override.
+void readOverrides(const YAML::Node& node, LimitOverrides& o) {
+    const YAML::Node limits = node["limits"];
+    if (!limits.IsDefined() || !limits.IsMap()) return;
+    const auto read = [&](const char* key, std::optional<int>& out) {
+        const YAML::Node value = limits[key];
+        if (value.IsDefined() && value.IsScalar()) out = value.as<int>();
+    };
+    read("min_runway_ft", o.minRunwayFt);
+    read("mlw_lb", o.mlwLb);
+    read("passenger_weight_lb", o.passengerWeightLb);
+    read("bag_weight_lb", o.bagWeightLb);
+    read("max_payload_lb", o.maxPayloadLb);
+}
+
 bool readAirplane(YamlReader& r, const YAML::Node& node, const AirlineConfig& config, ConfigAirplane& a) {
     if (!notEmpty(r, node, "registration", a.registration)) return false;
     if (!onlyChars(a.registration, true)) {
@@ -46,7 +63,8 @@ bool readAirplane(YamlReader& r, const YAML::Node& node, const AirlineConfig& co
     if (!r.optionalString(node, "tail_number", a.tailNumber) || !notEmpty(r, node, "airframe", a.airframe) ||
         !notEmpty(r, node, "fleet", a.fleet) || !notEmpty(r, node, "simbrief_airframe_id", a.simbriefAirframeId) ||
         !date(r, node, "leased_on", a.leasedOn) || !r.string(node, "location", a.locationIcao) ||
-        !r.optionalBool(node, "awaiting_delivery", a.awaitingDelivery)) {
+        !r.optionalBool(node, "awaiting_delivery", a.awaitingDelivery) ||
+        !r.optionalString(node, "flight_number", a.flightNumber)) {
         return false;
     }
     if (std::find(config.fleets.begin(), config.fleets.end(), a.fleet) == config.fleets.end()) {
@@ -58,10 +76,21 @@ bool readAirplane(YamlReader& r, const YAML::Node& node, const AirlineConfig& co
     if (a.locationIcao.size() != 4 || !onlyChars(a.locationIcao, false)) {
         return r.fail(node["location"], std::format("{}: location must be a 4-character ICAO code", a.registration));
     }
+    readOverrides(node, a.limits);
     return true;
 }
 
 }  // namespace
+
+AirplaneLimits withOverrides(const AirplaneLimits& defaults, const LimitOverrides& o) {
+    AirplaneLimits l = defaults;
+    l.minRunwayFt = o.minRunwayFt.value_or(l.minRunwayFt);
+    l.mlwLb = o.mlwLb.value_or(l.mlwLb);
+    l.passengerWeightLb = o.passengerWeightLb.value_or(l.passengerWeightLb);
+    l.bagWeightLb = o.bagWeightLb.value_or(l.bagWeightLb);
+    l.maxPayloadLb = o.maxPayloadLb.value_or(l.maxPayloadLb);
+    return l;
+}
 
 std::optional<AirlineConfig> parseAirlineConfig(std::string_view yaml, std::string* error) {
     std::string message;
@@ -91,6 +120,10 @@ std::optional<AirlineConfig> parseAirlineConfig(std::string_view yaml, std::stri
             return r.fail((*root)["starting_cash"], "starting_cash must be a positive multiple of 5 dollars"), finish();
         }
         config.startingCashCents = cash * 100;
+        const YAML::Node fuelPrice = std::as_const(*root)["fuel_price_per_100lb"];
+        if (fuelPrice.IsDefined() && fuelPrice.IsScalar()) {
+            config.fuelPriceCentsPer100Lb = std::llround(fuelPrice.as<double>() * 100);
+        }
 
         const YAML::Node fleets = (*root)["fleets"];
         if (!fleets.IsSequence()) return r.fail(*root, "missing the fleets list"), finish();

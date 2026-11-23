@@ -15,12 +15,14 @@
 
 namespace blocktime {
 
-inline constexpr int kAirlineSchemaVersion = 2;
+inline constexpr int kAirlineSchemaVersion = 3;
 
 // Sets the connection's pragmas (foreign_keys, WAL, synchronous FULL), then applies every migration above the
 // database's user_version, each in its own transaction. Refuses a database from a newer BlockTime, and the Qt test's
 // schema (user_version 1), which openAirlineDatabase sets aside first.
 bool migrateAirlineDatabase(db::Database& db, std::string* error);
+// Applies the migrations up to `version` only. For tests that need an older schema.
+bool migrateAirlineDatabaseTo(db::Database& db, int version, std::string* error);
 
 struct AirlineDbOpen {
     std::optional<db::Database> db;

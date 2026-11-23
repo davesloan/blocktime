@@ -93,7 +93,13 @@ bool readAirframe(YamlReader& r, const YAML::Node& node, const Catalog& catalog,
         if (!positive(r, h, "max_lb", hold.maxLb) || !positive(r, h, "ratio", hold.ratio)) return false;
         a.holds.push_back(hold);
     }
-    return true;
+
+    const YAML::Node limits = node["limits"];
+    if (!limits.IsDefined() || !limits.IsMap()) return r.fail(node, std::format("{}: needs limits", a.name));
+    AirplaneLimits& l = a.limits;
+    return positive(r, limits, "min_runway_ft", l.minRunwayFt) && positive(r, limits, "mlw_lb", l.mlwLb) &&
+           positive(r, limits, "passenger_weight_lb", l.passengerWeightLb) &&
+           positive(r, limits, "bag_weight_lb", l.bagWeightLb) && positive(r, limits, "max_payload_lb", l.maxPayloadLb);
 }
 
 }  // namespace

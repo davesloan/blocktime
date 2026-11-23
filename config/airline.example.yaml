@@ -13,6 +13,7 @@ airline:
 
 founded_on: 2026-11-22       # dates the starting cash; no lease may start before it
 starting_cash: 5000000       # design.md §6
+fuel_price_per_100lb: 41     # optional, default 41: dollars per 100 lb, locked on each planned flight (D-104)
 
 fleets:                      # named groups; every airplane below names one
   - Executive
@@ -26,3 +27,7 @@ airplanes:
     leased_on: 2026-11-22             # the first month is charged on this day; each month starts on it
     location: KBFI                    # where it waits: Boeing Field for a 737 factory delivery
     awaiting_delivery: true           # optional, default false: the next flight is its delivery flight
+    flight_number: 8                  # optional: the default number of its free flights (1-4 digits), unique (D-106)
+    # limits: { mlw_lb: 146300 }      # optional: this airplane's own values in place of its airframe's (D-100). Any of
+    #                                 # min_runway_ft, mlw_lb, passenger_weight_lb, bag_weight_lb, max_payload_lb.
+    #                                 # Read only when it's leased.

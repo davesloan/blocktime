@@ -105,3 +105,39 @@ TEST(Config, YamlErrorNamesTheLine) {
     const std::string error = parseError("airline:\n  name: X\n icao: BTA\n");
     EXPECT_EQ(error.rfind("airline.yaml line ", 0), 0u) << error;
 }
+
+TEST(Config, LimitOverridesAndFuelPrice) {
+    std::string error;
+    auto config = parseAirlineConfig(kConfig, &error);
+    ASSERT_TRUE(config.has_value()) << error;
+    EXPECT_EQ(config->fuelPriceCentsPer100Lb, 4100);
+    EXPECT_FALSE(config->airplanes[0].limits.mlwLb.has_value());
+
+    const std::string yaml =
+        replaced(replaced(kConfig, "location: KBFI", "location: KBFI\n    limits: { mlw_lb: 140000 }"),
+                 "starting_cash: 5000000", "starting_cash: 5000000\nfuel_price_per_100lb: 41.5");
+    config = parseAirlineConfig(yaml, &error);
+    ASSERT_TRUE(config.has_value()) << error;
+    EXPECT_EQ(config->fuelPriceCentsPer100Lb, 4150);
+    const LimitOverrides& o = config->airplanes[0].limits;
+    EXPECT_EQ(o.mlwLb, 140000);
+    EXPECT_FALSE(o.minRunwayFt.has_value());
+    EXPECT_FALSE(o.passengerWeightLb.has_value());
+    EXPECT_FALSE(o.bagWeightLb.has_value());
+    EXPECT_FALSE(o.maxPayloadLb.has_value());
+
+    const AirplaneLimits merged = withOverrides({7000, 146300, 190, 55, 36113}, o);
+    EXPECT_EQ(merged.mlwLb, 140000);
+    EXPECT_EQ(merged.minRunwayFt, 7000);
+    EXPECT_EQ(merged.maxPayloadLb, 36113);
+}
+
+TEST(Config, FlightNumberIsOptional) {
+    std::string error;
+    auto config = parseAirlineConfig(kConfig, &error);
+    ASSERT_TRUE(config.has_value()) << error;
+    EXPECT_EQ(config->airplanes[0].flightNumber, "");
+    config = parseAirlineConfig(replaced(kConfig, "location: KBFI", "location: KBFI\n    flight_number: 8"), &error);
+    ASSERT_TRUE(config.has_value()) << error;
+    EXPECT_EQ(config->airplanes[0].flightNumber, "8");
+}

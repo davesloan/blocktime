@@ -251,3 +251,40 @@ TEST_F(Leasing, TransactionThatCantStartWritesNothing) {
     EXPECT_EQ(count("SELECT COUNT(*) FROM airplane"), 0);
     EXPECT_EQ(count("SELECT COUNT(*) FROM ledger_line WHERE category = 'lease'"), 0);
 }
+
+TEST_F(Leasing, LeaseCopiesLimitsWithOverrides) {
+    config_.airplanes[0].limits.mlwLb = 140000;
+    settle(d(2026, 11, 22));
+    const auto id = count("SELECT airplane_id FROM airplane WHERE registration = 'N738BT'");
+    const auto limits = airplaneLimits(db_, id);
+    ASSERT_TRUE(limits.has_value());
+    EXPECT_EQ(limits->minRunwayFt, 7000);
+    EXPECT_EQ(limits->mlwLb, 140000);
+    EXPECT_EQ(limits->passengerWeightLb, 190);
+    EXPECT_EQ(limits->bagWeightLb, 55);
+    EXPECT_EQ(limits->maxPayloadLb, 36113);
+}
+
+TEST_F(Leasing, AirplaneLeasedBeforeLimitsGetsThem) {
+    settle(d(2026, 11, 22));
+    const auto id = count("SELECT airplane_id FROM airplane WHERE registration = 'N738BT'");
+    ASSERT_TRUE(db_.exec("DELETE FROM airplane_limits"));
+    ASSERT_FALSE(airplaneLimits(db_, id).has_value());
+    std::string error;
+    ASSERT_TRUE(fillMissingLimits(db_, catalog_, config_, &error)) << error;
+    const auto limits = airplaneLimits(db_, id);
+    ASSERT_TRUE(limits.has_value());
+    EXPECT_EQ(limits->mlwLb, 146300);
+    EXPECT_EQ(limits->maxPayloadLb, 36113);
+}
+
+TEST_F(Leasing, FreeFlightNumberFollowsTheConfig) {
+    config_.airplanes[0].flightNumber = "8";
+    settle(d(2026, 11, 22));
+    std::string error;
+    ASSERT_TRUE(syncFreeFlightNumbers(db_, config_, &error)) << error;
+    EXPECT_EQ(count("SELECT CAST(free_flight_number AS INTEGER) FROM airplane WHERE registration = 'N738BT'"), 8);
+    config_.airplanes[0].flightNumber = "9";
+    ASSERT_TRUE(syncFreeFlightNumbers(db_, config_, &error)) << error;
+    EXPECT_EQ(count("SELECT CAST(free_flight_number AS INTEGER) FROM airplane WHERE registration = 'N738BT'"), 9);
+}

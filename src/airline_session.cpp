@@ -63,6 +63,13 @@ AirlineSession AirlineSession::start(const AirlinePaths& paths, Date today, std:
         }
     }
     s.settle(today);
+    // Airplanes leased before milestone 5 get their airframe's limits (D-100).
+    if (s.db_ && s.catalog_ && s.config_ && !fillMissingLimits(*s.db_, *s.catalog_, *s.config_, &error)) {
+        s.startNotices_.push_back("Airline database error: " + error);
+    }
+    if (s.db_ && s.config_ && !syncFreeFlightNumbers(*s.db_, *s.config_, &error)) {
+        s.startNotices_.push_back("Flight numbers in airline.yaml: " + error);
+    }
     return s;
 }
 

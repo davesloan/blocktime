@@ -27,7 +27,8 @@ gtest), Qt 6 Quick + **Qt Network** (new component, same Qt kit).
 - `docs/database.md`: "Milestone 5's tables" and "Milestone 5's processes" are the source of truth for the schema.
 - `docs/design.md`: §3 (limits), §9 (loads), §10–12 (crew, costs, revenue), §13.1–13.3 (the flow).
 - `docs/notes/simbrief-api.md`, `docs/notes/sayintentions-api.md`: the web APIs.
-- Decisions D-070, D-089, D-099..D-105.
+- Decisions D-070, D-089, D-099..D-106. D-106 (a default free-flight number per airplane) came during Task 1 and
+  replaces D-102's empty field; Tasks 1, 5 and 6 below include it.
 
 ## Global Constraints
 
@@ -102,6 +103,10 @@ sticks.
 - Produces (`airline_db.h`): `kAirlineSchemaVersion = 3`, plus migration 3.
 - Produces (`airline_queries.h`):
   `std::optional<AirplaneLimits> airplaneLimits(db::Database&, std::int64_t airplaneId)`.
+- Produces (D-106): `ConfigAirplane::flightNumber` (optional `flight_number`, "" = none), the column
+  `airplane.free_flight_number`, and `bool syncFreeFlightNumbers(db::Database&, const AirlineConfig&,
+  std::string* error)`, called at start. Tests `Config.FlightNumberIsOptional`,
+  `AirlineDb.FreeFlightNumberIsUniqueDigits`, `Leasing.FreeFlightNumberFollowsTheConfig`.
 - Produces (`leasing.h`): `bool fillMissingLimits(db::Database&, const Catalog&, const AirlineConfig&,
   std::string* error)`. For every airplane without an `airplane_limits` row: its airframe's limits (by
   `airframe_name`), with its config overrides (by registration). Leasing also writes the row, inside the lease's
@@ -420,6 +425,7 @@ sticks.
     - `double originLat, originLon`
     - `int cruiseSpeedKt`
     - `bool awaitingDelivery`
+    - `std::string freeFlightNumber`: "" = none (D-106)
     - `std::vector<Cabin> cabins; std::vector<Hold> holds; AirplaneLimits limits`
   - `std::optional<FlightAirplane> loadFlightAirplane(db::Database&, std::string_view registration)`: nullopt if
     the airplane is unknown or returned.
@@ -490,7 +496,8 @@ sticks.
   };
   ```
 
-  The first kind in `kinds()` is chosen at construction.
+  The first kind in `kinds()` is chosen at construction, and the flight number starts as the airplane's
+  `freeFlightNumber` (D-106). Add `Draft.FlightNumberStartsAsTheAirplanesDefault`.
 - `AirlineSession` gains:
   - `db::Database* database()`: nullptr when the database didn't open;
   - `std::string airlineIcao() const`;
@@ -569,7 +576,7 @@ sticks.
     - `kind`: a string code; `kinds` is the list;
     - `bellyCargo`;
     - `destination`: setting it runs `checkDestination`;
-    - `flightNumber`.
+    - `flightNumber`: starts as the airplane's default (D-106).
   - Read-only properties:
     - `registration`, `airplaneText` ("N814SX · 737-800 BBJ2"), `origin`, `bellyCargoAvailable`;
     - `destinationMessage`;

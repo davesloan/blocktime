@@ -113,6 +113,66 @@ CREATE TABLE lease_charge (
 ) STRICT;
 )sql";
 
+// Migration 3: milestone 5's limits and planned flight (docs/database.md, D-100, D-103).
+constexpr const char* kMigration3 = R"sql(
+CREATE TABLE airplane_limits (
+  airplane_id INTEGER PRIMARY KEY REFERENCES airplane ON DELETE CASCADE,
+  min_runway_ft INTEGER NOT NULL CHECK (min_runway_ft > 0),
+  mlw_lb INTEGER NOT NULL CHECK (mlw_lb > 0),
+  passenger_weight_lb INTEGER NOT NULL CHECK (passenger_weight_lb > 0),
+  bag_weight_lb INTEGER NOT NULL CHECK (bag_weight_lb >= 0),
+  max_payload_lb INTEGER NOT NULL CHECK (max_payload_lb > 0)
+) STRICT;
+
+ALTER TABLE airplane ADD COLUMN free_flight_number TEXT
+  CHECK (free_flight_number IS NULL OR
+         (length(free_flight_number) BETWEEN 1 AND 4 AND free_flight_number NOT GLOB '*[^0-9]*'));
+CREATE UNIQUE INDEX airplane_free_flight_number ON airplane (free_flight_number);
+
+CREATE TABLE planned_flight (
+  planned_flight_id INTEGER PRIMARY KEY,
+  airplane_id INTEGER NOT NULL UNIQUE REFERENCES airplane ON DELETE RESTRICT,
+  origin_airport_id INTEGER NOT NULL REFERENCES airport ON DELETE RESTRICT,
+  destination_airport_id INTEGER NOT NULL REFERENCES airport ON DELETE RESTRICT,
+  flight_number TEXT NOT NULL CHECK (length(flight_number) BETWEEN 1 AND 4 AND flight_number NOT GLOB '*[^0-9]*'),
+  kind TEXT NOT NULL CHECK (kind IN ('passenger', 'vip', 'charter', 'cargo', 'delivery')),
+  cargo_lb INTEGER NOT NULL CHECK (cargo_lb >= 0),
+  fuel_price_cents_per_100lb INTEGER NOT NULL CHECK (fuel_price_cents_per_100lb > 0),
+  planned_at TEXT NOT NULL CHECK (planned_at GLOB )sql" BT_INSTANT R"sql(),
+  origin_runway TEXT CHECK (origin_runway IS NULL OR origin_runway <> ''),
+  destination_runway TEXT CHECK (destination_runway IS NULL OR destination_runway <> ''),
+  CHECK (destination_airport_id <> origin_airport_id),
+  CHECK (cargo_lb = 0 OR kind IN ('passenger', 'cargo'))
+) STRICT;
+CREATE INDEX planned_flight_origin ON planned_flight (origin_airport_id);
+CREATE INDEX planned_flight_destination ON planned_flight (destination_airport_id);
+
+CREATE TABLE planned_flight_cabin (
+  planned_flight_id INTEGER NOT NULL REFERENCES planned_flight ON DELETE CASCADE,
+  cabin_class TEXT NOT NULL CHECK (cabin_class IN ('economy', 'business', 'first')),
+  passengers INTEGER NOT NULL CHECK (passengers >= 0),
+  PRIMARY KEY (planned_flight_id, cabin_class)
+) STRICT;
+
+CREATE TABLE simbrief_plan (
+  planned_flight_id INTEGER PRIMARY KEY REFERENCES planned_flight ON DELETE CASCADE,
+  request_id TEXT NOT NULL CHECK (request_id <> ''),
+  generated_at TEXT NOT NULL CHECK (generated_at GLOB )sql" BT_INSTANT R"sql(),
+  imported_at TEXT NOT NULL CHECK (imported_at GLOB )sql" BT_INSTANT R"sql(),
+  route TEXT NOT NULL,
+  origin_runway TEXT NOT NULL,
+  destination_runway TEXT NOT NULL,
+  cruise_altitude_ft INTEGER NOT NULL CHECK (cruise_altitude_ft > 0),
+  est_block_s INTEGER NOT NULL CHECK (est_block_s > 0),
+  ramp_fuel_lb INTEGER NOT NULL CHECK (ramp_fuel_lb > 0),
+  enroute_burn_lb INTEGER NOT NULL CHECK (enroute_burn_lb > 0),
+  est_landing_weight_lb INTEGER NOT NULL CHECK (est_landing_weight_lb > 0),
+  origin_transition_altitude_ft INTEGER NOT NULL CHECK (origin_transition_altitude_ft > 0),
+  destination_transition_level_ft INTEGER NOT NULL CHECK (destination_transition_level_ft > 0),
+  ofp_json TEXT NOT NULL CHECK (ofp_json <> '')
+) STRICT;
+)sql";
+
 #undef BT_INSTANT
 #undef BT_DATE
 
@@ -121,7 +181,9 @@ struct Migration {
     const char* sql;
 };
 
-constexpr std::array kMigrations{Migration{2, kMigration2}};
+constexpr std::array kMigrations{Migration{2, kMigration2}, Migration{3, kMigration3}};
+
+constexpr int kFirstRealSchemaVersion = 2;  // what a clobbered milestone 4 airline really is (D-098)
 
 constexpr int kTestSchemaVersion = 1;  // the Qt test's database (D-061)
 
@@ -134,6 +196,10 @@ bool hasTable(db::Database& db, const char* name) {
 }  // namespace
 
 bool migrateAirlineDatabase(db::Database& db, std::string* error) {
+    return migrateAirlineDatabaseTo(db, kAirlineSchemaVersion, error);
+}
+
+bool migrateAirlineDatabaseTo(db::Database& db, int target, std::string* error) {
     // WAL can't be switched inside a transaction, and an in-memory database just answers "memory".
     if (!db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;", error)) return false;
 
@@ -147,7 +213,7 @@ bool migrateAirlineDatabase(db::Database& db, std::string* error) {
         return false;
     }
     for (const Migration& m : kMigrations) {
-        if (m.version <= current) continue;
+        if (m.version <= current || m.version > target) continue;
         db::Transaction tx(db);
         std::string message;
         if (!tx.active() || !db.exec(m.sql, &message) ||
@@ -167,8 +233,9 @@ AirlineDbOpen openAirlineDatabase(const std::filesystem::path& file) {
 
     if (result.db->userVersion() == kTestSchemaVersion && hasTable(*result.db, "airplane")) {
         // BlockTime 0.4 and older ran "PRAGMA user_version = 1" on any blocktime.db it opened. This is a real
-        // airline, not the Qt test's file: put the version back (the stray airframes table does no harm).
-        if (!result.db->exec(std::format("PRAGMA user_version = {}", kAirlineSchemaVersion), &result.error)) {
+        // airline, not the Qt test's file: put the version back (the stray airframes table does no harm). Only 0.4 did
+        // this, before any schema after 2 existed, so it's 2; the migrations after it still run below.
+        if (!result.db->exec(std::format("PRAGMA user_version = {}", kFirstRealSchemaVersion), &result.error)) {
             result.db.reset();
             return result;
         }

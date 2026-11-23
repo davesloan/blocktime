@@ -339,11 +339,14 @@ here, including delivery and free flights.
 
 1. Dave clicks a parked aircraft and chooses **New Flight**.
 2. He enters the destination's ICAO code. The app checks the runway length (section 4).
-3. **Kind of flight:** decided by the aircraft (passengers for airliners, cargo for freighters, empty for the
+3. **Flight number (D-106):** each airplane has a default flight number for its free flights (the BBJ2 is always
+   XLY8, say), pre-filled and editable. A rotation's legs each carry their own number instead (KSAN–KSLC is always
+   XLY1414), and no two airplanes or rotation legs share one.
+4. **Kind of flight:** decided by the aircraft (passengers for airliners, cargo for freighters, empty for the
    factory delivery). A **BBJ2** asks one more question: **VIP airliner** (per-seat tickets) or **Charter**
    (section 12). A passenger airliner that can carry belly cargo offers one more choice: **Carry belly cargo**
    (D-089). The BBJ2 never carries it.
-4. Loads are rolled (section 9) and the preview shows revenue, costs and where the plane ends up (design rule 1).
+5. Loads are rolled (section 9) and the preview shows revenue, costs and where the plane ends up (design rule 1).
    A delivery flight has no load and shows a loss: its fuel and operating costs (section 11) with no revenue.
 
 ### 13.2 Planning (D-070)

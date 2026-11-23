@@ -35,6 +35,14 @@ struct LeaseOutcome {
 // costs more than the cash on its date isn't charged: a new airplane isn't leased, a leased one is returned.
 LeaseOutcome settleLeases(db::Database& db, const Catalog& catalog, const AirlineConfig& config, Date today);
 
+// Gives every airplane without limits its airframe's, with its airline.yaml overrides (D-100). For airplanes leased
+// before milestone 5.
+bool fillMissingLimits(db::Database& db, const Catalog& catalog, const AirlineConfig& config, std::string* error);
+
+// Sets each airplane's default free-flight number from airline.yaml (D-106). Re-read at every start: the number is
+// only a default, and each planned flight keeps its own.
+bool syncFreeFlightNumbers(db::Database& db, const AirlineConfig& config, std::string* error);
+
 // One line per leased airplane whose config entry changed (the database keeps the leased values, D-082) or that's
 // no longer in the config.
 std::vector<std::string> configDriftWarnings(db::Database& db, const AirlineConfig& config);

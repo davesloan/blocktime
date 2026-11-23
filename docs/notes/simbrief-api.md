@@ -21,7 +21,11 @@ Sources:
   (https://forum.navigraph.com/t/directly-call-dispatch-url-and-set-specific-aircraft/7315). A deleted airframe gives
   "Unknown Aircraft".
 - Forum report, not checked: choosing an airframe on the page can recalculate and replace a route passed in the URL.
-- Still to check with Dave's account: the unit of `cargo` (pounds, or thousands), and that `origrwy`/`destrwy` stick.
+- **`cargo` is in thousands** of the plan's units (checked by Dave, 2026-11-23): with `units=LBS`, `cargo=5` gave
+  5,000 lb of freight, and `cargo=5000` was capped at the airframe's max cargo (17,645 lb for N814SX). SimBrief adds
+  passenger baggage itself from `pax`, so `cargo` is only the extra freight. BlockTime sends cargo in thousands with
+  up to three decimals (exact pounds).
+- Still to check: that `origrwy`/`destrwy` stick.
 
 ## Fetching the OFP
 

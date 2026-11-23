@@ -64,6 +64,7 @@ TEST(Catalog, AcceptsAFreighterWithHoldsOnly) {
     type: 777F
     holds:
       - { hold: main_deck, max_lb: 180000, ratio: 40 }
+    limits: { min_runway_ft: 10000, mlw_lb: 575000, passenger_weight_lb: 190, bag_weight_lb: 55, max_payload_lb: 228700 }
 )"),
                                       &error);
     ASSERT_TRUE(catalog.has_value()) << error;
@@ -110,4 +111,16 @@ TEST(Catalog, RejectsBadRoleAndDuplicateHold) {
       - { hold: forward, max_lb: 1000, ratio: 1 }
 )"));
     EXPECT_NE(error.find("forward"), std::string::npos) << error;
+}
+
+TEST(Catalog, AirframeLimitsAreRead) {
+    std::string error;
+    const auto catalog = loadCatalog(BLOCKTIME_SOURCE_DIR "/config/catalog.yaml", &error);
+    ASSERT_TRUE(catalog.has_value()) << error;
+    const AirplaneLimits& l = catalog->airframe("737-800 BBJ2 VIP")->limits;
+    EXPECT_EQ(l.minRunwayFt, 7000);
+    EXPECT_EQ(l.mlwLb, 146300);
+    EXPECT_EQ(l.passengerWeightLb, 190);
+    EXPECT_EQ(l.bagWeightLb, 55);
+    EXPECT_EQ(l.maxPayloadLb, 36113);
 }

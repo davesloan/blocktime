@@ -110,6 +110,7 @@ One leased plane, its lease terms, and where it is now.
 | `location_airport_id` | INTEGER | FK → `airport`, `ON DELETE RESTRICT`; **current state**, moves after each flight |
 | `fuel_on_board_lb` | INTEGER | ≥ 0; **current state** (design.md §11, fuel stays in the tanks) |
 | `awaiting_delivery` | INTEGER | boolean; **current state**: 1 until the factory delivery flight is settled (milestone 6) |
+| `free_flight_number` | TEXT NULL | added in schema 3 (D-106): the default flight number of its free flights, 1–4 digits, unique (a unique index; several NULLs are allowed). NULL means none is set, and New Flight's field starts empty. Set from `airline.yaml` at every start |
 | `returned_on` | TEXT NULL | calendar date the lease ended; NULL while the airplane is still leased |
 | `return_reason` | TEXT NULL | `CHECK (return_reason IN ('unpaid'))`; set together with `returned_on` (`CHECK ((returned_on IS NULL) = (return_reason IS NULL))`). `'returned'` (Dave returns it, with a prorated refund) comes with the settings screen |
 
@@ -246,7 +247,7 @@ lock (`busy_timeout`), and a transaction that can't begin writes nothing (D-098)
 
 ## Milestone 5's tables (schema version 3)
 
-Migration 3 adds four tables. Nothing in milestone 4's tables changes.
+Migration 3 adds four tables and one column, `airplane.free_flight_number` (D-106, in the `airplane` table above).
 
 ### `airplane_limits`
 
@@ -327,6 +328,10 @@ to the fields the app uses, taken from it at import. Importing again replaces th
 **Limits at lease time (D-100).** Leasing copies the airframe's `limits` from the catalog, each value replaced by
 the airplane's override in `airline.yaml` if it has one, in the same transaction as the airplane. At each start, an
 airplane with no `airplane_limits` row gets one the same way.
+
+**Free-flight numbers (D-106).** At every start, each airplane's `free_flight_number` is set from `airline.yaml`'s
+`flight_number` (cleared first, in one transaction, so two airplanes can swap numbers). A planned flight keeps its own
+`flight_number`, so changing the default changes nothing already planned.
 
 **Planning (design.md §13.1–13.2).** Plan flight writes `planned_flight` and its cabins in one transaction, after the
 ATIS runways are fetched. Importing a plan writes or replaces `simbrief_plan`. Cancel flight deletes the planned

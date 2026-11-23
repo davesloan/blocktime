@@ -35,6 +35,12 @@ void addParents(db::Database& d) {
         "  awaiting_delivery) VALUES (1, 'N814SX', 1, 1, '737-800 BBJ2 VIP', '730097_1', '2026-11-22', 90000000, 1, 0, 1);"));
 }
 
+bool hasTable(db::Database& d, const char* name) {
+    db::Statement q(d, "SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?");
+    q.bind(1, std::string_view(name));
+    return q.next();
+}
+
 std::string queryPlan(db::Database& d, const std::string& sql) {
     db::Statement q(d, "EXPLAIN QUERY PLAN " + sql);
     std::string plan;
@@ -57,12 +63,12 @@ protected:
 
 }  // namespace
 
-TEST(AirlineDb, EmptyDatabaseMigratesToVersion2) {
+TEST(AirlineDb, EmptyDatabaseMigratesToVersion3) {
     db::Database d = db::Database::openInMemory();
     std::string error;
     EXPECT_TRUE(migrateAirlineDatabase(d, &error)) << error;
-    EXPECT_EQ(d.userVersion(), 2);
-    EXPECT_EQ(kAirlineSchemaVersion, 2);
+    EXPECT_EQ(d.userVersion(), 3);
+    EXPECT_EQ(kAirlineSchemaVersion, 3);
 }
 
 TEST(AirlineDb, ForeignKeysAreOn) {
@@ -76,12 +82,12 @@ TEST(AirlineDb, MigratingTwiceIsANoOp) {
     db::Database d = migrated();
     std::string error;
     EXPECT_TRUE(migrateAirlineDatabase(d, &error)) << error;
-    EXPECT_EQ(d.userVersion(), 2);
+    EXPECT_EQ(d.userVersion(), 3);
 }
 
-TEST(AirlineDb, NewerSchemaIsRefused) {
+TEST(AirlineDb, NewerSchemaIsRefused) {  // one above kAirlineSchemaVersion
     db::Database d = db::Database::openInMemory();
-    ASSERT_TRUE(d.exec("PRAGMA user_version = 3"));
+    ASSERT_TRUE(d.exec("PRAGMA user_version = " + std::to_string(kAirlineSchemaVersion + 1)));
     std::string error;
     EXPECT_FALSE(migrateAirlineDatabase(d, &error));
     EXPECT_NE(error.find("newer BlockTime"), std::string::npos) << error;
@@ -98,7 +104,7 @@ TEST_F(AirlineDbFiles, TestSchemaIsSetAside) {
     AirlineDbOpen opened = openAirlineDatabase(file);
     ASSERT_TRUE(opened.db.has_value()) << opened.error;
     EXPECT_TRUE(opened.testSchemaSetAside);
-    EXPECT_EQ(opened.db->userVersion(), 2);
+    EXPECT_EQ(opened.db->userVersion(), 3);
 
     const fs::path aside = dir_ / "blocktime.test-schema.db";
     ASSERT_TRUE(fs::exists(aside));
@@ -114,7 +120,7 @@ TEST_F(AirlineDbFiles, NewFileIsNotSetAside) {
     AirlineDbOpen opened = openAirlineDatabase(dir_ / "blocktime.db");
     ASSERT_TRUE(opened.db.has_value()) << opened.error;
     EXPECT_FALSE(opened.testSchemaSetAside);
-    EXPECT_EQ(opened.db->userVersion(), 2);
+    EXPECT_EQ(opened.db->userVersion(), 3);
 }
 
 TEST(AirlineDb, ChecksRejectBadRows) {
@@ -155,6 +161,8 @@ TEST(AirlineDb, QueryPlansUseIndexes) {
              "SELECT ledger_line_id FROM ledger_line ORDER BY posted_at DESC",
              "SELECT SUM(amount_cents) FROM ledger_line WHERE posted_at <= '2026-11-22T00:00:00Z'",
              "SELECT 1 FROM lease_charge WHERE airplane_id = 1 AND period_start = '2026-11-22'",
+             "SELECT planned_flight_id FROM planned_flight WHERE destination_airport_id = 1",
+             "SELECT planned_flight_id FROM planned_flight WHERE origin_airport_id = 1",
          }) {
         const std::string plan = queryPlan(d, sql);
         EXPECT_NE(plan.find("USING"), std::string::npos) << sql << "\n" << plan;
@@ -175,20 +183,85 @@ TEST_F(AirlineDbFiles, BusyTimeoutIsSet) {
 TEST_F(AirlineDbFiles, ClobberedVersionOfARealAirlineIsRestored) {
     const fs::path file = dir_ / "blocktime.db";
     {
-        AirlineDbOpen opened = openAirlineDatabase(file);
-        ASSERT_TRUE(opened.db.has_value()) << opened.error;
-        ASSERT_TRUE(opened.db->exec("INSERT INTO fleet (name) VALUES ('Executive')"));
+        // Only BlockTime 0.4 clobbered the version, and only schema-2 files existed then.
+        std::string error;
+        auto opened = db::Database::open(file, &error);
+        ASSERT_TRUE(opened.has_value()) << error;
+        ASSERT_TRUE(migrateAirlineDatabaseTo(*opened, 2, &error)) << error;
+        ASSERT_TRUE(opened->exec("INSERT INTO fleet (name) VALUES ('Executive')"));
         // What BlockTime 0.4 and older did to any blocktime.db it opened (D-061's FleetStore).
-        ASSERT_TRUE(opened.db->exec("CREATE TABLE IF NOT EXISTS airframes (registration TEXT PRIMARY KEY);"
+        ASSERT_TRUE(opened->exec("CREATE TABLE IF NOT EXISTS airframes (registration TEXT PRIMARY KEY);"
                                     "PRAGMA user_version = 1;"));
     }
     AirlineDbOpen again = openAirlineDatabase(file);
     ASSERT_TRUE(again.db.has_value()) << again.error;
     EXPECT_FALSE(again.testSchemaSetAside);
     EXPECT_TRUE(again.versionRestored);
-    EXPECT_EQ(again.db->userVersion(), 2);
+    EXPECT_EQ(again.db->userVersion(), 3);
     EXPECT_FALSE(fs::exists(dir_ / "blocktime.test-schema.db"));
     db::Statement q(*again.db, "SELECT COUNT(*) FROM fleet");
     ASSERT_TRUE(q.next());
     EXPECT_EQ(q.integer(0), 1);
+}
+
+TEST(AirlineDb, Version2DatabaseMigratesTo3) {
+    db::Database d = db::Database::openInMemory();
+    std::string error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 2, &error)) << error;
+    ASSERT_EQ(d.userVersion(), 2);
+    EXPECT_FALSE(hasTable(d, "airplane_limits"));
+    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    EXPECT_EQ(d.userVersion(), 3);
+    EXPECT_TRUE(hasTable(d, "airplane_limits"));
+}
+
+TEST_F(AirlineDbFiles, RestoredVersionStillGetsMigration3) {
+    const fs::path file = dir_ / "blocktime.db";
+    {
+        std::string error;
+        auto d = db::Database::open(file, &error);
+        ASSERT_TRUE(d.has_value()) << error;
+        ASSERT_TRUE(migrateAirlineDatabaseTo(*d, 2, &error)) << error;
+        // A milestone 4 airline whose version BlockTime 0.4 set back to 1.
+        ASSERT_TRUE(d->exec("PRAGMA user_version = 1"));
+    }
+    AirlineDbOpen opened = openAirlineDatabase(file);
+    ASSERT_TRUE(opened.db.has_value()) << opened.error;
+    EXPECT_TRUE(opened.versionRestored);
+    EXPECT_EQ(opened.db->userVersion(), 3);
+    EXPECT_TRUE(hasTable(*opened.db, "planned_flight"));
+}
+
+TEST(AirlineDb, PlannedFlightChecks) {
+    db::Database d = migrated();
+    addParents(d);
+    ASSERT_TRUE(d.exec(
+        "INSERT INTO airport (airport_id, icao_code, name, latitude, longitude, elevation_ft, country_code, time_zone,"
+        "  longest_runway_ft) VALUES (2, 'KSAN', 'San Diego', 32.73, -117.19, 17, 'US', 'America/Los_Angeles', 9401)"));
+    const auto insert = [&](const std::string& kind, int cargo, int dest, const std::string& number) {
+        return d.exec("INSERT INTO planned_flight (airplane_id, origin_airport_id, destination_airport_id, flight_number,"
+                      " kind, cargo_lb, fuel_price_cents_per_100lb, planned_at) VALUES (1, 1, " +
+                      std::to_string(dest) + ", '" + number + "', '" + kind + "', " + std::to_string(cargo) +
+                      ", 4100, '2026-11-23T14:00:00Z')");
+    };
+    EXPECT_FALSE(insert("vip", 500, 2, "101"));
+    EXPECT_FALSE(insert("vip", 0, 1, "101"));
+    EXPECT_FALSE(insert("vip", 0, 2, "A1"));
+    EXPECT_FALSE(insert("vip", 0, 2, "10101"));
+    EXPECT_TRUE(insert("vip", 0, 2, "101"));
+    EXPECT_FALSE(insert("vip", 0, 2, "102"));  // a second planned flight for the same airplane
+}
+
+TEST(AirlineDb, FreeFlightNumberIsUniqueDigits) {
+    db::Database d = migrated();
+    addParents(d);
+    ASSERT_TRUE(d.exec(
+        "INSERT INTO airplane (airplane_id, registration, aircraft_type_id, fleet_id, airframe_name,"
+        "  simbrief_airframe_id, leased_on, monthly_lease_cents, location_airport_id, fuel_on_board_lb,"
+        "  awaiting_delivery) VALUES (2, 'N815SX', 1, 1, '737-800 BBJ2 VIP', '730097_2', '2026-11-22', 90000000, 1, 0, 1)"));
+    EXPECT_FALSE(d.exec("UPDATE airplane SET free_flight_number = 'A1' WHERE airplane_id = 1"));
+    EXPECT_FALSE(d.exec("UPDATE airplane SET free_flight_number = '12345' WHERE airplane_id = 1"));
+    EXPECT_TRUE(d.exec("UPDATE airplane SET free_flight_number = '8' WHERE airplane_id = 1"));
+    EXPECT_FALSE(d.exec("UPDATE airplane SET free_flight_number = '8' WHERE airplane_id = 2"));
+    EXPECT_TRUE(d.exec("UPDATE airplane SET free_flight_number = '9' WHERE airplane_id = 2"));
 }

@@ -69,6 +69,21 @@ bool postLeaseMonth(db::Database& db, std::int64_t airplaneId, Date periodStart,
     return true;
 }
 
+bool insertLimits(db::Database& db, std::int64_t airplaneId, const AirplaneLimits& l, std::string& error) {
+    db::Statement q(db,
+                    "INSERT INTO airplane_limits (airplane_id, min_runway_ft, mlw_lb, passenger_weight_lb, bag_weight_lb,"
+                    " max_payload_lb) VALUES (?, ?, ?, ?, ?, ?)");
+    q.bind(1, airplaneId);
+    q.bind(2, static_cast<std::int64_t>(l.minRunwayFt));
+    q.bind(3, static_cast<std::int64_t>(l.mlwLb));
+    q.bind(4, static_cast<std::int64_t>(l.passengerWeightLb));
+    q.bind(5, static_cast<std::int64_t>(l.bagWeightLb));
+    q.bind(6, static_cast<std::int64_t>(l.maxPayloadLb));
+    if (q.run()) return true;
+    error = q.error();
+    return false;
+}
+
 // Inserts a new airplane copied from its airframe (D-082), with its first lease month. Call inside a transaction.
 std::optional<std::int64_t> insertAirplane(db::Database& db, const ConfigAirplane& a, const CatalogAirframe& airframe,
                                            const CatalogType& type, std::int64_t airportId, std::string& error) {
@@ -123,6 +138,7 @@ std::optional<std::int64_t> insertAirplane(db::Database& db, const ConfigAirplan
             return std::nullopt;
         }
     }
+    if (!insertLimits(db, id, withOverrides(airframe.limits, a.limits), error)) return std::nullopt;
     if (!postLeaseMonth(db, id, a.leasedOn, type.monthlyLeaseCents, error)) return std::nullopt;
     return id;
 }
@@ -306,6 +322,58 @@ LeaseOutcome settleLeases(db::Database& db, const Catalog& catalog, const Airlin
         if (e.date <= today) events.push(e);
     }
     return outcome;
+}
+
+bool fillMissingLimits(db::Database& db, const Catalog& catalog, const AirlineConfig& config, std::string* error) {
+    struct Missing {
+        std::int64_t id;
+        std::string registration, airframe;
+    };
+    std::vector<Missing> missing;
+    {
+        db::Statement q(db, "SELECT airplane_id, registration, airframe_name FROM airplane"
+                            " WHERE airplane_id NOT IN (SELECT airplane_id FROM airplane_limits)");
+        while (q.next()) missing.push_back({q.integer(0), q.text(1), q.text(2)});
+    }
+    std::string message;
+    for (const Missing& m : missing) {
+        const CatalogAirframe* airframe = catalog.airframe(m.airframe);
+        if (!airframe) continue;  // happy path only (D-099)
+        LimitOverrides overrides;
+        for (const ConfigAirplane& a : config.airplanes) {
+            if (a.registration == m.registration) overrides = a.limits;
+        }
+        if (!insertLimits(db, m.id, withOverrides(airframe->limits, overrides), message)) {
+            if (error) *error = message;
+            return false;
+        }
+    }
+    return true;
+}
+
+bool syncFreeFlightNumbers(db::Database& db, const AirlineConfig& config, std::string* error) {
+    db::Transaction tx(db);
+    std::string message;
+    if (!tx.active()) {
+        if (error) *error = "couldn't begin a transaction";
+        return false;
+    }
+    // Clear first, so two airplanes can swap numbers without tripping the unique index.
+    if (!db.exec("UPDATE airplane SET free_flight_number = NULL WHERE free_flight_number IS NOT NULL", &message)) {
+        if (error) *error = message;
+        return false;
+    }
+    for (const ConfigAirplane& a : config.airplanes) {
+        if (a.flightNumber.empty()) continue;
+        db::Statement q(db, "UPDATE airplane SET free_flight_number = ? WHERE registration = ?");
+        q.bind(1, a.flightNumber);
+        q.bind(2, a.registration);
+        if (!q.run()) {
+            if (error) *error = a.registration + ": " + q.error();
+            return false;
+        }
+    }
+    return tx.commit(error);
 }
 
 std::vector<std::string> configDriftWarnings(db::Database& db, const AirlineConfig& config) {

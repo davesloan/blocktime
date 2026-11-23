@@ -8,6 +8,10 @@
 #              and its type's lease rate are copied into the database, and later edits here don't change it (D-082).
 #
 # Money is in whole dollars (multiples of $5). Weights are in pounds.
+#
+# Each airframe's limits (D-100) are what New Flight needs before a SimBrief plan exists: the minimum runway, MLW,
+# passenger and bag weight, and max payload (MZFW - empty weight). They're defaults: an airplane in airline.yaml can
+# override any of them. They must match the airplane's SimBrief airframe.
 # Numbers marked "estimate" are placeholders until they're read from the PMDG load pages (design.md §17).
 
 types:
@@ -63,6 +67,7 @@ types:
 airframes:
   - name: 737-600 Two-class
     type: 737-600
+    limits: { min_runway_ft: 6000, mlw_lb: 120500, passenger_weight_lb: 190, bag_weight_lb: 55, max_payload_lb: 33800 }   # estimate
     cabins: { business: 8, economy: 104 }       # estimate: design.md §3 says ~112 seats
     holds:
       - { hold: forward, max_lb: 5000, ratio: 4 }   # estimate
@@ -70,6 +75,7 @@ airframes:
 
   - name: 737-600 All-economy
     type: 737-600
+    limits: { min_runway_ft: 6000, mlw_lb: 120500, passenger_weight_lb: 190, bag_weight_lb: 55, max_payload_lb: 33800 }   # estimate
     cabins: { economy: 130 }                    # estimate: design.md §3 says ~130 seats
     holds:
       - { hold: forward, max_lb: 5000, ratio: 4 }   # estimate
@@ -77,6 +83,7 @@ airframes:
 
   - name: 737-800 Two-class
     type: 737-800
+    limits: { min_runway_ft: 7000, mlw_lb: 146300, passenger_weight_lb: 190, bag_weight_lb: 55, max_payload_lb: 47000 }   # estimate
     cabins: { business: 16, economy: 144 }      # estimate: design.md §3 says ~160 seats
     holds:
       - { hold: forward, max_lb: 7500, ratio: 4 }   # estimate
@@ -84,6 +91,7 @@ airframes:
 
   - name: 737-800 All-economy
     type: 737-800
+    limits: { min_runway_ft: 7000, mlw_lb: 146300, passenger_weight_lb: 190, bag_weight_lb: 55, max_payload_lb: 47000 }   # estimate
     cabins: { economy: 184 }                    # estimate: design.md §3 says ~184 seats
     holds:
       - { hold: forward, max_lb: 7500, ratio: 4 }   # estimate
@@ -91,6 +99,7 @@ airframes:
 
   - name: 737-800 BBJ2 VIP
     type: 737-800 BBJ2
+    limits: { min_runway_ft: 7000, mlw_lb: 146300, passenger_weight_lb: 190, bag_weight_lb: 55, max_payload_lb: 36113 }   # from N814SX's SimBrief airframe
     cabins: { economy: 48 }    # 48 VIP seats; the VIP fare is per seat whatever the class (design.md §12)
     holds:   # bags only. 17,645 lb = SimBrief's max cargo, split 4:5 forward:aft; both checked by Dave in the sim
              # (docs/notes/simbrief-airframes.md)
@@ -99,6 +108,7 @@ airframes:
 
   - name: 737-800 BCF Freighter
     type: 737-800 BCF
+    limits: { min_runway_ft: 7000, mlw_lb: 146300, passenger_weight_lb: 190, bag_weight_lb: 55, max_payload_lb: 52000 }   # estimate
     holds:
       - { hold: main_deck, max_lb: 40000, ratio: 20 }   # estimate
       - { hold: forward, max_lb: 7500, ratio: 4 }       # estimate
@@ -106,6 +116,7 @@ airframes:
 
   - name: 777-200ER Standard
     type: 777-200ER
+    limits: { min_runway_ft: 9000, mlw_lb: 470000, passenger_weight_lb: 190, bag_weight_lb: 55, max_payload_lb: 135500 }   # estimate
     cabins: { business: 42, economy: 259 }      # estimate
     holds:
       - { hold: forward, max_lb: 40000, ratio: 10 }   # estimate
@@ -114,6 +125,7 @@ airframes:
 
   - name: 777-300ER Standard
     type: 777-300ER
+    limits: { min_runway_ft: 10000, mlw_lb: 554000, passenger_weight_lb: 190, bag_weight_lb: 55, max_payload_lb: 154000 }   # estimate
     cabins: { business: 42, economy: 354 }      # estimate
     holds:
       - { hold: forward, max_lb: 50000, ratio: 10 }   # estimate
@@ -122,6 +134,7 @@ airframes:
 
   - name: 777F Freighter
     type: 777F
+    limits: { min_runway_ft: 10000, mlw_lb: 575000, passenger_weight_lb: 190, bag_weight_lb: 55, max_payload_lb: 228700 }   # estimate
     holds:
       - { hold: main_deck, max_lb: 180000, ratio: 40 }   # estimate
       - { hold: forward, max_lb: 40000, ratio: 10 }      # estimate

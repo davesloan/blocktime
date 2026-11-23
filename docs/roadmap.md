@@ -70,7 +70,7 @@ Each milestone still gets its own plan in `docs/plans/` (writing-plans) before w
 
 - **New Flight** from a parked aircraft (section 13.1): destination, runway check, the BBJ2's VIP airliner /
   charter choice, delivery flights forced empty. Loads rolled (section 9), with the **belly cargo option** on
-  passenger airliners that can carry it (D-089; never the BBJ2). The flight number is typed each time (D-102). The
+  passenger airliners that can carry it (D-089; never the BBJ2). The flight number is the airplane's default free-flight number, pre-filled and editable (D-106). The
   limits it needs (min runway, MLW, passenger and bag weight, max payload) are airframe defaults in the catalog,
   overridable per airplane in `airline.yaml` (D-100).
 - **Money preview** before committing (design rule 1): revenue, each cost line, the total, where the plane ends up.

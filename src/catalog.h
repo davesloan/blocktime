@@ -33,10 +33,17 @@ struct Hold {
     int maxLb, ratio;
 };
 
+// What New Flight needs before a SimBrief plan exists (D-100). They must match the airplane's SimBrief airframe.
+struct AirplaneLimits {
+    int minRunwayFt = 0, mlwLb = 0, passengerWeightLb = 0, bagWeightLb = 0;
+    int maxPayloadLb = 0;  // MZFW - empty weight
+};
+
 struct CatalogAirframe {
     std::string name, typeCode;
     std::vector<Cabin> cabins;  // empty for freighters
     std::vector<Hold> holds;
+    AirplaneLimits limits;      // defaults for every airplane leased from it (D-100)
 };
 
 struct Catalog {

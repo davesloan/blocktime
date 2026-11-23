@@ -78,3 +78,18 @@ int airportCount(db::Database& db) {
 }
 
 }  // namespace blocktime
+
+namespace blocktime {
+
+std::optional<AirplaneLimits> airplaneLimits(db::Database& db, std::int64_t airplaneId) {
+    db::Statement q(db,
+                    "SELECT min_runway_ft, mlw_lb, passenger_weight_lb, bag_weight_lb, max_payload_lb"
+                    " FROM airplane_limits WHERE airplane_id = ?");
+    q.bind(1, airplaneId);
+    if (!q.next()) return std::nullopt;
+    return AirplaneLimits{static_cast<int>(q.integer(0)), static_cast<int>(q.integer(1)),
+                          static_cast<int>(q.integer(2)), static_cast<int>(q.integer(3)),
+                          static_cast<int>(q.integer(4))};
+}
+
+}  // namespace blocktime

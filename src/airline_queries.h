@@ -11,6 +11,7 @@
 #include <string_view>
 #include <vector>
 
+#include "catalog.h"
 #include "dates.h"
 #include "money.h"
 #include "sqlite_db.h"
@@ -37,5 +38,8 @@ std::vector<LedgerView> listLedger(db::Database& db);       // newest first, the
 Cents cashCents(db::Database& db);                                // the sum of every ledger line
 Cents cashCentsAsOf(db::Database& db, std::string_view instant);  // lines posted at or before `instant`
 int airportCount(db::Database& db);
+
+// The airplane's limits (D-100), or nullopt if it has none yet.
+std::optional<AirplaneLimits> airplaneLimits(db::Database& db, std::int64_t airplaneId);
 
 }  // namespace blocktime

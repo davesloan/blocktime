@@ -1412,7 +1412,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-102 — The flight number is typed for each flight
 - Date: 2026-11-23
-- Status: Accepted
+- Status: Superseded by D-106 (a default number per airplane)
 - Decided by: Dave
 - Area: app
 - Decision: New Flight has a flight number field (1–4 digits), empty each time, which Dave fills in. The dispatch
@@ -1473,3 +1473,19 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   (`docs/notes/sayintentions-api.md`). The import check catches forgetting to press Generate, which would otherwise
   import yesterday's plan for the same route.
 - Alternatives considered: comparing the OFP's passenger count with the rolled loads (the app's loads count anyway).
+
+## D-106 — Each airplane has a default flight number for free flights
+- Date: 2026-11-23
+- Status: Accepted (storage details Proposed)
+- Decided by: Dave (rule), Claude (storage)
+- Area: app, data
+- Decision: Supersedes D-102. Each airplane has a **default flight number** for its free flights, unique across the
+  airline, and New Flight pre-fills it (still editable). Rotation legs (after the MVP) each carry their own flight
+  number, so KSAN–KSLC on a rotation is always XLY1414, and no airplane default or rotation leg shares a number.
+  Proposed storage: `flight_number` per airplane in `airline.yaml`, set into `airplane.free_flight_number` (1–4
+  digits, a unique index) at every start rather than copied once, since it's only a default and each planned flight
+  keeps its own number. Uniqueness against rotation legs is enforced when rotations are built.
+- Why: Dave: "whenever I'm flying the BBJ2 in-sim I know that my flight number will always be, for example, 8,
+  unless I'm flying a leg of a rotation."
+- Alternatives considered: typing it every time (D-102); copying it once at lease time like the limits (changing it
+  would then need the settings screen).
