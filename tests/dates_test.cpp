@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <chrono>
+#include <sstream>
 
 #include <gtest/gtest.h>
 
@@ -43,3 +44,15 @@ TEST(Dates, LeasePeriodText) {
 TEST(Dates, InstantShape) { EXPECT_EQ(formatInstant(d(2026, 11, 22)), "2026-11-22T00:00:00Z"); }
 
 TEST(Dates, DayMonthYear) { EXPECT_EQ(formatDayMonthYear(d(2026, 11, 2)), "2 Nov 2026"); }
+
+TEST(Dates, LocalHourInSeattle) {
+    const auto at = [](const char* text) {
+        std::istringstream in(text);
+        sys_seconds t;
+        in >> parse("%Y-%m-%dT%H:%M:%SZ", t);
+        return t;
+    };
+    EXPECT_EQ(localHour("America/Los_Angeles", at("2026-11-23T03:00:00Z")), 19);  // PST
+    EXPECT_EQ(localHour("America/Los_Angeles", at("2026-07-01T03:00:00Z")), 20);  // PDT
+    EXPECT_FALSE(localHour("Not/AZone", at("2026-07-01T03:00:00Z")).has_value());
+}

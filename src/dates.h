@@ -23,6 +23,9 @@ std::string formatInstant(Date date);    // "2026-11-22T00:00:00Z": the start of
 std::string formatDayMonthYear(Date date);  // "22 Nov 2026"
 Date utcToday();
 
+// The local hour (0-23) in an IANA time zone at `at`, or nullopt if the zone isn't known.
+std::optional<int> localHour(std::string_view ianaZone, std::chrono::sys_seconds at);
+
 // The start of lease month `period` (0 = the lease start): the same day of the month `period` months later, or that
 // month's last day if it's shorter. Always counted from `leasedOn`, so 31 Jan → 28 Feb → 31 Mar.
 Date leasePeriodStart(Date leasedOn, int period);

@@ -52,6 +52,16 @@ std::string formatDayMonthYear(Date date) { return std::format("{} {}", dayMonth
 
 Date utcToday() { return Date{floor<days>(system_clock::now())}; }
 
+std::optional<int> localHour(std::string_view ianaZone, sys_seconds at) {
+    try {
+        const zoned_time local{locate_zone(ianaZone), at};
+        const auto t = local.get_local_time();
+        return static_cast<int>(hh_mm_ss{t - floor<days>(t)}.hours().count());
+    } catch (const std::runtime_error&) {
+        return std::nullopt;
+    }
+}
+
 Date leasePeriodStart(Date leasedOn, int period) {
     const year_month ym = year_month{leasedOn.year(), leasedOn.month()} + months{period};
     const day monthEnd = year_month_day_last{ym.year(), month_day_last{ym.month()}}.day();
