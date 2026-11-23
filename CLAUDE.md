@@ -141,6 +141,34 @@ This file overrides the plugin's "invoke a skill on any 1% chance" rule. Use onl
 - Check UI changes with the debug build's hot reload and `--demo`. QML gotchas are in `docs/notes/qt-setup.md`.
 - Secrets (the CARTO key) live in `%LOCALAPPDATA%\BlockTime\settings.json`: never commit, log or print them.
 
+### Database (D-078)
+
+Proper relational design matters to Dave. The schema enforces the rules; code doesn't stand in for the database.
+
+- **Normalised** (at least third normal form). **Atomic columns:** no lists, delimited strings or JSON blobs for
+  data that is queried or joined. Exception: a verbatim copy of a source document, such as a stored SimBrief OFP,
+  kept as-is next to the normalised fields taken from it.
+- **Keys:** every table has a primary key (`INTEGER PRIMARY KEY` surrogate unless a natural key is truly stable).
+  Natural identifiers get `UNIQUE` constraints (airframe registration, airport ICAO code).
+- **Relations are foreign keys,** with an explicit `ON DELETE` rule. `PRAGMA foreign_keys = ON` on every
+  connection (SQLite has it off by default); a test checks it.
+- **No code-enforced polymorphism.** No `owner_type` + `owner_id` columns, and no "type" column with columns that
+  only apply to some types. Use separate tables, or a supertype table with subtype tables keyed by the same id. If
+  a row may point to one of several parents, use separate foreign keys with a `CHECK` that exactly one is set.
+- **Types and rules in the schema:** `STRICT` tables; `NOT NULL` by default; `CHECK` for ranges and small fixed
+  sets; a lookup table with a foreign key for sets that may grow.
+- **Units:** money in integer cents, weights in integer pounds, times in UTC (one representation, chosen in
+  milestone 4's plan and recorded in `docs/database.md`). No floating-point money. Every money line is a multiple of $5, rounded when posted (D-080).
+- **Indexes:** on every foreign key column (SQLite doesn't add them) and on the columns real queries filter or sort
+  by. Check important queries with `EXPLAIN QUERY PLAN` in tests.
+- **History is facts:** completed flights and ledger lines are written once and never updated. Corrections are new,
+  reversing lines.
+- **Atomic changes:** anything that changes several tables together (settling a flight: money, location, fuel,
+  hours) runs in one transaction.
+- **Migrations:** numbered, each in a transaction, tracked with `user_version`. Tests build an empty database
+  through every migration.
+- **`docs/database.md`** holds the schema overview and an entity diagram. Keep it true, like the other specs.
+
 ## Repo map
 
 ```

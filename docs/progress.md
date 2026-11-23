@@ -22,6 +22,36 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-22 — Design: the complete flight flow (docs only)
+
+**Done:**
+- Brainstormed the flight flow with Dave and wrote it into `design.md` as the new section 13 (old 13–16 are now
+  14–17). It covers New Flight, planning, before departure, the matching check, stages and sub-events, the arrival
+  gate, after the flight, and interrupted flights.
+- Decisions D-069..D-076: milestones aim at the flight flow, SimBrief dispatch page with SayIntentions runways, the
+  matching check, interrupted flights discarded (supersedes D-009), GSX events, arrival gates through SayIntentions,
+  rotations unlocked by flying their legs, MVP setup from config files.
+- `recorder.md`: crash handling now discards, new sections on the matching check, GSX and parking spots, and a note
+  that milestones 4–7 are being replanned.
+
+**Working / verified:**
+- No code changed.
+
+**Unverified or broken:**
+- Probe flights still needed: GSX state values, PMDG switch readability, SayIntentions gate names.
+- Dave reviewed and confirmed everything above, including D-071, D-074, D-075's details, the roadmap's calls,
+  the database rules (D-078), the airport import (D-079) and $5 rounding (D-080).
+
+- Agreed the thin-slice roadmap (D-077) and wrote `docs/roadmap.md` (milestones 4–10).
+- Database design rules (D-078, `CLAUDE.md`), the one-time airport import (D-079), money lines rounded to the
+  nearest $5 (D-080).
+
+**Next step:**
+- Dave requests a SayIntentions developer key and sends his SPAD.neXt profiles. Then milestone 4's plan
+  (writing-plans), starting with the schema in `docs/database.md`.
+
+---
+
 ## 2026-11-22 — One Qt app, merged to main (version 0.4.0)
 
 **Done:**

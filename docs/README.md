@@ -4,6 +4,7 @@
 |---|---|
 | [design.md](design.md) | Full product design: how the airline works, rules, numbers |
 | [recorder.md](recorder.md) | Spec for the flight recorder inside the app: events, phases, milestones, event log format |
+| [roadmap.md](roadmap.md) | Milestones from here to the MVP (the complete flight flow) and after |
 | [decisions.md](decisions.md) | Append-only log of decisions and why they were made |
 | [progress.md](progress.md) | Session-by-session progress log (newest first) |
 | [qt-ui-test-context.md](qt-ui-test-context.md) | Why the Qt UI test builds were run, what Dave wanted, and the result: Qt won (D-050, D-063) |

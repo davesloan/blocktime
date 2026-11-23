@@ -49,8 +49,10 @@ It was built **first**, because everything else depends on reliable flight data.
 8. ~~Delivery to the app.~~ **Not needed (D-063):** the recorder runs inside the app. The app reads flights back
    from the event log (D-060), and live values reach the UI through `RecorderObserver`.
 
-The airline itself (fleet, rotations, money, loads) comes after milestone 7. Its milestones are still to be planned,
-starting from `docs/design.md`.
+**Replanned (2026-11-22, D-077):** from here on, milestones work toward the complete flight flow in `design.md`
+section 13 (D-069). The list above stops at milestone 3; **`docs/roadmap.md` has milestones 4–10.** The old
+milestones 4–7 live on there: phases and touchdown in milestone 7, procedure capture in milestone 10, and the
+SimBrief plan in milestone 5.
 
 Each milestone should be verifiable in the sim by Dave. When finishing one, write in `docs/progress.md` exactly
 what to test and what result to expect.
@@ -92,11 +94,8 @@ what to test and what result to expect.
 
 ### Sim crash / disconnect during a flight
 
-The recorder must not guess. It marks the open flight as **interrupted** and leaves the resolution to the user
-(in the app):
-
-- **Discard:** the flight is removed as if it never happened; the plane stays at the origin.
-- **Complete:** the flight is treated like a background flight; the plane is moved to the destination.
+The recorder must not guess. It marks the open flight as **interrupted**. The app then **discards** it as if it
+never happened, and the plane stays at the origin (D-072, `design.md` section 13.8). There is no "complete" option.
 
 **No resume (D-046):** when the sim session ends, the recorder exits, or Dave exits to the main menu with a
 flight open, the recorder logs `flight_interrupted` and forgets the flight. It never picks it up again, even if
@@ -110,6 +109,18 @@ the sim reconnects.
   `block_out`, it logs `flight_interrupted` for it with reason `recorder_crash`. Known gap: if the sim is still in
   that flight, the next release and 10 m of taxi opens a new flight there, if the brake was set at the restart or
   is set later.
+
+### Matching the planned flight (D-071)
+
+A flight is only recorded when the sim matches the flight Dave set up in the app (`design.md` section 13.4):
+- The app gives the recorder the **planned flight**: expected registration (compared with `ATC ID`) and the
+  origin airport's position.
+- A brake release only becomes a block-out candidate when a planned flight is set, the registration matches, and
+  the aircraft is within the origin airport (within 3 km of the airport reference point to start; tune and
+  log).
+- Otherwise no flight opens. The recorder logs `block_out_refused` once per release, with
+  the reason (`no_planned_flight`, `wrong_registration`, `wrong_airport`) and what it saw, so the log still
+  explains what happened. The app shows the "Not recording" banner from the same check.
 
 ### Diversions
 
@@ -180,6 +191,28 @@ not tested or supported.
 
 **PMDG note:** PMDG aircraft sometimes expose systems through their own SDK rather than standard SimVars. Verify that
 each value reads correctly on the 737 and 777; record findings in `docs/notes/`.
+
+## GSX Pro (D-073)
+
+GSX Pro reports each ground service's state as an L:var, which SimConnect can read (since MSFS SU12).
+- **What's read:** the state of catering, refuelling, boarding, deboarding, and departure (pushback), plus the
+  passenger counts while boarding and deboarding and the cargo loading percentage. Whether GSX is running is
+  read first; without GSX, nothing is logged and nothing else changes.
+- **States** as reported by community tools (unverified): 1 available, 2 not available, 3 bypassed, 4 requested,
+  5 performing, 6 completed. **Confirm with a probe flight** that logs every GSX variable through a full
+  turnaround, and record the result in `docs/notes/`.
+- **When:** from the first valid telemetry sample in a flight (the same point at which block-out detection starts),
+  whether or not a flight is open. Change-based, at most once a second.
+- **Event:** `gsx_service` with `service`, `state`, `time` (and counts where they apply). Read only: the recorder
+  never writes to GSX.
+- The app decides which leg each service belongs to: deboarding goes with the leg that just ended; catering,
+  fuel and boarding with the next leg.
+
+## Parking spots and runways (D-074)
+
+The app needs an airport's parking spots (name, position, radius, type) and runways for the departure runway, the
+arrival gate and the gate Dave parked at. The recorder fetches them on request through SimConnect's facility data
+while the sim runs, and hands them to the app. Matching positions to spots and runways is the app's job.
 
 ## Sampling strategy
 

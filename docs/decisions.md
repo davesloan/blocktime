@@ -96,7 +96,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-009 — Sim crash handling
 - Date: 2026-11-21
-- Status: Accepted
+- Status: Superseded by D-072
 - Decided by: Dave
 - Area: recorder, app
 - Decision: An interrupted flight can only be **discarded** (as if it never happened, plane back at origin) or
@@ -930,3 +930,168 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   which would freeze the window at startup and after every block event.
 - Alternatives considered: caching parsed results for closed daily files (complex, since a flight can span files and
   thinning needs every sample; still worth doing later if the CPU burst matters); a faster telemetry parser.
+
+## D-069 — Milestones work toward the complete flight flow
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: design
+- Decision: From here on, every milestone works toward the complete flight flow in `design.md` section 13: New
+  Flight, planning, the matching check, the live dashboard, the arrival gate, the summary and the turnaround. The
+  MVP is that flow working end to end.
+- Why: "That's the core of this app and everything else depends on that. If we get that right the rest of it falls
+  into place." (Dave)
+- Alternatives considered: finishing recorder milestones 4–7 first, then the airline.
+
+## D-070 — Plans come from a pre-filled SimBrief dispatch page, with SayIntentions runways
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: Before planning, the app fetches both airports' ATIS from SayIntentions (`getWX`) for the active
+  runways. It then opens SimBrief's dispatch page pre-filled (origin, destination, airframe, `origrwy`, `destrwy`,
+  loads). Dave edits the route if he wants and presses Generate. The app polls the latest OFP and takes the first
+  one generated after the page opened that matches origin and destination.
+- Why: Dave prefers the dispatch page so he can enter his own route. It needs no SimBrief API key (the popup API
+  FlyHub uses needs one, and its key is meant to stay on a server). SayIntentions' runways keep the plan in line with
+  what ATC will use.
+- Alternatives considered: SimBrief's API popup (needs an approved key); fetching whatever plan Dave last made.
+
+## D-071 — A flight is only recorded when the sim matches the planned flight
+- Date: 2026-11-22
+- Status: Accepted (mechanism confirmed by Dave, 2026-11-22)
+- Decided by: Dave (rule), Claude (mechanism)
+- Area: recorder, app
+- Decision: The aircraft's registration must be the planned airframe's and it must be at the planned origin,
+  otherwise the brake release doesn't open a flight and the dashboard shows "Not recording" with the reason.
+  Mechanism (Proposed): the app gives the recorder the planned flight; without one, or on a mismatch, the recorder
+  logs `block_out_refused` with the reason instead of `block_out`. Origin radius starts at 3 km.
+- Why: Dave: "It should absolutely check I am in the correct aircraft type by registration and am loaded at the
+  origin airport."
+- Alternatives considered: recording every flight and letting the app reject it later (a rejected flight would
+  still show up in the log as a flight).
+
+## D-072 — Interrupted flights are discarded
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: Supersedes D-009's "complete" option. A flight that ends without block in is deleted as if it never
+  happened: no resume (D-046), no completing it in the background. The aircraft stays where it was, and the flight
+  earns no money and adds no fuel, hours or leg-template data. Its GSX services are dropped too. The app shows a
+  short notice that it was discarded. The recorder still logs `flight_interrupted`.
+- Why: Dave: resuming in the sim is "a horrible experience I simply won't bother to do", and completing it in the
+  background would credit flying that didn't happen.
+- Alternatives considered: D-009 (discard or complete, user's choice).
+
+## D-073 — GSX service events
+- Date: 2026-11-22
+- Status: Accepted (state values unverified)
+- Decided by: Dave + Claude
+- Area: recorder, app
+- Decision: The recorder reads GSX Pro's service states (catering, refuelling, boarding, deboarding, departure /
+  pushback, passenger counts) from L:vars through SimConnect, from the first valid sample in a flight whether or
+  not a flight is open, and logs each change as `gsx_service`. Read only. The app shows each used service with
+  start and end times; if none was completed before pushback, one "Turnaround and Boarding" line appears before
+  "Pushback initiated". "Ready for Shutdown or Turnaround" shows on deboarding complete, with an informational
+  checklist (engines, brake, deboarding, beacon/strobe/seatbelt, APU).
+- Why: Dave wants start and stop times for each service in the flight log and on the live dashboard.
+- Alternatives considered: writing loads to GSX (not needed; loads go through SimBrief).
+- To verify: the state values (1 available … 6 completed, from community tools) and which PMDG switches are readable,
+  in probe flights.
+
+## D-074 — The app assigns the arrival gate through SayIntentions
+- Date: 2026-11-22
+- Status: Accepted (fallbacks confirmed by Dave, 2026-11-22)
+- Decided by: Dave (rule), Claude (fallbacks)
+- Area: app
+- Decision: Mid-flight the app picks a gate and asks SayIntentions to assign it (`assignGate`). Order: preferred
+  gates for the airport from config; otherwise the right size and type closest to the arrival runway. Passenger
+  flights use gates; freighters and charters use ramps. Parking spots come from the sim's facility data.
+  Proposed: if no ramp fits, any ramp that fits, then a gate; size is the spot radius against the family's wingspan.
+- Why: Dave wants gates assigned for him, and "freighters and charters shouldn't be parked at gates".
+- Alternatives considered: a random gate that fits; letting SayIntentions choose.
+
+## D-075 — Rotations are unlocked by flying their legs
+- Date: 2026-11-22
+- Status: Accepted (fuel scaling confirmed by Dave, 2026-11-22)
+- Decided by: Dave (rule, family), Claude (template details)
+- Area: design
+- Decision: A rotation can be assigned for background flying only after Dave has flown every leg in it, in that
+  direction, in the same family (any 737 or any 777). Only completed flights count. Each leg's template comes from
+  Dave's flights (first flight sets it, later ones refine it, a little random variation in the background). Times
+  carry across the family. Proposed: fuel uses the configuration's learned burn, corrected by Dave's actual-versus-
+  plan burn on that leg.
+- Why: Dave: "so that you don't build a rotation that you aren't willing to fly yourself and also so that data can
+  be collected and used as a template for simulating the background flights on that rotation."
+- Alternatives considered: unlocking whole rotations by flying them in order (could mean 40+ hours before
+  assigning a long 777 loop); matching by exact configuration or variant (Dave chose family).
+- Note: Claude earlier suggested scaling fuel from "that airframe's own SimBrief plan", but background legs have no
+  SimBrief plan (plans need Dave to press Generate), so that was replaced by the configuration's learned burn.
+
+## D-076 — MVP setup comes from config files
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: For the MVP, the airline identity, fleets and leased airframes are set in hand-edited config files. A
+  settings screen comes later.
+- Why: "That makes more sense for an MVP." (Dave)
+- Alternatives considered: first-time setup screens in the MVP.
+
+## D-077 — Thin slice first: milestones 4–10 to the MVP
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: design
+- Decision: Milestones 4–6 make the whole flight flow work in a plain form (airline foundation; New Flight and plan;
+  record the planned flight with a plain summary). Milestones 7–10 deepen it (phases and stages; GSX; gates;
+  procedure capture and Claude's debrief). The MVP is done after milestone 10. Money, including the monthly lease
+  charge, works from milestone 4. Details in `docs/roadmap.md`; replaces the old recorder milestones 4–7.
+- Why: "Like in real life it's better to have working software fast than complete software slow." (Dave) It also
+  leaves room for new ideas during the deepening. "The money has to work in the MVP." (Dave)
+- Alternatives considered: finishing the recorder first; building each step of the flow completely in order.
+
+## D-078 — Database design rules
+- Date: 2026-11-22
+- Status: Accepted (the time representation is left to milestone 4's plan)
+- Decided by: Dave (principles), Claude (SQLite specifics)
+- Area: data
+- Decision: The airline database follows proper relational design: normalised with atomic columns, primary keys,
+  `UNIQUE` natural keys, foreign keys with explicit delete rules (and `PRAGMA foreign_keys = ON`), no
+  code-enforced polymorphism, `STRICT` tables with `NOT NULL` and `CHECK` constraints, indexes on foreign keys and
+  queried columns, integer cents for money, write-once history, one transaction per multi-table change, and
+  numbered migrations. The full list is in `CLAUDE.md` ("Database"); the schema is documented in
+  `docs/database.md`.
+- Why: Dave: "proper sql database design is important to me. Proper indexing, keys, relations, atomic fields,
+  avoiding anti-patterns such as polymorphism that is enforced by code and not by the db."
+- Alternatives considered: a looser schema with JSON columns; letting code enforce relations.
+
+## D-079 — Airport data is imported once, filtered
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Claude, agreed by Dave
+- Area: data
+- Decision: OurAirports' airports and runways are imported once into the database, filtered to airports with a
+  runway the fleet could plausibly use, and refreshed manually now and then. The app queries them as needed.
+  Parking spots and runway layout come from the sim just in time (D-074).
+- Why: OurAirports only publishes whole-world CSV files (about 15 MB); filtered, it's a couple of MB on disk and
+  nothing in memory. New Flight needs the destination's runways and distance before the sim is involved.
+- Alternatives considered: fetching airports just in time (no per-airport source exists).
+
+## D-080 — Money lines are rounded to the nearest $5 when posted
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: data, app
+- Decision: Every money line (each income and cost line of a flight, each lease charge, each ledger entry) is
+  rounded to the nearest $5 when it's created, and the rounded amount is what's stored (integer cents, always a
+  multiple of 500, D-078). Rounding applies to the line, not the unit (150 fares of $127.50 make one line, then
+  rounded). Halves round up ($2.50 → $5). Totals are sums of the stored lines, so what's shown always adds up.
+  Display: summary tiles and the cash figure use short forms ($1.4M, $382.5k, $12.48M); the ledger and summary
+  lines show full amounts.
+- Why: Dave wants a cleaner interface as numbers grow. Rounding when posted, not only on screen, keeps "the money
+  has to work" true: lines always add up to their totals. Nearest, not always up, keeps the books neutral.
+- Alternatives considered: rounding only for display (lines wouldn't add up); always rounding up (small upward
+  drift on every line).
+

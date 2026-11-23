@@ -111,6 +111,9 @@ No bankruptcy. While cash is below zero you can't lease new planes. A lease that
 
 ## 6. Setup and growth
 
+**MVP (D-076):** the airline identity, fleets and leased airframes come from hand-edited config files. A settings
+screen for all of this comes after the MVP.
+
 1. **$5M starting cash** (config value).
 2. Airline identity: name, logo, ICAO code, callsign.
 3. Create the first fleet. Fleets are just named groups (passenger, cargo, premium…); add them any time.
@@ -155,6 +158,23 @@ No bankruptcy. While cash is below zero you can't lease new planes. A lease that
 - **No timetable.** An active plane flies its legs back to back, separated by the type's turnaround time:
   **737s 35 min, 777s 60 min**.
 - **Staggered starts:** a plane joins the loop at whichever rotation airport it's parked at.
+
+### Rotations are unlocked by flying them (D-075)
+
+- A rotation can be assigned to an aircraft for background flying only after Dave has flown **every leg in it, in
+  that direction, in the same family** (any 737, or any 777). KSFO→KSEA and KSEA→KSFO are separate legs.
+- A new rotation built only from legs already flown can be assigned at once.
+- Only completed flights count. Interrupted flights are discarded (D-072) and never count. Charter legs count
+  (real flying in that family).
+- **Leg templates.** Dave's first flight of a leg sets its template; later flights of the same leg refine it
+  (averaged). Background flights on the leg use it, with a little random variation so they don't all come out the
+  same:
+  - **Times** (block time, taxi out and in, GSX turnaround times) carry across the family. The leg's scheduled
+    block time comes from the template.
+  - **Fuel** scales per configuration: the configuration's learned burn (section 3), corrected by Dave's actual
+    burn versus plan on that leg (which captures the route and typical winds).
+- This sits alongside the slot rule in section 6: slots grow with hours flown, rotations with legs flown. Both
+  reward flying, so the airline can't run itself.
 
 ### Taking over legs
 
@@ -220,7 +240,7 @@ The app does not compute centre of gravity; the ratio keeps loading balanced and
 ### Flight dashboard
 
 Souls on board (passengers + crew), passengers by class, weight by hold, fuel used vs plan, phase of flight, running
-revenue/cost estimate.
+revenue/cost estimate. How the dashboard follows a flight is in section 13.
 
 ## 10. Crew
 
@@ -230,6 +250,10 @@ revenue/cost estimate.
 - **VIP (BBJ2):** 3× the normal flight attendant count.
 
 ## 11. Costs per flight
+
+**Rounding (D-080):** every money line, income or cost, is rounded to the nearest $5 when it's posted, and the
+rounded amount is stored, so lines always add up to their totals. Round the line, not the unit. Large figures show
+in short form ($1.4M) on tiles and the cash display, in full in the ledger and summary lines.
 
 Fixed rates, the same at every airport. No leases, discounts or airport-size pricing.
 
@@ -291,13 +315,117 @@ Two ways to operate; both can run rotations:
 - **Charter ground costs:** a **$1,500 GA services fee** (FBO, e.g. Signature) replaces gate and ground handling.
   Landing fee still applies.
 
-## 13. Flight recording (summary)
+## 13. Flying a leg (the flight flow)
+
+The core of the app (D-069): every other feature feeds this flow or reads from it. Every flight Dave flies starts
+here, including delivery and free flights.
+
+### 13.1 New Flight
+
+1. Dave clicks a parked aircraft and chooses **New Flight**.
+2. He enters the destination's ICAO code. The app checks the runway length (section 4).
+3. **Kind of flight:** decided by the aircraft (passengers for airliners, cargo for freighters, empty for the
+   factory delivery). A **BBJ2** asks one more question: **VIP airliner** (per-seat tickets) or **Charter**
+   (section 12).
+4. Loads are rolled (section 9) and the preview shows revenue, costs and where the plane ends up (design rule 1).
+   A delivery flight has no load and shows a loss: its fuel and operating costs (section 11) with no revenue.
+
+### 13.2 Planning (D-070)
+
+1. **Active runways from SayIntentions.** The app fetches the ATIS for both airports from SayIntentions' `getWX`
+   endpoint (pilot API key plus a developer key; no active SayIntentions flight needed) and takes the active
+   runways. Without an ATIS the runway is left for SimBrief to choose.
+2. **SimBrief dispatch page.** The app opens SimBrief's dispatch page in Dave's browser, pre-filled (the dispatch
+   redirect, no API key): origin, destination, the configuration's SimBrief airframe, the runways (`origrwy`,
+   `destrwy`), and the loads. Dave can change the route, then presses Generate.
+3. **The app finds the plan by itself.** It polls the latest OFP (`xml.fetcher.php`) until one appears that was
+   generated after the page opened and matches the origin and destination. It stores a copy of the plan (section 3).
+   If none comes, the dashboard stays at "Waiting for plan" with a button to open the page again.
+4. The destination runway is only a planning guess; the wind can change before arrival.
+
+### 13.3 Before departure
+
+- The **live flight dashboard** opens: "Waiting for sim".
+- It shows the route with a **copy button**, so Dave can paste it into Navigraph Charts and pick his approach for
+  the runways in use.
+- It shows **where to load in:** the airport, and the gate where the aircraft was last parked, if known (section
+  13.7). The app can't make MSFS spawn there; Dave picks it on the world map.
+- Dave starts SayIntentions, SPAD.neXt and the sim, then GSX in the sim.
+
+### 13.4 Matching check (D-071)
+
+A flight is only recorded if the sim matches the planned flight:
+- the aircraft's **registration** (the sim's ATC ID) is the planned airframe's, and
+- the aircraft is **at the planned origin airport**.
+
+If either doesn't match, the dashboard shows a clear **Not recording** banner saying what's wrong (for example
+"You're in N737BT at KSEA; this flight expects N738BT at KBFI"), and the brake release doesn't open a flight. Once
+the sim matches, the banner goes away.
+
+### 13.5 During the flight: stages and sub-events
+
+The dashboard groups the recorder's phases (`recorder.md`) into six **stages**. Under each stage, sub-events appear
+as they happen, each with its start and end time. The same records go into the flight log.
+
+| Stage | Recorder phases | Sub-events (examples) |
+|---|---|---|
+| Pre-Departure | At gate | Catering, Fuel loading, Boarding (GSX) |
+| Departure | Pushback, Taxi out, Takeoff | Pushback (GSX), Taxiing to runway, Takeoff roll, Takeoff |
+| Climb | Climb | Departed runway 30, Level-offs, Above 10,000 ft, Passed transition altitude |
+| Cruise | Cruise | Cruising at FL350, Step climb to FL370, 200 nm from destination |
+| Descent | Descent, Approach, Landing, Taxi in | Top of descent, Passed transition level, Level-offs, Below 10,000 ft, Final approach, Landed, Taxiing to gate |
+| Arrival | Arrived | Parked at gate, Deboarding (GSX), Ready for shutdown or turnaround |
+
+- **Departure runway:** from the takeoff position and heading, matched against the sim's runways.
+- **Transition altitude and level, and "200 nm from destination":** from the SimBrief plan.
+- **GSX services (D-073):** each service shows as its own line with start and end. Services Dave used appear;
+  ones he skipped are left out. If **no** pre-departure service was completed before pushback, a single
+  **"Turnaround and Boarding"** line appears just before "Pushback initiated". "Cleaning" isn't a GSX service, so
+  it isn't shown.
+- **Ready for Shutdown or Turnaround:** shown when GSX deboarding completes. If deboarding wasn't done through GSX,
+  it shows once the checks below pass. Under it, an informational checklist (never a requirement or penalty):
+  engines off, parking brake set, deboarding complete, beacon, strobe and seatbelt signs off, APU off. Which of
+  these PMDG exposes is found in the procedure-capture probe flight; items that can't be read are dropped.
+
+### 13.6 Arrival gate (D-074)
+
+Mid-flight (around top of descent or 200 nm out), the app picks an arrival gate and asks SayIntentions to assign it
+(`assignGate`, needs an active SayIntentions flight), so ATC gives it after landing.
+1. **Preferred gates** for the airport, from config, first one that fits.
+2. Otherwise the parking spot of the **right size and type closest to the arrival runway** (from a fresh ATIS,
+   falling back to the plan's runway). Size: the spot's radius fits the family's wingspan (in config).
+3. **Type:** passenger flights use gates. **Freighters and charters use ramps** (cargo ramps for freighters).
+   If no ramp of the right size exists, any ramp that fits, then a gate as a last resort,
+   with a note on the dashboard.
+- Parking spots (name, position, size, type) come from the sim over SimConnect. Gate names are sent to
+  SayIntentions in its format (alphanumeric, for example "B23"); the exact mapping is checked in a probe flight.
+- BlockTime can't see whether an AI aircraft is parked there; SayIntentions and GSX handle that on the ground.
+  The summary records the spot where Dave actually parked, matched from the block-in position.
+
+### 13.7 After the flight
+
+- At block in, the app switches by itself to the **flight summary**: score and Claude's evaluation (section 14),
+  each income and expense line, and the total gained or lost. Plus the route map.
+- Two buttons:
+  - **At Gate Turnaround:** back to New Flight with the same aircraft at its new airport and gate.
+  - **Done for now**: the aircraft stays parked; the app remembers the gate for the next
+    load-in.
+
+### 13.8 Interrupted flights (D-072)
+
+A flight that ends without block in (Dave exits to the main menu, the sim crashes, the app is killed) is **deleted
+as if it never happened.** No resume, no completing it in the background. The aircraft stays where it was; no money,
+fuel, hours or leg-template data. GSX services from that attempt go too. The app shows a short notice (for example
+"KSFO–KSEA interrupted and discarded") so a missing flight never looks like a bug. The recorder still logs
+`flight_interrupted` as a fact.
+
+## 14. Flight recording (summary)
 
 Full detail in `recorder.md`.
 
 - Flights start at parking brake release at the gate and end when it's set at the destination.
-- **Sim crash:** the user chooses **discard** (never happened; plane back at origin) or **complete** (treated as a
-  background flight; plane moved to the destination).
+- **Interrupted flight** (sim crash, main menu, app killed): discarded as if it never happened (section 13.8,
+  D-072).
 - **Diversion:** the flight closes where the plane actually parked; revenue counts; a rotation plane is flagged out of
   position until repositioned.
 - Phases are detected by the recorder (plan-aware, forward-only) and displayed in the app.
@@ -320,19 +448,21 @@ Claude sends back a written analysis and a **0–100 score**. Examples of what i
 The full list of checks, how they're scored, and whether the score affects anything in the airline get brainstormed
 when the recorder's procedure-capture milestone starts.
 
-## 14. Reference data
+## 15. Reference data
 
 - **Airports:** OurAirports public dataset (coordinates, runways). Time zones derived from coordinates.
 - **Distance for fares:** great-circle distance between airports (not the SimBrief route distance).
 
-## 15. Later
+## 16. Later
 
-- **SayIntentions integration:** now part of the flight analysis (section 13, D-040). How to get the ATC log and
-  ATIS out of SayIntentions is still to be found out.
+- **SayIntentions integration:** ATIS comes from `getWX` (section 13.2) and the arrival gate from `assignGate`
+  (section 13.6). Still to find out: how to get the ATC log for the flight analysis (section 14, D-040).
+- **Settings screen** for the airline, fleets and airframes (config files until then, D-076).
 - Optional flavour ideas: special cargo jobs with supernumeraries on the 777F; display-only "published schedule"
   labels.
 
-## 16. Open items
+## 17. Open items
 
 - Exact seats per class, hold maximums and hold ratios per configuration (collect from PMDG when needed).
-- Delivery mechanism from recorder to app (local file + HTTP/WebSocket?) — decide when building the app side.
+- GSX state values, PMDG switch readability, and SayIntentions gate names: confirm in probe flights before building
+  on them.
