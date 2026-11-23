@@ -22,6 +22,53 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-22 — One Qt app, merged to main (version 0.4.0)
+
+**Done:**
+- **Restructure (D-064..D-066):**
+  - `recorder/` moved to the repo root with `git mv`, keeping history. The build is now
+    `cmake --preset ...` from the root.
+  - `webapp/` and the console recorder are removed (D-065).
+  - The app is `BlockTime.exe`, version 0.4.0.
+- **Missing tests (D-051):** `blocktime-qt-tests` covers the event feed, the bridge, and the Flights and Fleet
+  models. Each test was checked by breaking the code on purpose.
+- **Whole-branch code review**, by a fresh reviewer: no Critical findings, 2 Important, 13 Minor. Fixed:
+  - **Important:** `LOST:` events and stderr errors now go to `errors.log` (D-067).
+  - **Important:** the Flights list loads on a worker thread (D-068). A synthetic 30-day log took 4.8 s, which
+    would have frozen the window.
+  - **Minor:**
+    - Qt messages have the CARTO key replaced by `<key>`.
+    - A guard stops and joins the recorder even if `aboutToQuit` is skipped.
+    - An odd file name in the log folder can't crash the app on a non-UTF-8 code page.
+    - A defensive check in the history reader, a cross-thread test, and stale comments.
+  - **Documented in D-061:** Fleet hours count only 30 days of log, and the test `blocktime.db` already on disk.
+- **Docs:** the root README (build, test, run, map key, files), CLAUDE.md (one app, library split, Qt/QML
+  conventions, repo map), `design.md`, `recorder.md` (milestone 8 dropped; airline milestones to plan), and the index.
+- **Merged** `qt-ui-spike` into `main`. Not pushed.
+
+**Working / verified (without the sim):**
+- Release and debug build from the root with no warnings. **117/117 tests** (blocktime-tests 93, of which 1 is a
+  skipped timing check; blocktime-qt-tests 24). qmllint reports nothing.
+- `BlockTime.exe --demo` shows v0.4.0 and the real flights. `errors.log` gets its "started" line. On the synthetic
+  30-day log, the page says "Loading flights..." and stays responsive, and 30 flights appear after about 5 s.
+
+**Unverified or broken:**
+- No sim flight with 0.4.0 yet. The recording code is unchanged, but the shutdown guard, the error log and the
+  async list are new. On the next flight, expect the same results as Qt UI test 2's Part B, and `errors.log` holding
+  only "started" lines.
+- **Deferred minors from the review:**
+  - #3: no hint when the key is wrong.
+  - #9: `seedIfEmpty` ignores SQLite errors.
+  - #12: tracks across the 180° meridian.
+  - #15: the Fleet card title binding.
+  - A held block event (D-049) refreshes the Flights list only at the next block event.
+  - A long, high-latitude synthetic track (37°N → 67°N) didn't fit entirely in the map view.
+- D-066..D-068 are Proposed.
+
+**Next step:**
+- Dave flies one leg with `build\x64-release\BlockTime.exe` (Part B checks), then milestone 4 (phases) with the
+  sim-freeze rule (D-058). Later ideas: a map style picker, and an airframe page with all its legs on one map.
+
 ## 2026-11-22 — Decision: Qt wins (D-063)
 
 **Done:**

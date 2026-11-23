@@ -76,8 +76,8 @@ Probed 2026-11-22 with Qt 6.12.0 and CARTO Dark Matter:
 
 `BlockTime.exe` is a Windows GUI program, so `qWarning` and stderr go nowhere by default. To see QML errors, set
 `QT_FORCE_STDERR_LOGGING=1` and redirect stderr, or run it under the Visual Studio debugger. `EventLog` and
-`SimConnection` still write a few errors straight to `std::cerr` (a failed log write, a failed SimConnect call). The
-app doesn't show those; that's accepted until Dave decides on Qt. Block events that fail to write still show in the
+`SimConnection` write a few errors straight to `std::cerr` (a failed log write, a failed SimConnect call); the app
+sends `std::cerr` to `%LOCALAPPDATA%\BlockTime\errors.log` (D-067), together with any `LOST:` block events. Block events that fail to write still show in the
 event feed as `WARNING` lines, through the observer.
 
 ## Measured (no sim)

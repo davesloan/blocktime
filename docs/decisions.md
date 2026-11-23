@@ -816,6 +816,10 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: Airline data in plain C++, tested with GoogleTest, survives a UI change if QML ever disappoints. SQLite was
   already the plan for the app's database (D-004).
 - Alternatives considered: Qt SQL's built-in `QSQLITE` driver (no new dependency, but ties the data layer to Qt).
+- Note (2026-11-22, from the merge review): the Fleet screen's flights and block hours count only the last 30 daily
+  log files, so they can go down as old files drop out. A real "hours flown" needs a stored total. And
+  `blocktime.db` (user_version 1, made-up airframes) is already on Dave's disk: the real airline schema must
+  recognise user_version 1 and discard or migrate it, so the made-up tails never mix with real data.
 
 ## D-062 — Side menu: Live, Flights, Fleet
 - Date: 2026-11-22
@@ -894,3 +898,35 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   console recorder.
 - Alternatives considered: keeping 0.3.0 until a feature milestone; renaming the target as well (more churn in
   CMake, for the same file name).
+
+## D-067 — Last-resort errors go to errors.log
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision: The app sends `std::cerr` to `%LOCALAPPDATA%\BlockTime\errors.log`, or `%TEMP%\BlockTime-errors.log` if
+  that can't be opened (`ErrorLog`, append-only, flushed after every write, one `--- BlockTime <version> started
+  <UTC>` line per run). `BridgeObserver` writes every error line (`LOST:` events, D-049) there at once on the
+  recorder thread, as well as posting it to the event feed. The errors `EventLog` and `SimConnection` print land
+  there too. Qt messages pass through a handler that replaces the CARTO key with `<key>`.
+- Why: the merge review found that a windowed app has no console. `LOST:` lines are made while the app shuts down,
+  after the event loop ends, so they were never shown, and D-049's last resort left no trace. With the console
+  recorder dropped (D-065), stderr needed a home.
+- Alternatives considered: returning held events from `Recorder::run` to show before exit (the window is already
+  closing); `OutputDebugString` only (invisible without a debugger).
+
+## D-068 — The Flights list loads on a worker thread
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision: Amends D-060. `FlightListModel::reload()` runs `loadFlightHistory` on a `std::jthread` and swaps the
+  result in on the GUI thread. A reload asked for mid-load runs again when it ends, so the newest block event is
+  always included. Destroying the model stops a running load at once (`loadFlightHistory` takes a `std::stop_token`).
+  The Flights page says "Loading flights..." until the first load ends. `reloadBlocking()` keeps a synchronous path
+  for tests.
+- Why: D-060 judged the GUI thread fast enough from one day of log (35–41 ms). The merge review pointed out that 30
+  days of 1 Hz telemetry is far more; a synthetic 30 days of 4-hour flights (450,000 lines, 218 MB) took 4.8 s,
+  which would freeze the window at startup and after every block event.
+- Alternatives considered: caching parsed results for closed daily files (complex, since a flight can span files and
+  thinning needs every sample; still worth doing later if the CPU burst matters); a faster telemetry parser.

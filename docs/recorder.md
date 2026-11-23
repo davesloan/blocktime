@@ -208,8 +208,9 @@ each value reads correctly on the 737 and 777; record findings in `docs/notes/`.
   - The recorder doesn't name airports; the app resolves them from `lat`/`lon`.
 - **Failed writes (D-049):** block events go through an outbox. One whose write fails is held, shown in the app's
   event feed as a `WARNING` line, and retried oldest first: about every 5 s, or at each reconnect try (10–40 s)
-  while waiting for the sim. Any still held at exit are reported as `LOST:` lines. A late write only moves the
-  line's `ts`; the event's own times are in `data`.
+  while waiting for the sim. Any still held at exit are written as `LOST:` lines to `errors.log`
+  (`%LOCALAPPDATA%\BlockTime\errors.log`, D-067). A late write only moves the line's `ts`; the event's own times
+  are in `data`.
 - The log is the record the rest of the app reads back (D-060).
 - At startup, if the log shows a flight that a killed app left open, it's closed as interrupted (`recorder_crash`,
   D-048) and the feed says so.

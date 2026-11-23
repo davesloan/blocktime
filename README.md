@@ -130,6 +130,7 @@ Everything lives in `%LOCALAPPDATA%\BlockTime\`, outside the repo:
 | `settings.json` | `{"carto_key": "..."}` — the map key. Never commit it |
 | `blocktime.db` | The SQLite database (a test schema with the sample fleet, D-061) |
 | `tiles\` | Map tile cache, at most 100 MB. Files older than 30 days are deleted at startup. Safe to delete |
+| `errors.log` | Errors that have nowhere else to go: block events that could never be written (`LOST:`, D-049) and event log or SimConnect failures. Normally just one "started" line per run (D-067) |
 
 ### Map key
 

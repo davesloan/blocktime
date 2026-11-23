@@ -4,9 +4,9 @@ Context from a brainstorming chat with Dave on 2026-11-22. Read this before work
 (D-050, D-051) or before deciding what comes after them. It records how we got here, what Dave cares about, and
 what the test has to answer, so a future session doesn't have to rediscover it.
 
-Status: **Decided: Qt won (D-063, Dave, 2026-11-22).** Both UI tests passed in the sim. BlockTime becomes one
-native Qt app, and D-001, D-004 and D-007 are superseded. Next: tests and a code review on the branch, the repo
-layout, then the merge (D-051). The work is on the branch `qt-ui-spike` (Dave's name; D-051 first said `spike/qt-ui`). It's
+Status: **Decided: Qt won (D-063, Dave, 2026-11-22), and merged.** Both UI tests passed in the sim. BlockTime is
+one native Qt app (D-001, D-004 and D-007 are superseded). The branch got its tests and a code review, the build
+moved to the repo root (D-064), and `qt-ui-spike` was merged into `main` as version 0.4.0. This file is now history. The work is on the branch `qt-ui-spike` (Dave's name; D-051 first said `spike/qt-ui`). It's
 built inside the recorder project so it can be merged as it is if Qt wins (D-052). Plans:
 `docs/plans/2026-11-22-qt-ui-test-1.md`, `docs/plans/2026-11-22-qt-ui-test-2.md`. D-001 (two programs) and D-004
 (local web app + SQLite) stay in force until the test's decision point.
