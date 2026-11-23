@@ -33,6 +33,9 @@ AirlineSession AirlineSession::start(const AirlinePaths& paths, Date today, std:
     if (opened.testSchemaSetAside) {
         s.startNotices_.push_back("The Qt test's database was set aside as blocktime.test-schema.db.");
     }
+    if (opened.versionRestored) {
+        s.startNotices_.push_back("An older BlockTime had opened blocktime.db; its schema version was put back.");
+    }
 
     std::string error;
     if (!std::filesystem::exists(paths.catalog)) {
@@ -63,14 +66,18 @@ AirlineSession AirlineSession::start(const AirlinePaths& paths, Date today, std:
     return s;
 }
 
-void AirlineSession::tick(Date today) { settle(today); }
+bool AirlineSession::tick(Date today) {
+    const std::vector<std::string> before = notices_;
+    return settle(today) || notices_ != before;
+}
 
-void AirlineSession::settle(Date today) {
+bool AirlineSession::settle(Date today) {
     notices_ = startNotices_;
-    if (!db_ || !catalog_ || !config_) return;
+    if (!db_ || !catalog_ || !config_) return false;
     const LeaseOutcome outcome = settleLeases(*db_, *catalog_, *config_, today);
     notices_.insert(notices_.end(), outcome.notices.begin(), outcome.notices.end());
     if (!outcome.error.empty()) notices_.push_back("Airline database error: " + outcome.error);
+    return outcome.leased + outcome.monthsCharged + outcome.returned > 0;
 }
 
 std::vector<AirplaneView> AirlineSession::airplanes() { return db_ ? listAirplanes(*db_) : std::vector<AirplaneView>{}; }

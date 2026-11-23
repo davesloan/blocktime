@@ -26,10 +26,12 @@ struct AirlineDbOpen {
     std::optional<db::Database> db;
     std::string error;
     bool testSchemaSetAside = false;
+    bool versionRestored = false;  // an older BlockTime had set a real airline's user_version back to 1
 };
 
-// Opens (or creates) the airline database and migrates it. A file holding the Qt test's schema (user_version 1) is
-// renamed to blocktime.test-schema.db in the same folder and a new database is built in its place.
+// Opens (or creates) the airline database and migrates it. A file holding the Qt test's schema (user_version 1, no
+// airplane table) is renamed to blocktime.test-schema.db in the same folder and a new database is built in its place.
+// A real airline whose user_version an older BlockTime set to 1 gets its version back (versionRestored).
 AirlineDbOpen openAirlineDatabase(const std::filesystem::path& file);
 
 std::filesystem::path defaultAirlineDatabaseFile();  // %LOCALAPPDATA%\BlockTime\blocktime.db

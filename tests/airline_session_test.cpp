@@ -140,3 +140,12 @@ TEST_F(AirlineSessionTest, DriftWarningsGoToTheWarningStream) {
     AirlineSession::start(paths_, d(2026, 11, 22), warnings_);
     EXPECT_NE(warnings_.str().find("N738BT: airline.yaml changed simbrief_airframe_id"), std::string::npos) << warnings_.str();
 }
+
+TEST_F(AirlineSessionTest, TickReportsWhetherAnythingChanged) {
+    copyConfig();
+    importKbfi();
+    AirlineSession session = AirlineSession::start(paths_, d(2026, 12, 21), warnings_);
+    EXPECT_FALSE(session.tick(d(2026, 12, 21)));
+    EXPECT_TRUE(session.tick(d(2026, 12, 22)));
+    EXPECT_FALSE(session.tick(d(2026, 12, 22)));
+}

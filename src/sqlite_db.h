@@ -18,6 +18,10 @@ struct sqlite3_stmt;
 
 namespace blocktime::db {
 
+// How long a write waits for another connection (the app and blocktime-import) before failing with "database is
+// locked".
+inline constexpr int kBusyTimeoutMs = 5000;
+
 class Database {
 public:
     // Opens `file` read/write, creating it if missing. On failure returns nullopt and sets *error.
@@ -82,11 +86,15 @@ public:
     ~Transaction();
 
     bool commit(std::string* error = nullptr);
+    // False if BEGIN failed (another connection held the lock past the busy timeout, or a transaction was already
+    // open). Callers must then write nothing: their statements would each commit on their own.
     bool active() const { return active_; }
+    const std::string& error() const { return error_; }  // why BEGIN failed
 
 private:
     Database& db_;
     bool active_ = false;
+    std::string error_;
 };
 
 }  // namespace blocktime::db

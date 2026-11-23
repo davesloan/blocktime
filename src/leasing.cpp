@@ -43,6 +43,13 @@ std::optional<std::int64_t> idOf(db::Database& db, const char* sql, const std::s
     return q.integer(0);
 }
 
+// The registration of the leased airplane that already has this SimBrief airframe, or "".
+std::string registrationWithSimbriefId(db::Database& db, const std::string& simbriefId) {
+    db::Statement q(db, "SELECT registration FROM airplane WHERE simbrief_airframe_id = ?");
+    q.bind(1, simbriefId);
+    return q.next() ? q.text(0) : std::string();
+}
+
 // Posts a lease line and its lease_charge row. Call inside a transaction.
 bool postLeaseMonth(db::Database& db, std::int64_t airplaneId, Date periodStart, Cents charge, std::string& error) {
     db::Statement line(db, "INSERT INTO ledger_line (category, posted_at, amount_cents) VALUES ('lease', ?, ?)");
@@ -124,6 +131,10 @@ std::optional<std::int64_t> insertAirplane(db::Database& db, const ConfigAirplan
 
 bool syncCatalogTypes(db::Database& db, const Catalog& catalog, std::string* error) {
     db::Transaction tx(db);
+    if (!tx.active()) {
+        if (error) *error = "couldn't start a transaction: " + tx.error();
+        return false;
+    }
     db::Statement upsert(db,
                          "INSERT INTO aircraft_type (code, family, role, turnaround_min, cruise_speed_kt) VALUES (?, ?, ?, ?, ?)"
                          " ON CONFLICT (code) DO UPDATE SET family = excluded.family, role = excluded.role,"
@@ -145,6 +156,10 @@ bool syncCatalogTypes(db::Database& db, const Catalog& catalog, std::string* err
 
 bool syncFleets(db::Database& db, const AirlineConfig& config, std::string* error) {
     db::Transaction tx(db);
+    if (!tx.active()) {
+        if (error) *error = "couldn't start a transaction: " + tx.error();
+        return false;
+    }
     db::Statement insert(db, "INSERT INTO fleet (name) VALUES (?) ON CONFLICT (name) DO NOTHING");
     for (const std::string& name : config.fleets) {
         insert.reset();
@@ -225,14 +240,32 @@ LeaseOutcome settleLeases(db::Database& db, const Catalog& catalog, const Airlin
                 continue;
             }
             if (cash < type->monthlyLeaseCents) {
-                outcome.notices.push_back(std::format("Can't afford {}'s first month: {} needed, {} in cash on {}.",
-                                                      a.registration, formatMoneyFull(type->monthlyLeaseCents),
-                                                      formatMoneyFull(cash), formatDayMonthYear(e.date)));
+                // The check is the cash as of leased_on (D-096), so only a later leased_on changes the answer.
+                outcome.notices.push_back(std::format(
+                    "Can't afford {}'s first month: {} needed, {} in cash on {}. Set a later leased_on to try again.",
+                    a.registration, formatMoneyFull(type->monthlyLeaseCents), formatMoneyFull(cash),
+                    formatDayMonthYear(e.date)));
+                continue;
+            }
+            if (const std::string owner = registrationWithSimbriefId(db, a.simbriefAirframeId); !owner.empty()) {
+                outcome.notices.push_back(std::format(
+                    "{}: simbrief_airframe_id {} already belongs to {}; a leased airplane can't be renamed in "
+                    "airline.yaml (D-082).",
+                    a.registration, a.simbriefAirframeId, owner));
                 continue;
             }
             db::Transaction tx(db);
+            if (!tx.active()) {
+                outcome.error = "couldn't start a transaction: " + tx.error();
+                return outcome;
+            }
             const auto id = insertAirplane(db, a, *airframe, *type, *airportId, error);
-            if (!id || !tx.commit(&error)) {
+            if (!id) {
+                // This airplane only: the transaction rolls back, and every other lease still settles.
+                outcome.notices.push_back(std::format("{} couldn't be leased: {}", a.registration, error));
+                continue;
+            }
+            if (!tx.commit(&error)) {
                 outcome.error = error;
                 return outcome;
             }
@@ -256,6 +289,10 @@ LeaseOutcome settleLeases(db::Database& db, const Catalog& catalog, const Airlin
             continue;  // no later months
         } else {
             db::Transaction tx(db);
+            if (!tx.active()) {
+                outcome.error = "couldn't start a transaction: " + tx.error();
+                return outcome;
+            }
             if (!postLeaseMonth(db, e.airplaneId, e.date, e.monthlyCents, error) || !tx.commit(&error)) {
                 outcome.error = error;
                 return outcome;

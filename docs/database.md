@@ -217,7 +217,10 @@ the import task: how many airports that leaves and the file size.
 the database is leased, in one transaction: take the registration and SimBrief airframe from `airline.yaml`, copy
 its airframe from the catalog, insert the airplane with its cabins and holds, and charge the first
 month. If cash is less than that month's charge, nothing is written and the Fleet screen shows "Can't afford
-N738BT's first month"; it's tried again at the next start. Editing or removing an airplane already leased changes
+N738BT's first month". Affordability is the cash as of `leased_on` (D-096), so a later start gives the same answer:
+set a later `leased_on` to try again. An airplane whose SimBrief airframe already belongs to a leased airplane (a
+registration renamed in the config) isn't leased, and the notice says why. One airplane that can't be leased never
+stops the other airplanes' months from being charged (D-098). Editing or removing an airplane already leased changes
 nothing in the database (a warning in `errors.log`).
 
 **Monthly lease charges.** At start and every minute while open: for every airplane in the fleet, every lease month
@@ -228,7 +231,12 @@ day each month, or the month's last day if it's shorter (leased 31 Jan → 28 Fe
 
 **The old test database.** A `blocktime.db` with `user_version` 1 is the Qt test's (D-061). It's renamed to
 `blocktime.test-schema.db` (kept, not deleted) and a new file is built through the migrations. The real schema's
-first migration is number 2, so the two can never be confused.
+first migration is number 2, so the two can never be confused. BlockTime 0.4 and older set `user_version` to 1 on
+any `blocktime.db` they opened, so a version-1 file that has an `airplane` table is a real airline: its version is put
+back and a notice says so (D-098).
+
+**Concurrency.** The app and `blocktime-import` may both have the file open. Every connection waits up to 5 s for a
+lock (`busy_timeout`), and a transaction that can't begin writes nothing (D-098).
 
 ## Later milestones (sketch, not final)
 

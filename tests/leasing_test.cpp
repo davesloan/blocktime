@@ -170,7 +170,8 @@ TEST_F(Leasing, CantAffordFirstMonthLeasesNothing) {
     EXPECT_EQ(outcome.leased, 0);
     EXPECT_EQ(count("SELECT COUNT(*) FROM airplane"), 0);
     ASSERT_EQ(outcome.notices.size(), 1u);
-    EXPECT_EQ(outcome.notices[0], "Can't afford N738BT's first month: $900,000 needed, $500,000 in cash on 22 Nov 2026.");
+    EXPECT_EQ(outcome.notices[0], "Can't afford N738BT's first month: $900,000 needed, $500,000 in cash on 22 Nov 2026. "
+                                  "Set a later leased_on to try again.");
 }
 
 TEST_F(Leasing, FutureLeaseWaitsForItsDay) {
@@ -225,4 +226,28 @@ TEST_F(Leasing, DriftWarnings) {
     warnings = configDriftWarnings(db_, config_);
     ASSERT_EQ(warnings.size(), 1u);
     EXPECT_EQ(warnings[0], "N738BT is no longer in airline.yaml; returning a lease comes with the settings screen (D-092).");
+}
+
+TEST_F(Leasing, RenamedRegistrationIsANoticeAndOthersStillCharge) {
+    config_.airplanes = {airplane("N738BT", d(2026, 11, 22), "1_1"), airplane("N738CC", d(2026, 11, 22), "1_2")};
+    settle(d(2026, 11, 22));
+    config_.airplanes[0].registration = "N738TB";  // a typo fixed after leasing, same SimBrief airframe
+    const LeaseOutcome outcome = settle(d(2026, 12, 22));
+    EXPECT_EQ(outcome.error, "");
+    EXPECT_EQ(outcome.leased, 0);
+    EXPECT_EQ(outcome.monthsCharged, 2);  // N738BT and N738CC's second months
+    ASSERT_EQ(outcome.notices.size(), 1u);
+    EXPECT_EQ(outcome.notices[0],
+              "N738TB: simbrief_airframe_id 1_1 already belongs to N738BT; a leased airplane can't be renamed in "
+              "airline.yaml (D-082).");
+}
+
+TEST_F(Leasing, TransactionThatCantStartWritesNothing) {
+    sync();
+    ASSERT_TRUE(db_.exec("BEGIN"));  // an open transaction makes the settlement's own BEGIN fail
+    const LeaseOutcome outcome = settleLeases(db_, catalog_, config_, d(2026, 11, 22));
+    ASSERT_TRUE(db_.exec("COMMIT"));
+    EXPECT_NE(outcome.error, "");
+    EXPECT_EQ(count("SELECT COUNT(*) FROM airplane"), 0);
+    EXPECT_EQ(count("SELECT COUNT(*) FROM ledger_line WHERE category = 'lease'"), 0);
 }

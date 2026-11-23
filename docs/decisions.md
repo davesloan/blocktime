@@ -1340,3 +1340,25 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: The count matched the sim's registration (ATC ID) to the airplane's, which no longer holds (D-087), and
   counting the last 30 days of log made totals drop over time (D-061 note). Milestone 6 stores hours per flight.
 - Alternatives considered: keeping the counts until milestone 6 (they'd show 0 for every real airplane).
+
+## D-098 — Review fixes: database robustness for milestone 4
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude (from the milestone 4 code review)
+- Area: data, app
+- Decision:
+  - Every connection sets a 5 s busy timeout, so the app's minute tick and `blocktime-import` wait for each other
+    instead of failing. A transaction whose `BEGIN` fails writes nothing; the caller reports the error.
+  - A `blocktime.db` at `user_version` 1 that has an `airplane` table is a real airline whose version an older
+    BlockTime (0.4 and older, D-061's `FleetStore`) overwrote: the version is put back to 2 and a notice says so. Only
+    a version-1 file without that table is the Qt test's database and is set aside (D-086).
+  - One new airplane that can't be leased (its SimBrief airframe already belongs to a leased airplane, or the insert
+    fails) is a notice for that airplane only; every other lease still settles.
+  - The minute tick resets the Fleet and Money models only when it changed something, so the views don't jump back
+    to the top every minute.
+  - The "Can't afford" notice says to set a later `leased_on`, since affordability is the cash as of that date (D-096).
+- Why: The review found that a stale older build could hide the real airline, that one bad airplane stopped all
+  lease charges, and that a failed `BEGIN` let a lease month be written without its `lease_charge` row (which would
+  charge it again).
+- Alternatives considered: refusing to open a version-1 file with airline tables (safer, but needs a manual fix);
+  retrying a busy transaction in a loop (the busy timeout already waits).

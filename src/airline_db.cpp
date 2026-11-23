@@ -125,6 +125,12 @@ constexpr std::array kMigrations{Migration{2, kMigration2}};
 
 constexpr int kTestSchemaVersion = 1;  // the Qt test's database (D-061)
 
+bool hasTable(db::Database& db, const char* name) {
+    db::Statement q(db, "SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?");
+    q.bind(1, std::string_view(name));
+    return q.next();
+}
+
 }  // namespace
 
 bool migrateAirlineDatabase(db::Database& db, std::string* error) {
@@ -159,6 +165,15 @@ AirlineDbOpen openAirlineDatabase(const std::filesystem::path& file) {
     result.db = db::Database::open(file, &result.error);
     if (!result.db) return result;
 
+    if (result.db->userVersion() == kTestSchemaVersion && hasTable(*result.db, "airplane")) {
+        // BlockTime 0.4 and older ran "PRAGMA user_version = 1" on any blocktime.db it opened. This is a real
+        // airline, not the Qt test's file: put the version back (the stray airframes table does no harm).
+        if (!result.db->exec(std::format("PRAGMA user_version = {}", kAirlineSchemaVersion), &result.error)) {
+            result.db.reset();
+            return result;
+        }
+        result.versionRestored = true;
+    }
     if (result.db->userVersion() == kTestSchemaVersion) {
         result.db.reset();  // close it before renaming
         std::error_code ec;

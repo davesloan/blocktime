@@ -162,3 +162,33 @@ TEST(AirlineDb, QueryPlansUseIndexes) {
         EXPECT_EQ(plan.find("TEMP B-TREE"), std::string::npos) << sql << "\n" << plan;
     }
 }
+
+TEST_F(AirlineDbFiles, BusyTimeoutIsSet) {
+    std::string error;
+    auto d = db::Database::open(dir_ / "x.db", &error);
+    ASSERT_TRUE(d.has_value()) << error;
+    db::Statement q(*d, "PRAGMA busy_timeout");
+    ASSERT_TRUE(q.next());
+    EXPECT_EQ(q.integer(0), 5000);
+}
+
+TEST_F(AirlineDbFiles, ClobberedVersionOfARealAirlineIsRestored) {
+    const fs::path file = dir_ / "blocktime.db";
+    {
+        AirlineDbOpen opened = openAirlineDatabase(file);
+        ASSERT_TRUE(opened.db.has_value()) << opened.error;
+        ASSERT_TRUE(opened.db->exec("INSERT INTO fleet (name) VALUES ('Executive')"));
+        // What BlockTime 0.4 and older did to any blocktime.db it opened (D-061's FleetStore).
+        ASSERT_TRUE(opened.db->exec("CREATE TABLE IF NOT EXISTS airframes (registration TEXT PRIMARY KEY);"
+                                    "PRAGMA user_version = 1;"));
+    }
+    AirlineDbOpen again = openAirlineDatabase(file);
+    ASSERT_TRUE(again.db.has_value()) << again.error;
+    EXPECT_FALSE(again.testSchemaSetAside);
+    EXPECT_TRUE(again.versionRestored);
+    EXPECT_EQ(again.db->userVersion(), 2);
+    EXPECT_FALSE(fs::exists(dir_ / "blocktime.test-schema.db"));
+    db::Statement q(*again.db, "SELECT COUNT(*) FROM fleet");
+    ASSERT_TRUE(q.next());
+    EXPECT_EQ(q.integer(0), 1);
+}

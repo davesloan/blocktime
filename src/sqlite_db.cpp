@@ -16,6 +16,7 @@ std::optional<Database> Database::open(const std::filesystem::path& file, std::s
     sqlite3* db = nullptr;
     const int rc = sqlite3_open_v2(name.c_str(), &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr);
     if (rc == SQLITE_OK) {
+        sqlite3_busy_timeout(db, kBusyTimeoutMs);
         if (error) error->clear();
         return Database(db);
     }
@@ -27,6 +28,7 @@ std::optional<Database> Database::open(const std::filesystem::path& file, std::s
 Database Database::openInMemory() {
     sqlite3* db = nullptr;
     sqlite3_open_v2(":memory:", &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr);
+    sqlite3_busy_timeout(db, kBusyTimeoutMs);
     return Database(db);
 }
 
@@ -108,7 +110,7 @@ std::string Statement::text(int col) {
 
 bool Statement::isNull(int col) { return sqlite3_column_type(stmt_, col) == SQLITE_NULL; }
 
-Transaction::Transaction(Database& db) : db_(db) { active_ = db_.exec("BEGIN IMMEDIATE"); }
+Transaction::Transaction(Database& db) : db_(db) { active_ = db_.exec("BEGIN IMMEDIATE", &error_); }
 
 Transaction::~Transaction() {
     if (active_) db_.exec("ROLLBACK");

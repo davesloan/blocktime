@@ -35,8 +35,9 @@ public:
     // cash and settles the leases up to `today`. Config drift warnings go to `warnings` (errors.log in the app).
     static AirlineSession start(const AirlinePaths& paths, Date today, std::ostream& warnings);
 
-    // Settles the leases again (the minute tick), with the config read at start.
-    void tick(Date today);
+    // Settles the leases again (the minute tick), with the config read at start. True if anything changed: a
+    // lease, a charge, a return, or the notices.
+    bool tick(Date today);
 
     // The notices from start, plus those of the latest settle.
     const std::vector<std::string>& notices() const { return notices_; }
@@ -47,7 +48,7 @@ public:
     std::string airlineName() const;  // "" without a valid airline.yaml
 
 private:
-    void settle(Date today);
+    bool settle(Date today);  // true if it wrote anything
 
     std::optional<db::Database> db_;
     std::optional<Catalog> catalog_;

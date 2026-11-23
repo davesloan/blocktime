@@ -219,7 +219,8 @@ int main(int argc, char* argv[]) {
     QTimer airlineTick;
     airlineTick.setInterval(60'000);
     QObject::connect(&airlineTick, &QTimer::timeout, [&] {
-        airline.tick(blocktime::utcToday());
+        // A model reset rebuilds the views and scrolls them to the top, so only reset when something changed.
+        if (!airline.tick(blocktime::utcToday())) return;
         fleet.reset(airline.airplanes(), toQStringList(airline.notices()));
         ledger.reset(airline.ledger(), airline.cash());
     });
