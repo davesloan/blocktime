@@ -11,6 +11,8 @@
 #include <QGuiApplication>
 #include <QVariantMap>
 
+#include "airline_queries.h"
+#include "flight_settlement.h"
 #include "new_flight_model.h"
 #include "simbrief.h"
 
@@ -29,20 +31,114 @@ QString hhmm(const std::string& instant) { return instant.size() >= 16 ? q(insta
 }  // namespace
 
 PlannedFlightModel::PlannedFlightModel(db::Database& db, QString airlineIcao, Planner& planner, RecorderBridge& bridge,
+                                       FlightTargetSlot& target, std::filesystem::path logDir,
                                        std::filesystem::path ratesFile, QObject* parent)
     : QObject(parent), db_(db), airlineIcao_(std::move(airlineIcao)), planner_(planner), bridge_(bridge),
-      ratesFile_(std::move(ratesFile)) {
+      target_(target), logDir_(std::move(logDir)), ratesFile_(std::move(ratesFile)) {
     connect(&bridge_, &RecorderBridge::connectionChanged, this, &PlannedFlightModel::changed);
+    connect(&bridge_, &RecorderBridge::connectionChanged, this, &PlannedFlightModel::notRecordingChanged);
+    connect(&bridge_, &RecorderBridge::matchChanged, this, &PlannedFlightModel::notRecordingChanged);
+    connect(&bridge_, &RecorderBridge::blockEvent, this, [this](const QString& type) { onBlockEvent(type); });
     rates_ = loadRates(ratesFile_, nullptr).value_or(Rates{});
     flight_ = currentPlannedFlight(db_);
+    const auto t = flight_ ? flightTarget(db_, *flight_) : std::nullopt;
+    fuelOnRecordLb_ = t ? t->fuelOnRecordLb : 0;
+    target_.set(t);
 }
 
 void PlannedFlightModel::reload(const QString& message) {
     rates_ = loadRates(ratesFile_, nullptr).value_or(Rates{});
     flight_ = currentPlannedFlight(db_);
+    const auto t = flight_ ? flightTarget(db_, *flight_) : std::nullopt;
+    fuelOnRecordLb_ = t ? t->fuelOnRecordLb : 0;
+    target_.set(t);
     message_ = message;
+    if (flight_) summaryFlightId_.clear();  // a new plan replaces the summary
     emit changed();
     emit flightChanged();
+    emit notRecordingChanged();
+}
+
+void PlannedFlightModel::onBlockEvent(const QString& type) {
+    if (type == "block_in") {
+        checkFlown();
+    } else if (type == "flight_interrupted" && flight_) {
+        // Discarded as if it never happened; the plan stays for another try (D-072, D-108).
+        notice_ = q(flight_->origin) + QString::fromUtf8("–") + q(flight_->destination) + " interrupted and discarded";
+    } else if (type == "block_out") {
+        notice_.clear();
+    }
+    emit changed();
+    emit notRecordingChanged();
+}
+
+void PlannedFlightModel::checkFlown() {
+    if (!flight_) flight_ = currentPlannedFlight(db_);
+    if (!flight_) return;
+    const std::string registration = flight_->registration;
+    std::string error;
+    const auto result = settleIfFlown(db_, logDir_, loadRates(ratesFile_, nullptr).value_or(Rates{}), &error);
+    if (!result) {
+        if (!error.empty()) {
+            notice_ = q(error);
+            emit changed();
+        }
+        return;
+    }
+    notice_.clear();
+    summaryRegistration_ = q(registration);
+    reload();
+    summaryFlightId_ = q(result->logFlightId);  // after reload(), which clears it only while a flight is planned
+    emit changed();
+    emit settled(summaryFlightId_);
+}
+
+void PlannedFlightModel::doneForNow() {
+    summaryFlightId_.clear();
+    emit changed();
+}
+
+void PlannedFlightModel::turnaround() {
+    const QString registration = summaryRegistration_;
+    summaryFlightId_.clear();
+    emit changed();
+    if (!registration.isEmpty()) emit turnaroundRequested(registration);
+}
+
+QString PlannedFlightModel::notRecording() const {
+    const auto& match = bridge_.match();
+    if (!match || bridge_.connection() != "connected" || bridge_.flightOpen()) return {};
+    switch (match->problem) {
+        case MatchProblem::None: return {};
+        case MatchProblem::NoPlannedFlight: return "Not recording: no flight is planned. Plan one from Fleet.";
+        case MatchProblem::WrongAircraftType: {
+            if (!flight_) return {};
+            QString loaded = q(match->aircraftFolder);
+            db::Statement types(db_, "SELECT code, sim_folder FROM aircraft_type");
+            while (types.next()) {
+                if (folderMatches(match->aircraftFolder, types.text(1))) loaded = q(types.text(0));
+            }
+            if (loaded.isEmpty()) loaded = "aircraft the sim hasn't named yet";
+            return "Not recording: you're in a " + loaded + "; this flight expects the " + q(flight_->typeCode) + " " +
+                   q(flight_->registration) + ".";
+        }
+        case MatchProblem::WrongAirport: {
+            if (!flight_) return {};
+            const auto nearest = nearestAirport(db_, match->lat, match->lon);
+            const QString origin = q(flight_->origin);
+            if (nearest && nearest->icao != flight_->origin && nearest->distanceM <= 5000) {
+                return "Not recording: you're at " + q(nearest->icao) + "; load in at " + origin + ".";
+            }
+            return "Not recording: you're " + QString::number(match->distanceM / 1000.0, 'f', 1) + " km from " + origin +
+                   "; load in at " + origin + ".";
+        }
+        case MatchProblem::FuelBelowRecord:
+            if (!flight_) return {};
+            return "Not recording: load at least " + q(formatNumber(match->minFuelLb)) + " lb of fuel (" +
+                   q(flight_->registration) + " had " + q(formatNumber(fuelOnRecordLb_)) +
+                   " lb at its last block in).";
+    }
+    return {};
 }
 
 void PlannedFlightModel::openDispatchPage() {
@@ -110,7 +206,8 @@ void PlannedFlightModel::copyRoute() {
 }
 
 QString PlannedFlightModel::state() const {
-    if (!flight_) return {};
+    if (!flight_) return summaryFlightId_.isEmpty() ? QString() : QStringLiteral("summary");
+    if (bridge_.flightOpen()) return "flying";
     if (!flight_->plan) return "waitingForPlan";
     return bridge_.connection() == "connected" ? "simConnected" : "waitingForSim";
 }
@@ -120,6 +217,7 @@ QString PlannedFlightModel::stateText() const {
     if (s == "waitingForPlan") return "Waiting for plan";
     if (s == "waitingForSim") return "Waiting for sim";
     if (s == "simConnected") return "Sim connected";
+    if (s == "flying") return "Recording";
     return {};
 }
 

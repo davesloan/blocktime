@@ -245,7 +245,15 @@ int main(int argc, char* argv[]) {
     QtPlanner planner(settings);
     const QString airlineIcao = QString::fromStdString(airline.airlineIcao());
     NewFlightModel newFlight(planningDb, airlineIcao, blocktime::defaultRatesFile(), planner);
-    PlannedFlightModel plannedFlight(planningDb, airlineIcao, planner, bridge, blocktime::defaultRatesFile());
+    PlannedFlightModel plannedFlight(planningDb, airlineIcao, planner, bridge, flightTarget, logDir,
+                                     blocktime::defaultRatesFile());
+    // A flight settled: the airplane moved, money was posted and Flights has a new row (D-113).
+    QObject::connect(&plannedFlight, &PlannedFlightModel::settled, [&] {
+        fleet.reset(airline.airplanes(), toQStringList(airline.notices()), fleetSummary());
+        ledger.reset(airline.ledger(), airline.cash());
+        flights.reload();
+    });
+    plannedFlight.checkFlown();  // a flight that ended while BlockTime was closed or crashed
     QObject::connect(&newFlight, &NewFlightModel::planned, &plannedFlight,
                      [&plannedFlight](const QString& note) { plannedFlight.reload(note); });
 

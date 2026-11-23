@@ -39,6 +39,7 @@ struct MatchResult {
     std::int64_t plannedFlightId = 0;  // 0 without a target
     std::string aircraftFolder;        // as seen ("pmdg 737-800bbj2"); "" if not known yet
     double distanceM = 0;              // from the origin's reference point; 0 without a target
+    double lat = 0, lon = 0;           // where the aircraft is, for "Not recording" to name the airport
     int fuelLb = 0, minFuelLb = 0;     // minFuelLb = max(0, fuelOnRecordLb - kFuelSlackLb)
 
     bool operator==(const MatchResult&) const = default;

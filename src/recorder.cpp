@@ -17,6 +17,7 @@
 
 #include "event_log.h"
 #include "event_outbox.h"
+#include "geo.h"
 #include "open_flight.h"
 #include "sim_connection.h"
 #include "telemetry_filter.h"
@@ -223,11 +224,13 @@ int Recorder::run(const std::atomic<bool>& stop) {
         BlockSample b = toBlockSample(s, std::chrono::system_clock::now());
         b.aircraftFolder = aircraftFolder(simPtr->aircraftPath());
         // The banner's answer: the same check a release would get, reported when it changes (D-088).
-        // Distance and fuel change with every sample, so only a change of what the banner says is reported.
+        // Distance and fuel change with every sample, so only a change of what the banner says is reported: the
+        // problem, the planned flight, the aircraft, or a move of more than a kilometre (a different airport).
         if (!detector.flightOpen()) {
             MatchResult m = checkMatch(target.get(), b);
             if (!lastMatch || lastMatch->problem != m.problem || lastMatch->plannedFlightId != m.plannedFlightId ||
-                lastMatch->aircraftFolder != m.aircraftFolder) {
+                lastMatch->aircraftFolder != m.aircraftFolder ||
+                distanceMeters(lastMatch->lat, lastMatch->lon, m.lat, m.lon) > 1000.0) {
                 observer.onMatch(m);
                 lastMatch = std::move(m);
             }

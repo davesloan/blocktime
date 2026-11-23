@@ -8,6 +8,7 @@
 #include <chrono>
 #include <cstring>
 #include <filesystem>
+#include <memory>
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -649,6 +650,8 @@ db::Database deliveredAirline() {
 
 // A VIP flight N814SX KBFI-KSAN planned at `plannedAt`, written straight to the database.
 const std::filesystem::path kRatesFile = BLOCKTIME_SOURCE_DIR "/config/rates.yaml";
+const std::filesystem::path kNoLog = std::filesystem::temp_directory_path() / "blocktime-qt-test-no-log";
+blocktime::FlightTargetSlot g_target;  // the planning tests don't look at it
 
 void planVip(db::Database& db, const std::string& plannedAt) {
     NewPlannedFlight f;
@@ -754,7 +757,7 @@ TEST(PlannedFlightModel, ImportStoresMatchingPlan) {
     planVip(db, "2026-11-23T14:00:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge, kRatesFile);
+    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
     EXPECT_TRUE(m.hasFlight());
     EXPECT_EQ(m.state(), "waitingForPlan");
     EXPECT_EQ(m.title(), "XLY8 · KBFI → KSAN");
@@ -774,7 +777,7 @@ TEST(PlannedFlightModel, ImportRefusesAStalePlan) {
     planVip(db, "2026-11-23T14:20:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge, kRatesFile);
+    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
     m.importPlan();
     EXPECT_EQ(m.state(), "waitingForPlan");
     EXPECT_TRUE(m.message().startsWith("The latest SimBrief plan was generated at 14:02Z")) << m.message().toStdString();
@@ -787,7 +790,7 @@ TEST(PlannedFlightModel, ImportShowsSimbriefError) {
     FakePlanner planner;
     planner.ofpBody = R"({"fetch":{"userid":"","static_id":"","status":"Error: Unknown UserID","time":"0"}})";
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge, kRatesFile);
+    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
     m.importPlan();
     EXPECT_TRUE(m.message().contains("Error: Unknown UserID")) << m.message().toStdString();
     EXPECT_EQ(m.state(), "waitingForPlan");
@@ -800,7 +803,7 @@ TEST(PlannedFlightModel, ImportShowsNetworkError) {
     planner.ofpBody.clear();
     planner.ofpError = "Add simbrief_user_id to settings.json";
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge, kRatesFile);
+    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
     m.importPlan();
     EXPECT_EQ(m.message(), "Add simbrief_user_id to settings.json");
 }
@@ -810,7 +813,7 @@ TEST(PlannedFlightModel, CancelClears) {
     planVip(db, "2026-11-23T14:00:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge, kRatesFile);
+    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
     int changed = 0;
     QObject::connect(&m, &PlannedFlightModel::flightChanged, [&] { ++changed; });
     m.cancelFlight();
@@ -824,7 +827,7 @@ TEST(PlannedFlightModel, StateFollowsConnection) {
     planVip(db, "2026-11-23T14:00:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge, kRatesFile);
+    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
     m.importPlan();
     ASSERT_EQ(m.state(), "waitingForSim");
     bridge.applyConnection(ConnectionState::Connected);
@@ -837,7 +840,7 @@ TEST(PlannedFlightModel, OpenDispatchPageRebuildsTheUrl) {
     planVip(db, "2026-11-23T14:00:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge, kRatesFile);
+    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
     m.openDispatchPage();
     ASSERT_EQ(planner.opened.size(), 1);
     EXPECT_TRUE(planner.opened[0].contains("orig=KBFI&dest=KSAN&airline=XLY&fltnum=8")) << planner.opened[0].toStdString();
@@ -884,4 +887,198 @@ TEST(NewFlightModel, ReopeningWhileGettingRunwaysPlansNothing) {  // review find
     EXPECT_TRUE(planner.opened.isEmpty());
     EXPECT_FALSE(currentPlannedFlight(db).has_value());
     EXPECT_EQ(m.error(), "");
+}
+
+// --- The flight's life on Live (milestone 6) ----------------------------------------------------------------------
+
+namespace {
+
+constexpr const char* kLivePlannedAt = "2026-11-22T10:00:00Z";
+constexpr const char* kLiveOut = "2026-11-22T10:30:05.120Z";
+constexpr const char* kLiveIn = "2026-11-22T13:20:41.900Z";
+
+std::string liveLine(const std::string& type, const std::string& data) {
+    return R"({"ts":"2026-11-22T00:00:00.000Z","type":")" + type + R"(","data":)" + data + "}";
+}
+
+std::string liveOut(std::int64_t planned) {
+    return liveLine("block_out", std::string(R"({"flight_id":")") + kLiveOut + R"(","time":")" + kLiveOut +
+                                     R"(","lat":47.53,"lon":-122.302,"fuel_lb":20000,"planned_flight_id":)" +
+                                     std::to_string(planned) + "}");
+}
+
+std::string liveIn() {
+    return liveLine("block_in", std::string(R"({"flight_id":")") + kLiveOut + R"(","time":")" + kLiveIn +
+                                    R"(","lat":32.7336,"lon":-117.19,"fuel_lb":9500,"shutdown_fuel_lb":9400,)" +
+                                    R"("block_time_s":10236})");
+}
+
+class LiveFlight : public TempLog {
+protected:
+    void SetUp() override {
+        TempLog::SetUp();
+        NewPlannedFlight f;
+        f.airplaneId = loadFlightAirplane(db_, "N814SX")->airplaneId;
+        f.originIcao = "KBFI";
+        f.destinationIcao = "KSAN";
+        f.flightNumber = "8";
+        f.kind = FlightKind::Delivery;
+        f.fuelPriceCentsPer100Lb = 4100;
+        f.plannedAt = kLivePlannedAt;
+        std::string error;
+        const auto id = createPlannedFlight(db_, f, &error);
+        ASSERT_TRUE(id.has_value()) << error;
+        plannedId_ = *id;
+    }
+
+    std::unique_ptr<PlannedFlightModel> model() {
+        return std::make_unique<PlannedFlightModel>(db_, "XLY", planner_, bridge_, target_, dir_, kRatesFile);
+    }
+
+    db::Database db_ = test::testAirline();
+    FakePlanner planner_;
+    RecorderBridge bridge_;
+    FlightTargetSlot target_;
+    std::int64_t plannedId_ = 0;
+};
+
+}  // namespace
+
+TEST_F(LiveFlight, ReloadSetsTheTarget) {
+    auto m = model();
+    const auto t = target_.get();
+    ASSERT_TRUE(t.has_value());
+    EXPECT_EQ(t->plannedFlightId, plannedId_);
+    EXPECT_EQ(t->plannedAt, kLivePlannedAt);
+    EXPECT_EQ(t->simFolder, "PMDG 737-800BBJ2");
+    EXPECT_EQ(t->typeCode, "737-800 BBJ2");
+    EXPECT_EQ(t->registration, "N814SX");
+    EXPECT_EQ(t->originIcao, "KBFI");
+    EXPECT_DOUBLE_EQ(t->originLat, 47.53);
+    EXPECT_EQ(t->fuelOnRecordLb, 0);
+    m->cancelFlight();
+    EXPECT_FALSE(target_.get().has_value());
+}
+
+TEST_F(LiveFlight, NotRecordingTexts) {
+    auto m = model();
+    EXPECT_EQ(m->notRecording(), "");  // no answer from the recorder yet
+    bridge_.applyConnection(ConnectionState::Connected);
+    MatchResult r;
+    r.plannedFlightId = plannedId_;
+    r.problem = MatchProblem::WrongAircraftType;
+    r.aircraftFolder = "pmdg 737-800";
+    bridge_.applyMatch(r);
+    EXPECT_EQ(m->notRecording(), "Not recording: you're in a 737-800; this flight expects the 737-800 BBJ2 N814SX.");
+    r.aircraftFolder = "some other plane";
+    bridge_.applyMatch(r);
+    EXPECT_EQ(m->notRecording(),
+              "Not recording: you're in a some other plane; this flight expects the 737-800 BBJ2 N814SX.");
+
+    r.problem = MatchProblem::WrongAirport;
+    r.aircraftFolder = "pmdg 737-800bbj2";
+    r.lat = 47.45;  // KSEA's neighbourhood: the nearest imported airport in the test data is KBFI itself
+    r.lon = -122.31;
+    r.distanceM = 8900;
+    bridge_.applyMatch(r);
+    EXPECT_EQ(m->notRecording(), "Not recording: you're 8.9 km from KBFI; load in at KBFI.");
+    r.lat = 32.7336;  // at KSAN
+    r.lon = -117.19;
+    r.distanceM = 1'500'000;
+    bridge_.applyMatch(r);
+    EXPECT_EQ(m->notRecording(), "Not recording: you're at KSAN; load in at KBFI.");
+
+    ASSERT_TRUE(db_.exec("UPDATE airplane SET fuel_on_board_lb = 5000 WHERE registration = 'N814SX'"));
+    m->reload();
+    r.problem = MatchProblem::FuelBelowRecord;
+    r.minFuelLb = 4700;
+    bridge_.applyMatch(r);
+    EXPECT_EQ(m->notRecording(),
+              "Not recording: load at least 4,700 lb of fuel (N814SX had 5,000 lb at its last block in).");
+
+    r.problem = MatchProblem::None;
+    bridge_.applyMatch(r);
+    EXPECT_EQ(m->notRecording(), "");
+    r.problem = MatchProblem::WrongAirport;
+    bridge_.applyMatch(r);
+    bridge_.applyBlockEvent(BlockOut{});  // in flight: nothing to say
+    EXPECT_EQ(m->notRecording(), "");
+}
+
+TEST_F(LiveFlight, NoPlannedFlightText) {
+    std::string error;
+    ASSERT_TRUE(cancelPlannedFlight(db_, &error)) << error;
+    auto m = model();
+    bridge_.applyConnection(ConnectionState::Connected);
+    MatchResult r;
+    r.problem = MatchProblem::NoPlannedFlight;
+    bridge_.applyMatch(r);
+    EXPECT_EQ(m->notRecording(), "Not recording: no flight is planned. Plan one from Fleet.");
+}
+
+TEST_F(LiveFlight, SettlesOnBlockIn) {
+    auto m = model();
+    int settled = 0;
+    QObject::connect(m.get(), &PlannedFlightModel::settled, [&] { ++settled; });
+    write({liveOut(plannedId_)});
+    BlockOut out;
+    out.flightId = kLiveOut;
+    bridge_.applyBlockEvent(out);
+    EXPECT_EQ(m->state(), "flying");
+    write({liveIn()}, true);
+    BlockIn in;
+    in.flightId = kLiveOut;
+    bridge_.applyBlockEvent(in);
+    EXPECT_EQ(settled, 1);
+    EXPECT_FALSE(m->hasFlight());
+    EXPECT_EQ(m->state(), "summary");
+    EXPECT_EQ(m->summaryFlightId(), kLiveOut);
+    EXPECT_FALSE(target_.get().has_value());
+    EXPECT_EQ(m->notice(), "");
+}
+
+TEST_F(LiveFlight, SettlesAtStartup) {
+    write({liveOut(plannedId_), liveIn()});
+    auto m = model();
+    int settled = 0;
+    QObject::connect(m.get(), &PlannedFlightModel::settled, [&] { ++settled; });
+    m->checkFlown();
+    EXPECT_EQ(settled, 1);
+    EXPECT_EQ(m->summaryFlightId(), kLiveOut);
+    m->checkFlown();  // nothing left to settle
+    EXPECT_EQ(settled, 1);
+}
+
+TEST_F(LiveFlight, InterruptedKeepsThePlanWithANotice) {
+    auto m = model();
+    write({liveOut(plannedId_), liveLine("flight_interrupted", std::string(R"({"flight_id":")") + kLiveOut +
+                                                                   R"(","reason":"sim_stopped"})")});
+    BlockOut out;
+    out.flightId = kLiveOut;
+    bridge_.applyBlockEvent(out);
+    bridge_.applyBlockEvent(FlightInterrupted{kLiveOut, "sim_stopped"});
+    EXPECT_TRUE(m->hasFlight());
+    EXPECT_EQ(m->notice(), QString::fromUtf8("KBFI–KSAN interrupted and discarded"));
+    EXPECT_EQ(m->state(), "waitingForPlan");
+    EXPECT_TRUE(target_.get().has_value());
+}
+
+TEST_F(LiveFlight, TurnaroundAsksForNewFlight) {
+    write({liveOut(plannedId_), liveIn()});
+    auto m = model();
+    m->checkFlown();
+    QStringList asked;
+    QObject::connect(m.get(), &PlannedFlightModel::turnaroundRequested, [&](const QString& r) { asked << r; });
+    m->turnaround();
+    EXPECT_EQ(asked, QStringList{"N814SX"});
+    EXPECT_EQ(m->state(), "");
+    EXPECT_EQ(m->summaryFlightId(), "");
+}
+
+TEST_F(LiveFlight, DoneForNowClearsTheSummary) {
+    write({liveOut(plannedId_), liveIn()});
+    auto m = model();
+    m->checkFlown();
+    m->doneForNow();
+    EXPECT_EQ(m->state(), "");
 }

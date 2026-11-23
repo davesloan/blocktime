@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "catalog.h"
+#include "flight_match.h"
 #include "loads.h"
 #include "money.h"
 #include "pricing.h"
@@ -94,6 +95,10 @@ bool storeSimbriefPlan(db::Database& db, std::int64_t plannedFlightId, const Sim
 
 // The money inputs: SimBrief's block time and en-route burn once a plan is in, else the estimate and no fuel (D-104).
 PriceInput priceInput(const PlannedFlightView& flight);
+
+// What the recorder checks a brake release against (D-088): the type's sim folder, the origin's position and the
+// airplane's fuel on record. nullopt if the planned flight is gone.
+std::optional<FlightTarget> flightTarget(db::Database& db, const PlannedFlightView& flight);
 
 // The plan's estimated landing weight is 95% of MLW or more (D-104). False without a plan.
 bool nearMlw(const PlannedFlightView& flight);

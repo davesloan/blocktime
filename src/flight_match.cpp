@@ -52,6 +52,8 @@ MatchResult checkMatch(const std::optional<FlightTarget>& target, const BlockSam
     MatchResult r;
     r.aircraftFolder = s.aircraftFolder;
     r.fuelLb = static_cast<int>(std::lround(s.fuelLb));
+    r.lat = s.latDeg;
+    r.lon = s.lonDeg;
     if (!target) return r;  // NoPlannedFlight
     r.plannedFlightId = target->plannedFlightId;
     r.distanceM = distanceMeters(target->originLat, target->originLon, s.latDeg, s.lonDeg);

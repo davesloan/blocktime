@@ -2,8 +2,9 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// The live flight screen: the planned flight before departure (design.md §13.3), the flight panel and the event
-// feed. The page scrolls when the window is too short for all of it; the scroll bar shows only then.
+// The live flight screen: "Not recording" when the sim doesn't match the plan (design.md §13.4), the planned flight
+// before and during departure (§13.3), the summary after block in (§13.7), the flight panel and the event feed. The
+// page scrolls when the window is too short for all of it; the scroll bar shows only then.
 
 import QtQuick
 import BlockTime  // explicit, so hot reload from the source folder still sees the module (D-055)
@@ -35,6 +36,32 @@ Item {
             // Fill the window when there's room; otherwise take the height everything needs and scroll.
             height: Math.max(scroll.availableHeight - 2 * Theme.pagePadding, implicitHeight)
             spacing: Theme.spacing
+
+            NotRecordingBanner {
+                Layout.fillWidth: true
+                text: page.plannedFlight.notRecording
+            }
+
+            // A flight that was interrupted and discarded, or one that couldn't be settled (D-072, D-108).
+            Text {
+                Layout.fillWidth: true
+                visible: text !== ""
+                text: page.plannedFlight.notice
+                color: Theme.warn
+                wrapMode: Text.WordWrap
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeBody
+            }
+
+            // The summary of the flight that just ended; FlightSummary replaces this placeholder (milestone 6, Task 8).
+            Text {
+                Layout.fillWidth: true
+                visible: page.plannedFlight.state === "summary"
+                text: "Flight " + page.plannedFlight.summaryFlightId + " settled."
+                color: Theme.textPrimary
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeBody
+            }
 
             PlannedFlightPanel {
                 Layout.fillWidth: true

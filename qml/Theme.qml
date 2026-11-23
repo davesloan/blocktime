@@ -28,6 +28,7 @@ QtObject {
     readonly property color good: "#22C55E"
     readonly property color warn: "#F59E0B"
     readonly property color bad: "#EF4444"
+    readonly property color warnSurface: "#2A2112"  // warn mixed into bg: the Not recording banner
 
     // Shape
     readonly property int radius: 10

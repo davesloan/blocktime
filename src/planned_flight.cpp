@@ -281,6 +281,25 @@ bool storeSimbriefPlan(db::Database& db, std::int64_t plannedFlightId, const Sim
     return false;
 }
 
+std::optional<FlightTarget> flightTarget(db::Database& db, const PlannedFlightView& flight) {
+    db::Statement q(db, "SELECT t.sim_folder, o.latitude, o.longitude, a.fuel_on_board_lb FROM planned_flight f"
+                        " JOIN airplane a USING (airplane_id) JOIN aircraft_type t USING (aircraft_type_id)"
+                        " JOIN airport o ON o.airport_id = f.origin_airport_id WHERE f.planned_flight_id = ?");
+    q.bind(1, flight.id);
+    if (!q.next()) return std::nullopt;
+    FlightTarget t;
+    t.plannedFlightId = flight.id;
+    t.plannedAt = flight.plannedAt;
+    t.simFolder = q.text(0);
+    t.typeCode = flight.typeCode;
+    t.registration = flight.registration;
+    t.originIcao = flight.origin;
+    t.originLat = q.real(1);
+    t.originLon = q.real(2);
+    t.fuelOnRecordLb = static_cast<int>(q.integer(3));
+    return t;
+}
+
 PriceInput priceInput(const PlannedFlightView& f) {
     PriceInput in;
     in.kind = f.kind;

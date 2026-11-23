@@ -20,7 +20,7 @@ Card {
 
     property bool collapsed: false
 
-    readonly property color stateTone: flight.state === "simConnected" ? Theme.good
+    readonly property color stateTone: flight.state === "simConnected" || flight.state === "flying" ? Theme.good
                                      : flight.state === "waitingForPlan" ? Theme.warn
                                      : Theme.textSecondary
 

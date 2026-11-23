@@ -33,6 +33,15 @@ ApplicationWindow {
     color: Theme.bg
 
     // New Flight (design.md §13.1). Once the flight is planned, the Live page shows it.
+    // At Gate Turnaround: New Flight for the same airplane at its new airport (design.md §13.7).
+    Connections {
+        target: window.plannedFlight
+
+        function onTurnaroundRequested(registration: string) {
+            if (window.newFlight.open(registration)) newFlightDialog.open();
+        }
+    }
+
     NewFlightDialog {
         id: newFlightDialog
 
