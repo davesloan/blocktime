@@ -4,9 +4,8 @@ The schema of `%LOCALAPPDATA%\BlockTime\blocktime.db`, the one SQLite file that 
 It follows the database rules in `CLAUDE.md` (D-078), applied for what they protect (D-090). Keep this file true: a
 schema change updates it in the same commit.
 
-**Status:** milestone 4 is built (schema version 2, `src/airline_db.cpp`). Milestone 5's tables (schema version 3)
-are specified below and built by `docs/plans/2026-11-23-milestone-5-new-flight-and-plan.md`. Tables for flights,
-flight money lines and hours come in milestone 6 and are only sketched here.
+**Status:** built through milestone 5 (schema version 3, `src/airline_db.cpp`). Tables for flights, flight money
+lines and hours come in milestone 6 and are only sketched here.
 
 ## Conventions
 

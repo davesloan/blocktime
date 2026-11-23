@@ -6,10 +6,11 @@ built around the parts that make flying feel meaningful and none of the busywork
 You lease aircraft, build rotations, and fly legs yourself while the rest of your fleet keeps flying in the background.
 Every flight you fly is recorded automatically, from parking brake release to parking brake set.
 
-> **Status:** early development, version 0.5.0. The app records flights (block out / block in), shows live flight
+> **Status:** early development, version 0.6.0. The app records flights (block out / block in), shows live flight
 > data and past flights with the route flown on a dark map, and runs the airline's foundation: your airline and
-> leased airplanes from config files, the monthly lease charges, and the money ledger. Planning and flying airline
-> legs (loads, revenue, costs) come next (`docs/roadmap.md`).
+> leased airplanes from config files, the monthly lease charges, and the money ledger. New Flight sets up a leg with
+> its loads and money preview, opens a pre-filled SimBrief dispatch page with SayIntentions' runways, and imports
+> the plan. Recording that planned flight and settling its money come next (`docs/roadmap.md`).
 
 This project is built for one pilot's own use and shared in case others want to tinker. It isn't designed to be easy to
 set up, and there's no support — but you're welcome to clone it and play.
@@ -55,7 +56,7 @@ One native Windows app, `BlockTime.exe`, in **C++20 with Qt 6 and a QML interfac
   **MSVC 2022 64-bit**, **Qt Positioning** and **Qt Location** components.
 - An internet connection on the first build (vcpkg downloads `nlohmann-json`, `gtest` and `sqlite3`) and for map
   tiles.
-- A free CARTO key for the dark map (see [Map key](#map-key)). Without one, tracks are drawn on a plain background.
+- A free CARTO key for the dark map (see [Keys and IDs](#keys-and-ids)). Without one, tracks are drawn on a plain background.
 
 The build finds the SDKs in this order:
 
@@ -113,8 +114,13 @@ New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\BlockTime" | Out-Null; Co
   "Internal ID" on SimBrief's airframe page, D-087). An airplane is leased the first time the app sees it; from then
   on the database owns it, and editing or removing it in the file changes nothing (a warning goes to `errors.log`,
   D-082).
-- **`catalog.yaml`:** aircraft types (lease rate, family, role) and airframes (seats and holds). Numbers marked
-  `estimate` are placeholders until they're read from the PMDG load pages.
+  Optional per airplane: `flight_number`, the default number of its free flights (re-read at every start, D-106), and
+  `limits`, its own values in place of its airframe's (read only when it's leased, D-100). Optional for the airline:
+  `fuel_price_per_100lb` (default 41), locked on each planned flight.
+- **`catalog.yaml`:** aircraft types (lease rate, family, role) and airframes (seats, holds and `limits`: minimum
+  runway, MLW, passenger and bag weight, and max payload, which must match the airplane's SimBrief airframe). Numbers
+  marked `estimate` are placeholders until they're read from the PMDG load pages. **Upgrading from 0.5:** copy the
+  repo's `catalog.yaml` again, since airframes now need `limits` (keep your own edits).
 - Then import the airport data ([Airport data](#airport-data)). Until both are in place, the Fleet page says what's
   missing.
 
@@ -135,7 +141,15 @@ while the app is open. A month you can't pay returns the airplane (design.md §5
   highest altitude and the route flown on a dark map. It updates after each block out and block in.
 - **Fleet:** your airplanes, with type, airframe, fleet, location, fuel on board and status (Parked, Awaiting
   delivery, Returned), and any notices about the setup above them. Click a column header to sort by it, and click it
-  again to reverse.
+  again to reverse. Select an airplane and click **New Flight** to plan its next leg.
+- **New Flight:** type the destination's ICAO code (its longest runway must fit the airplane), check the flight
+  number, and choose VIP airliner or charter on the BBJ2, or belly cargo on an airliner. An airplane awaiting delivery
+  only offers its delivery flight. The loads are rolled once and the money is shown before you commit; fuel is added
+  once the plan is in. **Plan flight** gets the active runways from SayIntentions and opens SimBrief's dispatch page,
+  filled in, in your browser.
+- **Live, before departure:** the planned flight, "Waiting for plan" until you press Generate on SimBrief and then
+  **Import Active SimBrief Plan** (the app never polls SimBrief, D-101), then "Waiting for sim". It shows where to load
+  in, the route with a copy button, the plan and the money estimate. **Cancel flight** is free.
 - **Money:** the cash and every ledger line, newest first: the opening cash and each lease month.
 - **Closing the window** stops recording cleanly. An open flight is logged as interrupted (`recorder_exit`), then
   `recorder_stopped`.
@@ -152,25 +166,38 @@ Everything lives in `%LOCALAPPDATA%\BlockTime\`, outside the repo:
 | Path | What |
 |---|---|
 | `events\events-YYYY-MM-DD.jsonl` | The event log, one JSON object per line, one file per UTC day (D-020). Event types: `docs/recorder.md` |
-| `settings.json` | `{"carto_key": "..."}` — the map key. Never commit it |
+| `settings.json` | Your keys and IDs ([Keys and IDs](#keys-and-ids)). Never commit it |
 | `airline.yaml`, `catalog.yaml` | Your airline and the aircraft catalog ([Set up your airline](#set-up-your-airline)) |
 | `blocktime.db` | The airline database: airplanes, the money ledger, airports (`docs/database.md`). Back it up by copying it while the app is closed. An old Qt test database is renamed `blocktime.test-schema.db` on first start (D-086) |
 | `airport-data\` | The downloaded airport files, kept for the next refresh ([Airport data](#airport-data)) |
 | `tiles\` | Map tile cache, at most 100 MB. Files older than 30 days are deleted at startup. Safe to delete |
 | `errors.log` | Errors that have nowhere else to go: block events that could never be written (`LOST:`, D-049) and event log or SimConnect failures. Normally just one "started" line per run (D-067) |
 
-### Map key
+### Keys and IDs
 
-The map uses CARTO Dark Matter tiles (D-059), which need a free personal key from
-https://carto.com/basemaps/apikey (no account; the key arrives by email link). Choose non-commercial use and don't
-restrict the key to websites. Save it where the app looks for it. This asks for the key, so it isn't left in your
-command history:
+`settings.json` holds the keys the app uses, read at start. Open it in Notepad (it's created if missing):
 
 ```powershell
-$k = Read-Host "CARTO key"; New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\BlockTime" | Out-Null; [IO.File]::WriteAllText("$env:LOCALAPPDATA\BlockTime\settings.json", (@{ carto_key = $k.Trim() } | ConvertTo-Json))
+New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\BlockTime" | Out-Null; notepad "$env:LOCALAPPDATA\BlockTime\settings.json"
 ```
 
-A wrong key shows grey "API KEY REQUIRED" tiles. CARTO sends those as normal images, so the app can't tell.
+```json
+{
+  "carto_key": "...",
+  "simbrief_user_id": "...",
+  "sayintentions_api_key": "...",
+  "sayintentions_developer_key": "..."
+}
+```
+
+| Key | What it's for, and where to find it |
+|---|---|
+| `carto_key` | The map's CARTO Dark Matter tiles (D-059). A free personal key from https://carto.com/basemaps/apikey (no account; the key arrives by email link). Choose non-commercial use and don't restrict it to websites. A wrong key shows grey "API KEY REQUIRED" tiles, which the app can't tell from real ones |
+| `simbrief_user_id` | Importing your latest SimBrief plan. Your Pilot ID, on SimBrief's Account Settings page. Not the first part of an airframe's Internal ID (`docs/notes/simbrief-api.md`) |
+| `sayintentions_api_key` | The active runways for planning. Your pilot API key, on your SayIntentions portal account page |
+| `sayintentions_developer_key` | The same. Request a personal developer key at https://p2.sayintentions.ai/p2/#developer-key (`docs/notes/sayintentions-api.md`) |
+
+Without the SayIntentions keys, planning still works and SimBrief chooses the runways. The keys are never logged.
 
 ### Airport data
 

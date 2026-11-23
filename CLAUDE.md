@@ -14,8 +14,10 @@ as open source (GPL-3.0 compatible). Name: **BlockTime**.
   Milestones 1–3 are built.
 - **The airline** (fleet, rotations, background flights, money) is plain C++ on a SQLite database
   (`docs/database.md`), built milestone by milestone (`docs/roadmap.md`). Milestone 4 built the foundation: config
-  files, the database, the airport import (`blocktime-import.exe`), leasing and the ledger. The app has four screens:
-  Live, Flights (past flights with the route on a dark map), Fleet and Money.
+  files, the database, the airport import (`blocktime-import.exe`), leasing and the ledger. Milestone 5 added New Flight
+  (loads, the money preview, `pricing.h`), the SimBrief dispatch page and plan import, and SayIntentions' runways,
+  behind a `Planner` interface for the two web calls. The app has four screens: Live (with the planned flight
+  before departure), Flights (past flights with the route on a dark map), Fleet (with New Flight) and Money.
 - **QML only displays.** Logic lives in plain C++ with GoogleTest tests, so the UI could be replaced without
   rewriting it.
 
