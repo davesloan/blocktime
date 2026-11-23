@@ -56,6 +56,7 @@ target_compile_options(blocktime-options INTERFACE /W4 /permissive- /utf-8 /exte
 add_library(blocktime-core STATIC
   src/airline_db.cpp
   src/app_settings.cpp
+  src/dates.cpp
   src/error_log.cpp
   src/event_log.cpp
   src/event_outbox.cpp
@@ -63,6 +64,7 @@ add_library(blocktime-core STATIC
   src/fleet_store.cpp
   src/flight_history.cpp
   src/geo.cpp
+  src/money.cpp
   src/open_flight.cpp
   src/sqlite_db.cpp
   src/telemetry_filter.cpp)
@@ -86,12 +88,14 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/airline_db_test.cpp
     tests/app_settings_test.cpp
     tests/block_detector_test.cpp
+    tests/dates_test.cpp
     tests/error_log_test.cpp
     tests/event_log_test.cpp
     tests/event_outbox_test.cpp
     tests/fleet_store_test.cpp
     tests/flight_history_test.cpp
     tests/geo_test.cpp
+    tests/money_test.cpp
     tests/open_flight_test.cpp)
   target_link_libraries(blocktime-tests PRIVATE blocktime-core GTest::gtest_main)
   gtest_discover_tests(blocktime-tests)
