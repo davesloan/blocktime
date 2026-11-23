@@ -42,6 +42,71 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-22 — Milestone 4 built: the airline foundation (version 0.5.0)
+
+**Done:**
+- Plan `docs/plans/2026-11-22-milestone-4-airline-foundation.md`, all 9 tasks, executed inline (D-033):
+  - **The airline database:** schema version 2 as in `docs/database.md`. The Qt test's file is set aside as
+    `blocktime.test-schema.db`.
+  - **Money and dates:** $5 rounding, the short and full forms, lease months.
+  - **`blocktime-import.exe`:** OurAirports plus mwgg/Airports time zones, filtered (D-094).
+  - **Config readers:** `catalog.yaml` and `airline.yaml` via yaml-cpp, with file-and-line errors (D-095).
+  - **Leasing:** first months and monthly charges in date order, unpaid returns, drift warnings (D-096).
+  - **`AirlineSession`**, the app's one entry point.
+  - **Screens:** the Fleet table on real airplanes (D-097), a Money page, and the airline's name in the sidebar.
+    The minute tick charges months that fall due while the app is open.
+- Whole-milestone review by a fresh reviewer: 0 Critical, 4 Important, 8 Minor. All Important fixed, plus one Minor
+  re-graded (D-098):
+  - a busy timeout, and a checked BEGIN;
+  - one bad airplane no longer stops the other leases;
+  - a real airline is no longer mistaken for the Qt test's file;
+  - the models reset only on change;
+  - the "Can't afford" notice says how to retry.
+- Docs: the README (set up your airline, airport data, screens, files), `CLAUDE.md`, `database.md` (built),
+  `docs/notes/airport-data.md`, D-094..D-098.
+
+**Working / verified (without the sim):**
+- Release and debug builds have no warnings. **176 tests**: blocktime-tests 150 (one skipped timing check),
+  blocktime-qt-tests 26. qmllint reports nothing.
+- Dave's real `airline.yaml`, run against a scratch data folder with a one-airport fixture, leased N814SX (fin 1001,
+  48 seats, holds 7,842 / 9,803 lb), posted $5,000,000 and -$900,000 (cash $4.1M), and wrote only the "started"
+  line to errors.log. Private memory was 30 MB after startup.
+
+**Unverified or broken:**
+- **The real airport import hasn't run.** Downloading the three files needs Dave's OK. The kept count and database
+  size are still "to be recorded" in `docs/notes/airport-data.md` and `database.md`.
+- **The screens haven't been seen:** the layout, the Money icon (Segoe Fluent E8C7) and the minimum window size.
+- **Deferred minors from the review:**
+  - an airframe typo names catalog.yaml, not airline.yaml's line;
+  - back-dated leases can leave cash negative;
+  - leased airplanes aren't charged while a config file is invalid (caught up after);
+  - no drift warning for starting_cash or founded_on;
+  - ANSI paths in messages;
+  - "UNPAVED" counts as paved;
+  - a new airplane's id is re-read with a SELECT.
+- D-094..D-098 are Proposed.
+
+**Dave's checks (no sim needed; milestone 4 doesn't touch the recorder):**
+1. Download the airport files and run the import (README, "Airport data"). Expected: "Read N airports, kept M" with
+   M in the thousands, and KBFI among them.
+2. Start `build\x64-release\BlockTime.exe`. Expected:
+   - **Sidebar:** "Soxxly Airlines" under BlockTime.
+   - **Fleet:** N814SX, 737-800 BBJ2, 737-800 BBJ2 VIP, Executive, KBFI, 0 lb, a blue "Awaiting delivery" pill. The
+     only notice is "The Qt test's database was set aside as blocktime.test-schema.db."
+   - **Money:** $4.1M ($4,100,000), with "Lease N814SX, 22 Nov – 21 Dec -$900,000" above "Opening cash $5,000,000".
+   - The old `blocktime.db` is now `blocktime.test-schema.db` next to the new one.
+3. Close and reopen. Expected: the same cash, no second lease line, and the set-aside notice gone.
+4. Break `airline.yaml`'s indentation and reopen. Expected: the same Fleet and Money, plus a notice starting
+   "airline.yaml line". Then fix it.
+5. Check that the Money icon looks like money and that nothing clips at the smallest window size.
+
+**Next step:**
+- Dave's checks above (and the OK to download the airport files for the recorded counts). Then milestone 5 (New
+  Flight and plan): its plan, starting with where SimBrief's airframe weights are stored
+  (`docs/notes/simbrief-airframes.md`).
+
+---
+
 ## 2026-11-22 — Milestone 4 planning: the schema draft (docs only)
 
 **Done:**
