@@ -73,8 +73,10 @@ Newest entries at the top. Add an entry at the end of every working session.
   line to errors.log. Private memory was 30 MB after startup.
 
 **Unverified or broken:**
-- **The real airport import hasn't run.** Downloading the three files needs Dave's OK. The kept count and database
-  size are still "to be recorded" in `docs/notes/airport-data.md` and `database.md`.
+- **The real airport import ran on 2026-11-23** into a scratch database: 4,265 of 86,383 airports kept, 512 KB, about
+  a second, and a second run updated in place. 33 large airports are left out, mostly ones missing from mwgg's zone
+  file (YBSU, HSSK, and others; listed in `docs/notes/airport-data.md`). Dave's own `blocktime.db` hasn't been
+  imported into yet: that's check 1.
 - **The screens haven't been seen:** the layout, the Money icon (Segoe Fluent E8C7) and the minimum window size.
 - **Deferred minors from the review:**
   - an airframe typo names catalog.yaml, not airline.yaml's line;
@@ -87,8 +89,8 @@ Newest entries at the top. Add an entry at the end of every working session.
 - D-094..D-098 are Proposed.
 
 **Dave's checks (no sim needed; milestone 4 doesn't touch the recorder):**
-1. Download the airport files and run the import (README, "Airport data"). Expected: "Read N airports, kept M" with
-   M in the thousands, and KBFI among them.
+1. Download the airport files and run the import (README, "Airport data"). Expected: "Read 86383 airports, kept 4265" (the
+   numbers drift a little as OurAirports updates daily).
 2. Start `build\x64-release\BlockTime.exe`. Expected:
    - **Sidebar:** "Soxxly Airlines" under BlockTime.
    - **Fleet:** N814SX, 737-800 BBJ2, 737-800 BBJ2 VIP, Executive, KBFI, 0 lb, a blue "Awaiting delivery" pill. The

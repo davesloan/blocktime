@@ -204,9 +204,9 @@ Imported from OurAirports, joined with an airport time zone dataset on the ICAO 
 `imported_at` UTC instant, `airport_count`. A refresh updates airports by ICAO code and adds new ones. Airplanes point
 at airports, so none is ever deleted; one that drops out of the source keeps its last values.
 
-**Import filter (Proposed):** OurAirports types `large_airport` and `medium_airport`, not closed, with a 4-character
-ICAO code, at least one open paved runway of 4,000 ft or more, and a time zone in the dataset. To be measured during
-the import task: how many airports that leaves and the file size.
+**Import filter (D-094):** OurAirports types `large_airport` and `medium_airport`, not closed, with a 4-character
+ICAO code, at least one open paved runway of 4,000 ft or more, and a time zone in the dataset. The first real import
+(2026-11-23) kept 4,265 of 86,383 airports, in a 512 KB database. Details in `docs/notes/airport-data.md`.
 
 ## Milestone 4's processes
 
