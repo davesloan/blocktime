@@ -35,8 +35,12 @@
 #include "event_log.h"
 #include "fleet_table_model.h"
 #include "flight_list_model.h"
+#include "airline_db.h"
 #include "ledger_model.h"
+#include "new_flight_model.h"
+#include "planned_flight_model.h"
 #include "qml_hot_reload.h"
+#include "qt_planner.h"
 #include "recorder.h"
 #include "recorder_bridge.h"
 #include "single_instance.h"
@@ -86,14 +90,14 @@ struct MapSettings {
     QString userAgent;
 };
 
-// Qt messages with the CARTO key taken out (review finding #14): a network error can quote the tile URL, and
+// Qt messages with every key taken out (review finding #14): a network error can quote a tile or getWX URL, and
 // QT_FORCE_STDERR_LOGGING (docs/notes/qt-setup.md) sends messages to stderr, which is the error log (D-067).
-std::string g_mapKey;
+std::vector<std::string> g_secrets;  // the CARTO and SayIntentions keys
 QtMessageHandler g_previousHandler = nullptr;
 
 void redactingMessageHandler(QtMsgType type, const QMessageLogContext& context, const QString& message) {
     const QString safe =
-        g_mapKey.empty() ? message : QString::fromStdString(blocktime::redact(message.toStdString(), g_mapKey));
+        g_secrets.empty() ? message : QString::fromStdString(blocktime::redact(message.toStdString(), g_secrets));
     if (g_previousHandler != nullptr) {
         g_previousHandler(type, context, safe);
     } else {
@@ -150,7 +154,8 @@ int main(int argc, char* argv[]) {
         "--- BlockTime " BLOCKTIME_VERSION " started " + blocktime::utcTimestamp());
 
     const MapSettings map = mapSettings();
-    g_mapKey = map.key;
+    const blocktime::AppSettings settings = blocktime::loadAppSettings(blocktime::defaultSettingsFile());
+    g_secrets = settings.secrets();
     g_previousHandler = qInstallMessageHandler(redactingMessageHandler);
 
     std::filesystem::path logDir = blocktime::EventLog::defaultDir();
@@ -226,11 +231,25 @@ int main(int argc, char* argv[]) {
     });
     airlineTick.start();
 
+    // Planning (design.md §13.1-13.3): New Flight and the planned flight before departure. Without a database the
+    // models work on an empty one, so the screens still open.
+    blocktime::db::Database emptyDatabase = blocktime::db::Database::openInMemory();
+    if (!airline.database()) blocktime::migrateAirlineDatabase(emptyDatabase, nullptr);
+    blocktime::db::Database& planningDb = airline.database() ? *airline.database() : emptyDatabase;
+    QtPlanner planner(settings);
+    const QString airlineIcao = QString::fromStdString(airline.airlineIcao());
+    NewFlightModel newFlight(planningDb, airlineIcao, airline.fuelPriceCentsPer100Lb(), planner);
+    PlannedFlightModel plannedFlight(planningDb, airlineIcao, planner, bridge);
+    QObject::connect(&newFlight, &NewFlightModel::planned, &plannedFlight,
+                     [&plannedFlight](const QString& note) { plannedFlight.reload(note); });
+
     QQmlApplicationEngine engine;
     const QVariantMap props{{"recorder", QVariant::fromValue(&bridge)},
                             {"flights", QVariant::fromValue(&flights)},
                             {"fleet", QVariant::fromValue(&fleet)},
                             {"ledger", QVariant::fromValue(&ledger)},
+                            {"newFlight", QVariant::fromValue(&newFlight)},
+                            {"plannedFlight", QVariant::fromValue(&plannedFlight)},
                             {"airlineName", QString::fromStdString(airline.airlineName())},
                             {"mapTileUrl", map.tileUrl},
                             {"mapCacheDir", map.cacheDir},

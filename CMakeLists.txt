@@ -144,7 +144,7 @@ endif()
 set(BLOCKTIME_QT_DIR "${_qt_default}" CACHE PATH "Path to the Qt 6 MSVC 64-bit kit (the folder holding bin/ and lib/)")
 list(APPEND CMAKE_PREFIX_PATH "${BLOCKTIME_QT_DIR}")
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Quick QuickControls2 Location Positioning)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Quick QuickControls2 Location Positioning Network)
 qt_standard_project_setup(REQUIRES 6.8)
 
 # QML lives in qml/. Each file is aliased to the module root (qrc:/qt/qml/BlockTime/<name>.qml), so the files sit
@@ -184,8 +184,13 @@ qt_add_qml_module(blocktime-app
     src/qml_hot_reload.h src/qml_hot_reload.cpp
     src/flight_list_model.h src/flight_list_model.cpp
     src/fleet_table_model.h src/fleet_table_model.cpp
-    src/ledger_model.h src/ledger_model.cpp)
-target_link_libraries(blocktime-app PRIVATE blocktime-sim Qt6::Quick Qt6::QuickControls2 Qt6::Location Qt6::Positioning)
+    src/ledger_model.h src/ledger_model.cpp
+    src/planner.h
+    src/qt_planner.h src/qt_planner.cpp
+    src/new_flight_model.h src/new_flight_model.cpp
+    src/planned_flight_model.h src/planned_flight_model.cpp)
+target_link_libraries(blocktime-app PRIVATE blocktime-sim Qt6::Quick Qt6::QuickControls2 Qt6::Location Qt6::Positioning
+  Qt6::Network)
 set_target_properties(blocktime-app PROPERTIES OUTPUT_NAME BlockTime)  # BlockTime.exe (D-066)
 # The C++ that qmlcachegen generates from our QML trips C4702 (unreachable code) inside Qt's qjsengine.h. It's raised
 # by the optimizer, so /external:W0 can't hide it. Silence it for those generated files only.
@@ -217,8 +222,14 @@ if(BLOCKTIME_BUILD_TESTS)
     src/recorder_bridge.h src/recorder_bridge.cpp
     src/flight_list_model.h src/flight_list_model.cpp
     src/fleet_table_model.h src/fleet_table_model.cpp
-    src/ledger_model.h src/ledger_model.cpp)
-  target_link_libraries(blocktime-qt-tests PRIVATE blocktime-sim Qt6::Gui Qt6::Qml Qt6::Positioning GTest::gtest_main)
+    src/ledger_model.h src/ledger_model.cpp
+    src/planner.h
+    src/new_flight_model.h src/new_flight_model.cpp
+    src/planned_flight_model.h src/planned_flight_model.cpp)
+  target_link_libraries(blocktime-qt-tests PRIVATE blocktime-sim Qt6::Gui Qt6::Qml Qt6::Positioning Qt6::Network
+    GTest::gtest_main)
+  target_include_directories(blocktime-qt-tests PRIVATE tests)
+  target_compile_definitions(blocktime-qt-tests PRIVATE BLOCKTIME_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
   add_dependencies(blocktime-qt-tests blocktime-app)
   gtest_discover_tests(blocktime-qt-tests)
 endif()

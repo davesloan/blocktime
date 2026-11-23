@@ -93,3 +93,8 @@ void FleetTableModel::applySort() {
         return c < 0;
     });
 }
+
+QString FleetTableModel::registrationAt(int row) const {
+    if (row < 0 || row >= static_cast<int>(rows_.size())) return {};
+    return QString::fromStdString(rows_[static_cast<std::size_t>(row)].registration);
+}

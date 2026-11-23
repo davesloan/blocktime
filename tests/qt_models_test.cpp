@@ -11,6 +11,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <sstream>
 #include <string>
 #include <tuple>
@@ -27,7 +28,12 @@
 #include "fleet_table_model.h"
 #include "ledger_model.h"
 #include "flight_list_model.h"
+#include "new_flight_model.h"
+#include "planned_flight.h"
+#include "planned_flight_model.h"
+#include "planner.h"
 #include "recorder_bridge.h"
+#include "test_airline.h"
 
 using namespace blocktime;
 namespace fs = std::filesystem;
@@ -506,4 +512,231 @@ TEST(Ledger, ResetEmitsChanged) {
     EXPECT_EQ(m.rowCount(), 2);
     EXPECT_EQ(m.cashFull(), "$4,100,000");
     EXPECT_EQ(changes, 1);
+}
+
+// --- Milestone 5: New Flight and the planned flight -----------------------------------------------------------------
+
+namespace {
+
+std::string dataFile(const char* name) {
+    std::ifstream in(std::string(BLOCKTIME_SOURCE_DIR "/tests/data/") + name, std::ios::binary);
+    return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+}
+
+// Answers at once with canned values and remembers what it was asked to open.
+class FakePlanner : public Planner {
+public:
+    AtisRunways runways{"14R", "27"};
+    QString runwayNote;
+    QByteArray ofpBody = QByteArray::fromStdString(dataFile("ofp_v2_min.json"));
+    QString ofpError;
+    QStringList opened;
+    int ofpFetches = 0;
+
+    void fetchRunways(QString, QString, std::function<void(AtisRunways, QString)> done) override {
+        done(runways, runwayNote);
+    }
+    void fetchLatestOfp(std::function<void(QByteArray, QString)> done) override {
+        ++ofpFetches;
+        done(ofpBody, ofpError);
+    }
+    void openUrl(const QString& url) override { opened << url; }
+};
+
+db::Database deliveredAirline() {
+    db::Database db = test::testAirline();
+    EXPECT_TRUE(db.exec("UPDATE airplane SET awaiting_delivery = 0 WHERE registration = 'N814SX'"));
+    return db;
+}
+
+// A VIP flight N814SX KBFI-KSAN planned at `plannedAt`, written straight to the database.
+void planVip(db::Database& db, const std::string& plannedAt) {
+    NewPlannedFlight f;
+    f.airplaneId = loadFlightAirplane(db, "N814SX")->airplaneId;
+    f.originIcao = "KBFI";
+    f.destinationIcao = "KSAN";
+    f.flightNumber = "8";
+    f.kind = FlightKind::Vip;
+    f.cabins = {{"economy", 46}};
+    f.fuelPriceCentsPer100Lb = 4100;
+    f.plannedAt = plannedAt;
+    f.originRunway = "14R";
+    f.destinationRunway = "27";
+    std::string error;
+    ASSERT_TRUE(createPlannedFlight(db, f, &error).has_value()) << error;
+}
+
+}  // namespace
+
+TEST(NewFlightModel, PlanWritesTheFlightAndOpensDispatch) {
+    db::Database db = deliveredAirline();
+    FakePlanner planner;
+    NewFlightModel m(db, "XLY", 4100, planner);
+    ASSERT_TRUE(m.open("N814SX"));
+    EXPECT_EQ(m.kinds(), (QStringList{"vip", "charter"}));
+    EXPECT_EQ(m.flightNumber(), "8");
+    m.setKind("vip");
+    m.setDestination("KSAN");
+    EXPECT_TRUE(m.canPlan());
+    EXPECT_EQ(m.endsUpText(), "N814SX ends up at KSAN");
+    EXPECT_FALSE(m.incomeLines().isEmpty());
+    EXPECT_EQ(m.fuelNote(), "+ fuel");
+    int planned = 0;
+    QObject::connect(&m, &NewFlightModel::planned, [&] { ++planned; });
+    m.plan();
+    EXPECT_EQ(planned, 1);
+    EXPECT_FALSE(m.busy());
+    const auto f = currentPlannedFlight(db);
+    ASSERT_TRUE(f.has_value());
+    EXPECT_EQ(f->destination, "KSAN");
+    EXPECT_EQ(f->flightNumber, "8");
+    ASSERT_EQ(planner.opened.size(), 1);
+    EXPECT_TRUE(planner.opened[0].contains("&origrwy=14R&destrwy=27")) << planner.opened[0].toStdString();
+    EXPECT_TRUE(planner.opened[0].contains("airline=XLY&fltnum=8")) << planner.opened[0].toStdString();
+}
+
+TEST(NewFlightModel, PlanWithoutAtisStillPlans) {
+    db::Database db = deliveredAirline();
+    FakePlanner planner;
+    planner.runways = {};
+    planner.runwayNote = "No SayIntentions keys in settings.json";
+    NewFlightModel m(db, "XLY", 4100, planner);
+    ASSERT_TRUE(m.open("N814SX"));
+    m.setDestination("KSAN");
+    m.plan();
+    ASSERT_EQ(planner.opened.size(), 1);
+    EXPECT_FALSE(planner.opened[0].contains("origrwy")) << planner.opened[0].toStdString();
+    const auto f = currentPlannedFlight(db);
+    ASSERT_TRUE(f.has_value());
+    EXPECT_EQ(f->originRunway, "");
+    EXPECT_EQ(f->destinationRunway, "");
+}
+
+TEST(NewFlightModel, DestinationMessageUpdates) {
+    db::Database db = deliveredAirline();
+    FakePlanner planner;
+    NewFlightModel m(db, "XLY", 4100, planner);
+    ASSERT_TRUE(m.open("N814SX"));
+    EXPECT_EQ(m.destinationMessage(), "");  // nothing typed yet
+    m.setDestination("KSHT");
+    EXPECT_EQ(m.destinationMessage(), "KSHT's longest runway is 5,000 ft; N814SX needs 7,000 ft.");
+    EXPECT_FALSE(m.canPlan());
+    m.setDestination("KSAN");
+    EXPECT_EQ(m.destinationMessage(), "");
+    m.setFlightNumber("");
+    EXPECT_FALSE(m.canPlan());
+}
+
+TEST(NewFlightModel, DeliveryOffersOnlyTheDeliveryFlight) {
+    db::Database db = test::testAirline();
+    FakePlanner planner;
+    NewFlightModel m(db, "XLY", 4100, planner);
+    ASSERT_TRUE(m.open("N814SX"));
+    EXPECT_EQ(m.kinds(), (QStringList{"delivery"}));
+    EXPECT_EQ(m.loadLines(), (QStringList{"Delivery flight: no passengers or cargo"}));
+    m.setDestination("KSAN");
+    EXPECT_TRUE(m.incomeLines().isEmpty());
+    EXPECT_TRUE(m.totalText().startsWith("-$")) << m.totalText().toStdString();
+}
+
+TEST(PlannedFlightModel, ImportStoresMatchingPlan) {
+    db::Database db = deliveredAirline();
+    planVip(db, "2026-11-23T14:00:00Z");
+    FakePlanner planner;
+    RecorderBridge bridge;
+    PlannedFlightModel m(db, "XLY", planner, bridge);
+    EXPECT_TRUE(m.hasFlight());
+    EXPECT_EQ(m.state(), "waitingForPlan");
+    EXPECT_EQ(m.title(), "XLY8 · KBFI → KSAN");
+    EXPECT_EQ(m.runwayText(), "ATIS runways: 14R → 27");
+    EXPECT_EQ(m.loadInText(), "Load in at KBFI, Boeing Field");
+    m.importPlan();
+    EXPECT_EQ(planner.ofpFetches, 1);
+    EXPECT_EQ(m.state(), "waitingForSim");
+    EXPECT_EQ(m.message(), "Imported the plan generated 14:02Z");
+    EXPECT_EQ(m.planText(), "Plan generated 14:02Z · FL370 · 2h 31m · burn 10,900 lb");
+    EXPECT_EQ(m.route(), "BANGR9 BANGR DCT LKV DCT OAL J65 BLH DCT JLI SEAVU2");
+    EXPECT_TRUE(currentPlannedFlight(db)->plan.has_value());
+}
+
+TEST(PlannedFlightModel, ImportRefusesAStalePlan) {
+    db::Database db = deliveredAirline();
+    planVip(db, "2026-11-23T14:20:00Z");
+    FakePlanner planner;
+    RecorderBridge bridge;
+    PlannedFlightModel m(db, "XLY", planner, bridge);
+    m.importPlan();
+    EXPECT_EQ(m.state(), "waitingForPlan");
+    EXPECT_TRUE(m.message().startsWith("The latest SimBrief plan was generated at 14:02Z")) << m.message().toStdString();
+    EXPECT_FALSE(currentPlannedFlight(db)->plan.has_value());
+}
+
+TEST(PlannedFlightModel, ImportShowsSimbriefError) {
+    db::Database db = deliveredAirline();
+    planVip(db, "2026-11-23T14:00:00Z");
+    FakePlanner planner;
+    planner.ofpBody = R"({"fetch":{"userid":"","static_id":"","status":"Error: Unknown UserID","time":"0"}})";
+    RecorderBridge bridge;
+    PlannedFlightModel m(db, "XLY", planner, bridge);
+    m.importPlan();
+    EXPECT_TRUE(m.message().contains("Error: Unknown UserID")) << m.message().toStdString();
+    EXPECT_EQ(m.state(), "waitingForPlan");
+}
+
+TEST(PlannedFlightModel, ImportShowsNetworkError) {
+    db::Database db = deliveredAirline();
+    planVip(db, "2026-11-23T14:00:00Z");
+    FakePlanner planner;
+    planner.ofpBody.clear();
+    planner.ofpError = "Add simbrief_user_id to settings.json";
+    RecorderBridge bridge;
+    PlannedFlightModel m(db, "XLY", planner, bridge);
+    m.importPlan();
+    EXPECT_EQ(m.message(), "Add simbrief_user_id to settings.json");
+}
+
+TEST(PlannedFlightModel, CancelClears) {
+    db::Database db = deliveredAirline();
+    planVip(db, "2026-11-23T14:00:00Z");
+    FakePlanner planner;
+    RecorderBridge bridge;
+    PlannedFlightModel m(db, "XLY", planner, bridge);
+    int changed = 0;
+    QObject::connect(&m, &PlannedFlightModel::flightChanged, [&] { ++changed; });
+    m.cancelFlight();
+    EXPECT_FALSE(m.hasFlight());
+    EXPECT_EQ(changed, 1);
+    EXPECT_FALSE(currentPlannedFlight(db).has_value());
+}
+
+TEST(PlannedFlightModel, StateFollowsConnection) {
+    db::Database db = deliveredAirline();
+    planVip(db, "2026-11-23T14:00:00Z");
+    FakePlanner planner;
+    RecorderBridge bridge;
+    PlannedFlightModel m(db, "XLY", planner, bridge);
+    m.importPlan();
+    ASSERT_EQ(m.state(), "waitingForSim");
+    bridge.applyConnection(ConnectionState::Connected);
+    EXPECT_EQ(m.state(), "simConnected");
+    EXPECT_EQ(m.stateText(), "Sim connected");
+}
+
+TEST(PlannedFlightModel, OpenDispatchPageRebuildsTheUrl) {
+    db::Database db = deliveredAirline();
+    planVip(db, "2026-11-23T14:00:00Z");
+    FakePlanner planner;
+    RecorderBridge bridge;
+    PlannedFlightModel m(db, "XLY", planner, bridge);
+    m.openDispatchPage();
+    ASSERT_EQ(planner.opened.size(), 1);
+    EXPECT_TRUE(planner.opened[0].contains("orig=KBFI&dest=KSAN&airline=XLY&fltnum=8")) << planner.opened[0].toStdString();
+    EXPECT_TRUE(planner.opened[0].contains("&pax=46&")) << planner.opened[0].toStdString();
+}
+
+TEST(Fleet, RegistrationAtRow) {
+    FleetTableModel m({plane("N814SX", "737-800 BBJ2 VIP", 0), plane("N738BT", "737-800 Two-class", 0)}, {});
+    EXPECT_EQ(m.registrationAt(0), "N738BT");  // sorted by registration
+    EXPECT_EQ(m.registrationAt(1), "N814SX");
+    EXPECT_EQ(m.registrationAt(5), "");
 }

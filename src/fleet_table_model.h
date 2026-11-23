@@ -40,6 +40,9 @@ public:
     // Text columns compare case-insensitively, Fuel by value; ties fall back to the registration.
     Q_INVOKABLE void sort(int column, Qt::SortOrder order = Qt::AscendingOrder) override;
 
+    // The registration shown in `row`, or "" for a row that doesn't exist.
+    Q_INVOKABLE QString registrationAt(int row) const;
+
     int sortColumn() const { return sortColumn_; }
     int sortOrder() const { return static_cast<int>(sortOrder_); }
     QStringList notices() const { return notices_; }
