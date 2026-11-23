@@ -21,7 +21,7 @@ On this branch Qt is required to build.
   1. `-DSIMCONNECT_SDK_DIR=<path to the "SimConnect SDK" folder>`, if you pass it
   2. `%MSFS_SDK%\SimConnect SDK` (the SDK installer sets `MSFS_SDK`)
   3. `C:\MSFS SDK\SimConnect SDK`
-- An internet connection on the first build, because vcpkg downloads `nlohmann-json` and `gtest`.
+- An internet connection on the first build, because vcpkg downloads `nlohmann-json`, `gtest` and `sqlite3`.
 - **On the `qt-ui-spike` branch: Qt 6.8 or newer** (developed with 6.12.0), from the official Qt online installer
   (free Qt account) with the **MSVC 2022 64-bit** component. The build looks for the kit in this order:
   1. `-DBLOCKTIME_QT_DIR=<kit folder>`, if you pass it
@@ -149,6 +149,33 @@ step copies Qt's DLLs next to it, so it runs from there (D-056).
 - `--demo` shows made-up values (an open flight at cruise) and records nothing. Use it to look at the UI without the
   sim (D-057).
 - Use the **release** build for flights and for memory/CPU readings. The debug build is much heavier.
+
+The side menu has three pages (UI test 2, D-062):
+
+- **Live:** the live flight panel and event feed.
+- **Flights:** every flight in the last 30 days of the event log, newest first (D-060). The selected flight's
+  block times, fuel used, distance and highest altitude are shown above its track on a dark map. The list updates
+  after each block out and block in. `--demo` shows your real flights too, since reading the log records nothing.
+- **Fleet:** a sortable table of airframes from `%LOCALAPPDATA%\BlockTime\blocktime.db` (a test schema, seeded with
+  8 sample airframes on first run), with each tail's flights and block hours from the log (D-061). Click a column
+  header to sort by it, and click it again to reverse.
+
+#### Map key
+
+The map uses CARTO Dark Matter tiles (D-059), which need a free personal key from
+https://carto.com/basemaps/apikey (no account; the key arrives by email link). Choose non-commercial use and don't
+restrict the key to websites. Save it where the app looks for it. This asks for the key, so it isn't left in your
+command history:
+
+```powershell
+$k = Read-Host "CARTO key"; New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\BlockTime" | Out-Null; [IO.File]::WriteAllText("$env:LOCALAPPDATA\BlockTime\settings.json", (@{ carto_key = $k.Trim() } | ConvertTo-Json))
+```
+
+- The key lives only in `%LOCALAPPDATA%\BlockTime\settings.json`, outside the repo. Never commit it.
+- Without a key, the Flights page draws the track on a plain dark background.
+- A wrong key shows grey "API KEY REQUIRED" tiles. CARTO sends those as normal images, so the app can't tell.
+- Tiles are cached in `%LOCALAPPDATA%\BlockTime\tiles\`, at most 100 MB. Files older than 30 days are deleted at
+  startup, as CARTO's terms require. Deleting the folder is always safe.
 
 ### Changing the UI
 

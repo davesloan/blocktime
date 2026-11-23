@@ -40,6 +40,15 @@ Found while building Qt UI test 1 (branch `qt-ui-spike`, 2026-11-22).
 - **Hot reload (D-055):** a QML file loaded from the source folder isn't part of the module any more, so it can't see
   C++ types (`RecorderBridge`) or the `Theme` singleton unless it has `import BlockTime`. Every QML file has it.
 - `QQmlEngine::clearSingletons()` is needed on reload, or Theme keeps its old values.
+- **In a property's change handler, bindings that depend on that property may not have updated yet.** `RouteMap`'s
+  `onTrackChanged` read `trackPoints` (bound to `track.path`) and got the previous flight's points. Read the
+  property itself in the handler.
+- **`Map.fitViewportToGeoShape` applies after it returns**, so reading `zoomLevel` straight after it gives the old
+  value. Clamp the zoom in `Qt.callLater`.
+- Items for a `MapView` (`MapPolyline`, `MapQuickItem`) are declared inside it and added with
+  `map.addMapItem(...)`; being children of `MapView` alone doesn't put them on the map.
+- **Hiding items in a `ColumnLayout`:** if nothing visible has `Layout.fillHeight`, the layout spreads the spare
+  height between the items, and a title floats to the middle. Give the remaining item `Layout.fillHeight: true`.
 
 ## Map tiles (UI test 2, D-059)
 
@@ -73,4 +82,15 @@ event feed as `WARNING` lines, through the observer.
 
 ## Measured (no sim)
 
-Release build, idle, Windows 11: about 87–92 MB (working set and private bytes), 0% CPU over 10 s.
+Release build, idle, Windows 11: about 87–92 MB (working set and private bytes), 0% CPU over 10 s (UI test 1).
+
+UI test 2, release, `--demo`, 10 s per page:
+
+| Page | Task Manager Memory (private working set) | Working set | Private bytes | CPU |
+|---|---|---|---|---|
+| Live | 31 MB | 95 MB | 100 MB | 0% |
+| Flights, after five flights on the map | 44 MB | 106 MB | 114 MB | 0% |
+| Fleet | 46 MB | 110 MB | 117 MB | 0% |
+
+Dave's limit is read in Task Manager (its Memory column is the private working set). Working set and private bytes
+also count the shared Qt DLLs and committed but unused memory, so they read about 2.5 times higher.

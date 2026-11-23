@@ -4,10 +4,25 @@ Context from a brainstorming chat with Dave on 2026-11-22. Read this before work
 (D-050, D-051) or before deciding what comes after them. It records how we got here, what Dave cares about, and
 what the test has to answer, so a future session doesn't have to rediscover it.
 
-Status: **UI test 1 passed in the sim (2026-11-22).** UI test 2 not started. The work is on the
-branch `qt-ui-spike` (Dave's name; D-051 first said `spike/qt-ui`). It's built inside the recorder project so it can
-be merged as it is if Qt wins (D-052). Plan: `docs/plans/2026-11-22-qt-ui-test-1.md`. D-001 (two programs) and
-D-004 (local web app + SQLite) stay in force until the test's decision point.
+Status: **UI test 1 passed in the sim (2026-11-22). UI test 2 built (2026-11-22), waiting on Dave's sim checks
+and the decision.** The work is on the branch `qt-ui-spike` (Dave's name; D-051 first said `spike/qt-ui`). It's
+built inside the recorder project so it can be merged as it is if Qt wins (D-052). Plans:
+`docs/plans/2026-11-22-qt-ui-test-1.md`, `docs/plans/2026-11-22-qt-ui-test-2.md`. D-001 (two programs) and D-004
+(local web app + SQLite) stay in force until the test's decision point.
+
+**Test 2 findings so far (without the sim):**
+- **Route map: yes, Qt can draw a decent one.** Qt Location with CARTO Dark Matter tiles (D-059) shows the flown
+  track, start and end dots, and the credit line, in the dark theme. Getting there took one probe (how to pass the
+  key), one cache gotcha (a wrong key's tiles would outlive a fixed key), and one QML bug (a change handler read a
+  binding that hadn't updated yet, so the map fitted the previous flight).
+- **Data screens:** the Flights list and the sortable Fleet table (TableView + HorizontalHeaderView, from SQLite)
+  each took one pass plus one layout fix. The data logic is plain C++ with 31 new GoogleTest tests; QML only
+  displays.
+- **Memory:** Task Manager's Memory column shows 31 MB on Live and 44–46 MB after the map and the Fleet table
+  (release, `--demo`). The map adds about 15 MB. CPU stays at 0%.
+- **Back-and-forth:** 4 fixes across the 7 tasks, each found by Claude from screenshots and fixed in one pass. The
+  four were Live tile labels cut off by the sidebar, a person-like Flights icon, the stale-binding map fit, and the
+  Fleet error layout. None needed Dave.
 
 **Test 1 result: passed all four criteria** (Dave's flight, KSAN → KSAN in the 737-800, 2026-11-22):
 - **Memory:** never above **30 MB** in Task Manager during the flight (limit 100 MB). Task Manager's Memory column

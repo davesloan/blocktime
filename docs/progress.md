@@ -22,6 +22,54 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-22 — Qt UI test 2 built (branch qt-ui-spike)
+
+**Done:**
+- Plan: `docs/plans/2026-11-22-qt-ui-test-2.md`, all 7 tasks. `main` was merged into the branch first (D-058).
+- Side menu with three pages: **Live** (test 1's screen, unchanged), **Flights** and **Fleet** (D-062).
+- **Flights:** the flights rebuilt from the event log (D-060), newest first, with block times, fuel used, distance
+  and highest altitude, and the flown track on a dark **CARTO Dark Matter** map (D-059). The key is in
+  `%LOCALAPPDATA%\BlockTime\settings.json`. The list reloads after every block event.
+- **Fleet:** a sortable table from SQLite (`%LOCALAPPDATA%\BlockTime\blocktime.db`, test schema, 8 seeded airframes)
+  with each tail's flights and block hours from the log (D-061). sqlite3 3.54.1 comes from vcpkg.
+- Docs: D-059..D-062, the map probe results in `docs/notes/qt-setup.md`, the README's Qt section, and the context
+  doc.
+
+**Working / verified (without the sim):**
+- Release and debug build with no warnings. **83/83 tests** (31 new: flight history, settings and tile cache,
+  fleet store). qmllint reports nothing. The console recorder smoke run is unchanged.
+- Dave's real log loads in 35–41 ms (6 flights, 2,220 track points). Every flight matches the log.
+- Map: Dave's key shows the dark map with CARTO's credit line (debug and release). With no key, the track is drawn
+  on the plain background with a note. A wrong key shows CARTO's "API KEY REQUIRED" tiles and the app keeps
+  working. Ramp-only flights show at airport scale.
+- Fleet: 8 rows; N818SX 2 flights / 0.8 h; every column sorts both ways; an unusable data folder shows SQLite's
+  message instead of the table.
+- **Release app in `--demo`** (10 s each, no sim). Task Manager's Memory column (private working set): **31 MB**
+  on Live, **44–46 MB** after five flights on the map and the Fleet table. Working set 95 → 110 MB and private bytes
+  100 → 117 MB, which also count shared Qt DLLs and committed memory. CPU 0–0.02% on every page.
+
+**Unverified or broken:**
+- Not seen in the sim: the list updating after a block in while the app is open, and memory/CPU during a flight
+  with the map opened once.
+- Dragging and zooming the map: not tested by script.
+- Decisions D-060..D-062, and D-059's details, are Proposed (D-059's provider is Dave's choice).
+
+**Sim checks for Dave** (one MSFS load; release `blocktime-app.exe`, not the console recorder):
+1. Before loading the flight, open **Flights**. Expect today's flights on the dark map; select a few. Drag and
+   scroll-zoom the map.
+2. Open **Fleet**. Expect 8 rows. Note N818SX's flights and hours. Click a header twice to sort both ways.
+3. Back on **Live**, fly a leg as usual. Now and then check Task Manager's Memory for `blocktime-app.exe`. Expect
+   it under 100 MB (about 45 MB) and CPU under 1%.
+4. After block in, open **Flights** without restarting. Expect the new flight at the top, selected, with its track
+   matching the route flown.
+5. Open **Fleet**. Expect N818SX's flights up by one and its hours up by the block time.
+6. Your verdict on the map and the two data screens, and the Qt decision (`docs/qt-ui-test-context.md`, Deciding
+   afterwards).
+
+**Next step:**
+- Dave's sim checks above, then the Qt decision. If Qt wins: tests and a code review on the branch, merge, and a
+  decision superseding D-001 and D-004 (D-051).
+
 ## 2026-11-22 — Qt UI test 1 flown: passed
 
 **Done:**

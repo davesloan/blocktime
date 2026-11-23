@@ -770,3 +770,63 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Alternatives considered: Timing holds by the wall clock (a freeze fakes a hold). Counting samples (telemetry
   is sent on change, so a sample count isn't a steady clock). Using a sim-time SimVar (not checked yet; the
   silence the recorder already measures is enough).
+
+## D-059 — Map tiles: CARTO Dark Matter through Qt Location, key in a local settings file
+- Date: 2026-11-22
+- Status: Accepted for the provider (Dave chose CARTO Dark Matter, 2026-11-22); the details below are Proposed
+- Decided by: Dave + Claude
+- Area: app
+- Decision: The route map (UI test 2) is Qt Location's `osm` plugin with CARTO Dark Matter raster tiles,
+  `https://basemaps.cartocdn.com/rastertiles/dark_all/%z/%x/%y.png?key=<key>`, passed as
+  `osm.mapping.custom.host`. The key is `carto_key` in `%LOCALAPPDATA%\BlockTime\settings.json`, never in the repo,
+  never printed. Tiles are cached in `%LOCALAPPDATA%\BlockTime\tiles\<hash of the URL>\`, capped at 100 MB on
+  disk (16 MB memory, 32 MB texture cache), and files older than 30 days are deleted at startup. Qt's own
+  copyright box is hidden and CARTO's credit line is drawn in the theme's colours. The plugin is told not to fetch
+  Qt's provider list. Without a key, the track is drawn on the plain dark background.
+- Why: Dark tiles match the dark-only UI, and CARTO's free non-commercial tier (5 million tiles a month, key by
+  email link, no account) is far more than this app needs. The 30-day limit, the visible credit line and our own
+  User-Agent are CARTO's terms. A per-URL cache folder stops a wrong key's "API KEY REQUIRED" tiles (served with
+  HTTP 200) from outliving a fixed key, since Qt's cache file names don't include the URL.
+- Alternatives considered: Stadia Smooth Dark (smaller free tier, needs an account); no tiles; MapLibre Native Qt
+  (more polished, heavy dependency); a local provider file for the osm plugin (works, but not needed).
+
+## D-060 — The Flights screen reads flights back from the event log
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision: `loadFlightHistory` rebuilds flights and their tracks from the last 30 daily log files, read oldest to
+  newest as one stream, every time the list loads (at startup and after every block event). There's no flight
+  database in this test. Tracks drop samples within 25 m of the last kept point and are evenly thinned to at most
+  2,000 points; distance and highest altitude use every sample first. A block_out while a flight is open closes it
+  as interrupted with reason `unclosed`.
+- Why: The log is already the record of every flight (D-008), so this needs no new storage format. A day of
+  flying loads in 35–41 ms, fast enough for the GUI thread.
+- Alternatives considered: A flights table in SQLite (the real app's job if Qt wins).
+
+## D-061 — UI test 2's data layer: SQLite through vcpkg sqlite3, in plain C++
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision: `FleetStore` (in `blocktime-core`) uses the sqlite3 C API from vcpkg (3.54.1, static), not Qt SQL.
+  The database is `%LOCALAPPDATA%\BlockTime\blocktime.db` with a **test schema** (`user_version` 1, one
+  `airframes` table), seeded on first run with N818SX, N916SX and six made-up airframes covering `design.md` §3's
+  types. The Fleet screen adds each tail's flights and block hours from the flight history. `--demo` opens it too.
+- Why: Airline data in plain C++, tested with GoogleTest, survives a UI change if QML ever disappoints. SQLite was
+  already the plan for the app's database (D-004).
+- Alternatives considered: Qt SQL's built-in `QSQLITE` driver (no new dependency, but ties the data layer to Qt).
+
+## D-062 — Side menu: Live, Flights, Fleet
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision: A 200 px sidebar runs the full window height with the brand mark at its top and one entry per page
+  (Live, Flights, Fleet), the selected one marked by an accent bar. The header above the page shows the page name,
+  the connection pill and Open log folder. Icons are Segoe Fluent Icons glyphs (SpeedHigh EC4A, History E81C,
+  Airplane E709), a Windows 11 system font. The window opens at 1300 × 760 (minimum 1100 × 600) so the Live page
+  keeps test 1's width.
+- Why: A side menu between screens is part of what makes it feel like FlyHub / Sim Toolkit Pro. A system icon
+  font means nothing to bundle or license.
+- Alternatives considered: Tabs along the top; bundled SVG icons.
