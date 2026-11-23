@@ -97,6 +97,5 @@ std::string AirlineSession::airlineName() const { return config_ ? config_->iden
 
 std::string AirlineSession::airlineIcao() const { return config_ ? config_->identity.icaoCode : std::string(); }
 
-Cents AirlineSession::fuelPriceCentsPer100Lb() const { return config_ ? config_->fuelPriceCentsPer100Lb : AirlineConfig{}.fuelPriceCentsPer100Lb; }
 
 }  // namespace blocktime

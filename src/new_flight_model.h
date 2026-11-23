@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <optional>
 
 #include <QObject>
@@ -45,8 +46,9 @@ class NewFlightModel : public QObject {
     Q_PROPERTY(QString error READ error NOTIFY changed)
 
 public:
-    NewFlightModel(blocktime::db::Database& db, QString airlineIcao, blocktime::Cents fuelPriceCentsPer100Lb,
-                   Planner& planner, QObject* parent = nullptr);
+    // rates.yaml is read at every open() (D-107).
+    NewFlightModel(blocktime::db::Database& db, QString airlineIcao, std::filesystem::path ratesFile, Planner& planner,
+                   QObject* parent = nullptr);
 
     // Starts a new draft for the airplane: rolls its loads now. False if it can't fly (unknown or returned).
     Q_INVOKABLE bool open(const QString& registration);
@@ -90,7 +92,8 @@ signals:
 private:
     blocktime::db::Database& db_;
     QString airlineIcao_;
-    blocktime::Cents fuelPrice_;
+    std::filesystem::path ratesFile_;
+    bool ratesOk_ = false;  // rates.yaml read at the last open(); Plan flight needs it
     Planner& planner_;
     std::optional<blocktime::FlightDraft> draft_;
     QString destination_;

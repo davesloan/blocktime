@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include "pricing.h"
+#include "rates.h"
 
 using namespace blocktime;
 
@@ -40,7 +41,7 @@ using Lines = std::vector<std::string>;
 }  // namespace
 
 TEST(Pricing, VipFlight) {
-    const Preview p = pricePreview(vip());
+    const Preview p = pricePreview(vip(), Rates{});
     EXPECT_EQ(lines(p.income), (Lines{"VIP fares 28150"}));
     EXPECT_EQ(lines(p.costs), (Lines{"Landing fee -660", "Departure / gate -300", "Ground handling -900",
                                      "ATC / navigation -900", "Catering -460", "Pilots -1250",
@@ -52,7 +53,7 @@ TEST(Pricing, VipFlight) {
 TEST(Pricing, CharterFlight) {
     PriceInput in = vip();
     in.kind = FlightKind::Charter;
-    const Preview p = pricePreview(in);
+    const Preview p = pricePreview(in, Rates{});
     EXPECT_EQ(lines(p.income), (Lines{"Charter 18750"}));
     EXPECT_EQ(lines(p.costs), (Lines{"Landing fee -660", "GA services -1500", "ATC / navigation -900", "Catering -460",
                                      "Pilots -1250", "Flight attendants -565", "Maintenance -750"}));
@@ -63,7 +64,7 @@ TEST(Pricing, CharterTwoHourMinimum) {
     PriceInput in = vip();
     in.kind = FlightKind::Charter;
     in.blockHours = 1.5;
-    EXPECT_EQ(lines(pricePreview(in).income), (Lines{"Charter 15000"}));
+    EXPECT_EQ(lines(pricePreview(in, Rates{}).income), (Lines{"Charter 15000"}));
 }
 
 TEST(Pricing, AirlinerWithBellyCargo) {
@@ -73,7 +74,7 @@ TEST(Pricing, AirlinerWithBellyCargo) {
     in.seatsInstalled = 160;
     in.cabins = {{"economy", 140}, {"business", 15}};
     in.cargoLb = 3000;
-    const Preview p = pricePreview(in);
+    const Preview p = pricePreview(in, Rates{});
     EXPECT_EQ(lines(p.income), (Lines{"Economy fares 22050", "Business fares 7090", "Cargo 1205"}));
     EXPECT_EQ(lines(p.costs), (Lines{"Landing fee -660", "Departure / gate -300", "Ground handling -900",
                                      "ATC / navigation -900", "Catering -775", "Cargo handling -120", "Pilots -1000",
@@ -85,7 +86,7 @@ TEST(Pricing, DeliveryIsALoss) {
     PriceInput in = vip();
     in.kind = FlightKind::Delivery;
     in.cabins = {};
-    const Preview p = pricePreview(in);
+    const Preview p = pricePreview(in, Rates{});
     EXPECT_TRUE(p.income.empty());
     EXPECT_EQ(lines(p.costs), (Lines{"Landing fee -660", "ATC / navigation -900", "Pilots -1250", "Maintenance -750"}));
     EXPECT_EQ(p.totalCents, -356'000);
@@ -94,7 +95,7 @@ TEST(Pricing, DeliveryIsALoss) {
 TEST(Pricing, FuelLineWhenBurnKnown) {
     PriceInput in = vip();
     in.fuelBurnLb = 6000;
-    const Preview p = pricePreview(in);
+    const Preview p = pricePreview(in, Rates{});
     ASSERT_FALSE(p.costs.empty());
     EXPECT_EQ(lines(p.costs)[0], "Fuel -2460");
     EXPECT_TRUE(p.fuelIncluded);
@@ -122,7 +123,7 @@ TEST(Pricing, CateringBands) {
     in.kind = FlightKind::Passenger;
     const auto catering = [&](double hours) {
         in.blockHours = hours;
-        for (const MoneyLine& m : pricePreview(in).costs) {
+        for (const MoneyLine& m : pricePreview(in, Rates{}).costs) {
             if (m.label == "Catering") return m.cents / 100;
         }
         return Cents{0};
@@ -139,10 +140,74 @@ TEST(Pricing, WidebodyRates) {
     in.kind = FlightKind::Passenger;
     in.seatsInstalled = 48;
     in.mlwLb = 554000;
-    const Preview p = pricePreview(in);
+    const Preview p = pricePreview(in, Rates{});
     EXPECT_EQ(lines(p.costs), (Lines{"Landing fee -2495", "Departure / gate -900", "Ground handling -2800",
                                      "ATC / navigation -1800", "Catering -230", "Pilots -1500",
                                      "Flight attendants -140", "Maintenance -1750"}));
+}
+
+TEST(Pricing, ActualBlockHoursOnlyChangeCrewAndMaintenance) {
+    PriceInput in = vip();
+    in.kind = FlightKind::Passenger;
+    in.role = "airliner";
+    in.seatsInstalled = 160;
+    in.cabins = {{"economy", 140}};
+    in.blockHours = 2.0;
+    const Preview planned = pricePreview(in, Rates{});
+    in.actualBlockHours = 3.5;
+    const Preview actual = pricePreview(in, Rates{});
+    EXPECT_EQ(lines(actual.income), lines(planned.income));
+    EXPECT_EQ(lines(actual.costs), (Lines{"Landing fee -660", "Departure / gate -300", "Ground handling -900",
+                                          "ATC / navigation -900", "Catering -700", "Pilots -1400",
+                                          "Flight attendants -770", "Maintenance -1050"}));
+}
+
+TEST(Pricing, ActualBlockHoursChangeThePilotCount) {
+    PriceInput in = vip();
+    in.blockHours = 7.5;
+    in.actualBlockHours = 8.5;  // three pilots, at the VIP rate
+    for (const MoneyLine& m : pricePreview(in, Rates{}).costs) {
+        if (m.label == "Pilots") EXPECT_EQ(m.cents, -3 * 25000 * 85 / 10);
+    }
+}
+
+TEST(Pricing, LinesCarryTheirCategory) {
+    PriceInput in = vip();
+    in.fuelBurnLb = 6000;
+    const Preview p = pricePreview(in, Rates{});
+    std::vector<std::string> codes;
+    for (const MoneyLine& m : p.income) codes.push_back(m.category);
+    for (const MoneyLine& m : p.costs) codes.push_back(m.category);
+    EXPECT_EQ(codes, (Lines{"vip_fares", "fuel", "landing_fee", "gate", "handling", "atc", "catering", "pilots",
+                            "flight_attendants", "maintenance"}));
+}
+
+TEST(Pricing, EveryKindsCategories) {
+    PriceInput in = vip();
+    in.kind = FlightKind::Charter;
+    std::vector<std::string> codes;
+    for (const MoneyLine& m : pricePreview(in, Rates{}).income) codes.push_back(m.category);
+    for (const MoneyLine& m : pricePreview(in, Rates{}).costs) codes.push_back(m.category);
+    EXPECT_EQ(codes, (Lines{"charter", "landing_fee", "ga_services", "atc", "catering", "pilots",
+                            "flight_attendants", "maintenance"}));
+    in.kind = FlightKind::Passenger;
+    in.role = "airliner";
+    in.cabins = {{"economy", 10}, {"business", 2}, {"first", 1}};
+    in.cargoLb = 1000;
+    codes.clear();
+    for (const MoneyLine& m : pricePreview(in, Rates{}).income) codes.push_back(m.category);
+    EXPECT_EQ(codes, (Lines{"economy_fares", "business_fares", "first_fares", "cargo"}));
+}
+
+TEST(Pricing, RatesAreUsed) {
+    PriceInput in = vip();
+    in.fuelBurnLb = 6000;
+    Rates rates;
+    rates.fuelPer100Lb = 8200;
+    in.fuelPriceCentsPer100Lb = rates.fuelPer100Lb;  // the planned flight's locked price is what's charged
+    EXPECT_EQ(lines(pricePreview(in, rates).costs)[0], "Fuel -4920");
+    rates.narrowbody.gate = 600;
+    EXPECT_EQ(lines(pricePreview(in, rates).costs)[2], "Departure / gate -600");
 }
 
 TEST(Pricing, EstimatedBlockHours) { EXPECT_DOUBLE_EQ(estimatedBlockHours(900, 450), 2.5); }

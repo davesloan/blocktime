@@ -120,10 +120,6 @@ std::optional<AirlineConfig> parseAirlineConfig(std::string_view yaml, std::stri
             return r.fail((*root)["starting_cash"], "starting_cash must be a positive multiple of 5 dollars"), finish();
         }
         config.startingCashCents = cash * 100;
-        const YAML::Node fuelPrice = std::as_const(*root)["fuel_price_per_100lb"];
-        if (fuelPrice.IsDefined() && fuelPrice.IsScalar()) {
-            config.fuelPriceCentsPer100Lb = std::llround(fuelPrice.as<double>() * 100);
-        }
 
         const YAML::Node fleets = (*root)["fleets"];
         if (!fleets.IsSequence()) return r.fail(*root, "missing the fleets list"), finish();

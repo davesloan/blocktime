@@ -29,13 +29,16 @@ QString hhmm(const std::string& instant) { return instant.size() >= 16 ? q(insta
 }  // namespace
 
 PlannedFlightModel::PlannedFlightModel(db::Database& db, QString airlineIcao, Planner& planner, RecorderBridge& bridge,
-                                       QObject* parent)
-    : QObject(parent), db_(db), airlineIcao_(std::move(airlineIcao)), planner_(planner), bridge_(bridge) {
+                                       std::filesystem::path ratesFile, QObject* parent)
+    : QObject(parent), db_(db), airlineIcao_(std::move(airlineIcao)), planner_(planner), bridge_(bridge),
+      ratesFile_(std::move(ratesFile)) {
     connect(&bridge_, &RecorderBridge::connectionChanged, this, &PlannedFlightModel::changed);
+    rates_ = loadRates(ratesFile_, nullptr).value_or(Rates{});
     flight_ = currentPlannedFlight(db_);
 }
 
 void PlannedFlightModel::reload(const QString& message) {
+    rates_ = loadRates(ratesFile_, nullptr).value_or(Rates{});
     flight_ = currentPlannedFlight(db_);
     message_ = message;
     emit changed();
@@ -157,7 +160,7 @@ QString PlannedFlightModel::planText() const {
 QVariantList PlannedFlightModel::estimateLines() const {
     QVariantList out;
     if (!flight_) return out;
-    const Preview p = pricePreview(priceInput(*flight_));
+    const Preview p = pricePreview(priceInput(*flight_), rates_);
     for (const auto* lines : {&p.income, &p.costs}) {
         for (const MoneyLine& m : *lines) {
             out << QVariantMap{{"label", q(m.label)}, {"amount", q(formatMoneyFull(m.cents))}};
@@ -167,7 +170,7 @@ QVariantList PlannedFlightModel::estimateLines() const {
 }
 
 QString PlannedFlightModel::totalText() const {
-    return flight_ ? q(formatMoneyFull(pricePreview(priceInput(*flight_)).totalCents)) : QString();
+    return flight_ ? q(formatMoneyFull(pricePreview(priceInput(*flight_), rates_).totalCents)) : QString();
 }
 
 QString PlannedFlightModel::fuelNote() const {

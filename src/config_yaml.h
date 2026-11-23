@@ -29,6 +29,7 @@ public:
     // A required key of `map`. Missing, or the wrong kind, is an error at `map`.
     bool string(const YAML::Node& map, const char* key, std::string& out);
     bool integer(const YAML::Node& map, const char* key, std::int64_t& out);
+    bool number(const YAML::Node& map, const char* key, double& out);  // whole or decimal
     // Optional keys keep `out` unchanged when missing.
     bool optionalString(const YAML::Node& map, const char* key, std::string& out);
     bool optionalBool(const YAML::Node& map, const char* key, bool& out);

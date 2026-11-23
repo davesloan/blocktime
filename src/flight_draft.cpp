@@ -8,9 +8,9 @@
 
 namespace blocktime {
 
-FlightDraft::FlightDraft(FlightAirplane airplane, Cents fuelPriceCentsPer100Lb, bool daytime, Roll roll)
+FlightDraft::FlightDraft(FlightAirplane airplane, Rates rates, bool daytime, Roll roll)
     : airplane_(std::move(airplane)),
-      fuelPrice_(fuelPriceCentsPer100Lb),
+      rates_(rates),
       daytime_(daytime),
       roll_(std::move(roll)),
       kinds_(allowedKinds(airplane_)),
@@ -52,8 +52,8 @@ std::optional<Preview> FlightDraft::preview() const {
     in.distanceNm = destination_.distanceNm;
     in.blockHours = estimatedBlockHours(destination_.distanceNm, airplane_.cruiseSpeedKt);
     in.mlwLb = airplane_.limits.mlwLb;
-    in.fuelPriceCentsPer100Lb = fuelPrice_;
-    return pricePreview(in);
+    in.fuelPriceCentsPer100Lb = rates_.fuelPer100Lb;
+    return pricePreview(in, rates_);
 }
 
 bool FlightDraft::canPlan() const { return destination_.ok && validFlightNumber(flightNumber_); }
@@ -68,7 +68,7 @@ NewPlannedFlight FlightDraft::toNew(std::string plannedAt, const AtisRunways& ru
     n.kind = kind_;
     n.cabins = l.cabins;
     n.cargoLb = l.cargoLb;
-    n.fuelPriceCentsPer100Lb = fuelPrice_;
+    n.fuelPriceCentsPer100Lb = rates_.fuelPer100Lb;
     n.plannedAt = std::move(plannedAt);
     n.originRunway = runways.origin;
     n.destinationRunway = runways.destination;

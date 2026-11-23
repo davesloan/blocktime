@@ -47,7 +47,6 @@ public:
     Cents cash();
     std::string airlineName() const;  // "" without a valid airline.yaml
     std::string airlineIcao() const;  // "" without a valid airline.yaml
-    Cents fuelPriceCentsPer100Lb() const;
 
     // The open database for the planning code (planned_flight.h), or nullptr if it didn't open.
     db::Database* database() { return db_ ? &*db_ : nullptr; }

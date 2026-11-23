@@ -23,7 +23,7 @@ namespace blocktime {
 class FlightDraft {
 public:
     // `daytime` picks the passenger band (D-104). Chooses the first allowed kind and rolls its loads.
-    FlightDraft(FlightAirplane airplane, Cents fuelPriceCentsPer100Lb, bool daytime, Roll roll);
+    FlightDraft(FlightAirplane airplane, Rates rates, bool daytime, Roll roll);  // locks rates.fuelPer100Lb (D-107)
 
     const FlightAirplane& airplane() const { return airplane_; }
     const std::vector<FlightKind>& kinds() const { return kinds_; }
@@ -49,7 +49,7 @@ public:
 
 private:
     FlightAirplane airplane_;
-    Cents fuelPrice_;
+    Rates rates_;
     bool daytime_;
     Roll roll_;
     std::vector<FlightKind> kinds_;

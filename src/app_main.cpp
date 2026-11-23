@@ -238,8 +238,8 @@ int main(int argc, char* argv[]) {
     blocktime::db::Database& planningDb = airline.database() ? *airline.database() : emptyDatabase;
     QtPlanner planner(settings);
     const QString airlineIcao = QString::fromStdString(airline.airlineIcao());
-    NewFlightModel newFlight(planningDb, airlineIcao, airline.fuelPriceCentsPer100Lb(), planner);
-    PlannedFlightModel plannedFlight(planningDb, airlineIcao, planner, bridge);
+    NewFlightModel newFlight(planningDb, airlineIcao, blocktime::defaultRatesFile(), planner);
+    PlannedFlightModel plannedFlight(planningDb, airlineIcao, planner, bridge, blocktime::defaultRatesFile());
     QObject::connect(&newFlight, &NewFlightModel::planned, &plannedFlight,
                      [&plannedFlight](const QString& note) { plannedFlight.reload(note); });
 

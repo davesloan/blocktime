@@ -1,0 +1,37 @@
+# BlockTime fare and cost rates (design.md §10-12, D-107).
+#
+# Copy this file to %LOCALAPPDATA%\BlockTime\rates.yaml. The app reads that copy whenever New Flight opens and
+# when a flight is settled, so an edit applies to the next flight without restarting. Every key is required.
+#
+# Dollars throughout. Each money line of a flight is rounded to the nearest $5 when it's posted (D-080).
+# A planned flight keeps the fuel price it was planned with; the other rates are read again when it's settled
+# (D-109).
+
+fuel_per_100lb: 41                  # about $2.75 a US gallon at 6.7 lb/gal
+landing_per_1000lb_mlw: 4.50
+cargo_handling_per_1000lb: 40
+flight_attendant_per_hour: 55       # each
+
+# Rates that differ by size: narrowbody is the 737 family, widebody the 777.
+narrowbody: { gate: 300, handling: 900, atc_per_nm: 1.00, pilot_per_hour: 200, maintenance_per_hour: 300 }
+widebody:   { gate: 900, handling: 2800, atc_per_nm: 2.00, pilot_per_hour: 300, maintenance_per_hour: 700 }
+
+catering_per_passenger: { under_3h: 5, 3h_to_8h: 15, 8h_and_over: 35 }   # by block time
+
+# Passenger fares: economy_base + economy_per_nm x great-circle distance, per passenger.
+fares: { economy_base: 90, economy_per_nm: 0.075, business_times_economy: 3, first_times_economy: 5 }
+
+# Executive jets (the BBJ2). VIP airliner fares are per seat sold; the crew and catering rates apply to charters too.
+vip:
+  fare_base: 180
+  fare_per_nm: 0.48
+  pilot_per_hour: 250
+  flight_attendant_per_hour: 75
+  flight_attendants_times: 3        # three times the FAA minimum crew
+  catering_times: 2                 # twice the airline catering rate
+
+# Charters bill by block hour, with a minimum, and pay GA services instead of a gate and handling.
+charter: { per_hour: 7500, min_hours: 2, ga_services: 1500 }
+
+# Cargo, per 100 lb: base_per_100lb + per_100lb_per_nm x distance.
+cargo: { base_per_100lb: 15, per_100lb_per_nm: 0.028 }

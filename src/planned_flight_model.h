@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <optional>
 
 #include <QObject>
@@ -42,8 +43,9 @@ class PlannedFlightModel : public QObject {
     Q_PROPERTY(bool busy READ busy NOTIFY changed)
 
 public:
+    // rates.yaml is read at every reload() for the estimate (D-107); the defaults if it can't be read.
     PlannedFlightModel(blocktime::db::Database& db, QString airlineIcao, Planner& planner, RecorderBridge& bridge,
-                       QObject* parent = nullptr);
+                       std::filesystem::path ratesFile, QObject* parent = nullptr);
 
     // Reads the planned flight again; `message` replaces the shown message (planning's note about the runways).
     Q_INVOKABLE void reload(const QString& message = {});
@@ -78,6 +80,8 @@ private:
     QString airlineIcao_;
     Planner& planner_;
     RecorderBridge& bridge_;
+    std::filesystem::path ratesFile_;
+    blocktime::Rates rates_;
     std::optional<blocktime::PlannedFlightView> flight_;
     QString message_;
     bool busy_ = false;

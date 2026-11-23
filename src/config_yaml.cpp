@@ -41,6 +41,17 @@ bool YamlReader::integer(const YAML::Node& map, const char* key, std::int64_t& o
     return true;
 }
 
+bool YamlReader::number(const YAML::Node& map, const char* key, double& out) {
+    std::string text;
+    if (!string(map, key, text)) return false;
+    try {
+        out = map[key].as<double>();
+    } catch (const YAML::BadConversion&) {
+        return fail(map[key], std::format("{} must be a number, not \"{}\"", key, text));
+    }
+    return true;
+}
+
 bool YamlReader::optionalString(const YAML::Node& map, const char* key, std::string& out) {
     const YAML::Node node = map[key];
     if (!node.IsDefined() || node.IsNull()) return true;

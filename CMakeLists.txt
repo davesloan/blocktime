@@ -75,6 +75,7 @@ add_library(blocktime-core STATIC
   src/flight_draft.cpp
   src/planned_flight.cpp
   src/pricing.cpp
+  src/rates.cpp
   src/sayintentions.cpp
   src/simbrief.cpp
   src/money.cpp
@@ -121,6 +122,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/leasing_test.cpp
     tests/loads_test.cpp
     tests/pricing_test.cpp
+    tests/rates_test.cpp
     tests/simbrief_test.cpp
     tests/atis_test.cpp
     tests/planned_flight_test.cpp

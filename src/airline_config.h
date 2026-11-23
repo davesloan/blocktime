@@ -44,7 +44,6 @@ struct AirlineConfig {
     AirlineIdentity identity;
     Date foundedOn;
     Cents startingCashCents = 0;
-    Cents fuelPriceCentsPer100Lb = 4100;  // design.md §11; locked on each planned flight (D-104)
     std::vector<std::string> fleets;
     std::vector<ConfigAirplane> airplanes;
 };

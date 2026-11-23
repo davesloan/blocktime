@@ -106,11 +106,10 @@ TEST(Config, YamlErrorNamesTheLine) {
     EXPECT_EQ(error.rfind("airline.yaml line ", 0), 0u) << error;
 }
 
-TEST(Config, LimitOverridesAndFuelPrice) {
+TEST(Config, LimitOverrides) {
     std::string error;
     auto config = parseAirlineConfig(kConfig, &error);
     ASSERT_TRUE(config.has_value()) << error;
-    EXPECT_EQ(config->fuelPriceCentsPer100Lb, 4100);
     EXPECT_FALSE(config->airplanes[0].limits.mlwLb.has_value());
 
     const std::string yaml =
@@ -118,7 +117,6 @@ TEST(Config, LimitOverridesAndFuelPrice) {
                  "starting_cash: 5000000", "starting_cash: 5000000\nfuel_price_per_100lb: 41.5");
     config = parseAirlineConfig(yaml, &error);
     ASSERT_TRUE(config.has_value()) << error;
-    EXPECT_EQ(config->fuelPriceCentsPer100Lb, 4150);
     const LimitOverrides& o = config->airplanes[0].limits;
     EXPECT_EQ(o.mlwLb, 140000);
     EXPECT_FALSE(o.minRunwayFt.has_value());

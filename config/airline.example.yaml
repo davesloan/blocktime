@@ -13,7 +13,6 @@ airline:
 
 founded_on: 2026-11-22       # dates the starting cash; no lease may start before it
 starting_cash: 5000000       # design.md §6
-fuel_price_per_100lb: 41     # optional, default 41: dollars per 100 lb, locked on each planned flight (D-104)
 
 fleets:                      # named groups; every airplane below names one
   - Executive

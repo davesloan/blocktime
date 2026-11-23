@@ -26,7 +26,7 @@ struct Rolls {
 };
 
 FlightDraft draftFor(db::Database& db, const char* registration, Rolls& rolls) {
-    return FlightDraft(*loadFlightAirplane(db, registration), 4100, true, rolls.roll());
+    return FlightDraft(*loadFlightAirplane(db, registration), Rates{}, true, rolls.roll());
 }
 
 }  // namespace

@@ -557,6 +557,8 @@ db::Database deliveredAirline() {
 }
 
 // A VIP flight N814SX KBFI-KSAN planned at `plannedAt`, written straight to the database.
+const std::filesystem::path kRatesFile = BLOCKTIME_SOURCE_DIR "/config/rates.yaml";
+
 void planVip(db::Database& db, const std::string& plannedAt) {
     NewPlannedFlight f;
     f.airplaneId = loadFlightAirplane(db, "N814SX")->airplaneId;
@@ -578,7 +580,7 @@ void planVip(db::Database& db, const std::string& plannedAt) {
 TEST(NewFlightModel, PlanWritesTheFlightAndOpensDispatch) {
     db::Database db = deliveredAirline();
     FakePlanner planner;
-    NewFlightModel m(db, "XLY", 4100, planner);
+    NewFlightModel m(db, "XLY", kRatesFile, planner);
     ASSERT_TRUE(m.open("N814SX"));
     EXPECT_EQ(m.kinds(), (QStringList{"vip", "charter"}));
     EXPECT_EQ(m.flightNumber(), "8");
@@ -607,7 +609,7 @@ TEST(NewFlightModel, PlanWithoutAtisStillPlans) {
     FakePlanner planner;
     planner.runways = {};
     planner.runwayNote = "No SayIntentions keys in settings.json";
-    NewFlightModel m(db, "XLY", 4100, planner);
+    NewFlightModel m(db, "XLY", kRatesFile, planner);
     ASSERT_TRUE(m.open("N814SX"));
     m.setDestination("KSAN");
     m.plan();
@@ -619,10 +621,20 @@ TEST(NewFlightModel, PlanWithoutAtisStillPlans) {
     EXPECT_EQ(f->destinationRunway, "");
 }
 
+TEST(NewFlightModel, MissingRatesFileDisablesPlan) {
+    db::Database db = deliveredAirline();
+    FakePlanner planner;
+    NewFlightModel m(db, "XLY", std::filesystem::path(BLOCKTIME_SOURCE_DIR) / "no-such-rates.yaml", planner);
+    ASSERT_TRUE(m.open("N814SX"));
+    m.setDestination("KSAN");
+    EXPECT_FALSE(m.canPlan());
+    EXPECT_TRUE(m.error().contains("no-such-rates.yaml")) << m.error().toStdString();
+}
+
 TEST(NewFlightModel, DestinationMessageUpdates) {
     db::Database db = deliveredAirline();
     FakePlanner planner;
-    NewFlightModel m(db, "XLY", 4100, planner);
+    NewFlightModel m(db, "XLY", kRatesFile, planner);
     ASSERT_TRUE(m.open("N814SX"));
     EXPECT_EQ(m.destinationMessage(), "");  // nothing typed yet
     m.setDestination("KSHT");
@@ -637,7 +649,7 @@ TEST(NewFlightModel, DestinationMessageUpdates) {
 TEST(NewFlightModel, DeliveryOffersOnlyTheDeliveryFlight) {
     db::Database db = test::testAirline();
     FakePlanner planner;
-    NewFlightModel m(db, "XLY", 4100, planner);
+    NewFlightModel m(db, "XLY", kRatesFile, planner);
     ASSERT_TRUE(m.open("N814SX"));
     EXPECT_EQ(m.kinds(), (QStringList{"delivery"}));
     EXPECT_EQ(m.loadLines(), (QStringList{"Delivery flight: no passengers or cargo"}));
@@ -651,7 +663,7 @@ TEST(PlannedFlightModel, ImportStoresMatchingPlan) {
     planVip(db, "2026-11-23T14:00:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge);
+    PlannedFlightModel m(db, "XLY", planner, bridge, kRatesFile);
     EXPECT_TRUE(m.hasFlight());
     EXPECT_EQ(m.state(), "waitingForPlan");
     EXPECT_EQ(m.title(), "XLY8 · KBFI → KSAN");
@@ -671,7 +683,7 @@ TEST(PlannedFlightModel, ImportRefusesAStalePlan) {
     planVip(db, "2026-11-23T14:20:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge);
+    PlannedFlightModel m(db, "XLY", planner, bridge, kRatesFile);
     m.importPlan();
     EXPECT_EQ(m.state(), "waitingForPlan");
     EXPECT_TRUE(m.message().startsWith("The latest SimBrief plan was generated at 14:02Z")) << m.message().toStdString();
@@ -684,7 +696,7 @@ TEST(PlannedFlightModel, ImportShowsSimbriefError) {
     FakePlanner planner;
     planner.ofpBody = R"({"fetch":{"userid":"","static_id":"","status":"Error: Unknown UserID","time":"0"}})";
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge);
+    PlannedFlightModel m(db, "XLY", planner, bridge, kRatesFile);
     m.importPlan();
     EXPECT_TRUE(m.message().contains("Error: Unknown UserID")) << m.message().toStdString();
     EXPECT_EQ(m.state(), "waitingForPlan");
@@ -697,7 +709,7 @@ TEST(PlannedFlightModel, ImportShowsNetworkError) {
     planner.ofpBody.clear();
     planner.ofpError = "Add simbrief_user_id to settings.json";
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge);
+    PlannedFlightModel m(db, "XLY", planner, bridge, kRatesFile);
     m.importPlan();
     EXPECT_EQ(m.message(), "Add simbrief_user_id to settings.json");
 }
@@ -707,7 +719,7 @@ TEST(PlannedFlightModel, CancelClears) {
     planVip(db, "2026-11-23T14:00:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge);
+    PlannedFlightModel m(db, "XLY", planner, bridge, kRatesFile);
     int changed = 0;
     QObject::connect(&m, &PlannedFlightModel::flightChanged, [&] { ++changed; });
     m.cancelFlight();
@@ -721,7 +733,7 @@ TEST(PlannedFlightModel, StateFollowsConnection) {
     planVip(db, "2026-11-23T14:00:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge);
+    PlannedFlightModel m(db, "XLY", planner, bridge, kRatesFile);
     m.importPlan();
     ASSERT_EQ(m.state(), "waitingForSim");
     bridge.applyConnection(ConnectionState::Connected);
@@ -734,7 +746,7 @@ TEST(PlannedFlightModel, OpenDispatchPageRebuildsTheUrl) {
     planVip(db, "2026-11-23T14:00:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge);
+    PlannedFlightModel m(db, "XLY", planner, bridge, kRatesFile);
     m.openDispatchPage();
     ASSERT_EQ(planner.opened.size(), 1);
     EXPECT_TRUE(planner.opened[0].contains("orig=KBFI&dest=KSAN&airline=XLY&fltnum=8")) << planner.opened[0].toStdString();
@@ -752,7 +764,7 @@ TEST(NewFlightModel, CancelWhileGettingRunwaysPlansNothing) {  // review finding
     db::Database db = deliveredAirline();
     FakePlanner planner;
     planner.deferRunways = true;
-    NewFlightModel m(db, "XLY", 4100, planner);
+    NewFlightModel m(db, "XLY", kRatesFile, planner);
     ASSERT_TRUE(m.open("N814SX"));
     m.setDestination("KSAN");
     int planned = 0;
@@ -772,7 +784,7 @@ TEST(NewFlightModel, ReopeningWhileGettingRunwaysPlansNothing) {  // review find
     db::Database db = deliveredAirline();
     FakePlanner planner;
     planner.deferRunways = true;
-    NewFlightModel m(db, "XLY", 4100, planner);
+    NewFlightModel m(db, "XLY", kRatesFile, planner);
     ASSERT_TRUE(m.open("N814SX"));
     m.setDestination("KSAN");
     m.plan();

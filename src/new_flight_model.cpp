@@ -46,9 +46,9 @@ QString holdName(const std::string& hold) {
 
 }  // namespace
 
-NewFlightModel::NewFlightModel(db::Database& db, QString airlineIcao, Cents fuelPriceCentsPer100Lb, Planner& planner,
+NewFlightModel::NewFlightModel(db::Database& db, QString airlineIcao, std::filesystem::path ratesFile, Planner& planner,
                                QObject* parent)
-    : QObject(parent), db_(db), airlineIcao_(std::move(airlineIcao)), fuelPrice_(fuelPriceCentsPer100Lb),
+    : QObject(parent), db_(db), airlineIcao_(std::move(airlineIcao)), ratesFile_(std::move(ratesFile)),
       planner_(planner) {}
 
 bool NewFlightModel::open(const QString& registration) {
@@ -60,17 +60,20 @@ bool NewFlightModel::open(const QString& registration) {
                          .value_or(static_cast<int>(std::chrono::hh_mm_ss{now - std::chrono::floor<std::chrono::days>(now)}.hours().count()));
     auto engine = std::make_shared<std::mt19937_64>(std::random_device{}());
     Roll roll = [engine] { return std::uniform_real_distribution<double>(0.0, 1.0)(*engine); };
-    draft_.emplace(*airplane, fuelPrice_, isDaytime(hour), std::move(roll));
+    std::string ratesError;
+    const auto rates = loadRates(ratesFile_, &ratesError);
+    ratesOk_ = rates.has_value();
+    draft_.emplace(*airplane, rates.value_or(Rates{}), isDaytime(hour), std::move(roll));
     ++request_;
     destination_.clear();
-    error_.clear();
+    error_ = ratesOk_ ? QString() : QString::fromStdString(ratesError);
     busy_ = false;
     emit changed();
     return true;
 }
 
 void NewFlightModel::plan() {
-    if (!draft_ || !draft_->canPlan() || busy_) return;
+    if (!canPlan()) return;
     busy_ = true;
     error_.clear();
     emit changed();
@@ -244,4 +247,4 @@ QString NewFlightModel::endsUpText() const {
     return QString::fromStdString(draft_->airplane().registration + " ends up at " + draft_->destination().icao);
 }
 
-bool NewFlightModel::canPlan() const { return draft_ && draft_->canPlan() && !busy_; }
+bool NewFlightModel::canPlan() const { return draft_ && ratesOk_ && draft_->canPlan() && !busy_; }
