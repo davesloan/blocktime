@@ -22,6 +22,27 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-23 — Milestone 4 verified by Dave
+
+**Done:**
+- Ran the real airport import into a scratch database first: 4,265 of 86,383 airports kept, 512 KB (results in
+  `docs/notes/airport-data.md`).
+- Dave confirmed D-094..D-098 and the seven older Proposed decisions (D-060, D-061, D-062, D-066, D-067, D-068,
+  D-086). No decision is Proposed now.
+
+**Working / verified:**
+- Dave ran all five checks of the milestone 4 entry below, and they passed: the import into his own database (the
+  Qt test's file set aside), his airline in the sidebar, N814SX awaiting delivery at KBFI on Fleet, $4.1M and two
+  ledger lines on Money, no second charge after a reopen, a line-numbered notice for a broken `airline.yaml`, and the
+  Money icon and minimum window size. Milestone 4's "done when" (roadmap) is met.
+
+**Unverified or broken:**
+- The deferred minors from milestone 4's review are still open (listed in the entry below). None blocks milestone 5.
+
+**Next step:**
+- Milestone 5 (New Flight and plan): write its plan, starting with where SimBrief's airframe weights are stored
+  (`docs/notes/simbrief-airframes.md`) and belly cargo per flight (D-089).
+
 ## 2026-11-22 — PMDG variables from Dave's SPAD.neXt profiles (docs only)
 
 **Done:**

@@ -793,7 +793,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-060 — The Flights screen reads flights back from the event log
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude
 - Area: app
 - Decision: `loadFlightHistory` rebuilds flights and their tracks from the last 30 daily log files, read oldest to
@@ -807,7 +807,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-061 — UI test 2's data layer: SQLite through vcpkg sqlite3, in plain C++
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude
 - Area: app
 - Decision: `FleetStore` (in `blocktime-core`) uses the sqlite3 C API from vcpkg (3.54.1, static), not Qt SQL.
@@ -824,7 +824,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-062 — Side menu: Live, Flights, Fleet
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude
 - Area: app
 - Decision: A 200 px sidebar runs the full window height with the brand mark at its top and one entry per page
@@ -887,7 +887,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-066 — The app is BlockTime.exe, version 0.4.0
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude
 - Area: build
 - Decision: With the move to the root (D-064), the CMake project is `blocktime` 0.4.0 (also in `vcpkg.json`). The app
@@ -902,7 +902,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-067 — Last-resort errors go to errors.log
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude
 - Area: app
 - Decision: The app sends `std::cerr` to `%LOCALAPPDATA%\BlockTime\errors.log`, or `%TEMP%\BlockTime-errors.log` if
@@ -918,7 +918,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-068 — The Flights list loads on a worker thread
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude
 - Area: app
 - Decision: Amends D-060. `FlightListModel::reload()` runs `loadFlightHistory` on a `std::jthread` and swaps the
@@ -1169,7 +1169,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-086 — The Qt test's database is set aside, and real migrations start at 2
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude
 - Area: data
 - Decision: A `blocktime.db` with `user_version` 1 (D-061's test schema) is renamed to `blocktime.test-schema.db`
