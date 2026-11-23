@@ -21,11 +21,14 @@ file and log the decision in `decisions.md`.
 
 ## 2. Architecture
 
-- **Recorder:** native Windows app in C++ using the MSFS SimConnect SDK. Runs as its own process, writes flight
-  events to a local log, reports to the web app. See `recorder.md`.
-- **Web app:** Node.js + TypeScript, runs **locally on Dave's PC** with a browser UI on localhost. No hosting, no
-  accounts, no login.
-- **Storage:** one SQLite file holds the whole airline; backup = copy the file.
+- **One native Windows app** (D-063): C++20 with Qt 6 and a QML interface, running **locally on Dave's PC**. No
+  hosting, no accounts, no login.
+- **Recorder:** the part of the app that talks to MSFS through SimConnect, on its own thread. It writes flight events
+  to a local log before anything else (D-008). See `recorder.md`.
+- **Airline logic** (money, loads, rotations, catch-up) in plain C++ libraries with unit tests. QML only displays, so
+  the logic doesn't depend on the UI.
+- **Storage:** one SQLite file holds the whole airline (`%LOCALAPPDATA%\BlockTime\blocktime.db`); backup = copy the
+  file.
 - **Catalog:** aircraft types/configurations in a hand-edited YAML file.
 - **No running server clock needed.** The airline runs on real time, but background progress is calculated when the
   app opens ("catch-up"), and then every minute while it's open.
@@ -297,11 +300,11 @@ Full detail in `recorder.md`.
   background flight; plane moved to the destination).
 - **Diversion:** the flight closes where the plane actually parked; revenue counts; a rotation plane is flagged out of
   position until repositioned.
-- Phases are detected by the recorder (plan-aware, forward-only) and displayed in the web app.
+- Phases are detected by the recorder (plan-aware, forward-only) and displayed in the app.
 
 ### Flight analysis (D-040)
 
-At the end of each of Dave's flights, the web app sends Claude, through the Claude API:
+At the end of each of Dave's flights, the app sends Claude, through the Claude API:
 - the recorder's events for the flight,
 - the SayIntentions ATC log,
 - the ATIS for the origin and destination airports.

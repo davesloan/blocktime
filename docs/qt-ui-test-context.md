@@ -4,8 +4,55 @@ Context from a brainstorming chat with Dave on 2026-11-22. Read this before work
 (D-050, D-051) or before deciding what comes after them. It records how we got here, what Dave cares about, and
 what the test has to answer, so a future session doesn't have to rediscover it.
 
-Status: **test not started.** It runs between recorder milestones 3 and 4, on the branch `spike/qt-ui`.
-D-001 (two programs) and D-004 (local web app + SQLite) stay in force until the test's decision point.
+Status: **Decided: Qt won (D-063, Dave, 2026-11-22), and merged.** Both UI tests passed in the sim. BlockTime is
+one native Qt app (D-001, D-004 and D-007 are superseded). The branch got its tests and a code review, the build
+moved to the repo root (D-064), and `qt-ui-spike` was merged into `main` as version 0.4.0. This file is now history. The work is on the branch `qt-ui-spike` (Dave's name; D-051 first said `spike/qt-ui`). It's
+built inside the recorder project so it can be merged as it is if Qt wins (D-052). Plans:
+`docs/plans/2026-11-22-qt-ui-test-1.md`, `docs/plans/2026-11-22-qt-ui-test-2.md`. D-001 (two programs) and D-004
+(local web app + SQLite) stay in force until the test's decision point.
+
+**Test 2 result: passed** (Dave, 2026-11-22). In the app, everything worked: "surprisingly perfect", including the
+map's dragging, zooming and tiles. In a KSAN → KSAN flight with the map opened, every check passed and the new
+flight appeared after block in without a restart. **Task Manager peaked around 70 MB, CPU 0.3% at most and mostly
+0%.**
+
+**Ideas from Dave for later (not MVP):**
+- **Choose the map style**, e.g. a dark map that shows terrain, alongside the flat Dark Matter one. CARTO's styles
+  are flat, so terrain would need another provider, or a hillshade layer over a dark base. Check providers and
+  their terms first.
+- **Click an airframe in Fleet to see all its flights**, with every leg on one map, so a BBJ2 flown around the world
+  shows the whole route. The flight history already has each flight's tail and track. Legs that cross the 180°
+  meridian must be split there, or they draw the wrong way round the world. Test that with a made-up log.
+
+**Test 2 findings without the sim:**
+- **Route map: yes, Qt can draw a decent one.** Qt Location with CARTO Dark Matter tiles (D-059) shows the flown
+  track, start and end dots, and the credit line, in the dark theme. Getting there took one probe (how to pass the
+  key), one cache gotcha (a wrong key's tiles would outlive a fixed key), and one QML bug (a change handler read a
+  binding that hadn't updated yet, so the map fitted the previous flight).
+- **Data screens:** the Flights list and the sortable Fleet table (TableView + HorizontalHeaderView, from SQLite)
+  each took one pass plus one layout fix. The data logic is plain C++ with 31 new GoogleTest tests; QML only
+  displays.
+- **Memory:** Task Manager's Memory column shows 31 MB on Live and 44–46 MB after the map and the Fleet table
+  (release, `--demo`). The map adds about 15 MB. CPU stays at 0%.
+- **Back-and-forth:** 4 fixes across the 7 tasks, each found by Claude from screenshots and fixed in one pass. The
+  four were Live tile labels cut off by the sidebar, a person-like Flights icon, the stale-binding map fit, and the
+  Fleet error layout. None needed Dave.
+
+**Test 1 result: passed all four criteria** (Dave's flight, KSAN → KSAN in the 737-800, 2026-11-22):
+- **Memory:** never above **30 MB** in Task Manager during the flight (limit 100 MB). Task Manager's Memory column
+  is the private working set. The 87–92 MB measured at idle without the sim was working set / private bytes,
+  which also count shared and committed pages, so the two aren't the same measure.
+- **CPU:** never above **0.2%** during the flight (limit 1%). At idle, 0% over 10 s. Nothing animates; only the
+  1 s block clock ticks.
+- **Look:** Dave: "beautiful and exactly what I was looking for."
+- **Recording:** block out, block in and the clean stop on window close all logged exactly as the console
+  recorder does.
+- **Change → see-it loop:** in debug builds, saving a QML file reloads the window in about 1.5 s with no rebuild
+  (D-055). A C++ change needs a rebuild of the app (not timed yet).
+- **QML back-and-forth:** the first full build of the screen needed 4 fixes: a property named `onAccent` (QML
+  reads `on<Capital>` as a signal handler), `width`/`height` on an item inside a layout (qmllint caught it), and
+  C4702 warnings in Qt's generated code. The fourth was hot reload not seeing the module's C++ types until each
+  file imported `BlockTime`. Each was found and fixed in one pass.
 
 ## The question
 
@@ -51,7 +98,8 @@ running inside it?
 
 ## The test
 
-Two builds on `spike/qt-ui`, throwaway by design (light on tests, no code review). Milestone 4 (phases) can
+Two builds on `qt-ui-spike`, light on tests and with no code review until Dave decides. They're written to be kept:
+if Qt wins they get their tests and a review, then merge (D-051). Milestone 4 (phases) can
 carry on on `main` in parallel; merge `main` into the branch now and then.
 
 **UI test 1: Qt shell and live data**

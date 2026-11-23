@@ -6,8 +6,9 @@ built around the parts that make flying feel meaningful and none of the busywork
 You lease aircraft, build rotations, and fly legs yourself while the rest of your fleet keeps flying in the background.
 Every flight you fly is recorded automatically, from parking brake release to parking brake set.
 
-> **Status:** early development. The flight recorder is being built first; the web app comes after.
-> Nothing here is usable yet.
+> **Status:** early development, version 0.4.0. The app records flights (block out / block in), shows live flight
+> data, lists past flights with the route flown on a dark map, and shows a sample fleet. The airline itself (money,
+> rotations, loads) isn't built yet.
 
 This project is built for one pilot's own use and shared in case others want to tinker. It isn't designed to be easy to
 set up, and there's no support — but you're welcome to clone it and play.
@@ -33,51 +34,168 @@ Supported fleet (hand-picked to match what the author flies): PMDG 737-600, 737-
 
 ## Architecture
 
-| Component | What it does | Tech |
-|---|---|---|
-| **Recorder** (`/recorder`) | Native Windows app that connects to MSFS via SimConnect, detects flight events and phases, and writes them to a local log | C++, CMake, MSFS SimConnect SDK |
-| **Web app** (`/app`) | Runs the airline: fleet, rotations, background flights, money, dashboards. Runs locally — no hosting, no accounts | Node.js, TypeScript, SQLite |
+One native Windows app, `BlockTime.exe`, in **C++20 with Qt 6 and a QML interface** (D-063):
 
-The recorder writes every event to disk first, so no flight is lost if the web app isn't running. The web app catches
-up on background flights whenever it's opened.
+- **The recorder** runs on its own thread inside the app. It connects to MSFS through SimConnect, detects block out and
+  block in, and writes every event to a local log **before** anything else, so no flight is lost (`docs/recorder.md`).
+- **The airline logic** is plain C++ with unit tests. Data lives in one SQLite file on your PC. There's no hosting and
+  no login.
+- **The QML interface** only displays: a dark theme, a side menu, and the Live, Flights and Fleet screens.
 
 ## Requirements
 
-- Windows 10/11
+- Windows 10/11 x64
 - Microsoft Flight Simulator 2020
-- MSFS 2020 SDK (for the SimConnect headers and library) — enable Developer Mode in the sim and use *Help → SDK
-  Installer*
-- Visual Studio with the **Desktop development with C++** workload (includes CMake and vcpkg)
-- Node.js LTS (for the web app, later)
-- A SimBrief account
+- **MSFS 2020 SDK** (SimConnect). Enable Developer Mode in the sim and use *Help → SDK Installer*. The default location
+  is `C:\MSFS SDK\`.
+- **Visual Studio 2022 or newer** with the **Desktop development with C++** workload (it includes MSVC, CMake, Ninja
+  and vcpkg). Developed on VS 18 / 2026 Community.
+- **Qt 6.8 or newer** (developed with 6.12.0) from the official Qt online installer (free Qt account), with the
+  **MSVC 2022 64-bit**, **Qt Positioning** and **Qt Location** components.
+- An internet connection on the first build (vcpkg downloads `nlohmann-json`, `gtest` and `sqlite3`) and for map
+  tiles.
+- A free CARTO key for the dark map (see [Map key](#map-key)). Without one, tracks are drawn on a plain background.
 
-## Building
+The build finds the SDKs in this order:
 
-Build and run instructions live with each component:
+- **SimConnect:** `-DSIMCONNECT_SDK_DIR=<"SimConnect SDK" folder>`, then `%MSFS_SDK%\SimConnect SDK`, then
+  `C:\MSFS SDK\SimConnect SDK`.
+- **Qt:** `-DBLOCKTIME_QT_DIR=<kit folder>`, then `%BLOCKTIME_QT_DIR%`, then `C:\Qt\6.12.0\msvc2022_64`.
 
-- Recorder: [`recorder/README.md`](recorder/README.md)
-- Web app: [`webapp/README.md`](webapp/README.md) *(later)*
+## Build
+
+Open a **Developer PowerShell for VS** (Start menu → "Developer PowerShell for VS"), go to the repo, and run:
+
+```powershell
+cmake --preset x64-release
+```
+
+```powershell
+cmake --build --preset x64-release
+```
+
+The app is `build\x64-release\BlockTime.exe`. A post-build step copies Qt's DLLs and plugins next to it, so it runs
+from there with nothing else installed (D-056). Use `x64-debug` in place of `x64-release` for a debug build.
+
+To build from a normal PowerShell, load the developer environment first (adjust the path for your Visual Studio
+edition or version):
+
+```powershell
+$vs = "C:\Program Files\Microsoft Visual Studio\18\Community"; $env:PATH = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer;$env:PATH"; Import-Module "$vs\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"; Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64"
+```
+
+Notes:
+- The presets need `VCPKG_ROOT`. The developer shell sets it to Visual Studio's bundled vcpkg.
+- `vcpkg.json` pins a `builtin-baseline`, because the vcpkg bundled with VS won't install anything without one.
+
+## Test
+
+```powershell
+ctest --preset x64-release
+```
+
+Two test programs run: `blocktime-tests` (the plain C++ logic: block detection, the event log, flight history,
+settings, the fleet store) and `blocktime-qt-tests` (the Qt models and the recorder bridge, without a window). Pass
+`-DBLOCKTIME_BUILD_TESTS=OFF` to the configure step to skip them.
+
+## Run
+
+```powershell
+.\build\x64-release\BlockTime.exe
+```
+
+- Start it before or after MSFS. The pill in the header goes from "Waiting for sim" to "Sim starting" to "Connected".
+  MSFS can take several minutes to answer while it loads.
+- **Live:** live flight values, the block clock, and an event feed. A flight starts at the parking brake release that's
+  followed by 10 m of movement, and ends at a brake set held until every engine is off (`docs/recorder.md`).
+- **Flights:** every flight in the last 30 days of the log, newest first, with block times, fuel used, distance,
+  highest altitude and the route flown on a dark map. It updates after each block out and block in.
+- **Fleet:** a sortable table of airframes (a sample fleet for now) with each tail's flights and block hours. Click a
+  column header to sort by it, and click it again to reverse.
+- **Closing the window** stops recording cleanly. An open flight is logged as interrupted (`recorder_exit`), then
+  `recorder_stopped`.
+- Only one copy records at a time (D-037). A second copy shows "Recorder already running" and records nothing.
+- `--log-dir <folder>` writes the event log somewhere else.
+- `--demo` shows made-up live values and records nothing, to look at the UI without the sim. The Flights and Fleet
+  screens still show your real data.
+- Use the **release** build for flights. The debug build is much heavier.
+
+### Files it uses
+
+Everything lives in `%LOCALAPPDATA%\BlockTime\`, outside the repo:
+
+| Path | What |
+|---|---|
+| `events\events-YYYY-MM-DD.jsonl` | The event log, one JSON object per line, one file per UTC day (D-020). Event types: `docs/recorder.md` |
+| `settings.json` | `{"carto_key": "..."}` — the map key. Never commit it |
+| `blocktime.db` | The SQLite database (a test schema with the sample fleet, D-061) |
+| `tiles\` | Map tile cache, at most 100 MB. Files older than 30 days are deleted at startup. Safe to delete |
+| `errors.log` | Errors that have nowhere else to go: block events that could never be written (`LOST:`, D-049) and event log or SimConnect failures. Normally just one "started" line per run (D-067) |
+
+### Map key
+
+The map uses CARTO Dark Matter tiles (D-059), which need a free personal key from
+https://carto.com/basemaps/apikey (no account; the key arrives by email link). Choose non-commercial use and don't
+restrict the key to websites. Save it where the app looks for it. This asks for the key, so it isn't left in your
+command history:
+
+```powershell
+$k = Read-Host "CARTO key"; New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\BlockTime" | Out-Null; [IO.File]::WriteAllText("$env:LOCALAPPDATA\BlockTime\settings.json", (@{ carto_key = $k.Trim() } | ConvertTo-Json))
+```
+
+A wrong key shows grey "API KEY REQUIRED" tiles. CARTO sends those as normal images, so the app can't tell.
+
+## Changing the UI
+
+The QML is in `qml/`, and every colour and size is in `qml/Theme.qml`. Run the **debug** build:
+
+```powershell
+.\build\x64-debug\BlockTime.exe --demo
+```
+
+In debug builds the app reads QML straight from `qml/` and reloads the window about 200 ms after you save a `.qml`
+file, with no rebuild (D-055). If the QML has an error, a small error window says so. Fix and save, and the real
+window comes back. C++ changes still need a rebuild.
+
+To see QML errors, start it with `QT_FORCE_STDERR_LOGGING` set and stderr captured:
+
+```powershell
+$env:QT_FORCE_STDERR_LOGGING = "1"; .\build\x64-debug\BlockTime.exe --demo 2> qml-errors.txt
+```
+
+To lint the QML:
+
+```powershell
+cmake --build --preset x64-debug --target blocktime-app_qmllint
+```
+
+Quirks found while setting this up are in [`docs/notes/qt-setup.md`](docs/notes/qt-setup.md).
 
 ## Documentation
 
 | | |
 |---|---|
 | [`docs/design.md`](docs/design.md) | Full product design: rules, numbers and rationale |
-| [`docs/recorder.md`](docs/recorder.md) | Flight recorder spec |
+| [`docs/recorder.md`](docs/recorder.md) | Flight recorder spec, milestones and event log format |
 | [`docs/decisions.md`](docs/decisions.md) | Log of design and implementation decisions |
 | [`docs/progress.md`](docs/progress.md) | Development progress log |
+| [`docs/README.md`](docs/README.md) | Index of all docs, including the how-to notes |
 
 This project is developed with [Claude Code](https://claude.com/claude-code); see [`CLAUDE.md`](CLAUDE.md) for the
 working rules it follows.
 
 ## Acknowledgements
 
+- [Qt](https://www.qt.io/) — the app's interface (LGPL-3.0).
+- [CARTO](https://carto.com/attributions) and [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors —
+  map tiles and data.
+- [SQLite](https://sqlite.org/) — the airline database (public domain).
 - [Little Navmap](https://github.com/albar965/littlenavmap) by Alexander Barthel — a reference for SimConnect handling
   and flight detection edge cases.
 - [OurAirports](https://ourairports.com/data/) — public airport and runway data.
 - [SimBrief](https://www.simbrief.com/) — flight planning and airframe data.
 
-Not affiliated with Microsoft, Asobo, PMDG, Navigraph/SimBrief, FlyHub, or any airline.
+Not affiliated with Microsoft, Asobo, PMDG, Navigraph/SimBrief, FlyHub, CARTO, or any airline.
 
 ## License
 

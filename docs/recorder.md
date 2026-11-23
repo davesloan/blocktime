@@ -1,26 +1,26 @@
 # Recorder spec
 
-The recorder is a small native Windows program (C++) that connects to Microsoft Flight Simulator 2020 through
-the SimConnect SDK. Its only job is to **observe the sim and report facts** about the flight: events, phases,
-and a light stream of live data. All airline logic (money, loads, schedules, scoring) belongs to the web app.
+The recorder is the part of the BlockTime app (C++) that connects to Microsoft Flight Simulator 2020 through the
+SimConnect SDK. Since D-063 it isn't a separate program: it's a library (`Recorder`, D-053) that the app runs on its
+own thread. Its only job is to **observe the sim and report facts** about the flight: events, phases, and a light
+stream of live data. All airline logic (money, loads, schedules, scoring) belongs to the rest of the app.
 
-It is being built **first**, because everything else depends on reliable flight data.
+It was built **first**, because everything else depends on reliable flight data.
 
 ## Goals
 
 1. Detect the start and end of a flight using the parking brake (block out / block in).
 2. Detect flight phases using plan-aware, forward-only rules (below).
 3. Capture key numbers: fuel at block out and block in, times, positions, touchdown rate.
-4. Write everything to a local log file **before** anything else, so nothing is lost if the web app isn't running.
+4. Write everything to a local log file **before** anything else, so nothing is lost even if the rest of the app
+   fails (D-008).
 5. Survive sim crashes and recorder restarts mid-flight.
 6. Stay light: minimal memory and CPU, minimal SimConnect load on the sim.
 
 ## Non-goals
 
 - No airline logic (costs, revenue, passenger loads, schedules).
-- No rich UI. A tray icon with a short status line is enough (e.g. "Connected · Recording N738DV · KSAN→KSLC · Climb").
-  Visual dashboards live in the web app.
-- No live map.
+- No UI of its own. It reports to the app through `RecorderObserver`, and the app shows everything (D-063).
 
 ## Milestones (suggested order)
 
@@ -35,9 +35,9 @@ It is being built **first**, because everything else depends on reliable flight 
      the next start, the recorder closes a flight left open in the log as interrupted (`recorder_crash`), so it
      isn't silently lost.
    - A block event whose write failed is held, retried, and shown on the console.
-   - **Then the Qt UI test builds (D-050),** on the branch `spike/qt-ui` (D-051): two throwaway builds to decide
-     between one native Qt app and the recorder plus web app. Milestones 4–8 get adjusted after the decision. Why
-     and what each build answers: `docs/qt-ui-test-context.md`.
+   - **Then the Qt UI test builds (D-050):** two test builds on the branch `qt-ui-spike` decided between one native
+     Qt app and the recorder plus a web app. **Qt won (D-063)**, the branch was merged, and the recorder now runs
+     inside the app (`docs/qt-ui-test-context.md`). The console recorder was dropped (D-065).
 4. **Phases.** Implement the phase rules below, including level-off sub-states and go-arounds.
 5. **Touchdown capture.** Fast sampling near the ground; record touchdown rate.
 6. **SimBrief plan.** Fetch the latest OFP to get planned cruise altitude, origin, destination (needed by phase rules).
@@ -46,8 +46,11 @@ It is being built **first**, because everything else depends on reliable flight 
    and stable at 1,000 ft. The recorder only reports what changed and when; judging it is the app's job. What to
    capture gets brainstormed at the start of this milestone. Many PMDG switches may not show up in standard
    SimVars, so start with a probe flight on the 737 and the 777.
-8. **Delivery to the app.** Send events to the local web app (mechanism TBD; log the decision). Until the app exists,
-   the log file is the output.
+8. ~~Delivery to the app.~~ **Not needed (D-063):** the recorder runs inside the app. The app reads flights back
+   from the event log (D-060), and live values reach the UI through `RecorderObserver`.
+
+The airline itself (fleet, rotations, money, loads) comes after milestone 7. Its milestones are still to be planned,
+starting from `docs/design.md`.
 
 Each milestone should be verifiable in the sim by Dave. When finishing one, write in `docs/progress.md` exactly
 what to test and what result to expect.
@@ -90,7 +93,7 @@ what to test and what result to expect.
 ### Sim crash / disconnect during a flight
 
 The recorder must not guess. It marks the open flight as **interrupted** and leaves the resolution to the user
-(in the web app):
+(in the app):
 
 - **Discard:** the flight is removed as if it never happened; the plane stays at the origin.
 - **Complete:** the flight is treated like a background flight; the plane is moved to the destination.
@@ -115,7 +118,7 @@ The app handles the consequences.
 
 ## Phases
 
-Phases are reported as events and shown live in the web app.
+Phases are reported as events and shown live in the app.
 
 1. At gate
 2. Pushback (starts at block out)
@@ -182,7 +185,7 @@ each value reads correctly on the 737 and 777; record findings in `docs/notes/`.
 
 - Use change-based or once-per-second updates for most values.
 - Switch to fast sampling only briefly near the ground on approach/landing to capture touchdown, then drop back.
-- Live data for the web app's dashboard: about once per second is enough.
+- Live data for the app's screens: about once per second is enough.
 - Implemented (D-023): one definition, `PERIOD_SECOND` + `CHANGED` with per-variable thresholds, and a one-off snapshot
   on sim start, aircraft load and unpause. Junk samples are filtered before logging (D-025).
 - Connection: retry with back-off. A session counts as connected only after SimConnect's OPEN reply. It ends on
@@ -191,7 +194,7 @@ each value reads correctly on the 737 and 777; record findings in `docs/notes/`.
 ## Output: local event log
 
 - Append-only JSON Lines files, one per UTC day: `%LOCALAPPDATA%\BlockTime\events\events-YYYY-MM-DD.jsonl` (D-020).
-  The event types implemented so far are listed in `recorder/README.md`.
+  The event types implemented so far are listed below.
 - One record per event, each with a timestamp (UTC), event type, and payload.
 - Example event types: `sim_connected`, `sim_disconnected`, `block_out`, `phase_changed`, `level_off`,
   `touchdown`, `go_around`, `block_in`, `flight_interrupted`, `telemetry` (periodic live sample).
@@ -203,11 +206,33 @@ each value reads correctly on the 737 and 777; record findings in `docs/notes/`.
   - `flight_interrupted`: `flight_id`, `reason` (the session's lost reason, `recorder_exit`, `sim_stopped` or
     `recorder_crash`).
   - The recorder doesn't name airports; the app resolves them from `lat`/`lon`.
-- **Failed writes (D-049):** block events go through an outbox. One whose write fails is held, shown on the
-  console, and retried oldest first: about every 5 s, or at each reconnect try (10–40 s) while waiting for the sim.
-  Any still held at exit are printed to stderr as `LOST:`. A late write only moves the line's `ts`; the event's
-  own times are in `data`.
-- The log must be readable by the web app later to catch up on anything it missed.
+- **Failed writes (D-049):** block events go through an outbox. One whose write fails is held, shown in the app's
+  event feed as a `WARNING` line, and retried oldest first: about every 5 s, or at each reconnect try (10–40 s)
+  while waiting for the sim. Any still held at exit are written as `LOST:` lines to `errors.log`
+  (`%LOCALAPPDATA%\BlockTime\errors.log`, D-067). A late write only moves the line's `ts`; the event's own times
+  are in `data`.
+- The log is the record the rest of the app reads back (D-060).
+- At startup, if the log shows a flight that a killed app left open, it's closed as interrupted (`recorder_crash`,
+  D-048) and the feed says so.
+
+### Event types logged so far
+
+| Type | When |
+|---|---|
+| `recorder_started` / `recorder_stopped` | The app starts recording / closes cleanly |
+| `sim_connected` | MSFS answered the connection; includes MSFS and SimConnect versions, and `process_watch` (whether `FlightSimulator.exe` was found) |
+| `sim_disconnected` | The session ended; `reason` is `sim_quit`, `sim_process_gone`, `too_many_errors` or `recorder_exit`. Only logged after a `sim_connected` |
+| `sim_unresponsive` / `sim_responsive` | No messages for 30 s or more (common on loading screens) / messages are back; `silent_s` says how long. The session is kept |
+| `sim_running` / `sim_stopped` | The sim enters / leaves a flight (MSFS "Sim" state). Flips several times while loading |
+| `paused` / `unpaused` | The pause state changes. `flags` is the raw `Pause_EX1` value. `kinds` names its bits: `full` (main menu, loading screens), `active` (active pause), `sim` (Escape menu), `legacy` (unused), or `bit_<n>` for an unknown bit |
+| `aircraft_loaded` | Path of the loaded `aircraft.cfg`; logged only when the aircraft changes |
+| `telemetry` | A valid sample: on change, at most once a second; identical repeats are skipped. Includes `engines`, `eng_running` (per engine) and `fuel_flow_pph` (total) |
+| `telemetry_invalid` | Samples start being rejected as junk; `reason` says why |
+| `block_out` | The flight started: the parking brake release that was followed by 10 m of movement. `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` are from the release; also `flight_id` (= that time), `moved_m`, `atc_id`, `title` |
+| `block_in` | The flight ended: after landing, a brake set held until every engine was off. `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` are from the set; also `flight_id`, `shutdown_time`, `shutdown_fuel_lb`, `block_time_s` |
+| `flight_interrupted` | A flight ended without block in; `flight_id`, `reason`. The reason is the session's lost reason (`sim_quit`, `sim_process_gone`, ...), `recorder_exit`, `sim_stopped` (the flight was left: main menu, restart, or MSFS killed) or `recorder_crash` (logged on the next start for a flight a killed recorder left open). The flight is never resumed (D-046) |
+| `simconnect_exception` | SimConnect reported an exception; `call` names the request that caused it |
+| `warning` | Something unexpected but not fatal (e.g. `FlightSimulator.exe` not found) |
 
 ## Fuel tracking context (for the app, but the recorder must supply the data)
 

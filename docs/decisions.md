@@ -22,7 +22,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-001 — Two programs: native recorder + local web app
 - Date: 2026-11-21
-- Status: Accepted
+- Status: Superseded by D-063 (Qt won the UI test)
 - Decided by: Dave
 - Area: design
 - Decision: A native Windows recorder (C++, SimConnect SDK) runs as its own process; a Node.js/TypeScript web app runs
@@ -50,7 +50,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-004 — Runs locally, no hosting or login
 - Date: 2026-11-21
-- Status: Accepted
+- Status: Superseded by D-063 (Qt won the UI test)
 - Decided by: Dave
 - Area: app
 - Decision: The web app runs on Dave's PC (localhost). Single SQLite file for all data.
@@ -78,7 +78,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-007 — Visuals live in the web app
 - Date: 2026-11-21
-- Status: Accepted
+- Status: Superseded by D-063 (Qt won the UI test)
 - Decided by: Dave
 - Area: recorder
 - Decision: The recorder has only a tray icon/status; it detects phases and streams events; the web app shows phases,
@@ -673,9 +673,87 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: Trying something out and then merging or pruning it is exactly what branches are for, and it keeps
   throwaway code off `main`.
 - Alternatives considered: A `spikes/` folder on `main` (throwaway code on `main` while it's being judged).
+- Note (2026-11-22): Dave named the branch `qt-ui-spike` instead (D-052).
 
-_D-052 to D-057 are on the branch `qt-ui-spike` (Qt UI test 1). Main skips those numbers so the two don't clash
-when the branch is merged._
+## D-052 — The Qt test app is built inside the recorder project
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: build
+- Decision: On the branch `qt-ui-spike`, the Qt app is one more target (`blocktime-app`) in `recorder/CMakeLists.txt`.
+  Its C++ is in `recorder/src/`, its QML in `recorder/qml/`, and the existing presets build it, so Qt is a normal
+  requirement of the one build. Qt comes from the installer kit through the cache variable `BLOCKTIME_QT_DIR`
+  (default `C:/Qt/6.12.0/msvc2022_64`, or `%BLOCKTIME_QT_DIR%`). The console recorder stays as a second target
+  during the test. Dave also named the branch `qt-ui-spike` (D-051 said `spike/qt-ui`).
+- Why: If Qt wins there is one app and one build, so the test is built that way from the start and can be merged as
+  it is.
+- Alternatives considered: An `app/` subfolder with an on/off option and its own presets (Claude's first plan). A
+  top-level `app/` with its own build.
+
+## D-053 — The recorder loop is a library with an observer
+- Date: 2026-11-22
+- Status: Accepted (confirmed by Dave, 2026-11-22)
+- Decided by: Claude
+- Area: recorder
+- Decision: The loop that was in `main.cpp` is now `Recorder::run()` (`recorder/src/recorder.{h,cpp}`). It reports
+  everything through a `RecorderObserver` (`onStarted`, `onLine`, `onConnection`, `onTelemetry`, `onBlockEvent`).
+  With `sim_connection.cpp` and the single-instance mutex (`single_instance.{h,cpp}`), it forms the static library
+  `blocktime-sim`. The console recorder and the Qt app both use it. The app runs it on a `std::jthread`, and its
+  observer only posts copies to the GUI thread with queued calls. Closing the window stops and joins the thread,
+  so the clean exit (an open flight is interrupted with `recorder_exit`, then `recorder_stopped`) still happens.
+- Why: One copy of the loop, so the app's log is exactly the recorder's log, and the logic stays plain C++ with no
+  Qt in it (the context doc's rule: QML only displays).
+- Alternatives considered: Copying the loop into the app. Making the loop a QObject.
+
+## D-054 — QML look: Basic style, one Theme singleton, Segoe UI Variable, dark only
+- Date: 2026-11-22
+- Status: Accepted (confirmed by Dave, 2026-11-22)
+- Decided by: Claude
+- Area: app
+- Decision: Qt Quick Controls' **Basic** style, the one meant to be fully re-skinned. Every colour, size and font is
+  in the `Theme` singleton (`recorder/qml/Theme.qml`); components never hard-code them. The font is Segoe UI
+  Variable (Windows 11's system font, nothing to bundle) with tabular figures for numbers.
+  `QStyleHints::setColorScheme(Dark)` also makes the Windows title bar dark. No continuous animations; the only
+  timer is the 1 s block clock while a flight is open.
+- Why: Dave wants a polished, FlyHub / Sim Toolkit Pro style and dark only, at the lowest CPU cost.
+- Alternatives considered: The Material or Fusion styles (harder to make look like our own). Bundling Inter.
+
+## D-055 — QML hot reload in debug builds
+- Date: 2026-11-22
+- Status: Accepted (confirmed by Dave, 2026-11-22)
+- Decided by: Claude
+- Area: app
+- Decision: In debug builds, a URL interceptor maps the module's `qrc:/qt/qml/BlockTime/<name>.qml` to
+  `recorder/qml/<name>.qml`. A file watcher reloads the window about 200 ms after a `.qml` file is saved. The
+  reload clears the singletons, so Theme changes show too. The recorder thread and the event feed keep running.
+  Each QML file has an explicit `import BlockTime`, because a file loaded from the source folder can't otherwise
+  see the module's C++ types. A failed reload shows a small error window, so the app can still be closed (and the
+  recorder still stops cleanly). Release builds only use the QML compiled into the exe.
+- Why: The change → see-it loop is a pass criterion. Without a rebuild, a QML change shows in about 1.5 s.
+- Alternatives considered: Qt Creator's QML Preview (ties UI work to Qt Creator). Rebuilding for every change.
+
+## D-056 — windeployqt after every app build
+- Date: 2026-11-22
+- Status: Accepted (confirmed by Dave, 2026-11-22)
+- Decided by: Claude
+- Area: build
+- Decision: A POST_BUILD step runs `windeployqt` (`--qmldir recorder/qml --no-translations --no-system-d3d-compiler
+  --no-opengl-sw --no-compiler-runtime`) on `blocktime-app.exe`. The exe then runs from `build\x64-*\` without Qt on
+  PATH.
+- Why: Dave starts the app from PowerShell or Explorer; it has to find Qt's DLLs and QML plugins next to it.
+- Alternatives considered: Putting the Qt `bin` folder on PATH. An install step.
+
+## D-057 — The app has a --demo mode
+- Date: 2026-11-22
+- Status: Accepted (confirmed by Dave, 2026-11-22)
+- Decided by: Claude
+- Area: app
+- Decision: `blocktime-app.exe --demo` fills the panel with made-up cruise values and an open flight. It doesn't
+  start the recorder and writes no log.
+- Why: UI work shouldn't need a 20-minute MSFS load to see a filled-in screen. It also gives Dave a screen to react
+  to before flying.
+- Alternatives considered: Replaying a recorded log into the panel (more work, and better left until a later UI
+  test needs it).
 
 ## D-058 — Sim freezes don't count toward phase-detection holds
 - Date: 2026-11-22
@@ -692,3 +770,163 @@ when the branch is merged._
 - Alternatives considered: Timing holds by the wall clock (a freeze fakes a hold). Counting samples (telemetry
   is sent on change, so a sample count isn't a steady clock). Using a sim-time SimVar (not checked yet; the
   silence the recorder already measures is enough).
+
+## D-059 — Map tiles: CARTO Dark Matter through Qt Location, key in a local settings file
+- Date: 2026-11-22
+- Status: Accepted for the provider (Dave chose CARTO Dark Matter, 2026-11-22); the details below are Proposed
+- Decided by: Dave + Claude
+- Area: app
+- Decision: The route map (UI test 2) is Qt Location's `osm` plugin with CARTO Dark Matter raster tiles,
+  `https://basemaps.cartocdn.com/rastertiles/dark_all/%z/%x/%y.png?key=<key>`, passed as
+  `osm.mapping.custom.host`. The key is `carto_key` in `%LOCALAPPDATA%\BlockTime\settings.json`, never in the repo,
+  never printed. Tiles are cached in `%LOCALAPPDATA%\BlockTime\tiles\<hash of the URL>\`, capped at 100 MB on
+  disk (16 MB memory, 32 MB texture cache), and files older than 30 days are deleted at startup. Qt's own
+  copyright box is hidden and CARTO's credit line is drawn in the theme's colours. The plugin is told not to fetch
+  Qt's provider list. Without a key, the track is drawn on the plain dark background.
+- Why: Dark tiles match the dark-only UI, and CARTO's free non-commercial tier (5 million tiles a month, key by
+  email link, no account) is far more than this app needs. The 30-day limit, the visible credit line and our own
+  User-Agent are CARTO's terms. A per-URL cache folder stops a wrong key's "API KEY REQUIRED" tiles (served with
+  HTTP 200) from outliving a fixed key, since Qt's cache file names don't include the URL.
+- Alternatives considered: Stadia Smooth Dark (smaller free tier, needs an account); no tiles; MapLibre Native Qt
+  (more polished, heavy dependency); a local provider file for the osm plugin (works, but not needed).
+
+## D-060 — The Flights screen reads flights back from the event log
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision: `loadFlightHistory` rebuilds flights and their tracks from the last 30 daily log files, read oldest to
+  newest as one stream, every time the list loads (at startup and after every block event). There's no flight
+  database in this test. Tracks drop samples within 25 m of the last kept point and are evenly thinned to at most
+  2,000 points; distance and highest altitude use every sample first. A block_out while a flight is open closes it
+  as interrupted with reason `unclosed`.
+- Why: The log is already the record of every flight (D-008), so this needs no new storage format. A day of
+  flying loads in 35–41 ms, fast enough for the GUI thread.
+- Alternatives considered: A flights table in SQLite (the real app's job if Qt wins).
+
+## D-061 — UI test 2's data layer: SQLite through vcpkg sqlite3, in plain C++
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision: `FleetStore` (in `blocktime-core`) uses the sqlite3 C API from vcpkg (3.54.1, static), not Qt SQL.
+  The database is `%LOCALAPPDATA%\BlockTime\blocktime.db` with a **test schema** (`user_version` 1, one
+  `airframes` table), seeded on first run with N818SX, N916SX and six made-up airframes covering `design.md` §3's
+  types. The Fleet screen adds each tail's flights and block hours from the flight history. `--demo` opens it too.
+- Why: Airline data in plain C++, tested with GoogleTest, survives a UI change if QML ever disappoints. SQLite was
+  already the plan for the app's database (D-004).
+- Alternatives considered: Qt SQL's built-in `QSQLITE` driver (no new dependency, but ties the data layer to Qt).
+- Note (2026-11-22, from the merge review): the Fleet screen's flights and block hours count only the last 30 daily
+  log files, so they can go down as old files drop out. A real "hours flown" needs a stored total. And
+  `blocktime.db` (user_version 1, made-up airframes) is already on Dave's disk: the real airline schema must
+  recognise user_version 1 and discard or migrate it, so the made-up tails never mix with real data.
+
+## D-062 — Side menu: Live, Flights, Fleet
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision: A 200 px sidebar runs the full window height with the brand mark at its top and one entry per page
+  (Live, Flights, Fleet), the selected one marked by an accent bar. The header above the page shows the page name,
+  the connection pill and Open log folder. Icons are Segoe Fluent Icons glyphs (SpeedHigh EC4A, History E81C,
+  Airplane E709), a Windows 11 system font. The window opens at 1300 × 760 (minimum 1100 × 600) so the Live page
+  keeps test 1's width.
+- Why: A side menu between screens is part of what makes it feel like FlyHub / Sim Toolkit Pro. A system icon
+  font means nothing to bundle or license.
+- Alternatives considered: Tabs along the top; bundled SVG icons.
+
+## D-063 — BlockTime is one native Qt app
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: design
+- Decision: BlockTime becomes **one native Windows app** in C++20 with Qt 6 and a QML interface. The recorder runs
+  on its own thread inside it (D-053), and the app runs the airline too. Supersedes D-001 (two programs), D-004
+  (local web app with SQLite) and D-007 (visuals in the web app). What carries over:
+  - It runs only on Dave's PC, with no hosting and no login.
+  - Airline data lives in one SQLite file, reached through the sqlite3 C API in plain C++ (D-061).
+  - Airline logic lives in plain C++ libraries tested with GoogleTest. QML only displays.
+  - The event log is still written first and stays the record of every flight (D-008). The app reads it back
+    (D-060).
+  - The Node/TypeScript web app (`/webapp`) is dropped. Where older decisions say "the web app", read "the app".
+- Why: both Qt UI tests passed every criterion (`docs/qt-ui-test-context.md`):
+  - **In flight:** at most about 70 MB and 0.3% CPU with the map opened, against limits of 100 MB and 1%.
+  - **The look:** Dave: "beautiful and exactly what I was looking for".
+  - **Change loop:** working QML screens with about four one-pass fixes per test, and a 1.5 s hot-reload loop.
+  - **The route map:** Qt draws a dark post-flight route map.
+- Alternatives considered: the recorder plus a local Node/TypeScript web app in a browser (D-001, the previous
+  plan); C# + .NET; a native shell with WebView2 + React.
+- Still to settle before the merge (D-051): the repo layout for one app, whether the console recorder stays,
+  tests and a code review on the branch, and reworking milestones 4–8.
+
+## D-064 — One app, one build, at the repo root
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: build
+- Decision: Before `qt-ui-spike` is merged, the project moves from `recorder/` to the repo root: `CMakeLists.txt`,
+  `CMakePresets.json`, `vcpkg.json`, `src/`, `qml/` and `tests/` sit next to `docs/`. The empty `webapp/`
+  placeholder is removed. The build runs `cmake --preset ...` from the root. The move uses `git mv`, so each file
+  keeps its history.
+- Why: with one app (D-063) there's one build. A folder named `recorder/` holding the whole app would mislead, and
+  moving before the merge means `main` gets the final layout in one step.
+- Alternatives considered: merging with `recorder/` and moving later.
+
+## D-065 — The console recorder is dropped
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: `blocktime-recorder.exe` (the console front end, `main.cpp`) is removed. The Qt app is the only program.
+  The recording code itself stays as the `Recorder` library (D-053), and the single-instance lock (D-037) stays so
+  two copies of the app can't both record.
+- Why: one program to maintain. The app already records exactly as the console recorder did (D-053), and it
+  passed two sim flights.
+- Alternatives considered: keeping it as a fallback and smoke-test tool.
+
+## D-066 — The app is BlockTime.exe, version 0.4.0
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: build
+- Decision: With the move to the root (D-064), the CMake project is `blocktime` 0.4.0 (also in `vcpkg.json`). The app
+  target stays `blocktime-app`, but its file is `BlockTime.exe` (`OUTPUT_NAME`). The window title is "BlockTime",
+  the sidebar shows "v0.4.0", and the map's User-Agent is `BlockTime/0.4.0 (open source)`. `recorder_started`
+  events now say `"version": "0.4.0"`. The SimConnect client name stays "BlockTime Recorder", since the recorder is
+  still the part that talks to the sim.
+- Why: the first release of the one app (D-063) deserves its own version and a plain name. 0.3.0 was the last
+  console recorder.
+- Alternatives considered: keeping 0.3.0 until a feature milestone; renaming the target as well (more churn in
+  CMake, for the same file name).
+
+## D-067 — Last-resort errors go to errors.log
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision: The app sends `std::cerr` to `%LOCALAPPDATA%\BlockTime\errors.log`, or `%TEMP%\BlockTime-errors.log` if
+  that can't be opened (`ErrorLog`, append-only, flushed after every write, one `--- BlockTime <version> started
+  <UTC>` line per run). `BridgeObserver` writes every error line (`LOST:` events, D-049) there at once on the
+  recorder thread, as well as posting it to the event feed. The errors `EventLog` and `SimConnection` print land
+  there too. Qt messages pass through a handler that replaces the CARTO key with `<key>`.
+- Why: the merge review found that a windowed app has no console. `LOST:` lines are made while the app shuts down,
+  after the event loop ends, so they were never shown, and D-049's last resort left no trace. With the console
+  recorder dropped (D-065), stderr needed a home.
+- Alternatives considered: returning held events from `Recorder::run` to show before exit (the window is already
+  closing); `OutputDebugString` only (invisible without a debugger).
+
+## D-068 — The Flights list loads on a worker thread
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision: Amends D-060. `FlightListModel::reload()` runs `loadFlightHistory` on a `std::jthread` and swaps the
+  result in on the GUI thread. A reload asked for mid-load runs again when it ends, so the newest block event is
+  always included. Destroying the model stops a running load at once (`loadFlightHistory` takes a `std::stop_token`).
+  The Flights page says "Loading flights..." until the first load ends. `reloadBlocking()` keeps a synchronous path
+  for tests.
+- Why: D-060 judged the GUI thread fast enough from one day of log (35–41 ms). The merge review pointed out that 30
+  days of 1 Hz telemetry is far more; a synthetic 30 days of 4-hour flights (450,000 lines, 218 MB) took 4.8 s,
+  which would freeze the window at startup and after every block event.
+- Alternatives considered: caching parsed results for closed daily files (complex, since a flight can span files and
+  thinning needs every sample; still worth doing later if the CPU burst matters); a faster telemetry parser.

@@ -14,6 +14,8 @@ observations at the top.
 - **It isn't a pause.** No `paused` or `sim_stopped` event: to SimConnect it is just a very long frame.
 - Dave sees this on most KSAN departures, on runway 27 too, once the aircraft gets near land. He puts it down to
   scenery loading. It always recovers.
+- **Seen again on the next KSAN flight** (2026-11-23, Qt UI test 2): 50 s silent from 00:44:35Z, about 6 minutes
+  after block out. Logged the same way, with no effect on the flight.
 
 ## 2026-11-22: PMDG 737-800 at KOAK, recorder 0.3.0
 

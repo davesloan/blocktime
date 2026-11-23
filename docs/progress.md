@@ -22,6 +22,222 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-22 — One Qt app, merged to main (version 0.4.0)
+
+**Done:**
+- **Restructure (D-064..D-066):**
+  - `recorder/` moved to the repo root with `git mv`, keeping history. The build is now
+    `cmake --preset ...` from the root.
+  - `webapp/` and the console recorder are removed (D-065).
+  - The app is `BlockTime.exe`, version 0.4.0.
+- **Missing tests (D-051):** `blocktime-qt-tests` covers the event feed, the bridge, and the Flights and Fleet
+  models. Each test was checked by breaking the code on purpose.
+- **Whole-branch code review**, by a fresh reviewer: no Critical findings, 2 Important, 13 Minor. Fixed:
+  - **Important:** `LOST:` events and stderr errors now go to `errors.log` (D-067).
+  - **Important:** the Flights list loads on a worker thread (D-068). A synthetic 30-day log took 4.8 s, which
+    would have frozen the window.
+  - **Minor:**
+    - Qt messages have the CARTO key replaced by `<key>`.
+    - A guard stops and joins the recorder even if `aboutToQuit` is skipped.
+    - An odd file name in the log folder can't crash the app on a non-UTF-8 code page.
+    - A defensive check in the history reader, a cross-thread test, and stale comments.
+  - **Documented in D-061:** Fleet hours count only 30 days of log, and the test `blocktime.db` already on disk.
+- **Docs:** the root README (build, test, run, map key, files), CLAUDE.md (one app, library split, Qt/QML
+  conventions, repo map), `design.md`, `recorder.md` (milestone 8 dropped; airline milestones to plan), and the index.
+- **Merged** `qt-ui-spike` into `main`. Not pushed.
+
+**Working / verified (without the sim):**
+- Release and debug build from the root with no warnings. **117/117 tests** (blocktime-tests 93, of which 1 is a
+  skipped timing check; blocktime-qt-tests 24). qmllint reports nothing.
+- `BlockTime.exe --demo` shows v0.4.0 and the real flights. `errors.log` gets its "started" line. On the synthetic
+  30-day log, the page says "Loading flights..." and stays responsive, and 30 flights appear after about 5 s.
+
+**Unverified or broken:**
+- No sim flight with 0.4.0 yet. The recording code is unchanged, but the shutdown guard, the error log and the
+  async list are new. On the next flight, expect the same results as Qt UI test 2's Part B, and `errors.log` holding
+  only "started" lines.
+- **Deferred minors from the review:**
+  - #3: no hint when the key is wrong.
+  - #9: `seedIfEmpty` ignores SQLite errors.
+  - #12: tracks across the 180° meridian.
+  - #15: the Fleet card title binding.
+  - A held block event (D-049) refreshes the Flights list only at the next block event.
+  - A long, high-latitude synthetic track (37°N → 67°N) didn't fit entirely in the map view.
+- D-066..D-068 are Proposed.
+
+**Next step:**
+- Dave flies one leg with `build\x64-release\BlockTime.exe` (Part B checks), then milestone 4 (phases) with the
+  sim-freeze rule (D-058). Later ideas: a map style picker, and an airframe page with all its legs on one map.
+
+## 2026-11-22 — Decision: Qt wins (D-063)
+
+**Done:**
+- Dave chose one native Qt app (D-063). D-001, D-004 and D-007 are marked superseded.
+
+**Next step:**
+- Before the merge (D-051): settle the repo layout and the console recorder's future, add the missing tests, run a
+  code review on the branch, then rework the docs (CLAUDE.md, `design.md`, `recorder.md`, milestones 4–8) and
+  merge to `main`.
+
+## 2026-11-22 — Qt UI test 2 flown: everything worked
+
+**Done:**
+- Dave ran Part A (the app in `--demo`) and Part B (one MSFS flight, KSAN → KSAN in the PMDG 737-800, N818SX)
+  with the release `blocktime-app.exe`.
+
+**Working / verified:**
+- Part A (Dave): "everything works... surprisingly perfect". That covers the map's dragging, zooming and
+  tiles, the flight list, and Fleet sorting.
+- Part B (Dave): every step worked, including the new flight appearing at the top of Flights after block in
+  without a restart, and Fleet's N818SX count going up.
+- **Task Manager during the flight: memory peaked around 70 MB, CPU 0.3% at most and mostly 0%.** Both are inside
+  the limits (100 MB, 1%).
+- Log (`events-2026-11-23.jsonl`):
+  - `block_out` 00:39:04Z (12,128 lb) and `block_in` 01:04:38Z (9,622 lb), 25:30 block, 2,506 lb used.
+  - The Flights reader gives 63.0 nm and 8,020 ft highest. The 7 flights load in 50 ms.
+  - The KSAN scenery freeze came back (50 s, about 6 min after block out) and was logged as
+    `sim_unresponsive`/`sim_responsive`, with no effect on the flight.
+  - Dave quit the sim (`sim_disconnected` `sim_quit`), then closed the app (`recorder_stopped`). No warnings.
+- All of UI test 2's pass criteria are met (see `docs/qt-ui-test-context.md`).
+
+**Ideas from Dave for later (not MVP):** a map style picker (e.g. a dark map with terrain), and clicking an airframe
+in Fleet to see all its flights, every leg on one map. Details in the context doc.
+
+**Next step:**
+- Dave's Qt decision (D-050, `docs/qt-ui-test-context.md` "Deciding afterwards"). If Qt wins: tests and a code
+  review on the branch, merge, and a decision superseding D-001 and D-004 (D-051).
+
+## 2026-11-22 — Qt UI test 2 built (branch qt-ui-spike)
+
+**Done:**
+- Plan: `docs/plans/2026-11-22-qt-ui-test-2.md`, all 7 tasks. `main` was merged into the branch first (D-058).
+- Side menu with three pages: **Live** (test 1's screen, unchanged), **Flights** and **Fleet** (D-062).
+- **Flights:** the flights rebuilt from the event log (D-060), newest first, with block times, fuel used, distance
+  and highest altitude, and the flown track on a dark **CARTO Dark Matter** map (D-059). The key is in
+  `%LOCALAPPDATA%\BlockTime\settings.json`. The list reloads after every block event.
+- **Fleet:** a sortable table from SQLite (`%LOCALAPPDATA%\BlockTime\blocktime.db`, test schema, 8 seeded airframes)
+  with each tail's flights and block hours from the log (D-061). sqlite3 3.54.1 comes from vcpkg.
+- Docs: D-059..D-062, the map probe results in `docs/notes/qt-setup.md`, the README's Qt section, and the context
+  doc.
+
+**Working / verified (without the sim):**
+- Release and debug build with no warnings. **83/83 tests** (31 new: flight history, settings and tile cache,
+  fleet store). qmllint reports nothing. The console recorder smoke run is unchanged.
+- Dave's real log loads in 35–41 ms (6 flights, 2,220 track points). Every flight matches the log.
+- Map: Dave's key shows the dark map with CARTO's credit line (debug and release). With no key, the track is drawn
+  on the plain background with a note. A wrong key shows CARTO's "API KEY REQUIRED" tiles and the app keeps
+  working. Ramp-only flights show at airport scale.
+- Fleet: 8 rows; N818SX 2 flights / 0.8 h; every column sorts both ways; an unusable data folder shows SQLite's
+  message instead of the table.
+- **Release app in `--demo`** (10 s each, no sim). Task Manager's Memory column (private working set): **31 MB**
+  on Live, **44–46 MB** after five flights on the map and the Fleet table. Working set 95 → 110 MB and private bytes
+  100 → 117 MB, which also count shared Qt DLLs and committed memory. CPU 0–0.02% on every page.
+
+**Unverified or broken:**
+- Not seen in the sim: the list updating after a block in while the app is open, and memory/CPU during a flight
+  with the map opened once.
+- Dragging and zooming the map: not tested by script.
+- Decisions D-060..D-062, and D-059's details, are Proposed (D-059's provider is Dave's choice).
+
+**Sim checks for Dave** (one MSFS load; release `blocktime-app.exe`, not the console recorder):
+1. Before loading the flight, open **Flights**. Expect today's flights on the dark map; select a few. Drag and
+   scroll-zoom the map.
+2. Open **Fleet**. Expect 8 rows. Note N818SX's flights and hours. Click a header twice to sort both ways.
+3. Back on **Live**, fly a leg as usual. Now and then check Task Manager's Memory for `blocktime-app.exe`. Expect
+   it under 100 MB (about 45 MB) and CPU under 1%.
+4. After block in, open **Flights** without restarting. Expect the new flight at the top, selected, with its track
+   matching the route flown.
+5. Open **Fleet**. Expect N818SX's flights up by one and its hours up by the block time.
+6. Your verdict on the map and the two data screens, and the Qt decision (`docs/qt-ui-test-context.md`, Deciding
+   afterwards).
+
+**Next step:**
+- Dave's sim checks above, then the Qt decision. If Qt wins: tests and a code review on the branch, merge, and a
+  decision superseding D-001 and D-004 (D-051).
+
+## 2026-11-22 — Qt UI test 1 flown: passed
+
+**Done:**
+- Dave flew KSAN → KSAN in the PMDG 737-800 (N818SX) with the release `blocktime-app.exe` in place of the console
+  recorder.
+
+**Working / verified (in the sim):**
+- Log (`events-2026-11-22.jsonl`, 21:02–21:55Z): `recorder_started`, `sim_connected`, `block_out` 21:28:23Z
+  (15,316 lb), `block_in` 21:55:15Z (12,141 lb, 26 min 52 s), then `sim_disconnected` (`recorder_exit`) and
+  `recorder_stopped` when the window closed. No warnings, no lost events.
+- Dave's Task Manager readings during the flight: **CPU never above 0.2%, memory never above 30 MB.** Both are well
+  inside the limits (1%, 100 MB). Task Manager's Memory column is the private working set, so it reads lower than
+  the 87–92 MB working set / private bytes measured at idle without the sim; the two aren't the same number.
+- Dave on the look: "beautiful and exactly what I was looking for."
+- All four test 1 pass criteria are met (see `docs/qt-ui-test-context.md`).
+
+**Unverified or broken:**
+- Nothing new. The stderr-only errors from `EventLog` / `SimConnection` are still not shown in the app (accepted).
+
+**Next step:**
+- UI test 2 on `qt-ui-spike`: post-flight route map, fleet list from SQLite, side menu (D-051). Write its plan
+  first. The Qt decision comes after test 2.
+
+## 2026-11-22 — Qt UI test 1 built (branch qt-ui-spike)
+
+**Done:**
+- Plan: `docs/plans/2026-11-22-qt-ui-test-1.md`. All work is on the branch **`qt-ui-spike`** (Dave's name; D-051 said
+  `spike/qt-ui`), built inside the recorder project so it can merge as it is if Qt wins (D-052).
+- The recorder loop moved out of `main.cpp` into `Recorder` (library `blocktime-sim`, D-053). The console recorder
+  is a thin front end and behaves as before.
+- New `blocktime-app.exe` (Qt 6.12, Qt Quick, Basic style): it runs the recorder on its own thread and has a dark
+  theme with four building blocks. The screen shows a header with the connection pill and Open log folder,
+  aircraft, eight live tiles, a flight card with a running block clock, and an event feed (D-054).
+- QML hot reload in debug builds (D-055), windeployqt after each build (D-056), and a `--demo` mode (D-057).
+- Docs: D-052..D-057, `docs/notes/qt-setup.md`, the README's Qt section, and the status and findings in
+  `docs/qt-ui-test-context.md`.
+
+**Working / verified (without the sim):**
+- Release and debug build with no warnings. 52/52 tests pass in both. qmllint reports nothing.
+- Console recorder smoke run (lone `block_out`): same console lines and log lines as 0.3.0. A second copy exits
+  with code 3.
+- App, without the sim:
+  - Closing the window writes `recorder_stopped` and the process is gone in about 0.2 s.
+  - A left-open flight is closed as `recorder_crash`.
+  - With the console recorder running, the app shows "Recorder already running" and writes nothing.
+- Hot reload: a Theme colour change shows in about 1.5 s with no rebuild. A QML typo shows an error window and the
+  app keeps running. The fix brings the window back, and closing still writes `recorder_stopped`.
+- Release app at idle: about **87–92 MB** (working set and private bytes) and **0% CPU** over 10 s. That's close to
+  the 100 MB limit before any sim connection.
+- QML back-and-forth for the first full screen: 4 fixes, each found and fixed in one pass (listed in the context
+  doc).
+
+**Unverified or broken:**
+- Nothing has been seen with the sim yet. The live values, the block events in the app and the in-flight
+  memory/CPU are all unverified.
+- The windowed app doesn't show the few errors `EventLog` / `SimConnection` print straight to stderr (accepted for
+  now, see `docs/notes/qt-setup.md`).
+- Decisions: Dave confirmed D-053..D-057 (Accepted).
+
+**Dave's sim test (Qt UI test 1):** one MSFS load, PMDG 737 at a KOAK gate. Build the branch first
+(`git switch qt-ui-spike`, then the usual release configure and build). Use
+`recorder\build\x64-release\blocktime-app.exe`, and **don't** start the console recorder.
+1. Start the app before MSFS. Expect the pill to go "Waiting for sim" → "Sim starting" → "Connected".
+2. In the cockpit at the gate, expect the tiles to fill in: brake SET (amber), GROUND, fuel matching the FMC,
+   engines 0 / 2, and the aircraft title and tail in the top card.
+3. Push and taxi ≥ 10 m. Expect a BLOCK OUT line in the event feed, and the flight card to show the block out time
+   with the clock running.
+4. Fly the leg as normal. Now and then, check Task Manager → Details for `blocktime-app.exe`: Memory (expect under
+   100 MB) and CPU (expect under 1%). Note the highest values you see.
+5. Park and set the brake with the engines off. Expect BLOCK IN in the feed, and the flight card to show "Last
+   flight: Block in H:MM · <fuel out> → <fuel in> lb".
+6. Close the app window. Expect the newest lines in `events-*.jsonl` to be `sim_disconnected` (`recorder_exit`) and
+   `recorder_stopped`.
+7. Your verdict: does it look like FlyHub / Sim Toolkit Pro rather than an "Intro to Programming" app? What would
+   you change first?
+
+**Next step:**
+- Dave reacts to the screenshots and flies the test above. Then UI test 2 (route map, fleet list from SQLite, side
+  menu). If memory in flight goes over 100 MB, look at where Qt's baseline goes (the renderer, loaded QML modules)
+  before test 2.
+
+---
+
 ## 2026-11-22 — Recorder 0.3.0 sim test at KOAK
 
 PMDG 737-800 at a KOAK gate, one MSFS load (Dave reloaded the flight once at the start). Log:

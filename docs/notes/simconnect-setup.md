@@ -21,7 +21,7 @@
 - SimConnect returns the values of a data definition **back to back with no padding**. The C++ receiving struct
   must be wrapped in `#pragma pack(push, 1)`, and its fields must be in exactly the order they were added with
   `AddToDataDefinition`.
-  `recorder/src/sim_vars.h` keeps the struct and the list next to each other, with a `static_assert` that checks
+  `src/sim_vars.h` keeps the struct and the list next to each other, with a `static_assert` that checks
   the sizes match.
 - Bools are requested as `INT32` with units `"bool"`. Strings use `SIMCONNECT_DATATYPE_STRING256` / `STRING64`
   with units `nullptr`.
