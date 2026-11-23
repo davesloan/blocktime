@@ -57,6 +57,7 @@ add_library(blocktime-core STATIC
   src/airline_config.cpp
   src/airline_db.cpp
   src/airline_queries.cpp
+  src/airline_session.cpp
   src/airport_import.cpp
   src/app_settings.cpp
   src/dates.cpp
@@ -100,6 +101,7 @@ if(BLOCKTIME_BUILD_TESTS)
   add_executable(blocktime-tests
     tests/airline_config_test.cpp
     tests/airline_db_test.cpp
+    tests/airline_session_test.cpp
     tests/airport_import_test.cpp
     tests/app_settings_test.cpp
     tests/block_detector_test.cpp
