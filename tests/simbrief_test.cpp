@@ -149,3 +149,13 @@ TEST(SimBrief, PlanMismatchStale) {  // generated 14:02Z; stale when before plan
 }
 
 TEST(SimBrief, PlanFits) { EXPECT_FALSE(planMismatch(plan(), key()).has_value()); }
+
+TEST(SimBrief, RouteWithRunways) {  // what Navigraph Charts takes: KBFI/14R ..route.. KSAN/27
+    SimbriefPlan p = plan();
+    EXPECT_EQ(routeWithRunways(p), "KBFI/14R BANGR9 BANGR DCT LKV DCT OAL J65 BLH DCT JLI SEAVU2 KSAN/27");
+    p.destinationRunway.clear();
+    p.route = "DCT";
+    EXPECT_EQ(routeWithRunways(p), "KBFI/14R DCT KSAN");
+    p.route.clear();
+    EXPECT_EQ(routeWithRunways(p), "KBFI/14R KSAN");
+}

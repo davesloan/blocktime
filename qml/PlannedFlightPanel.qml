@@ -74,19 +74,23 @@ Card {
         Rectangle {
             implicitWidth: 32
             implicitHeight: 32
-            radius: Theme.radiusSmall
-            color: chevronHover.hovered ? Theme.surfaceHover : "transparent"
+            radius: height / 2
+            color: chevronHover.hovered ? Theme.surfaceRaised : "transparent"
+            border.color: chevronHover.hovered ? Theme.textPrimary : Theme.textSecondary
+            border.width: 1
 
             Text {
                 anchors.centerIn: parent
                 text: panel.collapsed ? "\uE70D" : "\uE70E"  // ChevronDown : ChevronUp
-                color: Theme.textSecondary
+                color: Theme.textPrimary
                 font.family: Theme.iconFontFamily
-                font.pixelSize: Theme.fontSizeIcon
+                font.pixelSize: Theme.fontSizeSmall
             }
 
             HoverHandler {
                 id: chevronHover
+
+                cursorShape: Qt.PointingHandCursor
             }
 
             TapHandler {

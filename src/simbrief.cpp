@@ -124,6 +124,15 @@ std::optional<SimbriefPlan> parseOfp(std::string_view body, std::string* error) 
     return p;
 }
 
+std::string routeWithRunways(const SimbriefPlan& p) {
+    const auto end = [](const std::string& icao, const std::string& runway) {
+        return runway.empty() ? icao : icao + "/" + runway;
+    };
+    std::string out = end(p.originIcao, p.originRunway);
+    if (!p.route.empty()) out += " " + p.route;
+    return out + " " + end(p.destinationIcao, p.destinationRunway);
+}
+
 std::optional<std::string> planMismatch(const SimbriefPlan& plan, const PlanKey& flight) {
     if (plan.units != "lbs") return "The SimBrief plan is in kilograms; BlockTime needs pounds.";
     if (plan.originIcao != flight.origin || plan.destinationIcao != flight.destination) {

@@ -42,6 +42,10 @@ struct PlanKey {
     std::string origin, destination, airframeId, registration, plannedAt /* UTC instant */;
 };
 
+// The route as Navigraph Charts takes it: "KBFI/14R <route> KSAN/27". An airport without a planned runway is the
+// bare ICAO code.
+std::string routeWithRunways(const SimbriefPlan& plan);
+
 // nullopt when the plan belongs to the planned flight, else why not (D-105).
 std::optional<std::string> planMismatch(const SimbriefPlan& plan, const PlanKey& flight);
 

@@ -368,7 +368,8 @@ here, including delivery and free flights.
 
 - The **live flight dashboard** opens: "Waiting for sim".
 - It shows the route with a **copy button**, so Dave can paste it into Navigraph Charts and pick his approach for
-  the runways in use.
+  the runways in use. The route is in the form Navigraph takes, with the plan's runways at both ends:
+  `KBFI/14R <route> KSAN/27`.
 - It shows **where to load in:** the airport, and the gate where the aircraft was last parked, if known (section
   13.7). The app can't make MSFS spawn there; Dave picks it on the world map.
 - Dave starts SayIntentions, SPAD.neXt and the sim, then GSX in the sim.

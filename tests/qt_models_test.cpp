@@ -662,7 +662,7 @@ TEST(PlannedFlightModel, ImportStoresMatchingPlan) {
     EXPECT_EQ(m.state(), "waitingForSim");
     EXPECT_EQ(m.message(), "Imported the plan generated 14:02Z");
     EXPECT_EQ(m.planText(), "Plan generated 14:02Z · FL370 · 2h 31m · burn 10,900 lb");
-    EXPECT_EQ(m.route(), "BANGR9 BANGR DCT LKV DCT OAL J65 BLH DCT JLI SEAVU2");
+    EXPECT_EQ(m.route(), "KBFI/14R BANGR9 BANGR DCT LKV DCT OAL J65 BLH DCT JLI SEAVU2 KSAN/27");
     EXPECT_TRUE(currentPlannedFlight(db)->plan.has_value());
 }
 

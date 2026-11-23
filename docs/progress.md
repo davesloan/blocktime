@@ -78,7 +78,15 @@ Newest entries at the top. Add an entry at the end of every working session.
     number);
   - the header's New Flight button stays for the selected row.
 
-  Dave also suggested an always-enabled New Flight that asks which airplane when none is selected.
+  Dave agreed that an always-enabled New Flight asking which airplane would only duplicate the row menu. The hover
+  highlight was cheap, so it's built now (below).
+- **Polish from Dave's re-check, built:**
+  - Fleet rows light up under the mouse, with a hand cursor.
+  - The collapse button is a circle with a lighter icon.
+  - Copy route gives Navigraph's form, `KBFI/14R <route> KSAN/27`. SimBrief's route alone couldn't be pasted
+    (`SimBrief.RouteWithRunways`, test first).
+  - The release build has no warnings and 266 tests pass; qmllint is clean.
+  - Not yet seen by Dave.
 - **Deferred minors from the review:**
   - If the flight is cancelled during an import, `busy` stays set. It's invisible, since the panel hides.
   - `PlannedFlightModel::flightChanged` is connected to nothing.

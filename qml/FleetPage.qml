@@ -23,6 +23,7 @@ Item {
     signal newFlightRequested(string registration)
 
     property int selectedRow: -1  // the table row, or -1
+    property int hoveredRow: -1   // the row under the mouse, or -1
 
     // Relative column widths: Registration, Type, Airframe, Fleet, Location, Fuel, Status.
     readonly property var columnWeights: [1.1, 1.2, 1.5, 1.0, 0.8, 0.9, 1.4]
@@ -153,6 +154,14 @@ Item {
             onWidthChanged: forceLayout()
             ScrollBar.vertical: ScrollBar {}
 
+            // Rows light up under the mouse, so it's clear they can be clicked (Dave, milestone 5 checks).
+            HoverHandler {
+                cursorShape: Qt.PointingHandCursor
+                onPointChanged: page.hoveredRow = hovered
+                                ? table.cellAtPosition(table.mapToItem(table.contentItem, point.position)).y : -1
+                onHoveredChanged: if (!hovered) page.hoveredRow = -1
+            }
+
             delegate: Rectangle {
                 id: cell
 
@@ -168,6 +177,7 @@ Item {
 
                 implicitHeight: 44
                 color: selected ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.14)
+                     : row === page.hoveredRow ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.07)
                      : row % 2 === 0 ? Theme.surface : Theme.surfaceRaised
 
                 Rectangle {

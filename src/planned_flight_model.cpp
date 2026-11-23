@@ -103,7 +103,7 @@ void PlannedFlightModel::cancelFlight() {
 }
 
 void PlannedFlightModel::copyRoute() {
-    if (flight_ && flight_->plan) QGuiApplication::clipboard()->setText(q(flight_->plan->route));
+    if (flight_ && flight_->plan) QGuiApplication::clipboard()->setText(q(routeWithRunways(*flight_->plan)));
 }
 
 QString PlannedFlightModel::state() const {
@@ -142,7 +142,9 @@ QString PlannedFlightModel::runwayText() const {
     return "ATIS runways: " + or_none(flight_->originRunway) + " → " + or_none(flight_->destinationRunway);
 }
 
-QString PlannedFlightModel::route() const { return flight_ && flight_->plan ? q(flight_->plan->route) : QString(); }
+QString PlannedFlightModel::route() const {
+    return flight_ && flight_->plan ? q(routeWithRunways(*flight_->plan)) : QString();
+}
 
 QString PlannedFlightModel::planText() const {
     if (!flight_ || !flight_->plan) return {};
