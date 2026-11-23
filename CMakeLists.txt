@@ -54,6 +54,7 @@ target_compile_options(blocktime-options INTERFACE /W4 /permissive- /utf-8 /exte
 
 # --- Core: logic with no SimConnect or windows.h, so it can be unit tested (D-041) ---
 add_library(blocktime-core STATIC
+  src/airline_config.cpp
   src/airline_db.cpp
   src/airport_import.cpp
   src/app_settings.cpp
@@ -62,6 +63,8 @@ add_library(blocktime-core STATIC
   src/event_log.cpp
   src/event_outbox.cpp
   src/block_detector.cpp
+  src/catalog.cpp
+  src/config_yaml.cpp
   src/csv.cpp
   src/fleet_store.cpp
   src/flight_history.cpp
@@ -71,7 +74,9 @@ add_library(blocktime-core STATIC
   src/sqlite_db.cpp
   src/telemetry_filter.cpp)
 target_include_directories(blocktime-core PUBLIC src)
-target_link_libraries(blocktime-core PUBLIC blocktime-options nlohmann_json::nlohmann_json unofficial::sqlite3::sqlite3)
+find_package(yaml-cpp CONFIG REQUIRED)
+target_link_libraries(blocktime-core PUBLIC blocktime-options nlohmann_json::nlohmann_json unofficial::sqlite3::sqlite3
+  yaml-cpp::yaml-cpp)
 
 # --- Sim: the recorder loop and SimConnect, run on its own thread by the app (D-053) ---
 add_library(blocktime-sim STATIC
@@ -91,10 +96,12 @@ if(BLOCKTIME_BUILD_TESTS)
   find_package(GTest CONFIG REQUIRED)
   include(GoogleTest)
   add_executable(blocktime-tests
+    tests/airline_config_test.cpp
     tests/airline_db_test.cpp
     tests/airport_import_test.cpp
     tests/app_settings_test.cpp
     tests/block_detector_test.cpp
+    tests/catalog_test.cpp
     tests/csv_test.cpp
     tests/dates_test.cpp
     tests/error_log_test.cpp
@@ -106,6 +113,8 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/money_test.cpp
     tests/open_flight_test.cpp)
   target_link_libraries(blocktime-tests PRIVATE blocktime-core GTest::gtest_main)
+  # Tests read the repo's config files (config/catalog.yaml, config/airline.example.yaml).
+  target_compile_definitions(blocktime-tests PRIVATE BLOCKTIME_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
   gtest_discover_tests(blocktime-tests)
 endif()
 

@@ -1300,3 +1300,16 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   The parsing lives in `blocktime-core` with tests.
 - Alternatives considered: the app downloading the files itself on first start (Qt Network, an async state on
   screen); bundling filtered data in the repo (stale, and a few MB of data in git).
+
+## D-095 — yaml-cpp reads the config files
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: build
+- Decision: `catalog.yaml` and `airline.yaml` are read with yaml-cpp (0.9.0, MIT, from vcpkg) into plain structs in
+  `blocktime-core`, validated there. Errors name the file and line ("airline.yaml line 12: ..."); one shared helper
+  (`config_yaml`) does that for both readers. Money in the files is in whole dollars, multiples of $5.
+- Why: Mature, simple API, and it reports line numbers, which matters for hand-edited files (Review Focus 1 of the
+  milestone 4 plan).
+- Alternatives considered: rapidyaml (faster, but speed doesn't matter for two small files); JSON config (no
+  comments, harder to edit by hand).
