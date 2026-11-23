@@ -25,7 +25,7 @@ Sources:
   5,000 lb of freight, and `cargo=5000` was capped at the airframe's max cargo (17,645 lb for N814SX). SimBrief adds
   passenger baggage itself from `pax`, so `cargo` is only the extra freight. BlockTime sends cargo in thousands with
   up to three decimals (exact pounds).
-- Still to check: that `origrwy`/`destrwy` stick.
+- `origrwy`/`destrwy` from SayIntentions went through in Dave's first real planning test (2026-11-23, milestone 5 check 5).
 
 ## Fetching the OFP
 

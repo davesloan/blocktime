@@ -56,15 +56,21 @@ Newest entries at the top. Add an entry at the end of every working session.
 - On a scratch copy of Dave's data folder:
   - migration 3 ran, and N814SX got 7,000 / 146,300 / 190 / 55 / 36,113;
   - the app started with a seeded planned flight on the Live page and no QML errors in `errors.log`.
+- **Dave's checks, 2026-11-23:**
+  - Checks 1–8 and 10 passed. They used KBLI (6,700 ft) for the runway test, since KMYF isn't in the imported data.
+  - So did the real SayIntentions runways (14R → 27), the dispatch page, and a real import (FL410, 2h 52m, burn
+    10,493 lb). That confirms the OFP's time formats.
+  - Check 9 found the Live page's bottom cards clipped when a flight was planned. **Fixed** in c2bb1b5: the page
+    scrolls when it doesn't fit (with a scroll bar only then), and the planned-flight block collapses to its title
+    line. The debug build launched cleanly with it, but Dave hasn't looked at it yet.
 
 **Unverified or broken:**
-- **No one has looked at the new screens.** Claude can't see the window. Layout and the 1100 × 600 minimum size are
-  Dave's checks 5 and 9.
-- **The real OFP format.** The parser is built on a hand-written fixture: `params.time_generated` as ISO and
-  `times.est_block` as HH:MM:SS (from the research). If either is wrong, every import is refused with a message
-  saying which field is missing.
-- **Not yet tried with Dave's accounts:** whether `origrwy`/`destrwy` stick on the dispatch page, and a real getWX
-  answer.
+- **The layout fix (c2bb1b5)** needs Dave's eye:
+  - with the block expanded and collapsed;
+  - at the smallest window size and full screen.
+
+  The release build must be relinked with BlockTime closed. At 1100 px wide, the live tiles' labels elide ("INDICATED
+  …"); that predates milestone 5.
 - **Deferred minors from the review:**
   - If the flight is cancelled during an import, `busy` stays set. It's invisible, since the panel hides.
   - `PlannedFlightModel::flightChanged` is connected to nothing.
