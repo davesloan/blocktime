@@ -1285,3 +1285,18 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   `return_reason` on `airplane`, not a separate table.
 - Why: Each removed piece stopped no bug the code could realistically make; the copy-once types caused one.
 - Alternatives considered: keeping runways for later milestones (the sim provides runway layouts there).
+
+## D-094 — Airports come in through a console tool, from files Dave downloads
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: data, build
+- Decision: `blocktime-import.exe <folder>` reads OurAirports' `airports.csv` and `runways.csv` and mwgg/Airports'
+  `airports.json` from a folder, filters them (D-084) and upserts them into the airline database. Dave downloads
+  the files with the README's PowerShell line and runs the tool again to refresh. Columns are found by header name;
+  the ICAO code is `icao_code` when the file has it, else `gps_code`. An ICAO code that appears twice keeps the
+  airport with the longest runway.
+- Why: The app needs no network code or progress screen for a once-in-a-while job, and a console shows the counts.
+  The parsing lives in `blocktime-core` with tests.
+- Alternatives considered: the app downloading the files itself on first start (Qt Network, an async state on
+  screen); bundling filtered data in the repo (stale, and a few MB of data in git).

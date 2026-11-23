@@ -21,5 +21,6 @@ _Add a link here for every file created in `notes/`._
 - [msfs-observed-behaviour.md](notes/msfs-observed-behaviour.md) — facts from our own sim tests (loading, pause, scenery freezes, PMDG fuel/brake, AGL quirks)
 - [msfs-junk-data.md](notes/msfs-junk-data.md) — junk samples while loading / at 0,0 and the filter for them
 - [qt-setup.md](notes/qt-setup.md) — Qt install, build quirks (C4702, windeployqt), map tiles, QML gotchas, hot reload
+- [airport-data.md](notes/airport-data.md) — the airport import's sources, licences, columns and filter results
 - [simbrief-airframes.md](notes/simbrief-airframes.md) — what a SimBrief airframe holds, where its ID is, and N814SX's (BBJ2) checked weights
 - [pmdg-variables-from-spad.md](notes/pmdg-variables-from-spad.md) — PMDG 737/777 data values and switch events from Dave's SPAD.neXt profiles; the milestone 6 probe's target list

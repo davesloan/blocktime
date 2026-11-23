@@ -55,12 +55,14 @@ target_compile_options(blocktime-options INTERFACE /W4 /permissive- /utf-8 /exte
 # --- Core: logic with no SimConnect or windows.h, so it can be unit tested (D-041) ---
 add_library(blocktime-core STATIC
   src/airline_db.cpp
+  src/airport_import.cpp
   src/app_settings.cpp
   src/dates.cpp
   src/error_log.cpp
   src/event_log.cpp
   src/event_outbox.cpp
   src/block_detector.cpp
+  src/csv.cpp
   src/fleet_store.cpp
   src/flight_history.cpp
   src/geo.cpp
@@ -78,6 +80,10 @@ add_library(blocktime-sim STATIC
   src/single_instance.cpp)
 target_link_libraries(blocktime-sim PUBLIC blocktime-core SimConnect)
 
+# --- Airport import: a console tool, so its counts show in the terminal (D-094) ---
+add_executable(blocktime-import src/import_main.cpp)
+target_link_libraries(blocktime-import PRIVATE blocktime-core)
+
 # --- Tests --------------------------------------------------------------------
 option(BLOCKTIME_BUILD_TESTS "Build the unit tests" ON)
 if(BLOCKTIME_BUILD_TESTS)
@@ -86,8 +92,10 @@ if(BLOCKTIME_BUILD_TESTS)
   include(GoogleTest)
   add_executable(blocktime-tests
     tests/airline_db_test.cpp
+    tests/airport_import_test.cpp
     tests/app_settings_test.cpp
     tests/block_detector_test.cpp
+    tests/csv_test.cpp
     tests/dates_test.cpp
     tests/error_log_test.cpp
     tests/event_log_test.cpp

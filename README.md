@@ -145,6 +145,24 @@ $k = Read-Host "CARTO key"; New-Item -ItemType Directory -Force "$env:LOCALAPPDA
 
 A wrong key shows grey "API KEY REQUIRED" tiles. CARTO sends those as normal images, so the app can't tell.
 
+### Airport data
+
+The airline needs airports (where planes park, runway lengths, time zones). They come from three public files, which
+`blocktime-import.exe` filters and writes into the database (D-079, D-084, D-094). Download them (about 25 MB in all):
+
+```powershell
+$d = "$env:LOCALAPPDATA\BlockTime\airport-data"; New-Item -ItemType Directory -Force $d | Out-Null; Invoke-WebRequest https://davidmegginson.github.io/ourairports-data/airports.csv -OutFile "$d\airports.csv"; Invoke-WebRequest https://davidmegginson.github.io/ourairports-data/runways.csv -OutFile "$d\runways.csv"; Invoke-WebRequest https://raw.githubusercontent.com/mwgg/Airports/master/airports.json -OutFile "$d\airports.json"
+```
+
+Then import them:
+
+```powershell
+.\build\x64-release\blocktime-import.exe "$env:LOCALAPPDATA\BlockTime\airport-data"
+```
+
+It prints how many airports it kept and why the rest were left out. To refresh the data later, run both steps again:
+airports are updated in place and never deleted. `--db <file>` imports into another database file.
+
 ## Changing the UI
 
 The QML is in `qml/`, and every colour and size is in `qml/Theme.qml`. Run the **debug** build:
@@ -192,7 +210,8 @@ working rules it follows.
 - [SQLite](https://sqlite.org/) — the airline database (public domain).
 - [Little Navmap](https://github.com/albar965/littlenavmap) by Alexander Barthel — a reference for SimConnect handling
   and flight detection edge cases.
-- [OurAirports](https://ourairports.com/data/) — public airport and runway data.
+- [OurAirports](https://ourairports.com/data/) — public airport and runway data (public domain).
+- [mwgg/Airports](https://github.com/mwgg/Airports) — airport time zones (MIT License, Copyright (c) 2014 mwgg).
 - [SimBrief](https://www.simbrief.com/) — flight planning and airframe data.
 
 Not affiliated with Microsoft, Asobo, PMDG, Navigraph/SimBrief, FlyHub, CARTO, or any airline.
