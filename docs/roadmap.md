@@ -127,7 +127,8 @@ the Claude score and evaluation in the summary. **The MVP is done here.**
 
 Rotations unlocked by flying (D-075) and background flying with catch-up (sections 7–8), the settings screen (airline, fleets, leasing, and managing the
 catalog's types and airframes in the app, D-092),
-instant delivery, boards, and whatever the deepening turns up.
+instant delivery, boards, the pre-departure view on Live (D-118, design section 16), and whatever the deepening
+turns up.
 
 ## Before starting, Dave needs to
 

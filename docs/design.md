@@ -505,6 +505,14 @@ when the recorder's procedure-capture milestone starts.
 - **Settings screen** (D-092) for the airline, fleets and leasing airplanes, and for **managing the catalog's
   aircraft types and airframes** in the app (config files until then, D-076). The catalog then moves from YAML
   into the database; airplanes already leased keep the values copied when they were leased (D-082).
+- **Pre-departure view on Live (D-118).** Before block out, Live shows everything Dave needs to set up the FMC
+  and get ready for pushback, so BlockTime is the only thing open beside the sim. It changes to the in-flight view
+  at block out. Sources: the SimBrief plan (route, weights, fuel, cost index, cruise altitude and the rest of perf
+  init) and SayIntentions (runway in use, ATIS, clearance). Takeoff performance comes from the PMDG EFB, as landing
+  performance already does; BlockTime shows the EFB's inputs (weight, runway, wind, temperature, QNH) and calculates
+  nothing. The plan's weather is old by the time Dave is at the gate, so the ATIS is polled, around every 5 minutes.
+  Charts stay in Navigraph. Its name (Dispatch Plan, Flight Plan, Pre-Departure Brief, Load Sheet?) and exactly what
+  it shows are for a brainstorm when it is built.
 - Optional flavour ideas: special cargo jobs with supernumeraries on the 777F; display-only "published schedule"
   labels.
 

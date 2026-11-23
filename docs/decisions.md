@@ -1663,3 +1663,19 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   every good landing.
 - Alternatives considered: the recorder reporting whether a release is armed (more plumbing for the same answer);
   settling at the built-in rates with a notice (the lines could never be corrected).
+
+## D-118 — A pre-departure view on Live, after the MVP
+- Date: 2026-11-23
+- Status: Accepted
+- Decided by: Dave
+- Area: design
+- Decision: After the MVP, Live gets a view before block out showing everything needed to set up the FMC and get
+  ready for pushback, taken from the SimBrief plan and SayIntentions, and changes to the in-flight view at block
+  out. Takeoff performance comes from the PMDG EFB; BlockTime shows its inputs but has no performance calculator.
+  The ATIS is polled (around every 5 minutes) so the weather isn't the plan's. Charts stay in Navigraph. The view's
+  name and contents are settled in a brainstorm when it is built.
+- Why: Today FMC setup needs a laptop with SimBrief and Navigraph beside the sim; most of what's read off it is
+  already in the plan or SayIntentions. A calculator would need Boeing performance data that isn't public, and the
+  EFB already does it for the airplane being flown. Pulling charts in goes against keeping the app simple.
+- Alternatives considered: reproducing SimBrief's takeoff calculator (needs unpublished data, weeks of tuning); reading
+  the takeoff report from the plan (fixed at planning time, so stale when conditions change); showing charts.
