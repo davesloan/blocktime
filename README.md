@@ -6,9 +6,10 @@ built around the parts that make flying feel meaningful and none of the busywork
 You lease aircraft, build rotations, and fly legs yourself while the rest of your fleet keeps flying in the background.
 Every flight you fly is recorded automatically, from parking brake release to parking brake set.
 
-> **Status:** early development, version 0.4.0. The app records flights (block out / block in), shows live flight
-> data, lists past flights with the route flown on a dark map, and shows a sample fleet. The airline itself (money,
-> rotations, loads) isn't built yet.
+> **Status:** early development, version 0.5.0. The app records flights (block out / block in), shows live flight
+> data and past flights with the route flown on a dark map, and runs the airline's foundation: your airline and
+> leased airplanes from config files, the monthly lease charges, and the money ledger. Planning and flying airline
+> legs (loads, revenue, costs) come next (`docs/roadmap.md`).
 
 This project is built for one pilot's own use and shared in case others want to tinker. It isn't designed to be easy to
 set up, and there's no support — but you're welcome to clone it and play.
@@ -40,7 +41,7 @@ One native Windows app, `BlockTime.exe`, in **C++20 with Qt 6 and a QML interfac
   block in, and writes every event to a local log **before** anything else, so no flight is lost (`docs/recorder.md`).
 - **The airline logic** is plain C++ with unit tests. Data lives in one SQLite file on your PC. There's no hosting and
   no login.
-- **The QML interface** only displays: a dark theme, a side menu, and the Live, Flights and Fleet screens.
+- **The QML interface** only displays: a dark theme, a side menu, and the Live, Flights, Fleet and Money screens.
 
 ## Requirements
 
@@ -95,8 +96,30 @@ ctest --preset x64-release
 ```
 
 Two test programs run: `blocktime-tests` (the plain C++ logic: block detection, the event log, flight history,
-settings, the fleet store) and `blocktime-qt-tests` (the Qt models and the recorder bridge, without a window). Pass
+settings, the airline database, config files, airport import, money and leasing) and `blocktime-qt-tests` (the Qt
+models and the recorder bridge, without a window). Pass
 `-DBLOCKTIME_BUILD_TESTS=OFF` to the configure step to skip them.
+
+## Set up your airline
+
+The airline comes from two config files in `%LOCALAPPDATA%\BlockTime\` (D-076). Copy the repo's examples there:
+
+```powershell
+New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\BlockTime" | Out-Null; Copy-Item config\catalog.yaml "$env:LOCALAPPDATA\BlockTime\catalog.yaml"; Copy-Item config\airline.example.yaml "$env:LOCALAPPDATA\BlockTime\airline.yaml"
+```
+
+- **`airline.yaml`:** your airline's name, ICAO code and callsign, the day it was founded, its starting cash, its
+  fleets, and the airplanes you lease. Each airplane has its own registration and its own SimBrief airframe (the
+  "Internal ID" on SimBrief's airframe page, D-087). An airplane is leased the first time the app sees it; from then
+  on the database owns it, and editing or removing it in the file changes nothing (a warning goes to `errors.log`,
+  D-082).
+- **`catalog.yaml`:** aircraft types (lease rate, family, role) and airframes (seats and holds). Numbers marked
+  `estimate` are placeholders until they're read from the PMDG load pages.
+- Then import the airport data ([Airport data](#airport-data)). Until both are in place, the Fleet page says what's
+  missing.
+
+The first month of each lease is charged when it starts, and each later month on the same day of the month, also
+while the app is open. A month you can't pay returns the airplane (design.md §5).
 
 ## Run
 
@@ -110,14 +133,16 @@ settings, the fleet store) and `blocktime-qt-tests` (the Qt models and the recor
   followed by 10 m of movement, and ends at a brake set held until every engine is off (`docs/recorder.md`).
 - **Flights:** every flight in the last 30 days of the log, newest first, with block times, fuel used, distance,
   highest altitude and the route flown on a dark map. It updates after each block out and block in.
-- **Fleet:** a sortable table of airplanes (a sample fleet for now) with each tail's flights and block hours. Click a
-  column header to sort by it, and click it again to reverse.
+- **Fleet:** your airplanes, with type, airframe, fleet, location, fuel on board and status (Parked, Awaiting
+  delivery, Returned), and any notices about the setup above them. Click a column header to sort by it, and click it
+  again to reverse.
+- **Money:** the cash and every ledger line, newest first: the opening cash and each lease month.
 - **Closing the window** stops recording cleanly. An open flight is logged as interrupted (`recorder_exit`), then
   `recorder_stopped`.
 - Only one copy records at a time (D-037). A second copy shows "Recorder already running" and records nothing.
 - `--log-dir <folder>` writes the event log somewhere else.
-- `--demo` shows made-up live values and records nothing, to look at the UI without the sim. The Flights and Fleet
-  screens still show your real data.
+- `--demo` shows made-up live values and records nothing, to look at the UI without the sim. The Flights, Fleet and
+  Money screens still show your real data, and leases are charged as usual.
 - Use the **release** build for flights. The debug build is much heavier.
 
 ### Files it uses
@@ -128,7 +153,9 @@ Everything lives in `%LOCALAPPDATA%\BlockTime\`, outside the repo:
 |---|---|
 | `events\events-YYYY-MM-DD.jsonl` | The event log, one JSON object per line, one file per UTC day (D-020). Event types: `docs/recorder.md` |
 | `settings.json` | `{"carto_key": "..."}` — the map key. Never commit it |
-| `blocktime.db` | The SQLite database (a test schema with the sample fleet, D-061) |
+| `airline.yaml`, `catalog.yaml` | Your airline and the aircraft catalog ([Set up your airline](#set-up-your-airline)) |
+| `blocktime.db` | The airline database: airplanes, the money ledger, airports (`docs/database.md`). Back it up by copying it while the app is closed. An old Qt test database is renamed `blocktime.test-schema.db` on first start (D-086) |
+| `airport-data\` | The downloaded airport files, kept for the next refresh ([Airport data](#airport-data)) |
 | `tiles\` | Map tile cache, at most 100 MB. Files older than 30 days are deleted at startup. Safe to delete |
 | `errors.log` | Errors that have nowhere else to go: block events that could never be written (`LOST:`, D-049) and event log or SimConnect failures. Normally just one "started" line per run (D-067) |
 

@@ -12,9 +12,10 @@ as open source (GPL-3.0 compatible). Name: **BlockTime**.
 - **The recorder** (`Recorder`, D-053) runs on its own thread inside the app. It connects to MSFS through the
   SimConnect SDK, detects flight events (block out/in; phases next) and writes them to a local event log first.
   Milestones 1–3 are built.
-- **The airline** (fleet, rotations, background flights, money) is plain C++ on a SQLite database, still mostly to
-  be built. Today the app has three screens: Live, Flights (past flights with the route on a dark map) and Fleet
-  (a sample fleet).
+- **The airline** (fleet, rotations, background flights, money) is plain C++ on a SQLite database
+  (`docs/database.md`), built milestone by milestone (`docs/roadmap.md`). Milestone 4 built the foundation: config
+  files, the database, the airport import (`blocktime-import.exe`), leasing and the ledger. The app has four screens:
+  Live, Flights (past flights with the route on a dark map), Fleet and Money.
 - **QML only displays.** Logic lives in plain C++ with GoogleTest tests, so the UI could be replaced without
   rewriting it.
 
@@ -117,7 +118,7 @@ This file overrides the plugin's "invoke a skill on any 1% chance" rule. Use onl
 - C++20, MSVC (Visual Studio 2022 or newer; developed on VS 18 / 2026), CMake presets + Ninja, one build at the
   repo root (D-064). No warnings at `/W4 /permissive- /utf-8`.
 - Libraries are split by what they may depend on: `blocktime-core` (plain C++, no SimConnect, no Qt: logic,
-  event log, flight history, settings, SQLite), `blocktime-sim` (the recorder loop and SimConnect), and the app
+  event log, flight history, settings, the airline database, config files, airport import, leasing), `blocktime-sim` (the recorder loop and SimConnect), and the app
   (Qt models and QML). New airline logic goes in `blocktime-core` or a new plain library, with tests.
 - Third-party libraries via vcpkg (manifest mode, `vcpkg.json`) unless a decision says otherwise. SQLite through
   the sqlite3 C API, not Qt SQL (D-061).
@@ -182,12 +183,15 @@ to every row (a type's role) isn't polymorphism.
 CLAUDE.md            ← you are here
 README.md            ← build, test and run steps
 CMakeLists.txt       ← the one build (CMakePresets.json, vcpkg.json next to it)
-src/                 ← C++: recorder, logic, Qt models, app_main.cpp
+config/              ← catalog.yaml and airline.example.yaml (copied to %LOCALAPPDATA%\BlockTime)
+src/                 ← C++: recorder, airline logic, Qt models, app_main.cpp, import_main.cpp (blocktime-import)
 qml/                 ← the QML interface (Theme.qml holds the look)
 tests/               ← GoogleTest: blocktime-tests (plain C++) and blocktime-qt-tests (Qt models)
 docs/
   README.md          ← index of all docs
   design.md          ← the full product design (what the airline does and why)
+  database.md        ← the airline database schema and its processes
+  roadmap.md         ← milestones to the MVP
   recorder.md        ← recorder spec (events, phases, milestones, event log format)
   decisions.md       ← decision log (append-only)
   progress.md        ← session log (newest first)
