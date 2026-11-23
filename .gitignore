@@ -427,3 +427,6 @@ FodyWeavers.xsd
 
 # BlockTime CMake build trees
 /build/
+
+# Claude Code local settings
+/.claude/
