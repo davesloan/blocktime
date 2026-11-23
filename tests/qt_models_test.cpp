@@ -525,6 +525,33 @@ TEST(Fleet, StatusText) {
               (std::vector<QString>{"Returned 22 Jan 2027", "Parked", "Parked", "Awaiting delivery"}));
 }
 
+TEST(Fleet, FlightsAndHoursColumns) {
+    std::vector<AirplaneView> rows = sampleFleet();
+    rows[0].flights = 3;  // N880SX
+    rows[0].blockHours = 7.25;
+    FleetTableModel m(rows, {});
+    EXPECT_EQ(m.headerData(FleetTableModel::Flights, Qt::Horizontal, Qt::DisplayRole).toString(), "Flights");
+    EXPECT_EQ(m.headerData(FleetTableModel::Hours, Qt::Horizontal, Qt::DisplayRole).toString(), "Hours");
+    EXPECT_EQ(column(m, FleetTableModel::Flights), (std::vector<QString>{"0", "0", "0", "3"}));
+    EXPECT_EQ(column(m, FleetTableModel::Hours), (std::vector<QString>{"0.0", "0.0", "0.0", "7.3"}));
+    m.sort(FleetTableModel::Hours, Qt::DescendingOrder);
+    EXPECT_EQ(cell(m, 0, FleetTableModel::Registration), "N880SX");
+}
+
+TEST(Fleet, SummaryText) {
+    FleetTableModel m(sampleFleet(), {}, "3.2 h flown");
+    EXPECT_EQ(m.summaryText(), "3.2 h flown");
+    int changes = 0;
+    QObject::connect(&m, &FleetTableModel::summaryTextChanged, [&] { ++changes; });
+    m.reset(sampleFleet(), {}, "3.2 h flown");
+    EXPECT_EQ(changes, 0);
+    m.reset(sampleFleet(), {}, "4.0 h flown");
+    EXPECT_EQ(m.summaryText(), "4.0 h flown");
+    EXPECT_EQ(changes, 1);
+    EXPECT_EQ(FleetTableModel::fleetSummary(3.21, 1), "3.2 h flown · 1 of 1 slots in use · slot 2 at 10 h");
+    EXPECT_EQ(FleetTableModel::fleetSummary(12, 1), "12.0 h flown · 1 of 2 slots in use · slot 3 at 30 h");
+}
+
 TEST(Fleet, ResetReplacesRowsAndNotices) {
     FleetTableModel m(sampleFleet(), {"No airport data yet."});
     EXPECT_EQ(m.notices(), QStringList{"No airport data yet."});

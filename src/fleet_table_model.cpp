@@ -4,6 +4,10 @@
 
 #include "fleet_table_model.h"
 
+#include <format>
+
+#include "leasing.h"
+
 #include <algorithm>
 #include <utility>
 
@@ -30,6 +34,8 @@ QString textOf(const blocktime::AirplaneView& a, int column) {
     case FleetTableModel::Fleet: return QString::fromStdString(a.fleet);
     case FleetTableModel::Location: return QString::fromStdString(a.locationIcao);
     case FleetTableModel::Fuel: return withCommas(a.fuelOnBoardLb) + QStringLiteral(" lb");
+    case FleetTableModel::Flights: return QString::number(a.flights);
+    case FleetTableModel::Hours: return QString::number(a.blockHours, 'f', 1);
     case FleetTableModel::Status: return statusOf(a);
     default: return {};
     }
@@ -37,12 +43,18 @@ QString textOf(const blocktime::AirplaneView& a, int column) {
 
 }  // namespace
 
-FleetTableModel::FleetTableModel(std::vector<blocktime::AirplaneView> airplanes, QStringList notices, QObject* parent)
-    : QAbstractTableModel(parent), rows_(std::move(airplanes)), notices_(std::move(notices)) {
+FleetTableModel::FleetTableModel(std::vector<blocktime::AirplaneView> airplanes, QStringList notices, QString summaryText,
+                                 QObject* parent)
+    : QAbstractTableModel(parent), rows_(std::move(airplanes)), notices_(std::move(notices)),
+      summaryText_(std::move(summaryText)) {
     applySort();
 }
 
-void FleetTableModel::reset(std::vector<blocktime::AirplaneView> airplanes, QStringList notices) {
+void FleetTableModel::reset(std::vector<blocktime::AirplaneView> airplanes, QStringList notices, QString summaryText) {
+    if (summaryText != summaryText_) {
+        summaryText_ = std::move(summaryText);
+        emit summaryTextChanged();
+    }
     beginResetModel();
     rows_ = std::move(airplanes);
     applySort();
@@ -64,10 +76,16 @@ QVariant FleetTableModel::data(const QModelIndex& index, int role) const {
     return textOf(rows_[static_cast<std::size_t>(index.row())], index.column());
 }
 
+QString FleetTableModel::fleetSummary(double hoursFlown, int inFleet) {
+    const int earned = blocktime::slotsEarned(hoursFlown);
+    return QString::fromStdString(std::format("{:.1f} h flown · {} of {} slots in use · slot {} at {:.0f} h", hoursFlown,
+                                              inFleet, earned, earned + 1, blocktime::hoursForSlot(earned + 1)));
+}
+
 QVariant FleetTableModel::headerData(int section, Qt::Orientation orientation, int role) const {
     if (role != Qt::DisplayRole || orientation != Qt::Horizontal) return {};
-    static const char* const titles[ColumnCount] = {"Registration", "Type", "Airframe", "Fleet",
-                                                    "Location",     "Fuel", "Status"};
+    static const char* const titles[ColumnCount] = {"Registration", "Type",    "Airframe", "Fleet", "Location",
+                                                    "Fuel",         "Flights", "Hours",    "Status"};
     return section >= 0 && section < ColumnCount ? QString::fromLatin1(titles[section]) : QVariant();
 }
 
@@ -87,6 +105,8 @@ void FleetTableModel::applySort() {
     std::stable_sort(rows_.begin(), rows_.end(), [column, descending](const auto& a, const auto& b) {
         int c = 0;
         if (column == Fuel) c = (a.fuelOnBoardLb > b.fuelOnBoardLb) - (a.fuelOnBoardLb < b.fuelOnBoardLb);
+        else if (column == Flights) c = (a.flights > b.flights) - (a.flights < b.flights);
+        else if (column == Hours) c = (a.blockHours > b.blockHours) - (a.blockHours < b.blockHours);
         else c = QString::compare(textOf(a, column), textOf(b, column), Qt::CaseInsensitive);
         if (c == 0) c = a.registration.compare(b.registration);  // ties: by registration, ascending
         else if (descending) c = -c;

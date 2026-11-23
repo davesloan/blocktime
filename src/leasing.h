@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -33,7 +34,15 @@ struct LeaseOutcome {
 // Leases config airplanes not yet in the database whose lease has started, and charges every lease month that has
 // started and isn't charged, all in date order (ties by registration), one transaction per month. A month that
 // costs more than the cash on its date isn't charged: a new airplane isn't leased, a leased one is returned.
-LeaseOutcome settleLeases(db::Database& db, const Catalog& catalog, const AirlineConfig& config, Date today);
+// Fleet slots (design.md §6, D-083, D-114): slot n needs 5·n·(n−1) hours flown by Dave (10, 30, 60, ...). The first
+// is free.
+int slotsEarned(double hoursFlown);
+double hoursForSlot(int n);
+
+// A new airplane is leased only while the fleet (airplanes not returned) is smaller than `slots`; otherwise it waits,
+// with a notice. Empty `slots` means slotsEarned(hoursFlown(db)), which the app uses.
+LeaseOutcome settleLeases(db::Database& db, const Catalog& catalog, const AirlineConfig& config, Date today,
+                          std::optional<int> slots = std::nullopt);
 
 // Gives every airplane without limits its airframe's, with its airline.yaml overrides (D-100). For airplanes leased
 // before milestone 5.

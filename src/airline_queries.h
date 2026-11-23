@@ -26,6 +26,8 @@ struct AirplaneView {
     bool awaitingDelivery = false;
     std::optional<Date> returnedOn;  // set once the lease has ended
     std::string returnReason;        // "" while leased, "unpaid"
+    int flights = 0;                 // settled flights (D-097 undone: counted from the database now)
+    double blockHours = 0;           // their block time
 };
 
 struct LedgerView {

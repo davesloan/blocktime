@@ -45,6 +45,7 @@ public:
     std::vector<AirplaneView> airplanes();
     std::vector<LedgerView> ledger();
     Cents cash();
+    double hoursFlown();  // Dave's, from the settled flights (D-114)
     std::string airlineName() const;  // "" without a valid airline.yaml
     std::string airlineIcao() const;  // "" without a valid airline.yaml
 

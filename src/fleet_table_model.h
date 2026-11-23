@@ -23,14 +23,20 @@ class FleetTableModel : public QAbstractTableModel {
     Q_PROPERTY(int sortColumn READ sortColumn NOTIFY sortChanged)
     Q_PROPERTY(int sortOrder READ sortOrder NOTIFY sortChanged)  // Qt::SortOrder: 0 ascending, 1 descending
     Q_PROPERTY(QStringList notices READ notices NOTIFY noticesChanged)
+    // "3.2 h flown · 1 of 1 slots in use · slot 2 at 10 h" (design.md §6)
+    Q_PROPERTY(QString summaryText READ summaryText NOTIFY summaryTextChanged)
 
 public:
-    enum Column { Registration, Type, Airframe, Fleet, Location, Fuel, Status, ColumnCount };
+    enum Column { Registration, Type, Airframe, Fleet, Location, Fuel, Flights, Hours, Status, ColumnCount };
 
-    FleetTableModel(std::vector<blocktime::AirplaneView> airplanes, QStringList notices, QObject* parent = nullptr);
+    FleetTableModel(std::vector<blocktime::AirplaneView> airplanes, QStringList notices, QString summaryText = {},
+                    QObject* parent = nullptr);
 
-    // Replaces the rows and notices, keeping the current sort.
-    void reset(std::vector<blocktime::AirplaneView> airplanes, QStringList notices);
+    // Replaces the rows, notices and summary, keeping the current sort.
+    void reset(std::vector<blocktime::AirplaneView> airplanes, QStringList notices, QString summaryText = {});
+
+    // The summary line for `hoursFlown` and `inFleet` airplanes, with the slots those hours earn.
+    static QString fleetSummary(double hoursFlown, int inFleet);
 
     int rowCount(const QModelIndex& parent = {}) const override;
     int columnCount(const QModelIndex& parent = {}) const override;
@@ -46,16 +52,19 @@ public:
     int sortColumn() const { return sortColumn_; }
     int sortOrder() const { return static_cast<int>(sortOrder_); }
     QStringList notices() const { return notices_; }
+    QString summaryText() const { return summaryText_; }
 
 signals:
     void sortChanged();
     void noticesChanged();
+    void summaryTextChanged();
 
 private:
     void applySort();
 
     std::vector<blocktime::AirplaneView> rows_;
     QStringList notices_;
+    QString summaryText_;
     int sortColumn_ = Registration;
     Qt::SortOrder sortOrder_ = Qt::AscendingOrder;
 };

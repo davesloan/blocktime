@@ -22,7 +22,10 @@ std::vector<AirplaneView> listAirplanes(db::Database& db) {
     std::vector<AirplaneView> out;
     db::Statement q(db,
                     "SELECT a.registration, COALESCE(a.tail_number, ''), t.code, a.airframe_name, f.name, p.icao_code,"
-                    " a.fuel_on_board_lb, a.awaiting_delivery, a.returned_on, COALESCE(a.return_reason, '')"
+                    " a.fuel_on_board_lb, a.awaiting_delivery, a.returned_on, COALESCE(a.return_reason, ''),"
+                    " (SELECT COUNT(*) FROM flight WHERE airplane_id = a.airplane_id),"
+                    " (SELECT COALESCE(SUM(unixepoch(block_in_at) - unixepoch(block_out_at)), 0) FROM flight"
+                    "  WHERE airplane_id = a.airplane_id)"
                     " FROM airplane a JOIN aircraft_type t USING (aircraft_type_id) JOIN fleet f USING (fleet_id)"
                     " JOIN airport p ON p.airport_id = a.location_airport_id ORDER BY a.registration");
     while (q.next()) {
@@ -37,6 +40,8 @@ std::vector<AirplaneView> listAirplanes(db::Database& db) {
         a.awaitingDelivery = q.integer(7) != 0;
         if (!q.isNull(8)) a.returnedOn = parseDate(q.text(8));
         a.returnReason = q.text(9);
+        a.flights = static_cast<int>(q.integer(10));
+        a.blockHours = static_cast<double>(q.integer(11)) / 3600.0;
         out.push_back(std::move(a));
     }
     return out;

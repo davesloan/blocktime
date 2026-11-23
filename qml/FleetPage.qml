@@ -25,11 +25,11 @@ Item {
     property int selectedRow: -1  // the table row, or -1
     property int hoveredRow: -1   // the row under the mouse, or -1
 
-    // Relative column widths: Registration, Type, Airframe, Fleet, Location, Fuel, Status.
-    readonly property var columnWeights: [1.1, 1.2, 1.5, 1.0, 0.8, 0.9, 1.4]
+    // Relative column widths: Registration, Type, Airframe, Fleet, Location, Fuel, Flights, Hours, Status.
+    readonly property var columnWeights: [1.1, 1.2, 1.5, 1.0, 0.8, 0.9, 0.7, 0.7, 1.4]
     readonly property real weightSum: columnWeights.reduce((a, b) => a + b, 0)
-    readonly property int fuelColumn: 5
-    readonly property int statusColumn: 6
+    readonly property var numberColumns: [5, 6, 7]  // Fuel, Flights, Hours: right-aligned
+    readonly property int statusColumn: 8
 
     Card {
         anchors.fill: parent
@@ -64,6 +64,17 @@ Item {
                 enabled: page.selectedRow >= 0 && !page.plannedFlight.hasFlight
                 onClicked: page.newFlightRequested(page.fleet.registrationAt(page.selectedRow))
             }
+        }
+
+        // Dave's hours and the fleet slots they earn (design.md §6).
+        Text {
+            Layout.fillWidth: true
+            visible: text !== ""
+            text: page.fleet.summaryText
+            color: Theme.textSecondary
+            elide: Text.ElideRight
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeBody
         }
 
         // The airline's notices, one line each.
@@ -123,7 +134,7 @@ Item {
                     anchors.leftMargin: 12
                     anchors.rightMargin: 12
                     verticalAlignment: Text.AlignVCenter
-                    horizontalAlignment: headerCell.column === page.fuelColumn ? Text.AlignRight : Text.AlignLeft
+                    horizontalAlignment: page.numberColumns.includes(headerCell.column) ? Text.AlignRight : Text.AlignLeft
                     text: headerCell.display.toUpperCase()
                           + (headerCell.sorted ? (page.fleet.sortOrder === Qt.AscendingOrder ? "  ▲" : "  ▼") : "")
                     color: headerCell.sorted ? Theme.textPrimary : Theme.textSecondary
@@ -171,7 +182,7 @@ Item {
 
                 readonly property bool selected: row === page.selectedRow
                 readonly property bool isStatus: column === page.statusColumn
-                readonly property bool isNumber: column === page.fuelColumn
+                readonly property bool isNumber: page.numberColumns.includes(column)
                 readonly property color tone: display === "Parked" ? Theme.good
                                             : display.startsWith("Returned") ? Theme.bad : Theme.accent
 

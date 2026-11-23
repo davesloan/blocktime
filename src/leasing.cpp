@@ -43,6 +43,12 @@ std::optional<std::int64_t> idOf(db::Database& db, const char* sql, const std::s
     return q.integer(0);
 }
 
+// Airplanes in the fleet: leased and not returned. Slots cap them (design.md §6).
+std::int64_t fleetSize(db::Database& db) {
+    db::Statement q(db, "SELECT COUNT(*) FROM airplane WHERE returned_on IS NULL");
+    return q.next() ? q.integer(0) : 0;
+}
+
 // The registration of the leased airplane that already has this SimBrief airframe, or "".
 std::string registrationWithSimbriefId(db::Database& db, const std::string& simbriefId) {
     db::Statement q(db, "SELECT registration FROM airplane WHERE simbrief_airframe_id = ?");
@@ -204,7 +210,18 @@ bool postOpeningCash(db::Database& db, const AirlineConfig& config, std::string*
     return true;
 }
 
-LeaseOutcome settleLeases(db::Database& db, const Catalog& catalog, const AirlineConfig& config, Date today) {
+int slotsEarned(double hoursFlown) {
+    int n = 1;
+    while (hoursForSlot(n + 1) <= hoursFlown) ++n;
+    return n;
+}
+
+double hoursForSlot(int n) { return 5.0 * n * (n - 1); }
+
+LeaseOutcome settleLeases(db::Database& db, const Catalog& catalog, const AirlineConfig& config, Date today,
+                          std::optional<int> slots) {
+    const double hours = hoursFlown(db);
+    const int slotCount = slots.value_or(slotsEarned(hours));
     LeaseOutcome outcome;
     EventQueue events;
 
@@ -264,6 +281,12 @@ LeaseOutcome settleLeases(db::Database& db, const Catalog& catalog, const Airlin
                     "Can't afford {}'s first month: {} needed, {} in cash on {}. Set a later leased_on to try again.",
                     a.registration, formatMoneyFull(type->monthlyLeaseCents), formatMoneyFull(cash),
                     formatDayMonthYear(e.date)));
+                continue;
+            }
+            if (const std::int64_t inFleet = fleetSize(db); inFleet >= slotCount) {
+                outcome.notices.push_back(std::format(
+                    "Can't lease {} yet: {} of {} slots in use. Slot {} comes at {:.0f} hours flown (you have {:.1f}).",
+                    a.registration, inFleet, slotCount, slotCount + 1, hoursForSlot(slotCount + 1), hours));
                 continue;
             }
             if (const std::string owner = registrationWithSimbriefId(db, a.simbriefAirframeId); !owner.empty()) {

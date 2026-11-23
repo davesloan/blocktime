@@ -135,7 +135,10 @@ screen for all of this comes after the MVP.
 
 ### Fleet growth: earn slots by flying
 
-- Start with **1 aircraft slot**. Slots cap the whole fleet (active and inactive).
+- Start with **1 aircraft slot**. Slots cap the whole fleet (active and inactive; returned airplanes don't count).
+  Enforced when an airplane is leased (D-083): one that doesn't fit waits, with a notice, until the hours earn its
+  slot. Hours are the sum of Dave's flights' block times (D-114). Fleet shows them: "3.2 h flown · 1 of 1 slots in
+  use · slot 2 at 10 h".
 - Each new slot requires more hours flown **by Dave** (any aircraft, including free and delivery flights).
   Background hours don't count.
 - Each slot costs 10 more hours than the last:

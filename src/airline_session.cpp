@@ -93,6 +93,8 @@ std::vector<LedgerView> AirlineSession::ledger() { return db_ ? listLedger(*db_)
 
 Cents AirlineSession::cash() { return db_ ? cashCents(*db_) : 0; }
 
+double AirlineSession::hoursFlown() { return db_ ? blocktime::hoursFlown(*db_) : 0.0; }
+
 std::string AirlineSession::airlineName() const { return config_ ? config_->identity.name : std::string(); }
 
 std::string AirlineSession::airlineIcao() const { return config_ ? config_->identity.icaoCode : std::string(); }

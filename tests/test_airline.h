@@ -63,7 +63,7 @@ inline void setUpTestAirline(db::Database& db) {
     ASSERT_TRUE(syncCatalogTypes(db, *catalog, &error)) << error;
     ASSERT_TRUE(syncFleets(db, config, &error)) << error;
     ASSERT_TRUE(postOpeningCash(db, config, &error)) << error;
-    const LeaseOutcome outcome = settleLeases(db, *catalog, config, config.foundedOn);
+    const LeaseOutcome outcome = settleLeases(db, *catalog, config, config.foundedOn, 2);  // two slots
     ASSERT_EQ(outcome.error, "");
     ASSERT_EQ(outcome.leased, 2);
     ASSERT_TRUE(syncFreeFlightNumbers(db, config, &error)) << error;

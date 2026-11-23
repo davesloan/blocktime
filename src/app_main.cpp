@@ -220,14 +220,19 @@ int main(int argc, char* argv[]) {
     // minute the leases are settled again, so a month that falls due while the app is open is charged (D-096).
     blocktime::AirlineSession airline =
         blocktime::AirlineSession::start(blocktime::defaultAirlinePaths(), blocktime::utcToday(), std::cerr);
-    FleetTableModel fleet(airline.airplanes(), toQStringList(airline.notices()));
+    const auto fleetSummary = [&airline] {
+        int inFleet = 0;
+        for (const blocktime::AirplaneView& a : airline.airplanes()) inFleet += a.returnedOn ? 0 : 1;
+        return FleetTableModel::fleetSummary(airline.hoursFlown(), inFleet);
+    };
+    FleetTableModel fleet(airline.airplanes(), toQStringList(airline.notices()), fleetSummary());
     LedgerModel ledger(airline.ledger(), airline.cash());
     QTimer airlineTick;
     airlineTick.setInterval(60'000);
     QObject::connect(&airlineTick, &QTimer::timeout, [&] {
         // A model reset rebuilds the views and scrolls them to the top, so only reset when something changed.
         if (!airline.tick(blocktime::utcToday())) return;
-        fleet.reset(airline.airplanes(), toQStringList(airline.notices()));
+        fleet.reset(airline.airplanes(), toQStringList(airline.notices()), fleetSummary());
         ledger.reset(airline.ledger(), airline.cash());
     });
     airlineTick.start();

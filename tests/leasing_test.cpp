@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <algorithm>
+#include <optional>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -63,7 +64,7 @@ protected:
 
     LeaseOutcome settle(Date today) {
         sync();
-        LeaseOutcome outcome = settleLeases(db_, catalog_, config_, today);
+        LeaseOutcome outcome = settleLeases(db_, catalog_, config_, today, slots_);
         EXPECT_EQ(outcome.error, "");
         return outcome;
     }
@@ -77,6 +78,7 @@ protected:
     db::Database db_ = db::Database::openInMemory();
     Catalog catalog_;
     AirlineConfig config_;
+    std::optional<int> slots_ = 10;  // the lease tests aren't about slots; the slot tests clear it
 };
 
 }  // namespace
@@ -294,4 +296,70 @@ TEST_F(Leasing, TypeSyncWritesSimFolders) {
     db::Statement q(db_, "SELECT sim_folder FROM aircraft_type WHERE code = '737-800 BBJ2'");
     ASSERT_TRUE(q.next());
     EXPECT_EQ(q.text(0), "PMDG 737-800BBJ2");
+}
+
+TEST(Slots, FromHours) {
+    EXPECT_EQ(slotsEarned(0), 1);
+    EXPECT_EQ(slotsEarned(9.9), 1);
+    EXPECT_EQ(slotsEarned(10), 2);
+    EXPECT_EQ(slotsEarned(29.9), 2);
+    EXPECT_EQ(slotsEarned(30), 3);
+    EXPECT_EQ(slotsEarned(150), 6);
+    EXPECT_EQ(slotsEarned(279.9), 7);
+    EXPECT_EQ(slotsEarned(280), 8);
+    EXPECT_EQ(slotsEarned(450), 10);
+    EXPECT_DOUBLE_EQ(hoursForSlot(2), 10);
+    EXPECT_DOUBLE_EQ(hoursForSlot(10), 450);
+}
+
+TEST_F(Leasing, NoFreeSlotMeansNoLeaseAndANotice) {
+    slots_.reset();  // earned from hours, as in the app
+    config_.airplanes = {airplane("N738BT", d(2026, 11, 22), "1_1"), airplane("N738CC", d(2026, 11, 22), "1_2")};
+    LeaseOutcome outcome = settle(d(2026, 11, 22));
+    EXPECT_EQ(outcome.leased, 1);
+    ASSERT_EQ(outcome.notices.size(), 1u);
+    EXPECT_EQ(outcome.notices[0],
+              "Can't lease N738CC yet: 1 of 1 slots in use. Slot 2 comes at 10 hours flown (you have 0.0).");
+    EXPECT_EQ(count("SELECT COUNT(*) FROM airplane"), 1);
+    EXPECT_EQ(count("SELECT COUNT(*) FROM ledger_line WHERE category = 'lease'"), 1);
+
+    // Ten hours of flights in N738BT earn slot 2.
+    ASSERT_TRUE(db_.exec(
+        "INSERT INTO flight (log_flight_id, airplane_id, flight_number, kind, origin_airport_id,"
+        " planned_destination_airport_id, arrival_airport_id, cargo_lb, fuel_price_cents_per_100lb, planned_at,"
+        " block_out_at, block_in_at, fuel_on_record_lb, fuel_out_lb, fuel_in_lb)"
+        " SELECT 'a', airplane_id, '1', 'passenger', 1, 2, 2, 0, 4100, '2026-11-23T00:00:00Z',"
+        " '2026-11-23T01:00:00Z', '2026-11-23T07:00:00Z', 0, 20000, 5000 FROM airplane WHERE registration = 'N738BT';"
+        "INSERT INTO flight (log_flight_id, airplane_id, flight_number, kind, origin_airport_id,"
+        " planned_destination_airport_id, arrival_airport_id, cargo_lb, fuel_price_cents_per_100lb, planned_at,"
+        " block_out_at, block_in_at, fuel_on_record_lb, fuel_out_lb, fuel_in_lb)"
+        " SELECT 'b', airplane_id, '1', 'passenger', 2, 1, 1, 0, 4100, '2026-11-23T00:00:00Z',"
+        " '2026-11-23T08:00:00Z', '2026-11-23T12:00:00Z', 5000, 20000, 5000 FROM airplane WHERE registration = 'N738BT'"));
+    outcome = settle(d(2026, 11, 23));
+    EXPECT_EQ(outcome.leased, 1);
+    EXPECT_TRUE(outcome.notices.empty());
+    EXPECT_EQ(count("SELECT COUNT(*) FROM airplane"), 2);
+}
+
+TEST_F(Leasing, ReturnedAirplanesDontTakeASlot) {
+    slots_.reset();
+    settle(d(2026, 11, 22));
+    ASSERT_TRUE(db_.exec("UPDATE airplane SET returned_on = '2026-11-22', return_reason = 'unpaid'"));
+    config_.airplanes.push_back(airplane("N738CC", d(2026, 11, 22), "1_2"));
+    const LeaseOutcome outcome = settle(d(2026, 11, 22));
+    EXPECT_EQ(outcome.leased, 1);
+}
+
+TEST_F(Leasing, AirplaneViewCountsFlightsAndHours) {
+    settle(d(2026, 11, 22));
+    ASSERT_TRUE(db_.exec(
+        "INSERT INTO flight (log_flight_id, airplane_id, flight_number, kind, origin_airport_id,"
+        " planned_destination_airport_id, arrival_airport_id, cargo_lb, fuel_price_cents_per_100lb, planned_at,"
+        " block_out_at, block_in_at, fuel_on_record_lb, fuel_out_lb, fuel_in_lb)"
+        " SELECT 'a', airplane_id, '1', 'passenger', 1, 2, 2, 0, 4100, '2026-11-23T00:00:00Z',"
+        " '2026-11-23T01:00:00Z', '2026-11-23T03:30:00Z', 0, 20000, 5000 FROM airplane"));
+    const auto planes = listAirplanes(db_);
+    ASSERT_EQ(planes.size(), 1u);
+    EXPECT_EQ(planes[0].flights, 1);
+    EXPECT_DOUBLE_EQ(planes[0].blockHours, 2.5);
 }
