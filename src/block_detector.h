@@ -5,11 +5,13 @@
 // Decides when a flight starts (block out, D-031) and ends (block in, D-032) from the parking brake.
 // Pure logic: it is fed one valid telemetry sample at a time and returns at most one event per sample.
 // The rules are in docs/recorder.md ("Flight lifecycle") and D-042. State is in memory only: a flight is
-// never resumed (D-046).
+// never resumed (D-046). A ReleaseCheck decides whether a release may open a flight (the matching check, D-088).
 
 #pragma once
 
 #include <chrono>
+#include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -17,6 +19,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "flight_match.h"
 #include "sim_vars.h"
 
 namespace blocktime {
@@ -31,6 +34,7 @@ struct BlockSample {
     double latDeg = 0, lonDeg = 0, altAglFt = 0, groundSpeedKt = 0, fuelLb = 0, fuelGal = 0;
     int enginesRunning = 0;  // engines with combustion, out of clamp(NUMBER OF ENGINES, 0, 4)
     std::string atcId, title;
+    std::string aircraftFolder;  // the loaded aircraft.cfg's folder (D-112), filled in by the recorder
 };
 
 BlockSample toBlockSample(const TelemetrySample& s, TimePoint time);
@@ -41,6 +45,8 @@ struct BlockOut {
     double latDeg = 0, lonDeg = 0, fuelLb = 0, fuelGal = 0;  // at the release
     double movedM = 0;     // distance from the release point when it was confirmed
     std::string atcId, title;
+    std::int64_t plannedFlightId = 0;  // the planned flight the release matched (D-113); 0 without a check
+    std::string aircraftFolder;
 };
 
 struct BlockIn {
@@ -57,13 +63,26 @@ struct FlightInterrupted {
     std::string reason;  // the sim session's lost reason, "recorder_exit", "sim_stopped" or "recorder_crash"
 };
 
-using BlockEvent = std::variant<BlockOut, BlockIn, FlightInterrupted>;
+// A release that didn't match the planned flight, so no flight opened (D-088). Once per release.
+struct BlockOutRefused {
+    TimePoint time{};  // the release
+    MatchResult match;
+    double latDeg = 0, lonDeg = 0;
+};
+
+using BlockEvent = std::variant<BlockOut, BlockIn, FlightInterrupted, BlockOutRefused>;
+
+// Asked at each release with no flight open; anything but MatchProblem::None refuses it.
+using ReleaseCheck = std::function<MatchResult(const BlockSample& release)>;
 
 inline constexpr double kBlockOutMinMoveM = 10.0;   // D-031
 inline constexpr double kAirborneMinAglFt = 100.0;  // D-042: well above the 8-14 ft PMDG reads on the ground
 
 class BlockDetector {
 public:
+    // Without a check every release may open a flight.
+    explicit BlockDetector(ReleaseCheck check = {}) : check_(std::move(check)) {}
+
     std::optional<BlockEvent> onSample(const BlockSample& s);
 
     // The junk filter rejected a sample (main menu, loading screen). With no flight open, the next valid sample
@@ -83,6 +102,8 @@ private:
     std::optional<BlockEvent> onSampleNoFlight(const BlockSample& s, bool released);
     std::optional<BlockEvent> onSampleInFlight(const BlockSample& s, bool released, bool set);
 
+    ReleaseCheck check_;                     // kept across sessions
+    std::int64_t candidatePlannedId_ = 0;    // the planned flight the out-candidate matched
     std::optional<bool> lastBrake_;          // brake state in the previous sample; empty = no baseline yet
     std::optional<BlockSample> outCandidate_;  // the release that may become block out
     std::optional<BlockOut> open_;           // the open flight
@@ -91,7 +112,7 @@ private:
     std::optional<BlockSample> inCandidate_;   // the set that may become block in
 };
 
-// Event type name for the log: "block_out", "block_in" or "flight_interrupted".
+// Event type name for the log: "block_out", "block_in", "flight_interrupted" or "block_out_refused".
 std::string_view eventType(const BlockEvent& e);
 
 // The event's "data" object for the log (fields in docs/recorder.md, D-043).

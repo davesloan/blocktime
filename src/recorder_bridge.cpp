@@ -107,6 +107,8 @@ void RecorderBridge::applyBlockEvent(const BlockEvent& event) {
                                          .arg(e.blockTimeS / 3600)
                                          .arg(e.blockTimeS / 60 % 60, 2, 10, QChar('0'))
                                          .arg(pounds(blockOutFuelLb_), pounds(e.fuelLb));
+            } else if constexpr (std::is_same_v<T, BlockOutRefused>) {
+                // No flight opened; the feed line says why (D-088).
             } else {
                 // A recorder_crash at startup closes a flight this app never saw open; the summary still applies.
                 flightOpen_ = false;

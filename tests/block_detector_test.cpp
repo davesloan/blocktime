@@ -397,8 +397,8 @@ TEST(Json, BlockOutFields) {
     const nlohmann::json j = toJson(e);
 
     EXPECT_EQ(eventType(e), "block_out");
-    EXPECT_EQ(keys(j), (std::vector<std::string>{"atc_id", "flight_id", "fuel_gal", "fuel_lb", "lat", "lon",
-                                                 "moved_m", "time", "title"}));
+    EXPECT_EQ(keys(j), (std::vector<std::string>{"aircraft_folder", "atc_id", "flight_id", "fuel_gal", "fuel_lb", "lat",
+                                                 "lon", "moved_m", "planned_flight_id", "time", "title"}));
     EXPECT_EQ(j["flight_id"], "2026-11-22T14:00:05.000Z");
     EXPECT_EQ(j["time"], "2026-11-22T14:00:05.000Z");
     EXPECT_EQ(j["fuel_lb"], 9000.0);
@@ -526,4 +526,115 @@ TEST(Session, AfterSimStoppedNextFlightStartsFresh) {
     const auto& second = std::get<BlockOut>(f.events[2]);
     EXPECT_EQ(second.time, kT0 + 1100s);
     EXPECT_NE(second.flightId, std::get<BlockOut>(f.events[0]).flightId);
+}
+
+// --- The matching check (D-088, D-110, D-112) --------------------------------
+
+namespace {
+
+// A check that answers whatever `problem` holds when it's asked, for planned flight 42.
+struct FakeCheck {
+    MatchProblem problem = MatchProblem::None;
+    int calls = 0;
+    ReleaseCheck fn() {
+        return [this](const BlockSample& s) {
+            ++calls;
+            MatchResult r;
+            r.problem = problem;
+            r.plannedFlightId = 42;
+            r.aircraftFolder = s.aircraftFolder;
+            r.fuelLb = static_cast<int>(s.fuelLb);
+            r.minFuelLb = 4700;
+            r.distanceM = 3500;
+            return r;
+        };
+    }
+};
+
+}  // namespace
+
+TEST(Detector, RefusedReleaseIsReportedOnce) {
+    FakeCheck check{MatchProblem::WrongAirport};
+    Script f;
+    f.det = BlockDetector(check.fn());
+    f.brake(true, 0s);
+    f.brake(false, 5s);
+    f.north(15, 20s);
+    f.north(15, 40s);
+    const auto& refused = only<BlockOutRefused>(f.events);
+    EXPECT_EQ(refused.time, kT0 + 5s);
+    EXPECT_EQ(refused.match.problem, MatchProblem::WrongAirport);
+    EXPECT_FALSE(f.det.flightOpen());
+    EXPECT_EQ(check.calls, 1);
+}
+
+TEST(Detector, RefusedReleaseThenMatchingReleaseOpens) {
+    FakeCheck check{MatchProblem::FuelBelowRecord};
+    Script f;
+    f.det = BlockDetector(check.fn());
+    f.brake(true, 0s);
+    f.brake(false, 5s);  // before refuelling: refused
+    check.problem = MatchProblem::None;
+    f.brake(true, 60s);
+    f.brake(false, 120s);
+    f.north(10.5, 150s);
+    ASSERT_EQ(f.events.size(), 2u);
+    EXPECT_TRUE(std::holds_alternative<BlockOutRefused>(f.events[0]));
+    const auto& out = std::get<BlockOut>(f.events[1]);
+    EXPECT_EQ(out.time, kT0 + 120s);
+    EXPECT_EQ(out.plannedFlightId, 42);
+    EXPECT_TRUE(f.det.flightOpen());
+}
+
+TEST(Detector, ReleaseInFlightIsNotChecked) {
+    FakeCheck check;
+    Script f;
+    f.det = BlockDetector(check.fn());
+    f.flyAndLand();
+    f.brake(true, 3800s);   // hold short
+    f.brake(false, 3830s);
+    EXPECT_EQ(check.calls, 1);  // only the block-out release
+}
+
+TEST(Detector, CheckSurvivesASessionEnd) {
+    FakeCheck check{MatchProblem::WrongAircraftType};
+    Script f;
+    f.det = BlockDetector(check.fn());
+    f.simStopped();
+    f.brake(true, 0s);
+    f.brake(false, 5s);
+    ASSERT_EQ(f.events.size(), 1u);
+    EXPECT_TRUE(std::holds_alternative<BlockOutRefused>(f.events[0]));
+}
+
+TEST(Detector, NoCheckMeansEveryReleaseMatches) {
+    Script f;
+    f.blockOut();
+    EXPECT_EQ(only<BlockOut>(f.events).plannedFlightId, 0);
+}
+
+TEST(Detector, ToJsonOfRefusedAndBlockOut) {
+    FakeCheck check{MatchProblem::WrongAirport};
+    Script f;
+    f.det = BlockDetector(check.fn());
+    f.s.aircraftFolder = "pmdg 737-800bbj2";
+    f.brake(true, 0s);
+    f.brake(false, 5s);
+    const BlockEvent& e = f.events.at(0);
+    const nlohmann::json j = toJson(e);
+    EXPECT_EQ(eventType(e), "block_out_refused");
+    EXPECT_EQ(keys(j), (std::vector<std::string>{"aircraft_folder", "distance_m", "fuel_lb", "lat", "lon", "min_fuel_lb",
+                                                 "planned_flight_id", "reason", "time"}));
+    EXPECT_EQ(j["reason"], "wrong_airport");
+    EXPECT_EQ(j["planned_flight_id"], 42);
+    EXPECT_EQ(j["time"], "2026-11-22T14:00:05.000Z");
+    EXPECT_EQ(j["aircraft_folder"], "pmdg 737-800bbj2");
+
+    check.problem = MatchProblem::None;
+    f.brake(true, 60s);
+    f.brake(false, 65s);
+    f.north(20, 90s);
+    const nlohmann::json out = toJson(f.events.at(1));
+    EXPECT_EQ(out["planned_flight_id"], 42);
+    EXPECT_EQ(out["aircraft_folder"], "pmdg 737-800bbj2");
 }

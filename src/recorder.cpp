@@ -149,6 +149,8 @@ void logBlockEvent(EventOutbox& outbox, RecorderObserver& observer, const BlockE
                 observer.onLine(std::format("{}  BLOCK IN  brake set {}  fuel {:.0f} lb  block {}:{:02}", now,
                                             hhmmss(e.time), e.fuelLb, e.blockTimeS / 3600, e.blockTimeS / 60 % 60),
                                 false);
+            } else if constexpr (std::is_same_v<T, BlockOutRefused>) {
+                observer.onLine(std::format("{}  NOT RECORDING  {}", now, problemCode(e.match.problem)), false);
             } else {
                 observer.onLine(std::format("{}  FLIGHT INTERRUPTED  ({})", now, e.reason), false);
             }

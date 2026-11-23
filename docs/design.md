@@ -379,9 +379,12 @@ here, including delivery and free flights.
 
 A flight is only recorded if the sim matches the planned flight:
 - the sim's aircraft is the planned airplane's **type** (737-800, 737-800 BBJ2, 777-300ER…), and
-- the aircraft is **at the planned origin airport**.
+- the aircraft is **at the planned origin airport** (within 3 km of its reference point), and
+- it has at least the **fuel on record** for the airplane, less 300 lb (D-110): fuel stays in the tanks (section
+  11), so loading less than the last flight left is refused.
 
 The registration isn't checked: it comes from the livery, and one livery serves many registrations (D-087, D-088).
+The type is read from the folder of the loaded aircraft (D-112).
 If either doesn't match, the dashboard shows a clear **Not recording** banner saying what's wrong (for example
 "You're in a 777-300ER at KSEA; this flight expects the 737-800 BBJ2 N738BT at KBFI"), and the brake release doesn't open a flight. Once
 the sim matches, the banner goes away.

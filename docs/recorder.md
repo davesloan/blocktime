@@ -113,15 +113,21 @@ the sim reconnects.
 ### Matching the planned flight (D-088)
 
 A flight is only recorded when the sim matches the flight Dave set up in the app (`design.md` section 13.4):
-- The app gives the recorder the **planned flight**: the expected aircraft type and the origin airport's position.
-  The registration isn't compared (one livery serves many registrations, D-087). Which SimVar identifies the PMDG
-  variant is still to be probed.
-- A brake release only becomes a block-out candidate when a planned flight is set, the aircraft type matches, and
-  the aircraft is within the origin airport (within 3 km of the airport reference point to start; tune and
-  log).
-- Otherwise no flight opens. The recorder logs `block_out_refused` once per release, with
-  the reason (`no_planned_flight`, `wrong_aircraft_type`, `wrong_airport`) and what it saw, so the log still
-  explains what happened. The app shows the "Not recording" banner from the same check.
+- The app gives the recorder the **planned flight** (`FlightTarget` in `flight_match.h`, through a mutex-guarded
+  slot): the type's sim folder, the origin airport's position and the airplane's fuel on record. The registration
+  isn't compared (one livery serves many registrations, D-087).
+- **The aircraft type (D-112)** is the folder holding the loaded `aircraft.cfg`, from the `AircraftLoaded` path. Each
+  PMDG variant has its own folder (`PMDG 737-800`, `PMDG 737-800BBJ2`, `PMDG 777-200ER GE`…), and liveries point at
+  their variant's folder. A type matches when the folder equals its `sim_folder` or starts with it plus a space,
+  ignoring case, so the BBJ2 isn't a 737-800.
+- **At the origin:** within 3 km of the airport reference point (D-088).
+- **Fuel (D-110):** at least the airplane's fuel on record minus 300 lb. The fuel on record is what was in the tanks
+  when the last engine stopped after its previous flight. A delivery (0 on record) always passes.
+- The check runs at each brake release with no flight open, in that order. A release only becomes a block-out
+  candidate when it matches. Otherwise no flight opens and the recorder logs `block_out_refused` once for that
+  release, with the reason (`no_planned_flight`, `wrong_aircraft_type`, `wrong_airport`, `fuel_below_record`) and
+  what it saw, so the log still explains what happened. A matched `block_out` carries the `planned_flight_id`.
+- The app shows the "Not recording" banner from the same check, run on each sample while no flight is open.
 
 ### Diversions
 
@@ -234,7 +240,9 @@ while the sim runs, and hands them to the app. Matching positions to spots and r
   `touchdown`, `go_around`, `block_in`, `flight_interrupted`, `telemetry` (periodic live sample).
 - Block events (D-043). Times in `data` are the moment of the brake change; the line's `ts` is when it was written:
   - `block_out`: `flight_id` (= block-out time), `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` (at the release),
-    `moved_m`, `atc_id`, `title`.
+    `moved_m`, `atc_id`, `title`, `planned_flight_id` (the planned flight it matched), `aircraft_folder`.
+  - `block_out_refused`: `time` (the release), `reason`, `planned_flight_id` (0 without one), `aircraft_folder`,
+    `lat`, `lon`, `distance_m` (from the origin), `fuel_lb`, `min_fuel_lb`.
   - `block_in`: `flight_id`, `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` (at the set), `shutdown_time`,
     `shutdown_fuel_lb` (when the last engine stopped), `block_time_s`.
   - `flight_interrupted`: `flight_id`, `reason` (the session's lost reason, `recorder_exit`, `sim_stopped` or
@@ -262,7 +270,8 @@ while the sim runs, and hands them to the app. Matching positions to spots and r
 | `aircraft_loaded` | Path of the loaded `aircraft.cfg`; logged only when the aircraft changes |
 | `telemetry` | A valid sample: on change, at most once a second; identical repeats are skipped. Includes `engines`, `eng_running` (per engine) and `fuel_flow_pph` (total) |
 | `telemetry_invalid` | Samples start being rejected as junk; `reason` says why |
-| `block_out` | The flight started: the parking brake release that was followed by 10 m of movement. `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` are from the release; also `flight_id` (= that time), `moved_m`, `atc_id`, `title` |
+| `block_out` | The flight started: a matching parking brake release that was followed by 10 m of movement. `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` are from the release; also `flight_id` (= that time), `moved_m`, `atc_id`, `title`, `planned_flight_id`, `aircraft_folder` |
+| `block_out_refused` | A release didn't match the planned flight, so no flight opened (D-088). `reason` is `no_planned_flight`, `wrong_aircraft_type`, `wrong_airport` or `fuel_below_record`; the rest is what the check saw |
 | `block_in` | The flight ended: after landing, a brake set held until every engine was off. `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` are from the set; also `flight_id`, `shutdown_time`, `shutdown_fuel_lb`, `block_time_s` |
 | `flight_interrupted` | A flight ended without block in; `flight_id`, `reason`. The reason is the session's lost reason (`sim_quit`, `sim_process_gone`, ...), `recorder_exit`, `sim_stopped` (the flight was left: main menu, restart, or MSFS killed) or `recorder_crash` (logged on the next start for a flight a killed recorder left open). The flight is never resumed (D-046) |
 | `simconnect_exception` | SimConnect reported an exception; `call` names the request that caused it |

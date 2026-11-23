@@ -42,6 +42,16 @@ std::optional<BlockEvent> BlockDetector::onSample(const BlockSample& s) {
 // Block out (D-031): a release on the ground, confirmed by >= 10 m of movement with the brake still off.
 std::optional<BlockEvent> BlockDetector::onSampleNoFlight(const BlockSample& s, bool released) {
     if (released && s.onGround) {
+        if (check_) {
+            MatchResult m = check_(s);
+            if (m.problem != MatchProblem::None) {
+                outCandidate_.reset();
+                return BlockOutRefused{s.time, std::move(m), s.latDeg, s.lonDeg};
+            }
+            candidatePlannedId_ = m.plannedFlightId;
+        } else {
+            candidatePlannedId_ = 0;
+        }
         outCandidate_ = s;
         return std::nullopt;
     }
@@ -63,6 +73,8 @@ std::optional<BlockEvent> BlockDetector::onSampleNoFlight(const BlockSample& s, 
     out.movedM = moved;
     out.atcId = c.atcId;
     out.title = c.title;
+    out.plannedFlightId = candidatePlannedId_;
+    out.aircraftFolder = c.aircraftFolder;
 
     open_ = out;
     outCandidate_.reset();
@@ -113,7 +125,7 @@ void BlockDetector::onInvalidSample() {
 std::optional<FlightInterrupted> BlockDetector::onSessionEnded(std::string_view reason) {
     std::optional<FlightInterrupted> result;
     if (open_) result = FlightInterrupted{open_->flightId, std::string(reason)};
-    *this = BlockDetector{};
+    *this = BlockDetector{std::move(check_)};
     return result;
 }
 
@@ -124,7 +136,20 @@ namespace {
 nlohmann::json toJsonOf(const BlockOut& e) {
     return {{"flight_id", e.flightId}, {"time", formatUtc(e.time)}, {"lat", e.latDeg},     {"lon", e.lonDeg},
             {"fuel_lb", e.fuelLb},     {"fuel_gal", e.fuelGal},     {"moved_m", e.movedM}, {"atc_id", e.atcId},
-            {"title", e.title}};
+            {"title", e.title},        {"planned_flight_id", e.plannedFlightId},
+            {"aircraft_folder", e.aircraftFolder}};
+}
+
+nlohmann::json toJsonOf(const BlockOutRefused& e) {
+    return {{"time", formatUtc(e.time)},
+            {"reason", problemCode(e.match.problem)},
+            {"planned_flight_id", e.match.plannedFlightId},
+            {"aircraft_folder", e.match.aircraftFolder},
+            {"lat", e.latDeg},
+            {"lon", e.lonDeg},
+            {"distance_m", e.match.distanceM},
+            {"fuel_lb", e.match.fuelLb},
+            {"min_fuel_lb", e.match.minFuelLb}};
 }
 
 nlohmann::json toJsonOf(const BlockIn& e) {
@@ -144,6 +169,7 @@ nlohmann::json toJsonOf(const FlightInterrupted& e) { return {{"flight_id", e.fl
 std::string_view typeOf(const BlockOut&) { return "block_out"; }
 std::string_view typeOf(const BlockIn&) { return "block_in"; }
 std::string_view typeOf(const FlightInterrupted&) { return "flight_interrupted"; }
+std::string_view typeOf(const BlockOutRefused&) { return "block_out_refused"; }
 
 }  // namespace
 
