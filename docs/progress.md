@@ -82,16 +82,20 @@ Newest entries at the top. Add an entry at the end of every working session.
   - No test for a failure partway through the money lines. The rollback is correct by reading.
   - Finding the flown flight reads up to 7 logs on the GUI thread at block in and at startup.
 
-**Dave's checks.** Your real database already has XLY8 KBFI–KSAN, the delivery flight, planned with its SimBrief plan.
-The steps are ordered to need one sim session.
+**Dave's checks.** At Dave's request the planned delivery flight was removed from his database before testing, so the
+checks start from New Flight. His database was backed up first as `blocktime.before-m6-tests.db`, next to it. The
+steps are ordered to need one sim session.
 
 1. **No sim. Copy the new catalog and the rates file, then start BlockTime with the probe:**
    `Copy-Item config\catalog.yaml, config\rates.yaml "$env:LOCALAPPDATA\BlockTime\"`, then
    `build\x64-release\BlockTime.exe --probe`. Expected:
    - v0.7.0 in the sidebar, and no notices;
    - Fleet: "0.0 h flown · 1 of 1 slots in use · slot 2 at 10 h", and N814SX with 0 flights and 0.0 hours;
-   - Live: XLY8 KBFI → KSAN, "Waiting for sim";
+   - Live: no planned flight;
    - the event feed says "Probe on".
+
+   Then, on Fleet, select N814SX and click New Flight. Plan the delivery flight to KSAN, press Generate on SimBrief,
+   and click Import Active SimBrief Plan. Expected: Live shows XLY8 KBFI → KSAN, "Waiting for sim".
 2. **Sim, wrong aircraft.** Start MSFS and load the PMDG 737-800 (Soxxly) at KBFI. Expected: "Not recording: you're
    in a 737-800; this flight expects the 737-800 BBJ2 N814SX." Release the parking brake and taxi a few metres.
    Expected: a "NOT RECORDING wrong_aircraft_type" feed line, and no flight. Exit to the main menu.
