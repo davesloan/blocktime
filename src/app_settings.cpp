@@ -26,9 +26,29 @@ AppSettings loadAppSettings(const std::filesystem::path& file) {
 
     const auto j = nlohmann::json::parse(content, nullptr, false);
     if (j.is_discarded() || !j.is_object()) return settings;
-    const auto key = j.find("carto_key");
-    if (key != j.end() && key->is_string()) settings.cartoKey = key->get<std::string>();
+    const auto read = [&](const char* name, std::string& out) {
+        const auto value = j.find(name);
+        if (value != j.end() && value->is_string()) out = value->get<std::string>();
+    };
+    read("carto_key", settings.cartoKey);
+    read("simbrief_user_id", settings.simbriefUserId);
+    read("sayintentions_api_key", settings.sayIntentionsApiKey);
+    read("sayintentions_developer_key", settings.sayIntentionsDeveloperKey);
     return settings;
+}
+
+std::vector<std::string> AppSettings::secrets() const {
+    std::vector<std::string> out;
+    for (const std::string* key : {&cartoKey, &sayIntentionsApiKey, &sayIntentionsDeveloperKey}) {
+        if (!key->empty()) out.push_back(*key);
+    }
+    return out;
+}
+
+std::string redact(std::string_view text, const std::vector<std::string>& secrets) {
+    std::string out(text);
+    for (const std::string& secret : secrets) out = redact(out, secret);
+    return out;
 }
 
 // Next to the event log folder: %LOCALAPPDATA%\BlockTime\events → %LOCALAPPDATA%\BlockTime.

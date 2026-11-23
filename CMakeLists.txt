@@ -73,6 +73,8 @@ add_library(blocktime-core STATIC
   src/leasing.cpp
   src/loads.cpp
   src/pricing.cpp
+  src/sayintentions.cpp
+  src/simbrief.cpp
   src/money.cpp
   src/open_flight.cpp
   src/sqlite_db.cpp
@@ -117,6 +119,8 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/leasing_test.cpp
     tests/loads_test.cpp
     tests/pricing_test.cpp
+    tests/simbrief_test.cpp
+    tests/atis_test.cpp
     tests/money_test.cpp
     tests/open_flight_test.cpp)
   target_link_libraries(blocktime-tests PRIVATE blocktime-core GTest::gtest_main)

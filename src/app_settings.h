@@ -12,11 +12,17 @@
 #include <filesystem>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace blocktime {
 
 struct AppSettings {
     std::string cartoKey;  // "" means no map tiles
+    // Planning (milestone 5). "" means not set. The two SayIntentions keys are secrets, like the CARTO key.
+    std::string simbriefUserId, sayIntentionsApiKey, sayIntentionsDeveloperKey;
+
+    // The keys that must never reach a log: the non-empty ones of carto, SayIntentions pilot and developer.
+    std::vector<std::string> secrets() const;
 };
 
 // Reads `file` (JSON). A missing file, bad JSON or a non-string carto_key gives an empty key. A UTF-8 byte order
@@ -35,5 +41,6 @@ inline constexpr std::chrono::hours kTileMaxAge{24 * 30};  // CARTO's terms: cac
 // `text` with every copy of `secret` replaced by "<key>", so the CARTO key can't reach a log through an error message
 // that quotes a tile URL. An empty secret changes nothing.
 std::string redact(std::string_view text, std::string_view secret);
+std::string redact(std::string_view text, const std::vector<std::string>& secrets);
 
 }  // namespace blocktime

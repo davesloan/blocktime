@@ -1,0 +1,29 @@
+{
+  "airports": [
+    {
+      "airport": "KBFI",
+      "atis": "Boeing Field information Kilo...",
+      "current": "K",
+      "active_runways_departing": "14R,14L",
+      "active_runways_arriving": "14R",
+      "closed_runways": "",
+      "currently_operating": "south",
+      "runway_source": "internal",
+      "wind_direction": 160,
+      "wind_speed": "8",
+      "altimeter": "30.02",
+      "source": "live"
+    },
+    {
+      "airport": "KSAN",
+      "atis": "San Diego information Papa...",
+      "current": "P",
+      "active_runways_departing": "27",
+      "active_runways_arriving": "27",
+      "wind_direction": "250",
+      "wind_speed": 9,
+      "source": "live"
+    }
+  ],
+  "comms": []
+}

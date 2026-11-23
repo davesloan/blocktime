@@ -1,0 +1,25 @@
+{
+  "fetch": { "userid": "730097", "static_id": "", "status": "Success", "time": "0.0412" },
+  "params": {
+    "request_id": "188511307",
+    "sequence_id": "a1b2c3",
+    "static_id": "",
+    "user_id": "730097",
+    "time_generated": "2026-11-23T14:02:00Z",
+    "units": "lbs"
+  },
+  "general": {
+    "icao_airline": "XLY",
+    "flight_number": "8",
+    "initial_altitude": "37000",
+    "route": "BANGR9 BANGR DCT LKV DCT OAL J65 BLH DCT JLI SEAVU2",
+    "air_distance": "975",
+    "gc_distance": "918"
+  },
+  "origin": { "icao_code": "KBFI", "plan_rwy": "14R", "trans_alt": "18000", "trans_level": "18000" },
+  "destination": { "icao_code": "KSAN", "plan_rwy": "27", "trans_alt": "18000", "trans_level": "18000" },
+  "aircraft": { "icaocode": "B738", "reg": "N814SX", "internal_id": "730097_1790536204614", "is_custom": "1" },
+  "fuel": { "plan_ramp": "14200", "enroute_burn": "10900" },
+  "times": { "est_time_enroute": "02:12:00", "est_block": "02:31:00" },
+  "weights": { "pax_count": "0", "cargo": "0", "est_zfw": "102187", "est_ldw": "125400", "max_ldw": "146300" }
+}

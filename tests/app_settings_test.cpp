@@ -94,3 +94,20 @@ TEST_F(AppSettings_, DefaultPathsAreUnderLocalAppDataBlockTime) {
     EXPECT_EQ(defaultTileCacheDir().filename(), "tiles");
     EXPECT_EQ(defaultTileCacheDir().parent_path(), defaultSettingsFile().parent_path());
 }
+
+TEST_F(AppSettings_, ReadsPlanningKeys) {
+    const AppSettings s = loadAppSettings(write(
+        "settings.json",
+        R"({"carto_key":"c","simbrief_user_id":"730097","sayintentions_api_key":"p","sayintentions_developer_key":"d"})"));
+    EXPECT_EQ(s.simbriefUserId, "730097");
+    EXPECT_EQ(s.sayIntentionsApiKey, "p");
+    EXPECT_EQ(s.sayIntentionsDeveloperKey, "d");
+    EXPECT_EQ(s.secrets(), (std::vector<std::string>{"c", "p", "d"}));
+    EXPECT_TRUE(loadAppSettings(write("empty.json", "{}")).secrets().empty());
+}
+
+TEST(Redact, RedactsEverySecret) {
+    EXPECT_EQ(redact("GET ?api_key=pilot&key=carto X-Developer-Key: dev", {"pilot", "carto", "dev"}),
+              "GET ?api_key=<key>&key=<key> X-Developer-Key: <key>");
+    EXPECT_EQ(redact("nothing here", std::vector<std::string>{}), "nothing here");
+}
