@@ -4,13 +4,25 @@ Context from a brainstorming chat with Dave on 2026-11-22. Read this before work
 (D-050, D-051) or before deciding what comes after them. It records how we got here, what Dave cares about, and
 what the test has to answer, so a future session doesn't have to rediscover it.
 
-Status: **UI test 1 passed in the sim (2026-11-22). UI test 2 built (2026-11-22), waiting on Dave's sim checks
-and the decision.** The work is on the branch `qt-ui-spike` (Dave's name; D-051 first said `spike/qt-ui`). It's
+Status: **UI tests 1 and 2 both passed in the sim (2026-11-22). Waiting on Dave's Qt decision.** The work is on the branch `qt-ui-spike` (Dave's name; D-051 first said `spike/qt-ui`). It's
 built inside the recorder project so it can be merged as it is if Qt wins (D-052). Plans:
 `docs/plans/2026-11-22-qt-ui-test-1.md`, `docs/plans/2026-11-22-qt-ui-test-2.md`. D-001 (two programs) and D-004
 (local web app + SQLite) stay in force until the test's decision point.
 
-**Test 2 findings so far (without the sim):**
+**Test 2 result: passed** (Dave, 2026-11-22). In the app, everything worked: "surprisingly perfect", including the
+map's dragging, zooming and tiles. In a KSAN → KSAN flight with the map opened, every check passed and the new
+flight appeared after block in without a restart. **Task Manager peaked around 70 MB, CPU 0.3% at most and mostly
+0%.**
+
+**Ideas from Dave for later (not MVP):**
+- **Choose the map style**, e.g. a dark map that shows terrain, alongside the flat Dark Matter one. CARTO's styles
+  are flat, so terrain would need another provider, or a hillshade layer over a dark base. Check providers and
+  their terms first.
+- **Click an airframe in Fleet to see all its flights**, with every leg on one map, so a BBJ2 flown around the world
+  shows the whole route. The flight history already has each flight's tail and track. Legs that cross the 180°
+  meridian must be split there, or they draw the wrong way round the world. Test that with a made-up log.
+
+**Test 2 findings without the sim:**
 - **Route map: yes, Qt can draw a decent one.** Qt Location with CARTO Dark Matter tiles (D-059) shows the flown
   track, start and end dots, and the credit line, in the dark theme. Getting there took one probe (how to pass the
   key), one cache gotcha (a wrong key's tiles would outlive a fixed key), and one QML bug (a change handler read a

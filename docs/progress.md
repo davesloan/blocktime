@@ -22,6 +22,34 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-22 — Qt UI test 2 flown: everything worked
+
+**Done:**
+- Dave ran Part A (the app in `--demo`) and Part B (one MSFS flight, KSAN → KSAN in the PMDG 737-800, N818SX)
+  with the release `blocktime-app.exe`.
+
+**Working / verified:**
+- Part A (Dave): "everything works... surprisingly perfect". That covers the map's dragging, zooming and
+  tiles, the flight list, and Fleet sorting.
+- Part B (Dave): every step worked, including the new flight appearing at the top of Flights after block in
+  without a restart, and Fleet's N818SX count going up.
+- **Task Manager during the flight: memory peaked around 70 MB, CPU 0.3% at most and mostly 0%.** Both are inside
+  the limits (100 MB, 1%).
+- Log (`events-2026-11-23.jsonl`):
+  - `block_out` 00:39:04Z (12,128 lb) and `block_in` 01:04:38Z (9,622 lb), 25:30 block, 2,506 lb used.
+  - The Flights reader gives 63.0 nm and 8,020 ft highest. The 7 flights load in 50 ms.
+  - The KSAN scenery freeze came back (50 s, about 6 min after block out) and was logged as
+    `sim_unresponsive`/`sim_responsive`, with no effect on the flight.
+  - Dave quit the sim (`sim_disconnected` `sim_quit`), then closed the app (`recorder_stopped`). No warnings.
+- All of UI test 2's pass criteria are met (see `docs/qt-ui-test-context.md`).
+
+**Ideas from Dave for later (not MVP):** a map style picker (e.g. a dark map with terrain), and clicking an airframe
+in Fleet to see all its flights, every leg on one map. Details in the context doc.
+
+**Next step:**
+- Dave's Qt decision (D-050, `docs/qt-ui-test-context.md` "Deciding afterwards"). If Qt wins: tests and a code
+  review on the branch, merge, and a decision superseding D-001 and D-004 (D-051).
+
 ## 2026-11-22 — Qt UI test 2 built (branch qt-ui-spike)
 
 **Done:**
