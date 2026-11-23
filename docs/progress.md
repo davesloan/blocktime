@@ -70,7 +70,7 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 **Unverified or broken:**
 - Everything that needs the sim: Dave's checks below.
-- **Proposed, for Dave to confirm:** D-117 (the four review fixes).
+- Dave confirmed D-117 (the four review fixes) on 2026-11-23. No decision is Proposed now.
 - **Deferred minors from the review:**
   - At startup, the lease settle runs before the flight settle. A lease month that falls due between block in and a
     restart is checked against cash without that flight's money. This only matters with very little cash.
@@ -125,7 +125,7 @@ The steps are ordered to need one sim session.
    data go into `docs/notes/probe-flight.md`.
 
 **Next step:**
-- Dave's checks above, and his answer on D-117. Then milestone 7 (phases and the six stages), planned with what the
+- Dave's checks above. Then milestone 7 (phases and the six stages), planned with what the
   probe found.
 
 ---

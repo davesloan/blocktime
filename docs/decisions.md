@@ -1648,7 +1648,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-117 — Review fixes for milestone 6
 - Date: 2026-11-23
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude (from the milestone 6 code review)
 - Area: app
 - Decision:
