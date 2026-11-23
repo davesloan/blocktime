@@ -50,7 +50,7 @@ void RecorderBridge::applyStarted(const QString& logDir) {
 }
 
 void RecorderBridge::applyLine(const QString& line, bool error) {
-    // Console lines for events start with the time ("20:30:11  BLOCK OUT ..."); the feed has its own time column.
+    // Event lines start with the time ("20:30:11  BLOCK OUT ..."); the feed has its own time column.
     static const QRegularExpression timePrefix(R"(^\d\d:\d\d:\d\d  )");
     QString text = line;
     text.remove(timePrefix);
@@ -118,8 +118,8 @@ void RecorderBridge::applyBlockEvent(const BlockEvent& event) {
 
 void RecorderBridge::setBlocked() {
     setConnection("blocked");
-    events_.add("warn", "Another BlockTime recorder is running, so this window isn't recording. Close the other "
-                        "one, then restart this app.");
+    events_.add("warn", "BlockTime is already recording in another window, so this one isn't. Close the other "
+                        "one, then restart this one.");
 }
 
 void RecorderBridge::applyStopped(int result) {

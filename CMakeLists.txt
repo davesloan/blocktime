@@ -164,3 +164,17 @@ add_custom_command(TARGET blocktime-app POST_BUILD
           --skip-plugin-types position --verbose 0 "$<TARGET_FILE:blocktime-app>"
   COMMENT "windeployqt blocktime-app"
   VERBATIM)
+
+# Tests for the Qt side (models and bridge, no QML). They run from the app's folder, so they use the Qt DLLs that
+# windeployqt put there: the app is built first.
+if(BLOCKTIME_BUILD_TESTS)
+  qt_add_executable(blocktime-qt-tests
+    tests/qt_models_test.cpp
+    src/event_feed_model.h src/event_feed_model.cpp
+    src/recorder_bridge.h src/recorder_bridge.cpp
+    src/flight_list_model.h src/flight_list_model.cpp
+    src/fleet_table_model.h src/fleet_table_model.cpp)
+  target_link_libraries(blocktime-qt-tests PRIVATE blocktime-sim Qt6::Gui Qt6::Qml Qt6::Positioning GTest::gtest_main)
+  add_dependencies(blocktime-qt-tests blocktime-app)
+  gtest_discover_tests(blocktime-qt-tests)
+endif()
