@@ -294,6 +294,7 @@ std::optional<FlightTarget> flightTarget(db::Database& db, const PlannedFlightVi
     t.typeCode = flight.typeCode;
     t.registration = flight.registration;
     t.originIcao = flight.origin;
+    t.destinationIcao = flight.destination;
     t.originLat = q.real(1);
     t.originLon = q.real(2);
     t.fuelOnRecordLb = static_cast<int>(q.integer(3));

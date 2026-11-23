@@ -163,6 +163,7 @@ int main(int argc, char* argv[]) {
     bool demo = false;
     QString grabFile;   // --grab <png>: a developer check of the screens; saves the window after 6 s and quits
     int startPage = 0;  // --page <n>: the page shown first (0 Live, 1 Flights, 2 Fleet, 3 Money)
+    blocktime::RecorderOptions recorderOptions;  // --probe (D-116)
     const QStringList args = QGuiApplication::arguments();
     for (qsizetype i = 1; i < args.size(); ++i) {
         if (args[i] == "--log-dir" && i + 1 < args.size()) {
@@ -173,6 +174,8 @@ int main(int argc, char* argv[]) {
             grabFile = args[++i];
         } else if (args[i] == "--page" && i + 1 < args.size()) {
             startPage = args[++i].toInt();
+        } else if (args[i] == "--probe") {
+            recorderOptions.probe = true;
         }
     }
 
@@ -199,7 +202,7 @@ int main(int argc, char* argv[]) {
         fillDemo(bridge);
     } else if (instance->acquired()) {
         worker = std::jthread([&] {
-            const int result = blocktime::Recorder(logDir, observer, flightTarget).run(stop);
+            const int result = blocktime::Recorder(logDir, observer, flightTarget, recorderOptions).run(stop);
             QMetaObject::invokeMethod(&bridge, [&bridge, result] { bridge.applyStopped(result); },
                                       Qt::QueuedConnection);
         });

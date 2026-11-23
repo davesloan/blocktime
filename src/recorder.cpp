@@ -190,8 +190,9 @@ int enginesRunning(const TelemetrySample& s) {
     return n;
 }
 
-Recorder::Recorder(std::filesystem::path logDir, RecorderObserver& observer, const FlightTargetSlot& target)
-    : logDir_(std::move(logDir)), observer_(observer), target_(target) {}
+Recorder::Recorder(std::filesystem::path logDir, RecorderObserver& observer, const FlightTargetSlot& target,
+                   RecorderOptions options)
+    : logDir_(std::move(logDir)), observer_(observer), target_(target), options_(options) {}
 
 int Recorder::run(const std::atomic<bool>& stop) {
     RecorderObserver& observer = observer_;
@@ -235,15 +236,22 @@ int Recorder::run(const std::atomic<bool>& stop) {
                 lastMatch = std::move(m);
             }
         }
-        if (auto e = detector.onSample(b)) logBlockEvent(outbox, observer, *e);
+        if (auto e = detector.onSample(b)) {
+            logBlockEvent(outbox, observer, *e);
+            // The probe looks at the airports again after a flight, when the arrival's parking matters (D-116).
+            if (options_.probe && std::holds_alternative<BlockIn>(*e)) {
+                if (const auto t = target.get()) simPtr->requestProbeFacilities({t->originIcao, t->destinationIcao});
+            }
+        }
     }, [&](bool running) {
         // Leaving the flight (main menu, restart, quit) ends it; it is never resumed (D-046, D-047).
         if (!running) {
             if (auto e = detector.onSimStopped()) logBlockEvent(outbox, observer, *e);
         }
-    });
+    }, options_.probe);
 
     simPtr = &sim;
+    if (options_.probe) observer.onLine("Probe on: logging GSX, PMDG and airport data (D-116).", false);
     auto waitingSince = std::chrono::steady_clock::now();
     bool announcedWaiting = false;
     bool announcedConnected = false;
@@ -272,6 +280,9 @@ int Recorder::run(const std::atomic<bool>& stop) {
         if (sim.handshakeComplete() && !announcedConnected) {
             lastMatch.reset();  // report afresh in this session
             observer.onLine("Connected to sim.", false);
+            if (options_.probe) {
+                if (const auto t = target.get()) sim.requestProbeFacilities({t->originIcao, t->destinationIcao});
+            }
             observer.onConnection(ConnectionState::Connected);
             announcedConnected = true;
         }

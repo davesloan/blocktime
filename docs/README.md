@@ -26,3 +26,4 @@ _Add a link here for every file created in `notes/`._
 - [pmdg-variables-from-spad.md](notes/pmdg-variables-from-spad.md) — PMDG 737/777 data values and switch events from Dave's SPAD.neXt profiles; the milestone 6 probe's target list
 - [simbrief-api.md](notes/simbrief-api.md) — the dispatch page's parameters, the OFP fetch (don't poll it), JSON v2 fields
 - [sayintentions-api.md](notes/sayintentions-api.md) — the two keys, getWX's real answer, assignGate and the ATC log for later
+- [probe-flight.md](notes/probe-flight.md) — `--probe`: GSX, PMDG switches and airport facility data for milestones 7–10; how to build it with the PMDG SDK headers

@@ -18,9 +18,12 @@
 #include <array>
 #include <chrono>
 #include <functional>
+#include <optional>
+#include <vector>
 #include <string>
 
 #include "event_log.h"
+#include "sim_probe.h"
 #include "sim_vars.h"
 
 namespace blocktime {
@@ -31,7 +34,8 @@ public:
     // Called when the sim's "Sim" state changes, right after sim_running / sim_stopped is logged.
     using SimStateCallback = std::function<void(bool running)>;
 
-    SimConnection(EventLog& log, SampleCallback onSample, SimStateCallback onSimState = {});
+    // `probe`: also run the --probe data requests (D-116, sim_probe.h).
+    SimConnection(EventLog& log, SampleCallback onSample, SimStateCallback onSimState = {}, bool probe = false);
     ~SimConnection();
     SimConnection(const SimConnection&) = delete;
     SimConnection& operator=(const SimConnection&) = delete;
@@ -53,6 +57,8 @@ public:
     const std::string& lostReason() const { return lostReason_; }
     // The loaded aircraft.cfg's path, lower-cased from "simobjects\" on; "" until the sim says (D-112).
     const std::string& aircraftPath() const { return lastAircraft_; }
+    // With --probe: logs these airports' runways and parking spots from the sim's facility data.
+    void requestProbeFacilities(const std::vector<std::string>& icaos);
 
 private:
     bool setup();
@@ -72,6 +78,7 @@ private:
     EventLog& log_;
     SampleCallback onSample_;
     SimStateCallback onSimState_;
+    std::optional<SimProbe> probe_;
 
     bool handshake_ = false;         // SIMCONNECT_RECV_ID_OPEN received
     bool connectedLogged_ = false;   // sim_connected written for this session

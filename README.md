@@ -164,6 +164,14 @@ while the app is open. A month you can't pay returns the airplane (design.md §5
   `recorder_stopped`.
 - Only one copy records at a time (D-037). A second copy shows "Recorder already running" and records nothing.
 - `--log-dir <folder>` writes the event log somewhere else.
+- `--probe` also logs GSX's states, the PMDG switches and the airports' runways and parking spots, for milestones 7–10
+  (D-116, `docs/notes/probe-flight.md`). The PMDG part needs the SDK headers from the PMDG install at build time:
+
+  ```powershell
+  cmake --preset x64-release "-DBLOCKTIME_PMDG_NG3_SDK_DIR=I:/flightsim/community/pmdg-aircraft-738/Documentation/SDK" "-DBLOCKTIME_PMDG_777X_SDK_DIR=I:/flightsim/community/pmdg-aircraft-77w/Documentation/SDK"
+  ```
+- `--grab <file.png> [--page <n>]` is a developer check of the screens: it saves the window to a PNG after 6 s and
+  quits (`docs/notes/qt-setup.md`).
 - `--demo` shows made-up live values and records nothing, to look at the UI without the sim. The Flights, Fleet and
   Money screens still show your real data, and leases are charged as usual.
 - Use the **release** build for flights. The debug build is much heavier.

@@ -93,8 +93,32 @@ target_link_libraries(blocktime-core PUBLIC blocktime-options nlohmann_json::nlo
 add_library(blocktime-sim STATIC
   src/recorder.cpp
   src/sim_connection.cpp
+  src/sim_probe.cpp
   src/single_instance.cpp)
 target_link_libraries(blocktime-sim PUBLIC blocktime-core SimConnect)
+
+# The --probe mode's PMDG part (D-116) reads the SDK headers that ship with each PMDG aircraft. They aren't committed;
+# point these at the folders holding them (in the PMDG package's Documentation\SDK). Without one, that half is a stub.
+set(BLOCKTIME_PMDG_NG3_SDK_DIR "" CACHE PATH "Folder holding PMDG_NG3_SDK.h (737), for --probe")
+set(BLOCKTIME_PMDG_777X_SDK_DIR "" CACHE PATH "Folder holding PMDG_777X_SDK.h (777), for --probe")
+set(_pmdg_stub OFF)
+if(BLOCKTIME_PMDG_NG3_SDK_DIR AND EXISTS "${BLOCKTIME_PMDG_NG3_SDK_DIR}/PMDG_NG3_SDK.h")
+  target_sources(blocktime-sim PRIVATE src/pmdg_probe_ng3.cpp)
+  set_source_files_properties(src/pmdg_probe_ng3.cpp PROPERTIES INCLUDE_DIRECTORIES "${BLOCKTIME_PMDG_NG3_SDK_DIR}")
+else()
+  target_compile_definitions(blocktime-sim PRIVATE BLOCKTIME_PMDG_NO_NG3)
+  set(_pmdg_stub ON)
+endif()
+if(BLOCKTIME_PMDG_777X_SDK_DIR AND EXISTS "${BLOCKTIME_PMDG_777X_SDK_DIR}/PMDG_777X_SDK.h")
+  target_sources(blocktime-sim PRIVATE src/pmdg_probe_777.cpp)
+  set_source_files_properties(src/pmdg_probe_777.cpp PROPERTIES INCLUDE_DIRECTORIES "${BLOCKTIME_PMDG_777X_SDK_DIR}")
+else()
+  target_compile_definitions(blocktime-sim PRIVATE BLOCKTIME_PMDG_NO_777X)
+  set(_pmdg_stub ON)
+endif()
+if(_pmdg_stub)
+  target_sources(blocktime-sim PRIVATE src/pmdg_probe_none.cpp)
+endif()
 
 # --- Airport import: a console tool, so its counts show in the terminal (D-094) ---
 add_executable(blocktime-import src/import_main.cpp)
@@ -178,7 +202,8 @@ set(BLOCKTIME_QML_FILES
   qml/MoneyLines.qml
   qml/NewFlightDialog.qml
   qml/PlannedFlightPanel.qml
-  qml/NotRecordingBanner.qml)
+  qml/NotRecordingBanner.qml
+  qml/FlightSummary.qml)
 foreach(_qml IN LISTS BLOCKTIME_QML_FILES)
   get_filename_component(_name "${_qml}" NAME)
   set_source_files_properties("${_qml}" PROPERTIES QT_RESOURCE_ALIAS "${_name}")

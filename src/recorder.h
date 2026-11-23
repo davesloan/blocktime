@@ -39,10 +39,15 @@ public:
     virtual void onMatch(const MatchResult& /*match*/) {}
 };
 
+struct RecorderOptions {
+    bool probe = false;  // --probe: log what milestones 7-10 need to learn (D-116, sim_probe.h)
+};
+
 class Recorder {
 public:
     // `target` is the planned flight, set by the app; every brake release is checked against it (D-088).
-    Recorder(std::filesystem::path logDir, RecorderObserver& observer, const FlightTargetSlot& target);
+    Recorder(std::filesystem::path logDir, RecorderObserver& observer, const FlightTargetSlot& target,
+             RecorderOptions options = {});
 
     // Runs until `stop` is true, then closes cleanly: ends the sim session (an open flight is interrupted with
     // reason recorder_exit), flushes held block events and writes recorder_stopped. Returns 0, or 1 if
@@ -55,6 +60,7 @@ private:
     std::filesystem::path logDir_;
     RecorderObserver& observer_;
     const FlightTargetSlot& target_;
+    RecorderOptions options_;
 };
 
 // Engines with combustion, out of clamp(NUMBER OF ENGINES, 0, 4).

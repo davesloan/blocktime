@@ -135,8 +135,14 @@ long long secondsSince(Clock::time_point t) {
 
 }  // namespace
 
-SimConnection::SimConnection(EventLog& log, SampleCallback onSample, SimStateCallback onSimState)
-    : log_(log), onSample_(std::move(onSample)), onSimState_(std::move(onSimState)) {}
+SimConnection::SimConnection(EventLog& log, SampleCallback onSample, SimStateCallback onSimState, bool probe)
+    : log_(log), onSample_(std::move(onSample)), onSimState_(std::move(onSimState)) {
+    if (probe) probe_.emplace(log_);
+}
+
+void SimConnection::requestProbeFacilities(const std::vector<std::string>& icaos) {
+    if (probe_ && handle_ != nullptr && handshake_) probe_->requestFacilities(handle_, icaos);
+}
 
 SimConnection::~SimConnection() { close("recorder_exit"); }
 
@@ -214,6 +220,8 @@ bool SimConnection::setup() {
     ok &= check(SimConnect_RequestSystemState(h(handle_), REQ_SIM_STATE, "Sim"), "state Sim");
     ok &= check(SimConnect_RequestSystemState(h(handle_), REQ_AIRCRAFT_LOADED, "AircraftLoaded"),
                 "state AircraftLoaded");
+    // The probe's requests don't decide whether the session works: a failure is logged, not fatal (D-116).
+    if (probe_ && !probe_->setup(handle_)) log_.write("warning", {{"message", "probe setup failed in part"}});
     return ok;
 }
 
@@ -248,6 +256,7 @@ void SimConnection::heartbeat() {
 
 bool SimConnection::pump() {
     if (handle_ == nullptr) return false;
+    if (probe_) probe_->tick();
     // Drain the queue before checking the process, so messages that already arrived aren't dropped.
     const bool processGone = simProcessGone();
     // GetNextDispatch returns E_FAIL when the queue is empty, so failures here are not counted as errors.
@@ -334,6 +343,12 @@ void SimConnection::handleMessage(const void* raw, unsigned long size) {
         }
         case SIMCONNECT_RECV_ID_SIMOBJECT_DATA: {
             const auto* d = static_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg);
+            if (probe_ && SimProbe::owns(d->dwRequestID)) {
+                const std::size_t offset = offsetof(SIMCONNECT_RECV_SIMOBJECT_DATA, dwData);
+                if (size > offset) probe_->onSimObjectData(d->dwRequestID, reinterpret_cast<const char*>(d) + offset,
+                                                           size - offset);
+                break;
+            }
             if (d->dwRequestID != REQ_TELEMETRY && d->dwRequestID != REQ_SNAPSHOT) break;
             const std::size_t offset = offsetof(SIMCONNECT_RECV_SIMOBJECT_DATA, dwData);
             if (size < offset + sizeof(TelemetrySample)) {
@@ -345,6 +360,20 @@ void SimConnection::handleMessage(const void* raw, unsigned long size) {
             if (onSample_) onSample_(sample, simRunning());
             break;
         }
+        case SIMCONNECT_RECV_ID_CLIENT_DATA: {
+            const auto* d = static_cast<const SIMCONNECT_RECV_CLIENT_DATA*>(msg);
+            const std::size_t offset = offsetof(SIMCONNECT_RECV_CLIENT_DATA, dwData);
+            if (probe_ && size > offset) {
+                probe_->onClientData(d->dwRequestID, reinterpret_cast<const char*>(d) + offset, size - offset);
+            }
+            break;
+        }
+        case SIMCONNECT_RECV_ID_FACILITY_DATA:
+            if (probe_) probe_->onFacilityData(msg);
+            break;
+        case SIMCONNECT_RECV_ID_FACILITY_DATA_END:
+            if (probe_) probe_->onFacilityDataEnd(static_cast<const SIMCONNECT_RECV_FACILITY_DATA_END*>(msg)->RequestId);
+            break;
         default:
             break;
     }

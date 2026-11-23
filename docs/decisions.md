@@ -1634,9 +1634,11 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Area: recorder
 - Decision: Started with `--probe`, the recorder also logs:
   - GSX's L:vars (`probe_gsx`);
-  - PMDG SDK data for the switches in `docs/notes/pmdg-variables-from-spad.md`, next to the matching SimVars
-    (`probe_pmdg`). This needs `BLOCKTIME_PMDG_SDK_DIR` at build time, pointing at the headers in the PMDG install,
-    never committed;
+  - PMDG SDK data for the switches in `docs/notes/pmdg-variables-from-spad.md` (`probe_pmdg_737`, `probe_pmdg_777`),
+    and the matching SimVars (`probe_simvars`). This needs `BLOCKTIME_PMDG_NG3_SDK_DIR` and
+    `BLOCKTIME_PMDG_777X_SDK_DIR` at build time, pointing at the headers in each PMDG package (never committed); each
+    half is a stub without its header. The two headers are compiled in separate files, since both define the same
+    macros;
   - the origin's and destination's runways and parking spots from the sim's facility data (`probe_facility`).
 
   Without the flag nothing extra is requested.

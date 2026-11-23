@@ -27,6 +27,7 @@ struct FlightTarget {
     std::int64_t plannedFlightId = 0;
     std::string plannedAt;  // UTC instant; settling ignores an older log pair with the same id (D-113)
     std::string simFolder, typeCode, registration, originIcao;
+    std::string destinationIcao;  // only for --probe's facility data (D-116)
     double originLat = 0, originLon = 0;
     int fuelOnRecordLb = 0;
 };
