@@ -4,6 +4,7 @@
 //
 // The planned flight before departure (design.md §13.2-13.3): its state, where to load in, the ATIS runways, the
 // route to copy, the plan and the money estimate. Import Active SimBrief Plan fetches the plan once per click (D-101).
+// The chevron collapses it to its title line, to give the flight panel room.
 
 pragma ComponentBehavior: Bound
 
@@ -16,6 +17,8 @@ Card {
     id: panel
 
     required property PlannedFlightModel flight
+
+    property bool collapsed: false
 
     readonly property color stateTone: flight.state === "simConnected" ? Theme.good
                                      : flight.state === "waitingForPlan" ? Theme.warn
@@ -33,44 +36,74 @@ Card {
 
     RowLayout {
         Layout.fillWidth: true
+        spacing: 12
+
+        Text {
+            text: panel.flight.title
+            color: Theme.textPrimary
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeTitle
+            font.weight: Font.DemiBold
+        }
+
+        Rectangle {
+            implicitWidth: stateText.implicitWidth + 20
+            implicitHeight: 24
+            radius: height / 2
+            color: Qt.rgba(panel.stateTone.r, panel.stateTone.g, panel.stateTone.b, 0.12)
+            border.color: Qt.rgba(panel.stateTone.r, panel.stateTone.g, panel.stateTone.b, 0.35)
+            border.width: 1
+
+            Text {
+                id: stateText
+
+                anchors.centerIn: parent
+                text: panel.flight.stateText
+                color: panel.stateTone
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeSmall
+                font.weight: Font.DemiBold
+            }
+        }
+
+        Item {
+            Layout.fillWidth: true
+        }
+
+        // Collapse or expand: a chevron from the system icon font (D-062).
+        Rectangle {
+            implicitWidth: 32
+            implicitHeight: 32
+            radius: Theme.radiusSmall
+            color: chevronHover.hovered ? Theme.surfaceHover : "transparent"
+
+            Text {
+                anchors.centerIn: parent
+                text: panel.collapsed ? "\uE70D" : "\uE70E"  // ChevronDown : ChevronUp
+                color: Theme.textSecondary
+                font.family: Theme.iconFontFamily
+                font.pixelSize: Theme.fontSizeIcon
+            }
+
+            HoverHandler {
+                id: chevronHover
+            }
+
+            TapHandler {
+                onTapped: panel.collapsed = !panel.collapsed
+            }
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        visible: !panel.collapsed
         spacing: Theme.spacing * 2
 
         ColumnLayout {
             Layout.fillWidth: true
             Layout.alignment: Qt.AlignTop
             spacing: 6
-
-            RowLayout {
-                spacing: 12
-
-                Text {
-                    text: panel.flight.title
-                    color: Theme.textPrimary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeTitle
-                    font.weight: Font.DemiBold
-                }
-
-                Rectangle {
-                    implicitWidth: stateText.implicitWidth + 20
-                    implicitHeight: 24
-                    radius: height / 2
-                    color: Qt.rgba(panel.stateTone.r, panel.stateTone.g, panel.stateTone.b, 0.12)
-                    border.color: Qt.rgba(panel.stateTone.r, panel.stateTone.g, panel.stateTone.b, 0.35)
-                    border.width: 1
-
-                    Text {
-                        id: stateText
-
-                        anchors.centerIn: parent
-                        text: panel.flight.stateText
-                        color: panel.stateTone
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSmall
-                        font.weight: Font.DemiBold
-                    }
-                }
-            }
 
             Line {
                 text: panel.flight.airplaneText + "  ·  " + panel.flight.kindText
