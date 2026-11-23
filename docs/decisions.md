@@ -1536,7 +1536,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-110 — The fuel check: 300 lb of slack, at the brake release
 - Date: 2026-11-23
-- Status: Accepted (the slack is Dave's; the mechanism is Claude's and Proposed)
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Dave + Claude
 - Area: recorder, app
 - Decision: A release is refused (`fuel_below_record`) when the sim's fuel is below the airplane's fuel on record
@@ -1560,7 +1560,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-112 — The aircraft type is matched by its sim folder
 - Date: 2026-11-23
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23; BBJ2 still to see in the sim)
 - Decided by: Claude
 - Area: recorder, data
 - Decision: Resolves D-088's open question. Each catalog type has a `sim_folder` (`PMDG 737-800BBJ2`), copied to
@@ -1578,7 +1578,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-113 — Settling reads the flown flight back from the log
 - Date: 2026-11-23
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude
 - Area: app, recorder
 - Decision:
@@ -1596,7 +1596,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-114 — Hours are counted from the flights; slots are enforced
 - Date: 2026-11-23
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude
 - Area: data, app
 - Decision: Dave's hours are the sum of block times over the `flight` table; no stored total. The sketch's
@@ -1609,7 +1609,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-115 — Milestone 6's flight tables
 - Date: 2026-11-23
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude
 - Area: data
 - Decision: Schema 4 adds:
@@ -1629,7 +1629,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-116 — A --probe mode for milestone 6's test flights
 - Date: 2026-11-23
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude
 - Area: recorder
 - Decision: Started with `--probe`, the recorder also logs:
