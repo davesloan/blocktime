@@ -1288,7 +1288,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-094 — Airports come in through a console tool, from files Dave downloads
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude
 - Area: data, build
 - Decision: `blocktime-import.exe <folder>` reads OurAirports' `airports.csv` and `runways.csv` and mwgg/Airports'
@@ -1303,7 +1303,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-095 — yaml-cpp reads the config files
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude
 - Area: build
 - Decision: `catalog.yaml` and `airline.yaml` are read with yaml-cpp (0.9.0, MIT, from vcpkg) into plain structs in
@@ -1316,7 +1316,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-096 — Lease settlement details
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude
 - Area: app, data
 - Decision: `founded_on` in `airline.yaml` dates the opening cash, and no lease may start before it. A new
@@ -1332,7 +1332,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-097 — The Fleet table drops its flight and hour counts until milestone 6
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude
 - Area: app
 - Decision: The Fleet table shows registration, type, airframe, fleet, location, fuel and status. The flights and
@@ -1343,7 +1343,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-098 — Review fixes: database robustness for milestone 4
 - Date: 2026-11-22
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-23)
 - Decided by: Claude (from the milestone 4 code review)
 - Area: data, app
 - Decision:

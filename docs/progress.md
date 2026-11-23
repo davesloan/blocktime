@@ -86,7 +86,7 @@ Newest entries at the top. Add an entry at the end of every working session.
   - ANSI paths in messages;
   - "UNPAVED" counts as paved;
   - a new airplane's id is re-read with a SELECT.
-- D-094..D-098 are Proposed.
+- D-094..D-098 were confirmed by Dave on 2026-11-23.
 
 **Dave's checks (no sim needed; milestone 4 doesn't touch the recorder):**
 1. Download the airport files and run the import (README, "Airport data"). Expected: "The Qt test's database was set aside as
