@@ -110,7 +110,7 @@ settings, the fleet store) and `blocktime-qt-tests` (the Qt models and the recor
   followed by 10 m of movement, and ends at a brake set held until every engine is off (`docs/recorder.md`).
 - **Flights:** every flight in the last 30 days of the log, newest first, with block times, fuel used, distance,
   highest altitude and the route flown on a dark map. It updates after each block out and block in.
-- **Fleet:** a sortable table of airframes (a sample fleet for now) with each tail's flights and block hours. Click a
+- **Fleet:** a sortable table of airplanes (a sample fleet for now) with each tail's flights and block hours. Click a
   column header to sort by it, and click it again to reverse.
 - **Closing the window** stops recording cleanly. An open flight is logged as interrupted (`recorder_exit`), then
   `recorder_stopped`.

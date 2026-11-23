@@ -1,0 +1,28 @@
+# BlockTime airline config (D-076). An example: copy it to %LOCALAPPDATA%\BlockTime\airline.yaml and fill in your own.
+#
+# The airline's name, ICAO code and callsign are read from this file on every start (D-093). Everything else is
+# initial data: an airplane is leased the first time the app sees its registration here, and from then on the
+# database owns it. Editing or removing a leased airplane here changes nothing (D-082); the app logs a warning.
+#
+# Money is in whole dollars (multiples of $5). Dates are YYYY-MM-DD.
+
+airline:
+  name: BlockTime Air
+  icao: BTA                  # 3 capital letters
+  callsign: BLOCKTIME
+
+founded_on: 2026-11-22       # dates the starting cash; no lease may start before it
+starting_cash: 5000000       # design.md §6
+
+fleets:                      # named groups; every airplane below names one
+  - Executive
+
+airplanes:
+  - registration: N738BT              # the same registration as in this airplane's SimBrief airframe (D-087)
+    tail_number: "738"                # optional: leave "" for none
+    airframe: 737-800 BBJ2 VIP        # a name from catalog.yaml's airframes
+    fleet: Executive
+    simbrief_airframe_id: "replace-me"  # SimBrief's ID for this airplane's own custom airframe (D-087)
+    leased_on: 2026-11-22             # the first month is charged on this day; each month starts on it
+    location: KBFI                    # where it waits: Boeing Field for a 737 factory delivery
+    awaiting_delivery: true           # optional, default false: the next flight is its delivery flight

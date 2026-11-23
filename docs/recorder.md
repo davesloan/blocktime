@@ -110,16 +110,17 @@ the sim reconnects.
   that flight, the next release and 10 m of taxi opens a new flight there, if the brake was set at the restart or
   is set later.
 
-### Matching the planned flight (D-071)
+### Matching the planned flight (D-088)
 
 A flight is only recorded when the sim matches the flight Dave set up in the app (`design.md` section 13.4):
-- The app gives the recorder the **planned flight**: expected registration (compared with `ATC ID`) and the
-  origin airport's position.
-- A brake release only becomes a block-out candidate when a planned flight is set, the registration matches, and
+- The app gives the recorder the **planned flight**: the expected aircraft type and the origin airport's position.
+  The registration isn't compared (one livery serves many registrations, D-087). Which SimVar identifies the PMDG
+  variant is still to be probed.
+- A brake release only becomes a block-out candidate when a planned flight is set, the aircraft type matches, and
   the aircraft is within the origin airport (within 3 km of the airport reference point to start; tune and
   log).
 - Otherwise no flight opens. The recorder logs `block_out_refused` once per release, with
-  the reason (`no_planned_flight`, `wrong_registration`, `wrong_airport`) and what it saw, so the log still
+  the reason (`no_planned_flight`, `wrong_aircraft_type`, `wrong_airport`) and what it saw, so the log still
   explains what happened. The app shows the "Not recording" banner from the same check.
 
 ### Diversions
@@ -179,7 +180,7 @@ At minimum (exact SimVar names to be confirmed against the MSFS 2020 SDK docs an
 - Latitude / longitude, altitude (MSL and AGL), vertical speed, ground speed, indicated airspeed
 - Engines running (`GENERAL ENG COMBUSTION:n`) and fuel flow (`ENG FUEL FLOW PPH:n`). These are needed for block in
   (D-032).
-- Aircraft title (so the app can check the loaded aircraft matches the selected airframe)
+- Aircraft title (so the app can check the loaded aircraft matches the selected airplane)
 - Touchdown vertical speed (use a dedicated touchdown SimVar if MSFS 2020 provides a reliable one; otherwise sample
   vertical speed at high rate around the moment on-ground changes)
 - Later (milestone 7, procedure capture): cockpit state for the flight analysis, including the altimeter setting
@@ -269,10 +270,10 @@ while the sim runs, and hands them to the app. Matching positions to spots and r
 
 ## Fuel tracking context (for the app, but the recorder must supply the data)
 
-The app tracks fuel on board per airframe between flights:
+The app tracks fuel on board per airplane between flights:
 
-- Fuel charged = fuel at block out − fuel remaining from the airframe's previous flight.
-- Fuel can't be removed: if the sim shows less fuel at block out than the airframe had, the app warns the user to load
+- Fuel charged = fuel at block out − fuel remaining from the airplane's previous flight.
+- Fuel can't be removed: if the sim shows less fuel at block out than the airplane had, the app warns the user to load
   at least the stored amount and won't accept the departure until it matches.
 
 So the recorder must report accurate fuel weight at block out and block in.

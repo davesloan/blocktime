@@ -23,7 +23,7 @@ Each milestone still gets its own plan in `docs/plans/` (writing-plans) before w
 - Rotations, background flying and catch-up of background legs (section 7–8). From milestone 6 on, every flight
   stores what leg templates will need (D-075), so nothing has to be re-flown later.
 - Paying for instant delivery instead of flying the delivery leg.
-- A settings screen (config files until then, D-076).
+- A settings screen, including managing airframes in the app (config files until then, D-076, D-092).
 
 ### Anti-goals (would make it a failure even if it works)
 
@@ -49,27 +49,30 @@ Each milestone still gets its own plan in `docs/plans/` (writing-plans) before w
 
 ### Milestone 4 — Airline foundation
 
-- **Config files** (D-076) for the airline (name, ICAO code, callsign, starting cash), fleets, and airframes
-  (registration, configuration, lease start date, location, delivery status). The aircraft catalog stays in YAML
-  (section 3).
+- **Config files** (D-076) for the airline (name, ICAO code, callsign, starting cash), fleets, and airplanes
+  (registration, SimBrief airframe, which catalog airframe, lease start date, location, delivery status). The
+  aircraft catalog of types and airframes stays in YAML (section 3, D-091).
 - **The real airline database**, replacing the Qt test's `blocktime.db`. It recognises the test schema
   (`user_version` 1) and discards it, so the made-up tails never mix with real data (D-061 note).
 - **The schema follows the database rules** in `CLAUDE.md` (D-078). Milestone 4's plan starts with the schema and
   its entity diagram in `docs/database.md`, for Dave to review before code.
 - **Airport data** from OurAirports (D-079): imported once, filtered to usable airports, refreshed manually;
   coordinates, runways (for the runway-length check), time zones.
-- **Airframe state:** location and fuel on board (section 11, "fuel stays in the tanks").
-- **Money ledger:** starting cash, and the **monthly lease charge** (section 5): the first month when an airframe's
+- **Airplane state:** location and fuel on board (section 11, "fuel stays in the tanks").
+- **Money ledger:** starting cash, and the **monthly lease charge** (section 5): the first month when an airplane's
   lease starts, then each new month charged whenever the app opens (and every minute while it's open). Negative
   cash follows section 5. A simple money screen or panel shows cash and the ledger lines.
-- The Fleet screen shows the real airframes, their location and fuel.
+- The Fleet screen shows the real airplanes, their location and fuel.
 - **Done when:** with Dave's config, the app shows his airline, his BBJ2 at KBFI awaiting delivery, the right
   cash after the first lease month, and an old test database is cleanly replaced.
 
 ### Milestone 5 — New Flight and plan
 
 - **New Flight** from a parked aircraft (section 13.1): destination, runway check, the BBJ2's VIP airliner /
-  charter choice, delivery flights forced empty. Loads rolled (section 9).
+  charter choice, delivery flights forced empty. Loads rolled (section 9), with the **belly cargo option** on
+  passenger airliners that can carry it (D-089; never the BBJ2). The weights and limits it needs (passenger and
+  bag weight, MZFW, empty weight, MLW, min runway) come from each SimBrief airframe, typed in once
+  (`docs/notes/simbrief-airframes.md`); where they're stored is decided in this milestone's plan.
 - **Money preview** before committing (design rule 1): revenue, each cost line, the total, where the plane ends up.
 - **Planning** (section 13.2, D-070): SayIntentions ATIS for both airports, the pre-filled SimBrief dispatch page,
   picking up the new OFP automatically, storing a copy of it.
@@ -80,9 +83,9 @@ Each milestone still gets its own plan in `docs/plans/` (writing-plans) before w
 
 ### Milestone 6 — Record the planned flight
 
-- **Matching check** (section 13.4, D-071): registration and origin, the "Not recording" banner, and
+- **Matching check** (section 13.4, D-088): aircraft type and origin, the "Not recording" banner, and
   `block_out_refused` in the log. Also the **fuel-on-board check** (section 11): the departure isn't accepted if
-  the sim shows less fuel than the airframe has stored.
+  the sim shows less fuel than the airplane has stored.
 - **The flight is saved** to the database with its plan. The arrival airport comes from the block-in position, so
   a diversion closes where the plane parked (section 14).
 - **Interrupted flights are discarded** with a notice (section 13.8, D-072).
@@ -122,7 +125,8 @@ the Claude score and evaluation in the summary. **The MVP is done here.**
 
 ## After the MVP (not ordered)
 
-Rotations unlocked by flying (D-075) and background flying with catch-up (sections 7–8), the settings screen,
+Rotations unlocked by flying (D-075) and background flying with catch-up (sections 7–8), the settings screen (airline, fleets, leasing, and managing the
+catalog's types and airframes in the app, D-092),
 instant delivery, boards, and whatever the deepening turns up.
 
 ## Before starting, Dave needs to
@@ -136,8 +140,8 @@ instant delivery, boards, and whatever the deepening turns up.
 
 - Config files live in `%LOCALAPPDATA%\BlockTime\` next to `settings.json`, with an example copy in the repo; keys
   (CARTO, SayIntentions, SimBrief) stay in `settings.json`, never in the repo.
-- An airframe awaiting delivery is marked in config; New Flight then offers only its delivery flight.
-- The lease month runs from each airframe's lease start date.
+- An airplane awaiting delivery is marked in config; New Flight then offers only its delivery flight.
+- The lease month runs from each airplane's lease start date.
 - The probe flight is part of milestone 6's sim tests rather than its own milestone.
 - Dave's SPAD.neXt profiles are used for the probe flight's PMDG variable names; names go into `docs/notes/`, and
   the profiles themselves aren't committed unless they're Dave's own.

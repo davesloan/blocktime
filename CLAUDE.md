@@ -145,11 +145,18 @@ This file overrides the plugin's "invoke a skill on any 1% chance" rule. Use onl
 
 Proper relational design matters to Dave. The schema enforces the rules; code doesn't stand in for the database.
 
+**Apply the rules for what they protect, not to the letter (D-090).** They exist to stop real bugs: relations the
+database can't check, values whose meaning is ambiguous (a NULL that could mean "unknown" or "doesn't apply"), rows
+that contradict each other, money counted twice. Before adding structure for a rule (extra tables, composite keys,
+triggers), ask whether it stops a bug the code could realistically make. A value written by one validated code path
+is better guarded by a test than by schema machinery. A plain "no" is a 0, not a NULL, and an attribute that applies
+to every row (a type's role) isn't polymorphism.
+
 - **Normalised** (at least third normal form). **Atomic columns:** no lists, delimited strings or JSON blobs for
   data that is queried or joined. Exception: a verbatim copy of a source document, such as a stored SimBrief OFP,
   kept as-is next to the normalised fields taken from it.
 - **Keys:** every table has a primary key (`INTEGER PRIMARY KEY` surrogate unless a natural key is truly stable).
-  Natural identifiers get `UNIQUE` constraints (airframe registration, airport ICAO code).
+  Natural identifiers get `UNIQUE` constraints (airplane registration, airport ICAO code).
 - **Relations are foreign keys,** with an explicit `ON DELETE` rule. `PRAGMA foreign_keys = ON` on every
   connection (SQLite has it off by default); a test checks it.
 - **No code-enforced polymorphism.** No `owner_type` + `owner_id` columns, and no "type" column with columns that

@@ -169,6 +169,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Decided by: Dave + Claude
 - Area: data
 - Decision: Airports from OurAirports; time zones derived from coordinates; fare distance = great-circle distance.
+- Note: the time zone part is superseded by D-084 (zones from an airport dataset joined on ICAO).
 - Why: Free public data; distance can't be gamed by routing.
 
 ## D-018 — Project name: BlockTime
@@ -959,7 +960,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-071 — A flight is only recorded when the sim matches the planned flight
 - Date: 2026-11-22
-- Status: Accepted (mechanism confirmed by Dave, 2026-11-22)
+- Status: Superseded by D-088 (the registration check became an aircraft type check; the mechanism stays)
 - Decided by: Dave (rule), Claude (mechanism)
 - Area: recorder, app
 - Decision: The aircraft's registration must be the planned airframe's and it must be at the planned origin,
@@ -1095,3 +1096,192 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Alternatives considered: rounding only for display (lines wouldn't add up); always rounding up (small upward
   drift on every line).
 
+
+## D-081 — Database times are ISO 8601 text in UTC
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: data
+- Decision: UTC instants are stored as `TEXT` `YYYY-MM-DDTHH:MM:SSZ` (whole seconds), calendar dates as
+  `YYYY-MM-DD`, each with a `CHECK` on the shape. This settles the time representation D-078 left open.
+- Why: Readable in a database browser, the same shape as the event log, and sorts correctly as text.
+- Alternatives considered: integer Unix seconds (compact, unreadable without converting).
+
+## D-082 — The catalog is a template; the database is the source of truth
+- Date: 2026-11-22
+- Status: Accepted (the identity exception is Proposed)
+- Decided by: Dave (rule), Claude (details)
+- Area: data, app
+- Decision: When an airframe is leased (from `airline.yaml`, D-076), its type's and configuration's values from the
+  catalog are copied into the database with it. (Refined by D-093: types are refreshed from the catalog; the lease's
+  rate, seats and holds are what's copied. By D-091 a leased plane is an airplane.) From then on the database owns the airframe: location, fuel and
+  status change only through the airline's own processes, and catalog or config edits never change an airframe
+  already leased (editing or removing it in config logs a warning to `errors.log`). Proposed: the airline's name,
+  ICAO code and callsign follow the config on every start, since they have no history behind them; starting cash
+  is posted once.
+- Why: Dave: "the config serves as a template for that airframe ... the db remains the source of truth, the
+  airframe config just provides initial data."
+- Alternatives considered: config owns the airframes and removing one returns its lease; removal ignored but
+  config re-read for other fields.
+
+## D-083 — Lease affordability now, fleet slots in milestone 6
+- Date: 2026-11-22
+- Status: Accepted (the month and catch-up details are Proposed)
+- Decided by: Dave (scope), Claude (details)
+- Area: app
+- Decision: Milestone 4 enforces design.md §5: an airframe whose first month costs more than the cash on hand isn't
+  leased (tried again at the next start), and a month that can't be paid returns the airframe (`airframe_return`,
+  reason `unpaid`) instead of charging it. Slots (§6) wait for milestone 6, when hours are stored. Proposed: a lease
+  month starts on the `leased_on` day each month, or the month's last day if shorter; due months are charged in
+  date order across all airframes, each posted at its due date; `UNIQUE (airframe_id, period_start)` makes a
+  double charge impossible.
+- Why: "The money has to work in the MVP." Slots need stored hours, which milestone 6 adds.
+- Alternatives considered: slots now (one airframe until hours exist); both rules after the MVP.
+
+## D-084 — Airport time zones from an airport dataset, joined on ICAO
+- Date: 2026-11-22
+- Status: Accepted (the dataset and the filter are Proposed)
+- Decided by: Dave (approach), Claude (dataset, filter)
+- Area: data
+- Decision: Supersedes the time zone part of D-017. Each airport's IANA time zone comes from mwgg/Airports
+  (`airports.json`, about 29k airports keyed by ICAO, with a `tz` field), joined to OurAirports on the ICAO code.
+  Airports without a zone aren't imported. Local times use the C++ standard library's time zone support (MSVC
+  reads Windows' own time zone data), so no extra library. Proposed import filter: `large_airport` or
+  `medium_airport`, not closed, a 4-character ICAO code, an open paved runway of at least 4,000 ft, and a zone.
+- Why: Loads (milestone 5) and the curfew depend on local departure time. A lookup by ICAO is small; deriving zones
+  from coordinates needs timezone-boundary-builder's polygons (about 100 MB to process).
+- Alternatives considered: boundary polygons; estimating from longitude (wrong across most borders).
+- Note: the repository shows an MIT licence at the top level; the import task checks the LICENSE text covers
+  `airports.json` before the data is used. OurAirports' terms are checked in the same task.
+
+## D-085 — Schema patterns for the airline database
+- Date: 2026-11-22
+- Status: Superseded by D-090
+- Decided by: Claude
+- Area: data
+- Decision: Subtypes are exclusive by schema: the supertype has `kind` with a `CHECK` and `UNIQUE (id, kind)`, each
+  subtype a fixed `kind` and a composite foreign key to it (airframes: passenger/freighter; ledger lines: opening
+  cash/lease charge, later flight lines). Cash is the sum of the ledger, never stored. One airframe row is one lease
+  (re-leasing a returned registration isn't in the MVP). Connections use `foreign_keys = ON`, `journal_mode = WAL`
+  and `synchronous = FULL`. Full detail in `docs/database.md`.
+- Why: D-078 asks for polymorphism the database enforces; a stored balance could disagree with its lines.
+- Alternatives considered: triggers to enforce subtypes (harder to read); a balance column updated with each line.
+
+## D-086 — The Qt test's database is set aside, and real migrations start at 2
+- Date: 2026-11-22
+- Status: Proposed
+- Decided by: Claude
+- Area: data
+- Decision: A `blocktime.db` with `user_version` 1 (D-061's test schema) is renamed to `blocktime.test-schema.db`
+  and a new database is built. The real schema's first migration is number 2.
+- Why: The made-up tails must never mix with real data (D-061 note); renaming keeps the file in case anything in it
+  is wanted, and numbering from 2 means a version can't mean two different schemas.
+- Alternatives considered: deleting the file; migrating its rows (they're made up).
+
+## D-087 — Registration and SimBrief airframe are entered per airframe
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: data, app
+- Decision: Dave enters each airframe's registration in `airline.yaml` when leasing it, and sets the same
+  registration in a custom SimBrief airframe made for it. That SimBrief airframe's ID is entered per airframe too;
+  it isn't part of the catalog's configuration template.
+- Why: The sim's registration (ATC ID) comes from the livery, and Dave can't make a livery for every registration.
+- Alternatives considered: one livery per registration (too much work); one SimBrief airframe per configuration
+  (the OFP would carry the wrong registration).
+- Note: D-071's registration check couldn't work with shared liveries; D-088 replaces it with an aircraft type check.
+
+## D-088 — The matching check compares aircraft type and origin
+- Date: 2026-11-22
+- Status: Accepted (how the sim's type is read is open until the probe)
+- Decided by: Dave
+- Area: recorder, app
+- Decision: Supersedes D-071. A flight is only recorded when the sim's aircraft is the planned airframe's **type**
+  (737-600, 737-800, 737-800 BBJ2, 777-300ER…) and it's at the planned origin. The registration isn't checked.
+  D-071's mechanism stays: the app gives the recorder the planned flight, and a mismatch logs `block_out_refused`
+  (reasons `no_planned_flight`, `wrong_aircraft_type`, `wrong_airport`) and shows "Not recording" with the reason.
+  Origin radius starts at 3 km.
+- Why: The sim's registration comes from the livery, and Dave can't make a livery for every registration (D-087).
+  The type check still catches loading into the wrong aircraft.
+- Alternatives considered: origin only (nothing would stop a 777 flight being recorded against the BBJ2).
+- Open: which SimVar tells the PMDG variants apart (`TITLE`, `ATC MODEL`, `ATC TYPE`, or something else) isn't
+  known. A probe logs them on Dave's next flights, at the latest in milestone 6's sim tests, before the check is
+  built. The value to match then goes on `aircraft_type` (`database.md`).
+
+## D-089 — Belly cargo is chosen per flight and per rotation
+- Date: 2026-11-22
+- Status: Accepted (the preview details are Proposed)
+- Decided by: Dave (rule), Claude (preview details)
+- Area: design
+- Decision: Spare belly cargo on passenger flights isn't a fixed property of the configuration. Dave chooses it on
+  each free flight in New Flight, and each rotation has its own belly cargo setting for its background legs. A
+  configuration only says whether it **can** carry belly cargo; the BBJ2 can't. Built in milestone 5 with the loads.
+  Proposed: the cargo is rolled once when the flight is set up, and the option only adds or removes it in the
+  preview, so switching it can't re-roll the passengers. The option starts on. A rotation leg Dave flies himself
+  uses the rotation's setting.
+- Why: Dave: "carrying belly cargo should be an option tied to the rotation for bg flights and as an option when
+  creating a free flight." The BBJ2 carries no belly cargo.
+- Alternatives considered: a fixed sells-belly-cargo flag per configuration (design.md §3 before this).
+
+## D-090 — Database rules are applied for what they protect
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave (principle), Claude (the schema changes)
+- Area: data
+- Decision: Supersedes D-085. The database rules (D-078) are applied for their intent: stopping real bugs such as
+  relations the database can't check, ambiguous NULLs, contradictory rows and money counted twice. Structure added
+  only to satisfy a rule's wording is dropped. In the schema this means: passenger and freighter airframes share one
+  `airframe` table, with no subtype tables or composite keys; whether a plane flies passengers, VIP/charter or cargo
+  is the `role` of its **type** (`airliner`, `executive`, `freighter`), which also decides belly cargo (D-089);
+  cabins hang off `airframe`, and only the lease code and its test keep freighters without them. In the ledger, a
+  `lease_charge` is its own fact pointing at its `ledger_line`, with `UNIQUE (airframe_id, period_start)` kept
+  because a double charge is a real money bug; categories are a lookup table, since the list grows and SQLite can't
+  alter a `CHECK`. Cash is still the sum of the ledger, and the connection settings stay (`foreign_keys`, WAL,
+  `synchronous = FULL`). The principle is written into `CLAUDE.md`.
+- Why: Dave: the earlier design was "too complicated and designing around a rule rather than questioning the rules
+  intent." The flags that differ between passenger planes and freighters are a plain "no" for the other kind, not
+  NULLs, and they belong to the type anyway.
+- Alternatives considered: D-085's exclusive subtypes (enforces "no cabins on a freighter" in the schema, at the cost
+  of three tables and composite keys against a bug one code path can't realistically make).
+
+## D-091 — Airframes are templates; leased planes are airplanes
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: design, data
+- Decision: An **airframe** is a template in the catalog: a type in one configuration (737-800 two-class). An
+  **airplane** is one leased plane made from an airframe, with its own registration, SimBrief airframe, location and
+  fuel. The database's tables are `airplane`, `airplane_cabin`, `airplane_hold` and `airplane_return`, and an
+  airplane stores the `airframe_name` it was made from. "SimBrief airframe" keeps SimBrief's own meaning (a saved
+  aircraft profile; each airplane has one, D-087). Earlier entries that say "airframe" for a leased plane mean an
+  airplane; the specs are updated, and the code's names change when milestone 4 replaces the Qt test's
+  `FleetStore`.
+- Why: Dave: "They are like a class and the airplane is the object, if talking in software terms."
+- Alternatives considered: "airframe" for the leased plane (design.md §3 before this).
+
+## D-092 — Airframes will be managed in the app after the MVP
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: The settings screen that follows the MVP (D-076) also manages the catalog: aircraft types and airframes
+  are created and edited in the app rather than in YAML. The catalog then moves into the database; airplanes already
+  leased keep the values copied when they were leased (D-082). Until then the catalog stays a hand-edited YAML file.
+- Why: Dave: "at some point I will want to be able to manage airframes in the app, not through a config file."
+- Alternatives considered: building it before the MVP (the roadmap keeps settings after the flight flow, D-077).
+
+## D-093 — Schema review: four simplifications
+- Date: 2026-11-22
+- Status: Accepted
+- Decided by: Claude, agreed by Dave
+- Area: data
+- Decision: Applying D-090 to the whole draft: (1) no `airline` table; name, ICAO code and callsign are read from
+  `airline.yaml` on every start until the settings screen (D-092), and starting cash is still an `opening_cash`
+  ledger line. (2) No `runway` table; `airport.longest_runway_ft` holds the longest open, paved runway, the only
+  value the runway check needs. (3) Airports don't point at the import that wrote them; `airport_import` is just a log
+  of when imports ran. (4) `aircraft_type` is reference data refreshed from the catalog at every start, instead of
+  copied once at the first lease, so a second airplane of an edited type doesn't get stale values. Lease rate, seats
+  and holds are still copied onto each airplane (D-082). Also folded in: a lease's end is `returned_on` and
+  `return_reason` on `airplane`, not a separate table.
+- Why: Each removed piece stopped no bug the code could realistically make; the copy-once types caused one.
+- Alternatives considered: keeping runways for later milestones (the sim provides runway layouts there).

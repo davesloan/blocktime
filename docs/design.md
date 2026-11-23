@@ -29,7 +29,7 @@ file and log the decision in `decisions.md`.
   the logic doesn't depend on the UI.
 - **Storage:** one SQLite file holds the whole airline (`%LOCALAPPDATA%\BlockTime\blocktime.db`); backup = copy the
   file.
-- **Catalog:** aircraft types/configurations in a hand-edited YAML file.
+- **Catalog:** aircraft types and airframes in a hand-edited YAML file until the settings screen (D-092).
 - **No running server clock needed.** The airline runs on real time, but background progress is calculated when the
   app opens ("catch-up"), and then every minute while it's open.
 
@@ -39,12 +39,19 @@ Three layers:
 
 1. **Aircraft type** — what the plane is (737-600, 737-800, 777-200ER…): cruise speed, range, lease cost,
    turnaround time.
-2. **Configuration** — how a type is set up (two-class, all-economy, freighter…): seats per class or cargo capacity,
-   max weight per hold, hold split ratio, SimBrief airframe ID, sim aircraft title, sells-spare-belly-cargo flag.
-3. **Airframe** — one leased plane: registration, optional tail number, livery, current location, status, fuel on
-   board, hours.
+2. **Airframe** — a template in the catalog: a type in one configuration (737-800 two-class, 737-800 all-economy,
+   777F…): seats per class or cargo capacity, max weight per hold, hold split ratio. The type's role (airliner,
+   executive or freighter) decides the kind of flight and whether belly cargo can be carried (only airliners; D-089,
+   D-090). The type carries what identifies it in the sim (D-088).
+3. **Airplane** — one leased plane, made from an airframe (D-091): registration, optional tail number, its own
+   SimBrief airframe (D-087), livery, current location, status, fuel on board, hours.
 
-The catalog contains only aircraft Dave flies and is edited by hand as his fleet changes.
+In software terms the airframe is the class and the airplane the object. When an airplane is leased, its airframe's
+values are copied into the database with it (D-082). "SimBrief airframe" is SimBrief's own name for a saved aircraft
+profile; each airplane has one, carrying its registration.
+
+The catalog contains only aircraft Dave flies and is edited by hand as his fleet changes. After the MVP it's
+managed in the app instead (D-092).
 
 ### Starting configurations
 
@@ -64,7 +71,7 @@ Exact seats per class, hold maximums and hold ratios are taken from the PMDG loa
 
 ### SimBrief is the source of truth
 
-Each configuration stores its SimBrief airframe ID. Weights and limits (empty weight, MZFW, MTOW, MLW, max fuel,
+Each airplane stores its SimBrief airframe ID (D-087). Weights and limits (empty weight, MZFW, MTOW, MLW, max fuel,
 passenger and bag weights, minimum runway) are synced from SimBrief rather than retyped. SimBrief OFP data is
 available via `https://www.simbrief.com/api/xml.fetcher.php?userid=<id>&json=v2`; SimBrief deletes old OFPs after a
 few days, so store a copy of each plan when a flight is filed.
@@ -111,13 +118,13 @@ No bankruptcy. While cash is below zero you can't lease new planes. A lease that
 
 ## 6. Setup and growth
 
-**MVP (D-076):** the airline identity, fleets and leased airframes come from hand-edited config files. A settings
+**MVP (D-076):** the airline identity, fleets and leased airplanes come from hand-edited config files. A settings
 screen for all of this comes after the MVP.
 
 1. **$5M starting cash** (config value).
 2. Airline identity: name, logo, ICAO code, callsign.
 3. Create the first fleet. Fleets are just named groups (passenger, cargo, premium…); add them any time.
-4. Lease the first airframe: registration, optional tail number.
+4. Lease the first airplane: registration, optional tail number.
 5. **Delivery:** fly it yourself from the factory (737s from Boeing Field KBFI, 777s from Paine Field KPAE), or pay
    that delivery flight's estimated cost for instant delivery to any airport. The delivery flight is the only empty
    flight in the game.
@@ -158,6 +165,8 @@ screen for all of this comes after the MVP.
 - **No timetable.** An active plane flies its legs back to back, separated by the type's turnaround time:
   **737s 35 min, 777s 60 min**.
 - **Staggered starts:** a plane joins the loop at whichever rotation airport it's parked at.
+- **Belly cargo** is an option on the rotation (D-089): on or off for every leg its passenger planes fly in the
+  background. Rotations for the BBJ2, or any type that can't carry belly cargo, don't offer it.
 
 ### Rotations are unlocked by flying them (D-075)
 
@@ -220,7 +229,7 @@ One 737 on KSAN–KSLC (2h10) – KPDX (1h50) – KOAK (2h00) – KLAS (1h20) �
 | Passenger, departing 7 am – 7 pm | random 90–100% |
 | Passenger, departing after 7 pm or before 7 am | random 40–80% |
 | Dedicated freighter | random 50–100% (any time) |
-| Spare belly cargo on passenger flights | random 10–100% of hold space left after bags |
+| Spare belly cargo on passenger flights, when chosen (D-089) | random 10–100% of hold space left after bags |
 | Charter (BBJ2) | random 10–100% of seats; doesn't change earnings |
 
 Loads are rolled when a flight is planned (shown exactly in the preview) or during catch-up for background legs.
@@ -230,7 +239,8 @@ No flights are cancelled for low loads; every leg flies.
 
 1. **Passengers:** roll each cabin class separately within the flight's band; round down.
 2. **Bags:** passengers × bag weight (from the SimBrief airframe).
-3. **Cargo:** if selling spare space (or a freighter), roll the cargo range of the space left after bags.
+3. **Cargo:** on a freighter, or a passenger flight with belly cargo chosen (New Flight's option, or the
+   rotation's), roll the cargo range of the space left after bags.
 4. **Split by hold:** distribute hold weight by the configuration's ratio (e.g. 4:5 forward:aft on the 737; three-way
    forward/aft/bulk on the 777), capped at each hold's max; overflow spills into another hold if it has room.
 5. **Check limits:** over max payload (MZFW − empty weight)? Trim cargo first, never bags.
@@ -272,7 +282,7 @@ Fixed rates, the same at every airport. No leases, discounts or airport-size pri
 
 - **Fuel price** lives in a config file, editable any time; locked when a flight is planned. ($41/100 lb ≈ $2.75/gal at
   6.7 lb/gal.)
-- **Fuel stays in the tanks.** Each airframe remembers its fuel at block in. Fuel charged = fuel at block out − fuel
+- **Fuel stays in the tanks.** Each airplane remembers its fuel at block in. Fuel charged = fuel at block out − fuel
   remaining. Fuel can't be removed: extra stays on board and isn't charged again. The app warns if the sim shows less
   fuel than stored and won't accept the departure until it matches. Preview warns if landing weight approaches MLW.
 
@@ -326,7 +336,8 @@ here, including delivery and free flights.
 2. He enters the destination's ICAO code. The app checks the runway length (section 4).
 3. **Kind of flight:** decided by the aircraft (passengers for airliners, cargo for freighters, empty for the
    factory delivery). A **BBJ2** asks one more question: **VIP airliner** (per-seat tickets) or **Charter**
-   (section 12).
+   (section 12). A passenger airliner that can carry belly cargo offers one more choice: **Carry belly cargo**
+   (D-089). The BBJ2 never carries it.
 4. Loads are rolled (section 9) and the preview shows revenue, costs and where the plane ends up (design rule 1).
    A delivery flight has no load and shows a loss: its fuel and operating costs (section 11) with no revenue.
 
@@ -336,7 +347,7 @@ here, including delivery and free flights.
    endpoint (pilot API key plus a developer key; no active SayIntentions flight needed) and takes the active
    runways. Without an ATIS the runway is left for SimBrief to choose.
 2. **SimBrief dispatch page.** The app opens SimBrief's dispatch page in Dave's browser, pre-filled (the dispatch
-   redirect, no API key): origin, destination, the configuration's SimBrief airframe, the runways (`origrwy`,
+   redirect, no API key): origin, destination, the airplane's SimBrief airframe, the runways (`origrwy`,
    `destrwy`), and the loads. Dave can change the route, then presses Generate.
 3. **The app finds the plan by itself.** It polls the latest OFP (`xml.fetcher.php`) until one appears that was
    generated after the page opened and matches the origin and destination. It stores a copy of the plan (section 3).
@@ -352,14 +363,15 @@ here, including delivery and free flights.
   13.7). The app can't make MSFS spawn there; Dave picks it on the world map.
 - Dave starts SayIntentions, SPAD.neXt and the sim, then GSX in the sim.
 
-### 13.4 Matching check (D-071)
+### 13.4 Matching check (D-088)
 
 A flight is only recorded if the sim matches the planned flight:
-- the aircraft's **registration** (the sim's ATC ID) is the planned airframe's, and
+- the sim's aircraft is the planned airplane's **type** (737-800, 737-800 BBJ2, 777-300ER…), and
 - the aircraft is **at the planned origin airport**.
 
+The registration isn't checked: it comes from the livery, and one livery serves many registrations (D-087, D-088).
 If either doesn't match, the dashboard shows a clear **Not recording** banner saying what's wrong (for example
-"You're in N737BT at KSEA; this flight expects N738BT at KBFI"), and the brake release doesn't open a flight. Once
+"You're in a 777-300ER at KSEA; this flight expects the 737-800 BBJ2 N738BT at KBFI"), and the brake release doesn't open a flight. Once
 the sim matches, the banner goes away.
 
 ### 13.5 During the flight: stages and sub-events
@@ -450,14 +462,17 @@ when the recorder's procedure-capture milestone starts.
 
 ## 15. Reference data
 
-- **Airports:** OurAirports public dataset (coordinates, runways). Time zones derived from coordinates.
+- **Airports:** OurAirports public dataset (coordinates, runways), imported once and filtered (D-079). Time zones
+  from an airport dataset joined on the ICAO code (D-084). The schema is in `database.md`.
 - **Distance for fares:** great-circle distance between airports (not the SimBrief route distance).
 
 ## 16. Later
 
 - **SayIntentions integration:** ATIS comes from `getWX` (section 13.2) and the arrival gate from `assignGate`
   (section 13.6). Still to find out: how to get the ATC log for the flight analysis (section 14, D-040).
-- **Settings screen** for the airline, fleets and airframes (config files until then, D-076).
+- **Settings screen** (D-092) for the airline, fleets and leasing airplanes, and for **managing the catalog's
+  aircraft types and airframes** in the app (config files until then, D-076). The catalog then moves from YAML
+  into the database; airplanes already leased keep the values copied when they were leased (D-082).
 - Optional flavour ideas: special cargo jobs with supernumeraries on the 777F; display-only "published schedule"
   labels.
 

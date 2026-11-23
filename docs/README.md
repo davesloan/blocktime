@@ -4,6 +4,7 @@
 |---|---|
 | [design.md](design.md) | Full product design: how the airline works, rules, numbers |
 | [recorder.md](recorder.md) | Spec for the flight recorder inside the app: events, phases, milestones, event log format |
+| [database.md](database.md) | The airline database: tables, keys, rules and the entity diagram (D-078) |
 | [roadmap.md](roadmap.md) | Milestones from here to the MVP (the complete flight flow) and after |
 | [decisions.md](decisions.md) | Append-only log of decisions and why they were made |
 | [progress.md](progress.md) | Session-by-session progress log (newest first) |
@@ -20,3 +21,5 @@ _Add a link here for every file created in `notes/`._
 - [msfs-observed-behaviour.md](notes/msfs-observed-behaviour.md) — facts from our own sim tests (loading, pause, scenery freezes, PMDG fuel/brake, AGL quirks)
 - [msfs-junk-data.md](notes/msfs-junk-data.md) — junk samples while loading / at 0,0 and the filter for them
 - [qt-setup.md](notes/qt-setup.md) — Qt install, build quirks (C4702, windeployqt), map tiles, QML gotchas, hot reload
+- [simbrief-airframes.md](notes/simbrief-airframes.md) — what a SimBrief airframe holds, where its ID is, and N814SX's (BBJ2) checked weights
+- [pmdg-variables-from-spad.md](notes/pmdg-variables-from-spad.md) — PMDG 737/777 data values and switch events from Dave's SPAD.neXt profiles; the milestone 6 probe's target list

@@ -22,6 +22,72 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-22 — PMDG variables from Dave's SPAD.neXt profiles (docs only)
+
+**Done:**
+- Extracted the PMDG data values and events from Dave's SPAD.neXt profiles for the 737 and the 777 into
+  `docs/notes/pmdg-variables-from-spad.md`, with a target list for milestone 6's probe flight. The profiles
+  themselves aren't committed.
+
+**Working / verified:**
+- No code changed. The meanings in the note are inferred from what each value lights on Dave's panels.
+
+**Unverified or broken:**
+- Every value still needs confirming in the probe flight. SPAD's addresses (`PMDGNG3:0000:018F`) have to be
+  matched to field names in the PMDG SDK headers. The 777 profile reads almost nothing from the overhead.
+- Dave's 777 profile still uses 737 commands for several Multi Panel buttons (ALT, APR, VNAV, FLCH, VS, CRS).
+
+**Next step:**
+- Unchanged: milestone 4's plan, starting with the schema in `docs/database.md`.
+
+---
+
+## 2026-11-22 — Milestone 4 planning: the schema draft (docs only)
+
+**Done:**
+- Settled with Dave:
+  - times are ISO text in UTC (D-081);
+  - the catalog is a template copied into the database at lease time, and the database is the source of truth
+    (D-082);
+  - lease affordability now, slots in milestone 6 (D-083);
+  - airport time zones from an airport dataset joined on ICAO (D-084).
+- Registration and SimBrief airframe are entered per airframe (D-087), so the matching check now compares aircraft
+  type and origin, not registration (D-088, supersedes D-071).
+- Belly cargo is chosen per free flight and per rotation; a configuration only says whether it can carry it, and
+  the BBJ2 can't (D-089, built in milestone 5).
+- Drafted `docs/database.md`: conventions, entity diagram, every milestone 4 table, the leasing and monthly-charge
+  processes, and a sketch of milestones 5–6.
+- Dave rejected the first draft's subtype tables as designing around the rules rather than their intent. The
+  schema now has one `airframe` table, a `role` on the aircraft type, and lease charges pointing at their ledger
+  lines (D-090, supersedes D-085). The rules' intent is now in `CLAUDE.md`.
+- Leased planes are **airplanes**; an **airframe** is the catalog template they're made from (D-091). Specs and
+  the schema are renamed; the code follows in milestone 4.
+- Captured for after the MVP: managing airframes (the catalog) in the app, with the settings screen (D-092).
+- A review pass simplified the schema further (D-093): no airline or runway tables, airports don't point at their
+  import, types refresh from the catalog, and a lease's end is two columns on `airplane`. Dave approved the schema;
+  the milestone 4 plan is next.
+- Claude's calls, all Proposed: setting the test database aside with migrations from 2
+  (D-086), the airport import filter and the identity exception (in D-084 and D-082).
+
+**Working / verified:**
+- No code changed.
+
+**Unverified or broken:**
+- Which SimVar tells the PMDG variants apart (`TITLE`, `ATC MODEL`, `ATC TYPE`…) for D-088: probe before
+  milestone 6's matching check is built.
+- The licence text of mwgg/Airports (MIT at the repo level) and OurAirports' terms. ourairports.com's certificate
+  had expired when fetched.
+
+- Config files written: `config/catalog.yaml`, `config/airline.example.yaml`, and Dave's own `airline.yaml` and
+  `catalog.yaml` in `%LOCALAPPDATA%\BlockTime\` (Soxxly Airlines, XLY, SOCKS; BBJ2 N814SX, fin 1001, at KBFI).
+  The BBJ2's SimBrief values are in `docs/notes/simbrief-airframes.md`.
+- Wrote the milestone 4 plan: `docs/plans/2026-11-22-milestone-4-airline-foundation.md` (9 tasks).
+
+**Next step:**
+- Dave reviews the plan. Then execute it (executing-plans, D-033), starting with Task 1 (the database).
+
+---
+
 ## 2026-11-22 — Design: the complete flight flow (docs only)
 
 **Done:**
