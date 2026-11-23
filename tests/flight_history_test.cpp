@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iostream>
 #include <numbers>
+#include <stop_token>
 #include <string>
 #include <vector>
 
@@ -81,6 +82,17 @@ TEST_F(FlightHistory, DailyLogFilesOldestFirstOnlyDailyNames) {
     ASSERT_EQ(files.size(), 2u);
     EXPECT_EQ(files[0].filename(), "events-2026-11-22.jsonl");
     EXPECT_EQ(files[1].filename(), "events-2026-11-23.jsonl");
+}
+
+TEST_F(FlightHistory, DailyLogFilesCopeWithNamesOutsideTheCodePage) {
+    // Anyone can drop a file into the log folder ("Open log folder"). A name the ANSI code page can't hold made
+    // path::string() throw, which would end the app (review finding #6).
+    std::ofstream(dir_ / L"日本語.txt", std::ios::binary) << "x";
+    file(kDay, {});
+    std::vector<fs::path> files;
+    EXPECT_NO_THROW(files = dailyLogFiles(dir_));
+    ASSERT_EQ(files.size(), 1u);
+    EXPECT_EQ(files[0].filename(), kDay);
 }
 
 TEST_F(FlightHistory, CompleteFlight) {
@@ -244,12 +256,21 @@ TEST_F(FlightHistory, OnlyLastNFiles) {
     EXPECT_EQ(flights[1].flightId, b);
 }
 
+TEST_F(FlightHistory, StopRequestedReturnsWithoutReading) {
+    // The app loads on a worker thread; closing the app must not wait for a long load to finish.
+    file(kDay, {blockOut(kA, 32.73, -117.2), blockIn(kA, "2026-11-22T21:55:00.000Z", 32.74, -117.2)});
+    std::stop_source stop;
+    stop.request_stop();
+    EXPECT_TRUE(loadFlightHistory(dir_, kFlightHistoryFiles, stop.get_token()).empty());
+    EXPECT_EQ(loadFlightHistory(dir_).size(), 1u);  // without a stop it reads as before
+}
+
 TEST_F(FlightHistory, EmptyOrMissingDirHasNone) {
     EXPECT_TRUE(loadFlightHistory(dir_).empty());
     EXPECT_TRUE(loadFlightHistory(dir_ / "missing").empty());
 }
 
-// Reads Dave's real log and reports how long it took. Skipped unless BLOCKTIME_REAL_LOG_DIR is set; run it in a
+// Reads a real log and reports how long it took (a measurement, no threshold: the app loads on a worker thread). Skipped unless BLOCKTIME_REAL_LOG_DIR is set; run it in a
 // release build (docs/plans/2026-11-22-qt-ui-test-2.md, Task 2, Step 5).
 TEST(FlightHistoryRealLog, RealLogTiming) {
     // _wdupenv_s, as EventLog::defaultDir does: getenv is deprecated under MSVC (C4996).
@@ -272,5 +293,4 @@ TEST(FlightHistoryRealLog, RealLogTiming) {
                                  f.flightId, f.atcId, static_cast<int>(f.end), f.endReason, f.blockTimeS.value_or(-1),
                                  f.distanceNm, f.maxAltFt, f.track.size());
     }
-    EXPECT_LT(ms, 200.0);
 }

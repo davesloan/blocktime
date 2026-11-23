@@ -8,6 +8,7 @@
 #pragma once
 
 #include <filesystem>
+#include <thread>
 #include <vector>
 
 #include <QAbstractListModel>
@@ -21,6 +22,7 @@ class FlightListModel : public QAbstractListModel {
     QML_ELEMENT
     QML_UNCREATABLE("Created by the app")
     Q_PROPERTY(int count READ count NOTIFY countChanged)
+    Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)
 
 public:
     enum Role {
@@ -39,16 +41,24 @@ public:
         EndReasonRole,
     };
 
+    // Doesn't read the log yet: call reload().
     explicit FlightListModel(std::filesystem::path logDir, QObject* parent = nullptr);
+    // Stops a load that's still running and waits for it (it returns at once when stopped).
+    ~FlightListModel() override;
 
     int rowCount(const QModelIndex& parent = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
 
     int count() const { return static_cast<int>(flights_.size()); }
+    bool loading() const { return loading_; }
 
-    // Reads the log again (about 35 ms for a day of flying, so it runs on the GUI thread). Ends with a model reset.
+    // Reads the log again on a worker thread and swaps the result in on the GUI thread with a model reset. 30 days of
+    // long flights take seconds to read, which must not freeze the window. A reload asked for while one is running
+    // runs again when it ends, so the newest block event is always included.
     Q_INVOKABLE void reload();
+    // The same on the calling thread, for tests.
+    void reloadBlocking();
     // The thinned track of the flight in `row`, for the map. Empty for a bad row.
     Q_INVOKABLE QGeoPath track(int row) const;
 
@@ -56,8 +66,15 @@ public:
 
 signals:
     void countChanged();
+    void loadingChanged();
 
 private:
+    void apply(std::vector<blocktime::FlightRecord> flights);
+    void setLoading(bool loading);
+
     std::filesystem::path logDir_;
     std::vector<blocktime::FlightRecord> flights_;
+    bool loading_ = false;
+    bool reloadAgain_ = false;
+    std::jthread worker_;  // last, so it's stopped and joined before the members it uses go
 };

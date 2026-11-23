@@ -76,7 +76,8 @@ std::optional<TrackPoint> position(const nlohmann::json& data) {
 
 }  // namespace
 
-std::vector<FlightRecord> loadFlightHistory(const std::filesystem::path& dir, std::size_t maxFiles) {
+std::vector<FlightRecord> loadFlightHistory(const std::filesystem::path& dir, std::size_t maxFiles,
+                                            std::stop_token stop) {
     std::vector<std::filesystem::path> files = dailyLogFiles(dir);
     if (files.size() > maxFiles) files.erase(files.begin(), files.end() - static_cast<std::ptrdiff_t>(maxFiles));
 
@@ -87,6 +88,7 @@ std::vector<FlightRecord> loadFlightHistory(const std::filesystem::path& dir, st
         std::ifstream in(file, std::ios::binary);
         std::string line;
         while (std::getline(in, line)) {
+            if (stop.stop_requested()) return {};
             // Cheap filter before parsing: most lines are telemetry, and those only matter inside a flight.
             const bool telemetry = hasType(line, "telemetry");
             if (telemetry ? !open
@@ -102,7 +104,7 @@ std::vector<FlightRecord> loadFlightHistory(const std::filesystem::path& dir, st
             const std::string type = text(j, "type");
             const std::string ts = text(j, "ts");
 
-            if (type == "telemetry") {
+            if (type == "telemetry" && open) {
                 if (const auto p = position(data)) {
                     open->rec.maxAltFt = std::max(open->rec.maxAltFt, p->altFt);
                     open->addPoint(*p, false);

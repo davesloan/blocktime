@@ -20,12 +20,15 @@
 #include <atomic>
 #include <chrono>
 #include <cstring>
+#include <cstdio>
 #include <filesystem>
+#include <iostream>
 #include <optional>
 #include <string_view>
 #include <thread>
 
 #include "app_settings.h"
+#include "error_log.h"
 #include "event_log.h"
 #include "fleet_store.h"
 #include "fleet_table_model.h"
@@ -74,10 +77,26 @@ void fillDemo(RecorderBridge& bridge) {
 }
 
 struct MapSettings {
-    QString tileUrl;  // holds the CARTO key: never print or log it
+    std::string key;  // the CARTO key: never print or log it
+    QString tileUrl;  // holds the key too
     QString cacheDir;
     QString userAgent;
 };
+
+// Qt messages with the CARTO key taken out (review finding #14): a network error can quote the tile URL, and
+// QT_FORCE_STDERR_LOGGING (docs/notes/qt-setup.md) sends messages to stderr, which is the error log (D-067).
+std::string g_mapKey;
+QtMessageHandler g_previousHandler = nullptr;
+
+void redactingMessageHandler(QtMsgType type, const QMessageLogContext& context, const QString& message) {
+    const QString safe =
+        g_mapKey.empty() ? message : QString::fromStdString(blocktime::redact(message.toStdString(), g_mapKey));
+    if (g_previousHandler != nullptr) {
+        g_previousHandler(type, context, safe);
+    } else {
+        std::fputs(qPrintable(qFormatLogMessage(type, context, safe) + u'\n'), stderr);
+    }
+}
 
 // Map tiles (D-059): CARTO Dark Matter through the osm plugin's custom URL, which fills in %z/%x/%y even with the
 // key after them (probed 2026-11-22, docs/notes/qt-setup.md). Each URL gets its own cache folder: CARTO answers a
@@ -91,6 +110,7 @@ MapSettings mapSettings() {
     m.userAgent = QStringLiteral("BlockTime/" BLOCKTIME_VERSION " (open source)");
     const std::string key = blocktime::loadAppSettings(blocktime::defaultSettingsFile()).cartoKey;
     if (key.empty()) return m;
+    m.key = key;
     m.tileUrl = QStringLiteral("https://basemaps.cartocdn.com/rastertiles/dark_all/%z/%x/%y.png?key=") +
                 QString::fromLatin1(QUrl::toPercentEncoding(QString::fromStdString(key)));
     const QString folder =
@@ -126,6 +146,20 @@ int main(int argc, char* argv[]) {
     // Dark only: this also gives the window a dark Windows title bar (D-054).
     QGuiApplication::styleHints()->setColorScheme(Qt::ColorScheme::Dark);
 
+    // A windowed app has no console, so std::cerr would go nowhere: LOST: events (D-049) and the errors EventLog and
+    // SimConnection print go to errors.log next to the event log instead, or to %TEMP% if that can't be opened
+    // (D-067). Declared before the recorder thread, so it outlives it.
+    const std::filesystem::path dataDir = blocktime::defaultSettingsFile().parent_path();
+    std::error_code dirError;
+    std::filesystem::create_directories(dataDir, dirError);
+    const blocktime::ErrorLog errorLog(
+        {dataDir / "errors.log", std::filesystem::temp_directory_path(dirError) / "BlockTime-errors.log"}, std::cerr,
+        "--- BlockTime " BLOCKTIME_VERSION " started " + blocktime::utcTimestamp());
+
+    const MapSettings map = mapSettings();
+    g_mapKey = map.key;
+    g_previousHandler = qInstallMessageHandler(redactingMessageHandler);
+
     std::filesystem::path logDir = blocktime::EventLog::defaultDir();
     bool demo = false;
     const QStringList args = QGuiApplication::arguments();
@@ -145,6 +179,15 @@ int main(int argc, char* argv[]) {
     if (!demo) instance.emplace();
     std::atomic<bool> stop{false};
     std::jthread worker;
+    // If aboutToQuit is ever skipped, this still stops and joins the recorder before what it uses goes (review #8).
+    struct StopAndJoin {
+        std::atomic<bool>& stop;
+        std::jthread& worker;
+        ~StopAndJoin() {
+            stop = true;
+            if (worker.joinable()) worker.join();
+        }
+    } stopAndJoin{stop, worker};
 
     if (demo) {
         fillDemo(bridge);
@@ -166,17 +209,18 @@ int main(int argc, char* argv[]) {
     };
     QObject::connect(&app, &QCoreApplication::aboutToQuit, stopRecorder);
 
-    // Flights come from the log (D-060). A block out or block in changes the list; the recorder writes the line to the
-    // log before it tells the bridge, so the reload sees it.
+    // Flights come from the log (D-060), read on a worker thread. A block out or block in changes the list: the
+    // recorder writes the line before it tells the bridge, so the reload sees it. (A block event whose write was held,
+    // D-049, appears at the next reload after it's written.)
     FlightListModel flights(logDir);
     QObject::connect(&bridge, &RecorderBridge::flightChanged, &flights, &FlightListModel::reload);
+    flights.reload();
 
     // The fleet comes from SQLite (D-061), next to the log folder. --demo opens it too: it records no flight, and
     // the database only holds the test fleet.
     FleetTableModel fleet = openFleet(flights);
 
     QQmlApplicationEngine engine;
-    const MapSettings map = mapSettings();
     const QVariantMap props{{"recorder", QVariant::fromValue(&bridge)},
                             {"flights", QVariant::fromValue(&flights)},
                             {"fleet", QVariant::fromValue(&fleet)},

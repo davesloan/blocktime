@@ -55,6 +55,7 @@ target_compile_options(blocktime-options INTERFACE /W4 /permissive- /utf-8 /exte
 # --- Core: logic with no SimConnect or windows.h, so it can be unit tested (D-041) ---
 add_library(blocktime-core STATIC
   src/app_settings.cpp
+  src/error_log.cpp
   src/event_log.cpp
   src/event_outbox.cpp
   src/block_detector.cpp
@@ -82,6 +83,7 @@ if(BLOCKTIME_BUILD_TESTS)
   add_executable(blocktime-tests
     tests/app_settings_test.cpp
     tests/block_detector_test.cpp
+    tests/error_log_test.cpp
     tests/event_log_test.cpp
     tests/event_outbox_test.cpp
     tests/fleet_store_test.cpp

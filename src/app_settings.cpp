@@ -53,4 +53,14 @@ std::size_t pruneOldFiles(const std::filesystem::path& dir, std::chrono::hours m
     return removed;
 }
 
+std::string redact(std::string_view text, std::string_view secret) {
+    std::string out(text);
+    if (secret.empty()) return out;
+    constexpr std::string_view mask = "<key>";
+    for (std::size_t at = out.find(secret); at != std::string::npos; at = out.find(secret, at + mask.size())) {
+        out.replace(at, secret.size(), mask);
+    }
+    return out;
+}
+
 }  // namespace blocktime

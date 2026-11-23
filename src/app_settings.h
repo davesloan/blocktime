@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <string>
+#include <string_view>
 
 namespace blocktime {
 
@@ -30,5 +31,9 @@ std::filesystem::path defaultTileCacheDir();   // %LOCALAPPDATA%\BlockTime\tiles
 std::size_t pruneOldFiles(const std::filesystem::path& dir, std::chrono::hours maxAge);
 
 inline constexpr std::chrono::hours kTileMaxAge{24 * 30};  // CARTO's terms: cache tiles at most 30 days
+
+// `text` with every copy of `secret` replaced by "<key>", so the CARTO key can't reach a log through an error message
+// that quotes a tile URL. An empty secret changes nothing.
+std::string redact(std::string_view text, std::string_view secret);
 
 }  // namespace blocktime

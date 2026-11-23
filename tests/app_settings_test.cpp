@@ -79,6 +79,15 @@ TEST_F(AppSettings_, PruneMissingDirIsZero) {
     EXPECT_EQ(pruneOldFiles(dir_ / "missing", kTileMaxAge), 0u);
 }
 
+TEST(Redact, ReplacesEveryCopyOfTheSecret) {
+    EXPECT_EQ(redact("GET https://x/1/2/3.png?key=abc_123 failed; retry ?key=abc_123", "abc_123"),
+              "GET https://x/1/2/3.png?key=<key> failed; retry ?key=<key>");
+}
+
+TEST(Redact, EmptySecretChangesNothing) {
+    EXPECT_EQ(redact("nothing to hide", ""), "nothing to hide");
+}
+
 TEST_F(AppSettings_, DefaultPathsAreUnderLocalAppDataBlockTime) {
     EXPECT_EQ(defaultSettingsFile().filename(), "settings.json");
     EXPECT_EQ(defaultSettingsFile().parent_path().filename(), "BlockTime");

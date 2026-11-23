@@ -70,7 +70,7 @@ Item {
             Text {
                 anchors.centerIn: parent
                 visible: page.flights.count === 0
-                text: "No flights in the log yet"
+                text: page.flights.loading ? "Loading flights…" : "No flights in the log yet"
                 color: Theme.textSecondary
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeBody

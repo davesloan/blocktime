@@ -12,6 +12,7 @@
 #include <QUrl>
 
 #include <algorithm>
+#include <iostream>
 #include <chrono>
 #include <type_traits>
 #include <variant>
@@ -132,6 +133,9 @@ void BridgeObserver::onStarted(const std::filesystem::path& logDir) {
 }
 
 void BridgeObserver::onLine(const std::string& line, bool error) {
+    // Error lines (LOST: events, D-049) also go to std::cerr at once, which the app sends to its error log (D-067):
+    // they come while the app shuts down, when the posted copy below is never shown.
+    if (error) std::cerr << line << std::endl;
     const QString text = QString::fromUtf8(line);
     QMetaObject::invokeMethod(&bridge_, [b = &bridge_, text, error] { b->applyLine(text, error); },
                               Qt::QueuedConnection);

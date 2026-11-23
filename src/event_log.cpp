@@ -5,7 +5,6 @@
 #include "event_log.h"
 
 #include <algorithm>
-#include <cctype>
 #include <chrono>
 #include <cstdlib>
 #include <format>
@@ -22,18 +21,25 @@ std::string utcTimestamp() { return formatUtc(std::chrono::system_clock::now());
 
 namespace {
 
-// events-YYYY-MM-DD.jsonl, as EventLog names its daily files (D-020).
-bool isDailyLog(const std::string& name) {
-    constexpr std::string_view prefix = "events-";
-    constexpr std::string_view suffix = ".jsonl";
+// events-YYYY-MM-DD.jsonl, as EventLog names its daily files (D-020). Wide strings: path::string() throws for a name
+// the ANSI code page can't hold, and anyone can drop a file into the log folder.
+bool isDailyLog(const std::wstring& name) {
+    constexpr std::wstring_view prefix = L"events-";
+    constexpr std::wstring_view suffix = L".jsonl";
     if (name.size() != prefix.size() + 10 + suffix.size()) return false;
     if (!name.starts_with(prefix) || !name.ends_with(suffix)) return false;
-    const std::string_view date = std::string_view(name).substr(prefix.size(), 10);
+    const std::wstring_view date = std::wstring_view(name).substr(prefix.size(), 10);
     for (std::size_t i = 0; i < date.size(); ++i) {
         const bool dash = i == 4 || i == 7;
-        if (dash ? date[i] != '-' : !std::isdigit(static_cast<unsigned char>(date[i]))) return false;
+        if (dash ? date[i] != L'-' : (date[i] < L'0' || date[i] > L'9')) return false;
     }
     return true;
+}
+
+// For error messages: UTF-8 bytes, which never throw (unlike path::string()).
+std::string printable(const std::filesystem::path& p) {
+    const std::u8string u8 = p.u8string();
+    return {u8.begin(), u8.end()};
 }
 
 }  // namespace
@@ -42,7 +48,7 @@ std::vector<std::filesystem::path> dailyLogFiles(const std::filesystem::path& di
     std::vector<std::filesystem::path> files;
     std::error_code ec;
     for (std::filesystem::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
-        if (it->is_regular_file(ec) && isDailyLog(it->path().filename().string())) files.push_back(it->path());
+        if (it->is_regular_file(ec) && isDailyLog(it->path().filename().wstring())) files.push_back(it->path());
     }
     std::sort(files.begin(), files.end());
     return files;
@@ -69,10 +75,10 @@ bool EventLog::ensureOpenFor(const std::string& utcDate) {
     std::error_code ec;
     std::filesystem::create_directories(dir_, ec);
     path_ = dir_ / std::format("events-{}.jsonl", utcDate);
-    // MSVC's ofstream opens with sharing allowed, so other programs (the web app) can read while we append.
+    // MSVC's ofstream opens with sharing allowed, so the Flights screen (D-060) can read while we append.
     out_.open(path_, std::ios::out | std::ios::app | std::ios::binary);
     if (!out_) {
-        std::cerr << "ERROR: cannot open event log " << path_.string() << "\n";
+        std::cerr << "ERROR: cannot open event log " << printable(path_) << "\n";
         openDate_.clear();
         return false;
     }
@@ -99,7 +105,7 @@ bool EventLog::write(std::string_view type, const nlohmann::json& data) {
     out_ << line.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) << '\n';
     out_.flush();
     if (!out_) {
-        std::cerr << "ERROR: failed writing event log " << path_.string() << "\n";
+        std::cerr << "ERROR: failed writing event log " << printable(path_) << "\n";
         out_.close();
         openDate_.clear();
         return false;

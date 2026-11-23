@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <optional>
+#include <stop_token>
 #include <string>
 #include <vector>
 
@@ -47,7 +48,8 @@ inline constexpr double kTrackMinSpacingM = 25.0;  // a sample closer than this 
 // that crosses UTC midnight is one flight. A block_out opens a flight; the telemetry after it is its track; a
 // block_in or flight_interrupted with the same flight_id closes it. A block_out while a flight is open closes the
 // open one as Interrupted with reason "unclosed". Lines that don't parse are skipped (D-036).
+// If `stop` is requested, it returns early with an empty result (the app's worker thread is being shut down).
 std::vector<FlightRecord> loadFlightHistory(const std::filesystem::path& dir,
-                                            std::size_t maxFiles = kFlightHistoryFiles);
+                                            std::size_t maxFiles = kFlightHistoryFiles, std::stop_token stop = {});
 
 }  // namespace blocktime

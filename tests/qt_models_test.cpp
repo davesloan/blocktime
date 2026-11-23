@@ -10,11 +10,16 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <iostream>
+#include <sstream>
 #include <string>
 #include <tuple>
 #include <vector>
 
+#include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QRegularExpression>
+#include <thread>
 
 #include <gtest/gtest.h>
 
@@ -85,6 +90,25 @@ protected:
 };
 
 const std::string kOut = "2026-11-22T21:28:23.001Z";
+
+// One QCoreApplication for the tests that need queued calls delivered (the rest don't need one).
+QCoreApplication& qtApp() {
+    static int argc = 1;
+    static char name[] = "blocktime-qt-tests";
+    static char* argv[] = {name, nullptr};
+    static QCoreApplication app(argc, argv);
+    return app;
+}
+
+// Delivers queued calls until `done` is true or 5 s pass.
+template <typename Pred>
+bool processUntil(Pred done) {
+    qtApp();
+    QElapsedTimer timer;
+    timer.start();
+    while (!done() && timer.elapsed() < 5000) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+    return done();
+}
 
 }  // namespace
 
@@ -202,6 +226,19 @@ TEST(Bridge, InterruptedSummary) {
     EXPECT_EQ(b.lastFlightSummary(), "Interrupted (recorder_crash)");
 }
 
+TEST(Bridge, ErrorLinesAlsoGoToStderrAtOnce) {
+    // LOST: lines come while the app is shutting down, after the event loop has ended, so the posted copy never shows.
+    // The observer writes them to std::cerr (the error log in the app, D-067) on the calling thread.
+    RecorderBridge b;
+    BridgeObserver observer(b);
+    std::ostringstream captured;
+    std::streambuf* previous = std::cerr.rdbuf(captured.rdbuf());
+    observer.onLine("Connected to sim.", false);
+    observer.onLine("LOST: block_in {\"flight_id\":\"x\"}", true);
+    std::cerr.rdbuf(previous);
+    EXPECT_EQ(captured.str(), "LOST: block_in {\"flight_id\":\"x\"}\n");
+}
+
 TEST(Bridge, BlockedShowsWarning) {
     RecorderBridge b;
     b.setBlocked();
@@ -215,6 +252,7 @@ TEST_F(TempLog, FlightRolesFormatted) {
     write({blockOut(kOut, "N818SX"), tel("2026-11-22T21:40:00.000Z", 32.74),
            blockIn(kOut, "2026-11-22T21:55:15.475Z", 1612)});
     FlightListModel m(dir_);
+    m.reloadBlocking();
     ASSERT_EQ(m.count(), 1);
     const QModelIndex i = m.index(0);
     EXPECT_EQ(m.data(i, FlightListModel::DateTextRole).toString(), "22 Nov 2026");
@@ -231,6 +269,7 @@ TEST_F(TempLog, FlightRolesFormatted) {
 TEST_F(TempLog, InterruptedFlightRoles) {
     write({blockOut(kOut, "N818SX"), interrupted(kOut, "2026-11-22T21:31:50.032Z", "sim_stopped")});
     FlightListModel m(dir_);
+    m.reloadBlocking();
     ASSERT_EQ(m.count(), 1);
     const QModelIndex i = m.index(0);
     EXPECT_EQ(m.data(i, FlightListModel::InTextRole).toString(), "21:31Z");
@@ -243,6 +282,7 @@ TEST_F(TempLog, InterruptedFlightRoles) {
 TEST_F(TempLog, OpenFlightRoles) {
     write({blockOut(kOut, "N818SX"), tel("2026-11-22T21:40:00.000Z", 32.74)});
     FlightListModel m(dir_);
+    m.reloadBlocking();
     const QModelIndex i = m.index(0);
     EXPECT_EQ(m.data(i, FlightListModel::StatusRole).toString(), "open");
     EXPECT_EQ(m.data(i, FlightListModel::StatusTextRole).toString(), "In progress");
@@ -254,6 +294,7 @@ TEST_F(TempLog, TrackMatchesRecord) {
     write({blockOut(kOut, "N818SX"), tel("2026-11-22T21:40:00.000Z", 32.74),
            blockIn(kOut, "2026-11-22T21:55:15.475Z", 1612)});
     FlightListModel m(dir_);
+    m.reloadBlocking();
     const QGeoPath path = m.track(0);
     ASSERT_EQ(path.size(), static_cast<qsizetype>(m.records()[0].track.size()));
     EXPECT_DOUBLE_EQ(path.coordinateAt(0).latitude(), 32.73);
@@ -264,22 +305,67 @@ TEST_F(TempLog, TrackMatchesRecord) {
 TEST_F(TempLog, ReloadPicksUpAFlightThatJustEnded) {
     write({blockOut(kOut, "N818SX")});
     FlightListModel m(dir_);
+    m.reloadBlocking();
     int countChanges = 0, resets = 0;
     QObject::connect(&m, &FlightListModel::countChanged, [&] { ++countChanges; });
     QObject::connect(&m, &QAbstractItemModel::modelReset, [&] { ++resets; });
     EXPECT_EQ(m.data(m.index(0), FlightListModel::StatusRole).toString(), "open");
 
     write({blockIn(kOut, "2026-11-22T21:55:15.475Z", 1612)}, true);
-    m.reload();
+    m.reloadBlocking();
     EXPECT_EQ(m.count(), 1);
     EXPECT_EQ(m.data(m.index(0), FlightListModel::StatusRole).toString(), "block_in");
     EXPECT_EQ(resets, 1);
     EXPECT_EQ(countChanges, 0);  // same number of flights
 
     write({blockOut("2026-11-22T23:00:00.000Z", "N818SX")}, true);
-    m.reload();
+    m.reloadBlocking();
     EXPECT_EQ(m.count(), 2);
     EXPECT_EQ(countChanges, 1);
+}
+
+TEST(Bridge, ObserverCallsFromAnotherThreadArriveOnTheGuiThread) {
+    // The recorder runs on its own thread (D-053); the observer only posts copies to the bridge.
+    qtApp();
+    RecorderBridge b;
+    BridgeObserver observer(b);
+    std::thread recorderThread([&] {
+        observer.onConnection(ConnectionState::Connected);
+        observer.onLine("Connected to sim.", false);
+    });
+    recorderThread.join();
+    EXPECT_EQ(b.connection(), "waiting");  // nothing applied until the GUI thread runs its events
+    ASSERT_TRUE(processUntil([&] { return b.events()->rowCount() == 1; }));
+    EXPECT_EQ(b.connection(), "connected");
+    EXPECT_EQ(feedText(b, 0), "Connected to sim.");
+}
+
+TEST_F(TempLog, ReloadRunsOnAWorkerAndSwapsTheResultIn) {
+    write({blockOut(kOut, "N818SX"), blockIn(kOut, "2026-11-22T21:55:15.475Z", 1612)});
+    qtApp();
+    FlightListModel m(dir_);
+    EXPECT_EQ(m.count(), 0);  // construction doesn't read the log
+    int loadingChanges = 0, resets = 0;
+    QObject::connect(&m, &FlightListModel::loadingChanged, [&] { ++loadingChanges; });
+    QObject::connect(&m, &QAbstractItemModel::modelReset, [&] { ++resets; });
+    m.reload();
+    EXPECT_TRUE(m.loading());
+    m.reload();  // asked for again while loading: runs once more afterwards
+    ASSERT_TRUE(processUntil([&] { return !m.loading() && resets == 2; }));
+    EXPECT_EQ(m.count(), 1);
+    EXPECT_EQ(m.data(m.index(0), FlightListModel::StatusRole).toString(), "block_in");
+    EXPECT_EQ(loadingChanges, 4);  // true, false, true, false
+}
+
+TEST_F(TempLog, DestroyingTheModelWhileLoadingDoesNotWait) {
+    write({blockOut(kOut, "N818SX"), blockIn(kOut, "2026-11-22T21:55:15.475Z", 1612)});
+    qtApp();
+    {
+        FlightListModel m(dir_);
+        m.reload();
+    }  // stops and joins the worker; the posted result is dropped with the model
+    QCoreApplication::processEvents();
+    SUCCEED();
 }
 
 // --- FleetTableModel ----------------------------------------------------------------------------------------------
@@ -307,6 +393,7 @@ std::vector<QString> column(const FleetTableModel& m, int col) {
 
 TEST_F(TempLog, FleetDefaultsToRegistrationAscending) {
     FlightListModel flights(dir_);
+    flights.reloadBlocking();
     FleetTableModel m(sampleFleet(), "", flights);
     EXPECT_EQ(m.rowCount(), 4);
     EXPECT_EQ(m.columnCount(), FleetTableModel::ColumnCount);
@@ -332,6 +419,8 @@ TEST_F(TempLog, FleetCountsBlockInFlightsPerTail) {
     write(more, true);
 
     FlightListModel fl(dir_);
+
+    fl.reloadBlocking();
     FleetTableModel m(sampleFleet(), "", fl);
     // Rows in registration order: N601SX, N818SX, N840SX, N880SX.
     EXPECT_EQ(column(m, FleetTableModel::Flights), (std::vector<QString>{"9", "10", "0", "0"}));
@@ -350,6 +439,7 @@ TEST_F(TempLog, FleetCountsBlockInFlightsPerTail) {
 
 TEST_F(TempLog, FleetTextSortIsCaseInsensitive) {
     FlightListModel flights(dir_);
+    flights.reloadBlocking();
     FleetTableModel m(sampleFleet(), "", flights);
     int sortChanges = 0;
     QObject::connect(&m, &FleetTableModel::sortChanged, [&] { ++sortChanges; });
@@ -365,6 +455,7 @@ TEST_F(TempLog, FleetTextSortIsCaseInsensitive) {
 
 TEST_F(TempLog, FleetIgnoresABadSortColumn) {
     FlightListModel flights(dir_);
+    flights.reloadBlocking();
     FleetTableModel m(sampleFleet(), "", flights);
     m.sort(-1);
     m.sort(FleetTableModel::ColumnCount);
@@ -375,18 +466,20 @@ TEST_F(TempLog, FleetIgnoresABadSortColumn) {
 TEST_F(TempLog, FleetRecountsWhenFlightsReload) {
     flights({{"N818SX", 1, 1800}});
     FlightListModel fl(dir_);
+    fl.reloadBlocking();
     FleetTableModel m(sampleFleet(), "", fl);
     EXPECT_EQ(cell(m, 1, FleetTableModel::Flights), "1");  // N818SX is row 1
     write({blockOut("2026-11-22T05:00:00.000Z", "N818SX"),
            blockIn("2026-11-22T05:00:00.000Z", "2026-11-22T05:30:00.000Z", 1800)},
           true);
-    fl.reload();
+    fl.reloadBlocking();
     EXPECT_EQ(cell(m, 1, FleetTableModel::Flights), "2");
     EXPECT_EQ(cell(m, 1, FleetTableModel::BlockHours), "1.0");
 }
 
 TEST_F(TempLog, FleetCarriesTheStoreError) {
     FlightListModel flights(dir_);
+    flights.reloadBlocking();
     FleetTableModel m({}, "unable to open database file", flights);
     EXPECT_EQ(m.rowCount(), 0);
     EXPECT_EQ(m.error(), "unable to open database file");

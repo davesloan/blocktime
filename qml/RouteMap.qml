@@ -6,7 +6,7 @@
 // URL (no carto_key in settings.json) there's no map: the track is drawn on the dark background, scaled to fit.
 //
 // CARTO's terms: the credit line stays visible; our own User-Agent; tiles cached on this PC only, at most 30 days
-// (the app prunes the cache at startup); no prefetching beyond what the view needs.
+// (the app prunes the cache at startup); no bulk download (prefetching is limited to one neighbouring zoom level).
 
 pragma ComponentBehavior: Bound
 

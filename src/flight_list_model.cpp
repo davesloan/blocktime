@@ -4,6 +4,7 @@
 
 #include "flight_list_model.h"
 
+#include <memory>
 #include <utility>
 
 #include <QDateTime>
@@ -27,16 +28,54 @@ QString hMm(qint64 seconds) {
 }  // namespace
 
 FlightListModel::FlightListModel(std::filesystem::path logDir, QObject* parent)
-    : QAbstractListModel(parent), logDir_(std::move(logDir)) {
-    reload();
+    : QAbstractListModel(parent), logDir_(std::move(logDir)) {}
+
+FlightListModel::~FlightListModel() {
+    // ~jthread requests a stop and joins; loadFlightHistory returns as soon as it sees the stop. A result already
+    // posted is dropped with this object.
+    worker_ = {};
 }
 
 void FlightListModel::reload() {
+    if (loading_) {
+        reloadAgain_ = true;
+        return;
+    }
+    setLoading(true);
+    // The previous load posted its result as its last step, so this join doesn't wait.
+    if (worker_.joinable()) worker_.join();
+    worker_ = std::jthread([this, dir = logDir_](std::stop_token stop) {
+        auto result = std::make_shared<std::vector<blocktime::FlightRecord>>(
+            blocktime::loadFlightHistory(dir, blocktime::kFlightHistoryFiles, stop));
+        if (stop.stop_requested()) return;
+        QMetaObject::invokeMethod(
+            this,
+            [this, result] {
+                apply(std::move(*result));
+                setLoading(false);
+                if (reloadAgain_) {
+                    reloadAgain_ = false;
+                    reload();
+                }
+            },
+            Qt::QueuedConnection);
+    });
+}
+
+void FlightListModel::reloadBlocking() { apply(blocktime::loadFlightHistory(logDir_)); }
+
+void FlightListModel::apply(std::vector<blocktime::FlightRecord> flights) {
     const int before = count();
     beginResetModel();
-    flights_ = blocktime::loadFlightHistory(logDir_);
+    flights_ = std::move(flights);
     endResetModel();
     if (count() != before) emit countChanged();
+}
+
+void FlightListModel::setLoading(bool loading) {
+    if (loading == loading_) return;
+    loading_ = loading;
+    emit loadingChanged();
 }
 
 int FlightListModel::rowCount(const QModelIndex& parent) const { return parent.isValid() ? 0 : count(); }
