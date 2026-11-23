@@ -284,8 +284,8 @@ Fixed rates, the same at every airport. No leases, discounts or airport-size pri
 | Flight attendants | $55 each per block hour | same |
 | Maintenance | $300 per block hour | $700 per block hour |
 
-- **Fuel price** lives in `airline.yaml` (`fuel_price_per_100lb`, read at start; D-104); locked when a flight is
-  planned. The other rates in this section and section 12 are constants in the code until the settings screen. ($41/100 lb ≈ $2.75/gal at
+- **The rates** of this section and section 12, and the fuel price, live in `rates.yaml` (D-107). It's read whenever
+  New Flight opens and when a flight is settled. The fuel price is locked when a flight is planned. ($41/100 lb ≈ $2.75/gal at
   6.7 lb/gal.)
 - **Fuel stays in the tanks.** Each airplane remembers its fuel at block in. Fuel charged = fuel at block out − fuel
   remaining. Fuel can't be removed: extra stays on board and isn't charged again. The app warns if the sim shows less

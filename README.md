@@ -103,10 +103,10 @@ models and the recorder bridge, without a window). Pass
 
 ## Set up your airline
 
-The airline comes from two config files in `%LOCALAPPDATA%\BlockTime\` (D-076). Copy the repo's examples there:
+The airline comes from three config files in `%LOCALAPPDATA%\BlockTime\` (D-076). Copy the repo's examples there:
 
 ```powershell
-New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\BlockTime" | Out-Null; Copy-Item config\catalog.yaml "$env:LOCALAPPDATA\BlockTime\catalog.yaml"; Copy-Item config\airline.example.yaml "$env:LOCALAPPDATA\BlockTime\airline.yaml"
+New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\BlockTime" | Out-Null; Copy-Item config\catalog.yaml "$env:LOCALAPPDATA\BlockTime\catalog.yaml"; Copy-Item config\airline.example.yaml "$env:LOCALAPPDATA\BlockTime\airline.yaml"; Copy-Item config\rates.yaml "$env:LOCALAPPDATA\BlockTime\rates.yaml"
 ```
 
 - **`airline.yaml`:** your airline's name, ICAO code and callsign, the day it was founded, its starting cash, its
@@ -115,12 +115,19 @@ New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\BlockTime" | Out-Null; Co
   on the database owns it, and editing or removing it in the file changes nothing (a warning goes to `errors.log`,
   D-082).
   Optional per airplane: `flight_number`, the default number of its free flights (re-read at every start, D-106), and
-  `limits`, its own values in place of its airframe's (read only when it's leased, D-100). Optional for the airline:
-  `fuel_price_per_100lb` (default 41), locked on each planned flight.
+  `limits`, its own values in place of its airframe's (read only when it's leased, D-100).
 - **`catalog.yaml`:** aircraft types (lease rate, family, role) and airframes (seats, holds and `limits`: minimum
   runway, MLW, passenger and bag weight, and max payload, which must match the airplane's SimBrief airframe). Numbers
   marked `estimate` are placeholders until they're read from the PMDG load pages. **Upgrading from 0.5:** copy the
   repo's `catalog.yaml` again, since airframes now need `limits` (keep your own edits).
+- **`rates.yaml`:** the fare and cost rates and the fuel price (design.md §10–12, D-107). It's read whenever New
+  Flight opens and when a flight is settled, so an edit applies to the next flight without restarting. A planned
+  flight keeps its fuel price. **Upgrading from 0.6:** copy it, then delete `fuel_price_per_100lb` from
+  `airline.yaml`:
+
+  ```powershell
+  Copy-Item config\rates.yaml "$env:LOCALAPPDATA\BlockTime\rates.yaml"
+  ```
 - Then import the airport data ([Airport data](#airport-data)). Until both are in place, the Fleet page says what's
   missing.
 
@@ -167,7 +174,7 @@ Everything lives in `%LOCALAPPDATA%\BlockTime\`, outside the repo:
 |---|---|
 | `events\events-YYYY-MM-DD.jsonl` | The event log, one JSON object per line, one file per UTC day (D-020). Event types: `docs/recorder.md` |
 | `settings.json` | Your keys and IDs ([Keys and IDs](#keys-and-ids)). Never commit it |
-| `airline.yaml`, `catalog.yaml` | Your airline and the aircraft catalog ([Set up your airline](#set-up-your-airline)) |
+| `airline.yaml`, `catalog.yaml`, `rates.yaml` | Your airline, the aircraft catalog and the rates ([Set up your airline](#set-up-your-airline)) |
 | `blocktime.db` | The airline database: airplanes, the money ledger, airports (`docs/database.md`). Back it up by copying it while the app is closed. An old Qt test database is renamed `blocktime.test-schema.db` on first start (D-086) |
 | `airport-data\` | The downloaded airport files, kept for the next refresh ([Airport data](#airport-data)) |
 | `tiles\` | Map tile cache, at most 100 MB. Files older than 30 days are deleted at startup. Safe to delete |
