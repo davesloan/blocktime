@@ -88,12 +88,12 @@ TEST_F(Leasing, FirstMonthChargedAtLease) {
     EXPECT_EQ(outcome.leased, 1);
     EXPECT_EQ(outcome.monthsCharged, 1);
     EXPECT_TRUE(outcome.notices.empty());
-    EXPECT_EQ(cashCents(db_), 410'000'000);
+    EXPECT_EQ(cashCents(db_), 485'000'000);
 
     const std::vector<LedgerView> ledger = listLedger(db_);
     ASSERT_EQ(ledger.size(), 2u);
     EXPECT_EQ(ledger[0].text, "Lease N738BT, 22 Nov – 21 Dec");
-    EXPECT_EQ(ledger[0].amountCents, -90'000'000);
+    EXPECT_EQ(ledger[0].amountCents, -15'000'000);
     EXPECT_EQ(ledger[0].postedAt, "2026-11-22T00:00:00Z");
     EXPECT_EQ(ledger[1].text, "Opening cash");
     EXPECT_EQ(ledger[1].amountCents, 500'000'000);
@@ -116,7 +116,7 @@ TEST_F(Leasing, AirplaneCopiesItsAirframe) {
     EXPECT_FALSE(a.returnedOn.has_value());
     EXPECT_EQ(count("SELECT seats FROM airplane_cabin WHERE cabin_class = 'economy'"), 48);
     EXPECT_EQ(count("SELECT COUNT(*) FROM airplane_hold"), 2);
-    EXPECT_EQ(count("SELECT monthly_lease_cents FROM airplane"), 90'000'000);
+    EXPECT_EQ(count("SELECT monthly_lease_cents FROM airplane"), 15'000'000);
 }
 
 TEST_F(Leasing, SettlingTwiceChangesNothing) {
@@ -132,21 +132,21 @@ TEST_F(Leasing, NextMonthIsChargedOnItsDay) {
     settle(d(2026, 11, 22));
     EXPECT_EQ(settle(d(2026, 12, 21)).monthsCharged, 0);
     EXPECT_EQ(settle(d(2026, 12, 22)).monthsCharged, 1);
-    EXPECT_EQ(cashCents(db_), 320'000'000);
+    EXPECT_EQ(cashCents(db_), 470'000'000);
     EXPECT_EQ(listLedger(db_)[0].text, "Lease N738BT, 22 Dec – 21 Jan");
 }
 
 TEST_F(Leasing, MonthsMissedWhileClosedAreChargedInDateOrder) {
-    config_.startingCashCents = 200'000'000;
+    config_.startingCashCents = 35'000'000;
     config_.airplanes = {airplane("N738AA", d(2026, 11, 22), "1_1"), airplane("N738BB", d(2026, 12, 5), "1_2")};
-    settle(d(2026, 11, 22));  // A leased; cash $1.1M
+    settle(d(2026, 11, 22));  // A leased at $150,000; cash $200k
 
     const LeaseOutcome later = settle(d(2027, 1, 10));
-    EXPECT_EQ(later.leased, 1);    // B on 5 Dec, cash $200k after
+    EXPECT_EQ(later.leased, 1);    // B on 5 Dec, cash $50k after
     EXPECT_EQ(later.returned, 2);  // A on 22 Dec, B on 5 Jan
     EXPECT_EQ(later.monthsCharged, 1);
     EXPECT_EQ(later.notices.size(), 2u);
-    EXPECT_EQ(cashCents(db_), 20'000'000);
+    EXPECT_EQ(cashCents(db_), 5'000'000);
 
     const std::vector<AirplaneView> airplanes = listAirplanes(db_);
     ASSERT_EQ(airplanes.size(), 2u);
@@ -167,12 +167,12 @@ TEST_F(Leasing, MonthsMissedWhileClosedAreChargedInDateOrder) {
 }
 
 TEST_F(Leasing, CantAffordFirstMonthLeasesNothing) {
-    config_.startingCashCents = 50'000'000;
+    config_.startingCashCents = 10'000'000;
     const LeaseOutcome outcome = settle(d(2026, 11, 22));
     EXPECT_EQ(outcome.leased, 0);
     EXPECT_EQ(count("SELECT COUNT(*) FROM airplane"), 0);
     ASSERT_EQ(outcome.notices.size(), 1u);
-    EXPECT_EQ(outcome.notices[0], "Can't afford N738BT's first month: $900,000 needed, $500,000 in cash on 22 Nov 2026. "
+    EXPECT_EQ(outcome.notices[0], "Can't afford N738BT's first month: $150,000 needed, $100,000 in cash on 22 Nov 2026. "
                                   "Set a later leased_on to try again.");
 }
 
@@ -199,13 +199,13 @@ TEST_F(Leasing, TypesRefreshFromCatalog) {
     for (CatalogType& t : catalog_.types) {
         if (t.code == "737-800 BBJ2") {
             t.turnaroundMin = 40;
-            t.monthlyLeaseCents = 95'000'000;
+            t.monthlyLeaseCents = 20'000'000;
         }
     }
     settle(d(2026, 11, 22));
     EXPECT_EQ(count("SELECT turnaround_min FROM aircraft_type WHERE code = '737-800 BBJ2'"), 40);
     EXPECT_EQ(count("SELECT COUNT(*) FROM aircraft_type"), 7);
-    EXPECT_EQ(count("SELECT monthly_lease_cents FROM airplane"), 90'000'000);
+    EXPECT_EQ(count("SELECT monthly_lease_cents FROM airplane"), 15'000'000);  // the leased rate stays (D-082)
 }
 
 TEST_F(Leasing, OpeningCashPostedOnce) {

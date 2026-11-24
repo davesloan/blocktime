@@ -1937,3 +1937,22 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   make him fly 10 hours in one airplane before he can try the other family.
 - Alternatives considered: an `extra_slots` line in airline.yaml (a config exception rather than a rule change);
   waiting until 10 hours.
+
+## D-132 — Lease rates cut to about a sixth
+- Date: 2026-11-23
+- Status: Accepted (the new values are Claude's, Proposed)
+- Decided by: Dave (lower the leases), Claude (the values)
+- Area: design
+- Decision: Every type's monthly lease is cut to about a sixth (design.md §5): 737-600 $125k, BBJ2 $150k, 737-800
+  $235k, 777-200ER $315k, 777-300ER $385k, 737-800 BCF $85k, 777F $500k. The aim is that a plane Dave flies about 15
+  legs a month roughly covers its lease.
+  - **N814SX** is already leased at $900k, and catalog edits never change a leased airplane (D-082). So its stored rate
+    is set to $150k once, by hand, from its next month on. The lease months already charged stay in the ledger:
+    history is facts.
+  - The starting cash stays $5M.
+- Why:
+  - The first rates were set before fleet slots existed. They assumed background flights earning from the start:
+    "a lease takes roughly half of a busy plane's monthly flight profit".
+  - In the MVP only Dave's own legs earn. A BBJ2 VIP leg made about $10.6k (KPDX→KSFO). A 777-300ER leg is estimated
+    at about $23.5k (750 nm, 70% full). At the old rates those took about 85 and 98 legs a month to cover.
+- Alternatives considered: raising the starting cash (only buys time, about 8 months at $25M with both planes); both.

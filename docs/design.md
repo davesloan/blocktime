@@ -115,16 +115,17 @@ exists (D-119). SimBrief always decides the actual fuel loaded.
 
 | Type | Lease / month |
 |---|---|
-| 737-600 | $750k |
-| BBJ2 | $900k |
-| 737-800 | $1.4M |
-| 777-200ER | $1.9M |
-| 777-300ER | $2.3M |
-| 737-800 BCF | $500k |
-| 777F | $3M |
+| 737-600 | $125k |
+| BBJ2 | $150k |
+| 737-800 | $235k |
+| 777-200ER | $315k |
+| 777-300ER | $385k |
+| 737-800 BCF | $85k |
+| 777F | $500k |
 
-Rationale: a lease takes roughly half of a busy plane's monthly flight profit, so planes must keep working to pay
-for themselves.
+Rationale (D-132): a plane Dave flies himself about 15 legs a month roughly covers its lease. Until background flying
+exists (after the MVP), his own flights are the airline's only income. When it comes, a plane's background legs are
+profit. The first rates (about six times these) assumed busy planes earning in the background from the start.
 
 ### Negative cash
 

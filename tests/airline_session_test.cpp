@@ -66,7 +66,7 @@ TEST_F(AirlineSessionTest, FreshStartLeasesTheExample) {
     EXPECT_EQ(session.airlineName(), "BlockTime Air");
     ASSERT_EQ(session.airplanes().size(), 1u);
     EXPECT_EQ(session.airplanes()[0].registration, "N738BT");
-    EXPECT_EQ(session.cash(), 410'000'000);
+    EXPECT_EQ(session.cash(), 485'000'000);
     EXPECT_EQ(session.ledger().size(), 2u);
     EXPECT_EQ(warnings_.str(), "");
 }
@@ -91,7 +91,7 @@ TEST_F(AirlineSessionTest, BadConfigStillShowsTheDatabase) {
     EXPECT_TRUE(hasNoticeStartingWith(again, "airline.yaml line ")) << ::testing::PrintToString(again.notices());
     EXPECT_EQ(again.airplanes().size(), 1u);
     EXPECT_EQ(again.ledger().size(), 2u);
-    EXPECT_EQ(again.cash(), 410'000'000);
+    EXPECT_EQ(again.cash(), 485'000'000);
 }
 
 TEST_F(AirlineSessionTest, TickChargesAMonthThatFallsDueWhileOpen) {
@@ -101,7 +101,7 @@ TEST_F(AirlineSessionTest, TickChargesAMonthThatFallsDueWhileOpen) {
     EXPECT_EQ(session.ledger().size(), 2u);
     session.tick(d(2026, 12, 22));
     EXPECT_EQ(session.ledger().size(), 3u);
-    EXPECT_EQ(session.cash(), 320'000'000);
+    EXPECT_EQ(session.cash(), 470'000'000);
     session.tick(d(2026, 12, 22));
     EXPECT_EQ(session.ledger().size(), 3u);
 }

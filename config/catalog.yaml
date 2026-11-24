@@ -23,7 +23,7 @@ types:
     role: airliner            # airliner | executive | freighter
     turnaround_min: 35
     cruise_speed_kt: 450      # estimate
-    lease_per_month: 750000
+    lease_per_month: 125000
     sim_folder: PMDG 737-600
 
   - code: 737-800
@@ -31,7 +31,7 @@ types:
     role: airliner
     turnaround_min: 35
     cruise_speed_kt: 450      # estimate
-    lease_per_month: 1400000
+    lease_per_month: 235000
     sim_folder: PMDG 737-800
 
   - code: 737-800 BBJ2
@@ -39,7 +39,7 @@ types:
     role: executive           # VIP airliner or charter, never belly cargo (D-089)
     turnaround_min: 35
     cruise_speed_kt: 450      # estimate
-    lease_per_month: 900000
+    lease_per_month: 150000
     sim_folder: PMDG 737-800BBJ2
 
   - code: 737-800 BCF
@@ -47,7 +47,7 @@ types:
     role: freighter
     turnaround_min: 35
     cruise_speed_kt: 450      # estimate
-    lease_per_month: 500000
+    lease_per_month: 85000
     sim_folder: PMDG 737-800BCF
 
   - code: 777-200ER
@@ -55,7 +55,7 @@ types:
     role: airliner
     turnaround_min: 60
     cruise_speed_kt: 490      # estimate
-    lease_per_month: 1900000
+    lease_per_month: 315000
     sim_folder: PMDG 777-200ER
 
   - code: 777-300ER
@@ -63,7 +63,7 @@ types:
     role: airliner
     turnaround_min: 60
     cruise_speed_kt: 490      # estimate
-    lease_per_month: 2300000
+    lease_per_month: 385000
     sim_folder: PMDG 777-300ER
 
   - code: 777F
@@ -71,7 +71,7 @@ types:
     role: freighter
     turnaround_min: 60
     cruise_speed_kt: 490      # estimate
-    lease_per_month: 3000000
+    lease_per_month: 500000
     sim_folder: PMDG 777F
 
 airframes:
@@ -135,12 +135,13 @@ airframes:
 
   - name: 777-300ER Standard
     type: 777-300ER
-    limits: { min_runway_ft: 10000, mlw_lb: 554000, passenger_weight_lb: 190, bag_weight_lb: 55, max_payload_lb: 154000 }   # estimate
-    cabins: { business: 42, economy: 354 }      # estimate
-    holds:
-      - { hold: forward, max_lb: 50000, ratio: 10 }   # estimate
-      - { hold: aft, max_lb: 40000, ratio: 8 }        # estimate
-      - { hold: bulk, max_lb: 9000, ratio: 2 }        # estimate
+    # From N916SX's SimBrief airframe (2026-11-23): min runway 7,000 ft, MLW 554,000, MZFW 524,000 - empty 371,680.
+    limits: { min_runway_ft: 7000, mlw_lb: 554000, passenger_weight_lb: 190, bag_weight_lb: 55, max_payload_lb: 152320 }
+    cabins: { business: 42, economy: 328 }      # estimate, split; the 370 total is SimBrief's max passengers
+    holds:   # SimBrief's max cargo, 82,020 lb, split 10:8:2 (estimate)
+      - { hold: forward, max_lb: 41010, ratio: 10 }
+      - { hold: aft, max_lb: 32808, ratio: 8 }
+      - { hold: bulk, max_lb: 8202, ratio: 2 }
 
   - name: 777F Freighter
     type: 777F

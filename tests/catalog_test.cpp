@@ -41,7 +41,7 @@ TEST(Catalog, ParsesTheRepoCatalog) {
     EXPECT_EQ(bbj->family, "737");
     EXPECT_EQ(bbj->role, "executive");
     EXPECT_EQ(bbj->turnaroundMin, 35);
-    EXPECT_EQ(bbj->monthlyLeaseCents, 90'000'000);
+    EXPECT_EQ(bbj->monthlyLeaseCents, 15'000'000);
 
     const CatalogAirframe* vip = catalog->airframe("737-800 BBJ2 VIP");
     ASSERT_NE(vip, nullptr);
