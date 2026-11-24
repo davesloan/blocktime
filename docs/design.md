@@ -445,13 +445,15 @@ as they happen, each with its start and end time. The same records go into the f
 - **Stored (D-137):** each settled flight keeps its phase start times and its completed GSX services in the database
   (`docs/database.md`), for the leg templates (section 7).
 
-### 13.6 Arrival gate (D-074)
+### 13.6 Arrival gate (D-074, D-141)
 
-Mid-flight (around top of descent or 200 nm out), the app picks an arrival gate and asks SayIntentions to assign it
-(`assignGate`, needs an active SayIntentions flight), so ATC gives it after landing.
+Once SayIntentions has picked its own arrival gate (usually in cruise; it sets the landing runway and transition at
+the same time), the app picks an arrival gate and asks SayIntentions to assign it (`assignGate`, needs an active
+SayIntentions flight), so ATC gives it after landing. It reads the result back from SayIntentions, and sends nothing
+if SayIntentions already chose the same gate.
 1. **Preferred gates** for the airport, from config, first one that fits.
-2. Otherwise the parking spot of the **right size and type closest to the arrival runway** (from a fresh ATIS,
-   falling back to the plan's runway). Size: the spot's radius fits the family's wingspan (in config).
+2. Otherwise the parking spot of the **right size and type closest to the arrival runway** (SayIntentions'
+   landing runway, D-141). Size: the spot's radius fits the family's wingspan (in config).
 3. **Type:** passenger flights use gates. **Freighters and charters use ramps** (cargo ramps for freighters).
    If no ramp of the right size exists, any ramp that fits, then a gate as a last resort,
    with a note on the dashboard.

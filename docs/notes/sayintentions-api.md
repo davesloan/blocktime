@@ -69,9 +69,11 @@ Sources:
   A21", "lat", "lon", "heading"}}`. `importVAData` (POST) only takes free-text prompt data for crew and dispatch. So
   BlockTime picks from MSFS's parking data and asks with `assignGate` (D-074), which is what Dave wants: no per-airport
   TaxiTuner editing.
-- **Timing (for milestone 9):** SayIntentions had already chosen E7A in cruise, well before D-074's "around top of
-  descent". Still to test: whether `assignGate` replaces a gate SayIntentions already chose, and whether to ask
-  earlier (at cruise). Read the result back from `getParking` or the flightJSON `assigned_gate`.
+- **Timing (for milestone 9, D-141):** SayIntentions had already chosen E7A in cruise, well before D-074's "around
+  top of descent". So BlockTime waits for SayIntentions' own `assigned_gate`, uses its landing runway to pick, then
+  sends `assignGate` and reads the result back from `getParking` or the flightJSON `assigned_gate`. Still to test in
+  the sim: that `assignGate` replaces a gate SayIntentions already chose (Dave expects it does, since the gate
+  hasn't been broadcast yet; he checks SayIntentions' status screen).
 - **For milestone 9:** the gate's position should map it onto an MSFS parking spot (nearest `probe_facility` parking),
   which avoids parsing "Terminal 3 Gate E7A". Still open: whether `assignGate` takes "E7A" or needs the terminal.
 - **getCommsHistory** (milestone 10, the ATC log for D-040): `GET .../sapi/getCommsHistory?api_key=&since_id=`.

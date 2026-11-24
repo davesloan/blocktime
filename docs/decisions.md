@@ -1004,7 +1004,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-074 — The app assigns the arrival gate through SayIntentions
 - Date: 2026-11-22
-- Status: Accepted (fallbacks confirmed by Dave, 2026-11-22)
+- Status: Accepted (fallbacks confirmed by Dave, 2026-11-22); timing and runway source superseded by D-141
 - Decided by: Dave (rule), Claude (fallbacks)
 - Area: app
 - Decision: Mid-flight the app picks a gate and asks SayIntentions to assign it (`assignGate`). Order: preferred
@@ -2088,3 +2088,20 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Alternatives considered: keeping today's text tiles ("SET" / "OFF", "2 / 2"). For Mach: following PMDG's MCP
   speed window (`MCP_IASMach`; ties the tile to PMDG's broadcast), a single 0.65 line (flickers at the line), 0.65
   with a gap to 0.63 (Dave chose 0.70 / 0.66 as a middle point).
+
+## D-141 — Ask for the gate after SayIntentions picks its own
+- Date: 2026-11-24
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: Supersedes D-074's timing and runway source. BlockTime waits until SayIntentions has chosen its own
+  arrival gate (`assigned_gate` appears in the local flightJSON, usually in cruise). By then SayIntentions has also
+  set the landing runway (`flight_plan_arriving_runway`, `atc.approach.runway`) and the runway transition, so
+  BlockTime picks its gate with D-074's rules against that runway, sends it with `assignGate`, and reads the result
+  back (`getParking` or flightJSON `assigned_gate`). If SayIntentions already chose the same gate, nothing is sent.
+- Why: SayIntentions decides the gate, runway and transition together, well before top of descent, and only says
+  the gate on the ground. Waiting for that decision gives the runway ATC will actually use. Since the gate hasn't
+  been broadcast yet, Dave expects `assignGate` simply to replace it; he'll confirm on SayIntentions' status screen
+  in milestone 9's sim test.
+- Alternatives considered: D-074's "around top of descent or 200 nm out" with the runway from a fresh ATIS or the
+  plan (the runway could differ from SayIntentions' own choice, and SayIntentions has already picked by then).
