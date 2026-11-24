@@ -104,6 +104,9 @@ Each milestone still gets its own plan in `docs/plans/` (writing-plans) before w
 
 ### Milestone 7 — Phases and the six stages
 
+**Built in 0.8.0** (`docs/plans/2026-11-23-milestone-7-phases-and-stages.md`, D-124..D-129); Dave's sim checks are in
+`docs/progress.md`.
+
 The phase rules in `recorder.md` (old milestone 4, with D-058), touchdown capture (old milestone 5), and the
 dashboard's six stages and sub-events (section 13.5): altitude markers, transition altitude and level and
 "200 nm from destination" from the plan, the departure runway from the sim's runway data.

@@ -421,6 +421,9 @@ as they happen, each with its start and end time. The same records go into the f
 | Descent | Descent, Approach, Landing, Taxi in | Top of descent, Passed transition level, Level-offs, Below 10,000 ft, Final approach, Landed, Taxiing to gate |
 | Arrival | Arrived | Parked at gate, Deboarding (GSX), Ready for shutdown or turnaround |
 
+- **Built in milestone 7** (D-128): Live's Flight progress card, from the recorder's events. Pre-Departure stays empty
+  until milestone 8's GSX services; Arrival shows "Parked" until milestone 9's gate. "Landed" carries the landing
+  runway and the touchdown rate.
 - **Departure runway:** from the takeoff position and heading, matched against the sim's runways.
 - **Transition altitude and level, and "200 nm from destination":** from the SimBrief plan.
 - **GSX services (D-073):** each service shows as its own line with start and end. Services Dave used appear;

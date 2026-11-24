@@ -38,8 +38,9 @@ It was built **first**, because everything else depends on reliable flight data.
    - **Then the Qt UI test builds (D-050):** two test builds on the branch `qt-ui-spike` decided between one native
      Qt app and the recorder plus a web app. **Qt won (D-063)**, the branch was merged, and the recorder now runs
      inside the app (`docs/qt-ui-test-context.md`). The console recorder was dropped (D-065).
-4. **Phases.** Implement the phase rules below, including level-off sub-states and go-arounds.
-5. **Touchdown capture.** Fast sampling near the ground; record touchdown rate.
+4. **Phases.** Implement the phase rules below, including level-off sub-states and go-arounds. **Built in 0.8.0** (roadmap
+   milestone 7, D-124).
+5. **Touchdown capture.** Fast sampling near the ground; record touchdown rate. **Built in 0.8.0** (D-125).
 6. **SimBrief plan.** Fetch the latest OFP to get planned cruise altitude, origin, destination (needed by phase rules).
 7. **Procedure capture.** Log the cockpit state the end-of-flight analysis needs (D-040). Examples: lights
    (beacon, landing, seatbelt signs), gear and flaps, altimeter settings, and whether the aircraft is configured
@@ -176,6 +177,30 @@ temporarily, which is misleading.
 
 All thresholds are starting points. When you tune one, record the value and reason in `docs/decisions.md`.
 
+### Built (0.8.0, D-124)
+
+`PhaseDetector` (`src/phase_detector.h`) runs from block out to block in. It was tuned on Dave's KBFI→KPDX and
+KPDX→KSFO flights, which the tests replay (`tests/data/replay-*.csv`). Altitudes are indicated. Holds count only
+active time (D-058): each sim message adds at most 2 s.
+
+| Change | Rule |
+|---|---|
+| Pushback → Taxi out | The brake set after block out, then 3 kt with the brake off; or 6 kt at any time |
+| Taxi out → Takeoff | 40 kt on the ground. Timed from where the acceleration began (walk back while each earlier sample is ≥ 0.5 kt slower) |
+| Takeoff → Climb | Airborne at 1,000 ft AGL |
+| Level-off (sub-state) | Within ±100 ft for 20 s. Reported to the nearest 100 ft of the window's mean; ends more than 200 ft away, with the whole level's mean |
+| Climb → Cruise | A level within 1,000 ft of the plan's cruise altitude. Without a plan, a level above 10,000 ft held 5 minutes |
+| Cruise: step climb | Leaving the cruise level upward; ends at the next level. A descent too far out for top of descent is a step down |
+| Climb/Cruise → Descent | VS ≤ −500 fpm for 60 s. From Cruise only within 2 × 3 nm per 1,000 ft of the destination |
+| Cruise/Descent → Approach | Within 30 nm and below 10,000 ft, or below 3,000 ft AGL |
+| Approach → Go-around | +500 fpm for 10 s, 200 ft above the approach's lowest point. The next level-off returns to Approach |
+| → Landing | The first sample on the ground after being airborne |
+| Landing → Taxi in | Below 30 kt on the ground |
+| → Arrived | Block in |
+
+Markers fire once per flight when crossed: above and below 10,000 ft, the plan's transition altitude (climbing) and
+level (descending), 200 nm from the destination, and final approach at 1,000 ft AGL.
+
 ## Data to capture
 
 At minimum (exact SimVar names to be confirmed against the MSFS 2020 SDK docs and recorded in `docs/notes/`):
@@ -230,14 +255,23 @@ For the flight analysis (D-040). None of it can be fetched after the flight, so 
 - **Altimeter:** `KOHLSMAN SETTING MB:1/2` and `KOHLSMAN SETTING STD:1/2`, change-based. PMDG's SDK has no baro value.
   Whether PMDG drives these SimVars is checked first (`docs/notes/probe-flight.md`).
 - **Ownership:** the web calls are the app's (the recorder reports sim facts), but the results go into the same event
-  log, so the analysis reads one file.
+  log, so the analysis reads one file. **Built in 0.8.0 (D-127):** the app's `FlightWatcher` pushes `atis` and
+  `atc_exchange` events onto an `AppEventQueue`, and the recorder thread writes them, so the log has one writer. An
+  exchange is logged when it's new and again when its content changes (a late reply); a reader keeps the last line
+  per `id`. A failed call logs nothing and is retried at the next poll.
 
 ## Parking spots and runways (D-074)
 
 The app needs an airport's parking spots (name, position, radius, type) and runways for the departure runway, the
 arrival gate and the gate Dave parked at. The recorder fetches them on request through SimConnect's facility data
-while the sim runs, and hands them to the app. Matching positions to spots and runways is the app's job. That match
-names a runway or gate; it never judges precision (D-122).
+while the sim runs, and hands them to the app. Matching positions to spots is the app's job. That match names a gate;
+it never judges precision (D-122).
+
+**Runways (built in 0.8.0, D-126):** the recorder asks for the planned origin's and destination's runways at connect
+and when the planned flight changes, logs them as `airport_runways`, and names the runways itself: the takeoff runway
+at liftoff and the landing runway at Taxi in. A runway end fits when the roll's track (on the ground at 40 kt or more)
+is within 20° of its heading and the roll is on average 75 m or less from its centreline; the nearest fit wins, and
+with none the runway is `""`. The offsets are logged as information only.
 
 ## Sampling strategy
 
@@ -246,6 +280,9 @@ names a runway or gate; it never judges precision (D-122).
 - Live data for the app's screens: about once per second is enough.
 - Implemented (D-023): one definition, `PERIOD_SECOND` + `CHANGED` with per-variable thresholds, and a one-off snapshot
   on sim start, aircraft load and unpause. Junk samples are filtered before logging (D-025).
+- Milestone 7's requests are each their own definition, so a name the sim refuses loses only that request: the
+  altimeter settings (`PERIOD_SECOND` + `CHANGED`, D-123), and the touchdown samples, requested every sim frame only
+  from 300 ft AGL on the way down until the touchdown is captured (D-125).
 - Connection: retry with back-off. A session counts as connected only after SimConnect's OPEN reply. It ends on
   QUIT, when `FlightSimulator.exe` exits, or after 10 failed calls in a row. Silence only logs a warning (D-028).
 
@@ -286,12 +323,23 @@ names a runway or gate; it never judges precision (D-122).
 | `sim_running` / `sim_stopped` | The sim enters / leaves a flight (MSFS "Sim" state). Flips several times while loading |
 | `paused` / `unpaused` | The pause state changes. `flags` is the raw `Pause_EX1` value. `kinds` names its bits: `full` (main menu, loading screens), `active` (active pause), `sim` (Escape menu), `legacy` (unused), or `bit_<n>` for an unknown bit |
 | `aircraft_loaded` | Path of the loaded `aircraft.cfg`; logged only when the aircraft changes |
-| `telemetry` | A valid sample: on change, at most once a second; identical repeats are skipped. Includes `engines`, `eng_running` (per engine) and `fuel_flow_pph` (total) |
+| `telemetry` | A valid sample: on change, at most once a second; identical repeats are skipped. Includes `engines`, `eng_running` (per engine), `fuel_flow_pph` (total) and, from 0.8.0, `heading_true_deg` (logged only, D-129) |
 | `telemetry_invalid` | Samples start being rejected as junk; `reason` says why |
 | `block_out` | The flight started: a matching parking brake release that was followed by 10 m of movement. `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` are from the release; also `flight_id` (= that time), `moved_m`, `atc_id`, `title`, `planned_flight_id`, `aircraft_folder` |
 | `block_out_refused` | A release didn't match the planned flight, so no flight opened (D-088). `reason` is `no_planned_flight`, `wrong_aircraft_type`, `wrong_airport` or `fuel_below_record`; the rest is what the check saw |
 | `block_in` | The flight ended: after landing, a brake set held until every engine was off. `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` are from the set; also `flight_id`, `shutdown_time`, `shutdown_fuel_lb`, `block_time_s` |
 | `flight_interrupted` | A flight ended without block in; `flight_id`, `reason`. The reason is the session's lost reason (`sim_quit`, `sim_process_gone`, ...), `recorder_exit`, `sim_stopped` (the flight was left: main menu, restart, or MSFS killed) or `recorder_crash` (logged on the next start for a flight a killed recorder left open). The flight is never resumed (D-046) |
+| `phase_changed` | A new phase (rules above): `flight_id`, `phase`, `previous`, `time`, `alt_ft`, `flight_level`. A go-around is a `phase_changed` to `go_around` |
+| `level_off` / `level_off_ended` | A level-off began / ended: `flight_id`, `phase`, `time`, `alt_ft`, `flight_level` |
+| `step_climb` / `step_climb_ended` | The cruise level was left / a new one reached: `flight_id`, `time`, `from_ft` / `alt_ft`, `flight_level` |
+| `flight_marker` | `marker` is `above_10000`, `transition_altitude`, `within_200nm`, `transition_level`, `below_10000` or `final_approach`; also `flight_id`, `time`, `alt_ft` |
+| `liftoff` | The first airborne sample after the takeoff roll: `flight_id`, `time`, `lat`, `lon`, `ias_kt`, `airport`, `runway`, `off_centreline_m`, `off_heading_deg` (D-126) |
+| `touchdown` | From the sim-frame samples (D-125): `flight_id`, `time`, `lat`, `lon`, `vs_fpm` (the last airborne frame), `g` (the peak in the second after contact), `ias_kt` |
+| `landing_runway` | At Taxi in: `flight_id`, `airport`, `runway`, `off_centreline_m`, `off_heading_deg` |
+| `altimeter` | At block out, then on any change while a flight is open: `flight_id`, `capt_mb`, `fo_mb` (to 0.1 hPa), `capt_std`, `fo_std` (D-123) |
+| `airport_runways` | An airport's runways from the sim's facility data: `icao`, `runways` (`lat`, `lon`, `heading`, `length_m`, `width_m`, `primary_number`, `primary_designator`, `secondary_number`, `secondary_designator`) |
+| `atis` | Written for the app (D-127): `flight_id`, `icao`, `role` (`origin` / `destination`), `letter`, `text`, `metar`, `altimeter`, `departing`, `arriving` |
+| `atc_exchange` | Written for the app (D-127): `flight_id`, `si_flight_id`, `entry` (SayIntentions' exchange, verbatim) |
 | `simconnect_exception` | SimConnect reported an exception; `call` names the request that caused it |
 | `warning` | Something unexpected but not fatal (e.g. `FlightSimulator.exe` not found) |
 
