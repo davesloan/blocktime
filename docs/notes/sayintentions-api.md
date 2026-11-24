@@ -43,13 +43,27 @@ Sources:
   up to 30. Needs an active SayIntentions flight. Returns `{"assigned_gate_name":"A21"}`; errors "Unknown gate: Z99",
   "No active flight could be found."
 - **Gate names SayIntentions uses (seen, for milestone 9):**
-  - 2026-11-24, KLAS, 777-300ER from KSLC, in cruise: Dave saw the arrival gate shown as **"Terminal 3 Gate E7A"**.
-    It wasn't in BlockTime's log (no `atc_exchange` had it yet), so it came from SayIntentions' own screen before
-    any ATC call. The gate itself, "E7A", has a letter suffix; the terminal comes as a separate prefix.
+  - 2026-11-24, KLAS, 777-300ER from KSLC, in cruise: SayIntentions' status window showed the arrival gate as
+    **"Terminal 3 Gate E7A"**. Its status window fills in the STAR, landing runway, runway transition and arrival gate
+    as soon as its AI decides them, before top of descent; ATC only says the gate on the ground, when you're ready to
+    taxi.
   - 2026-11-24, KSLC arrival: ground said "Gate Bravo Two via Alpha-Five" (`atc_exchange` `incoming_message`), so
     spoken gates are in the phonetic alphabet ("Bravo Two" for B2), not the short form.
-  - Open for milestone 9: whether `assignGate` takes "E7A" or needs the terminal, and how MSFS's parking names
-    (`probe_facility`: a name code, a number and a suffix) map onto these.
+- **The local `flightJSON` has the status window's data** (`http://localhost:43117/flightJSON`, read 2026-11-24 in
+  cruise to KLAS, no key needed). The fields that matter:
+  - `flight_details.current_flight`: `assigned_gate` ("Terminal 3 Gate E7A"), **`assigned_gate_lat` /
+    `assigned_gate_lon`** ("36.0853653715", "-115.136728607269", as strings), `flight_plan_star` ("CHOWW4"),
+    `flight_plan_arriving_runway` ("26L"), `destination_arriving_runways` ("26L,19L,19R"), `flight_destination`.
+  - `flight_details.atc.route`: `star`, `filed_star`, `runway_transition` ("PRINO"), `approach_transition` ("STEWW").
+  - `flight_details.atc.approach`: `type` ("ILS"), `variation` ("Z"), `runway` ("26L").
+  - `flight_details.atc.altitude`: `miles_to_tod` ("32"), `minutes_to_tod` ("4"), `cruise_ft`,
+    `transition_altitude_ft`. Dave: SayIntentions' TOD is always 40-80 nm earlier than the FMC's, so don't use it
+    for predictions.
+  - `flight_details.arrival_wx`: the destination's ATIS, METAR, TAF and active runways, like getWX.
+  - Stale values: `atc.ground.on_runway` still said "34R" in cruise.
+  - **The same JSON holds the pilot's `api_key` and email**: never log or store the whole thing, only pick fields.
+- **For milestone 9:** the gate's position should map it onto an MSFS parking spot (nearest `probe_facility` parking),
+  which avoids parsing "Terminal 3 Gate E7A". Still open: whether `assignGate` takes "E7A" or needs the terminal.
 - **getCommsHistory** (milestone 10, the ATC log for D-040): `GET .../sapi/getCommsHistory?api_key=&since_id=`.
   Returns `flight_id` and `comm_history[]` (`stamp_zulu`, `frequency`, `station_name`, `incoming_message` from the
   pilot, `outgoing_message` from ATC, English versions, audio URLs). **Current flight only**: it can't be fetched
