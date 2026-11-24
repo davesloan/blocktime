@@ -61,7 +61,8 @@ Newest entries at the top. Add an entry at the end of every working session.
 - **The 777 never sets `KOHLSMAN SETTING STD`;** STD shows as 1013.2. Whoever uses the `altimeter` lines (milestone
   10's analysis) treats 1013.2 as STD. The 777 has one baro setting: Dave set both knobs, only the captain's display
   shows it, and the first officer's knob changes the captain's number.
-- Left for a later BBJ2 flight: the 737 half of the altimeter check (D-123).
+- **The 737 altimeter check is dropped** (Dave): the 737 also locks both baro knobs to one value, so there are no
+  separate sides to tell apart.
 
 **Next step:**
 - **Milestone 7 is closed; `main` is pushed (D-121).** Milestone 8 (GSX) starts in a new Claude Code session from

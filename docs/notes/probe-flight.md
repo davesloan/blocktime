@@ -225,7 +225,8 @@ Flown during milestone 7's sim checks, with `--probe`:
    descent, and whether `FMC_DistanceToDest_nm` tracks the distance flown.
 3. **GSX deboarding:** its states and passenger counts.
 4. **The gate name:** whether SayIntentions writes "D14" or "D 14".
-5. **The altimeter (D-123), on both families:**
+5. **The altimeter (D-123):** answered on the 777 (2026-11-24). Not needed on the 737: Dave says it locks both baro
+   knobs to the same value, as the 777 does. Kept for reference:
    - whether `probe_altimeter`'s `KOHLSMAN SETTING MB:1/2` follow the captain's and first officer's baro knobs;
    - whether `KOHLSMAN SETTING STD:1/2` follow the STD button;
    - whether `EFIS_BaroSelHPA` shows the units.
