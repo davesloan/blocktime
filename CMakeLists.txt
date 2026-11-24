@@ -238,7 +238,8 @@ qt_add_qml_module(blocktime-app
     src/planner.h
     src/qt_planner.h src/qt_planner.cpp
     src/new_flight_model.h src/new_flight_model.cpp
-    src/planned_flight_model.h src/planned_flight_model.cpp)
+    src/planned_flight_model.h src/planned_flight_model.cpp
+    src/flight_watcher.h src/flight_watcher.cpp)
 target_link_libraries(blocktime-app PRIVATE blocktime-sim Qt6::Quick Qt6::QuickControls2 Qt6::Location Qt6::Positioning
   Qt6::Network)
 set_target_properties(blocktime-app PROPERTIES OUTPUT_NAME BlockTime)  # BlockTime.exe (D-066)
@@ -275,7 +276,8 @@ if(BLOCKTIME_BUILD_TESTS)
     src/ledger_model.h src/ledger_model.cpp
     src/planner.h
     src/new_flight_model.h src/new_flight_model.cpp
-    src/planned_flight_model.h src/planned_flight_model.cpp)
+    src/planned_flight_model.h src/planned_flight_model.cpp
+    src/flight_watcher.h src/flight_watcher.cpp)
   target_link_libraries(blocktime-qt-tests PRIVATE blocktime-sim Qt6::Gui Qt6::Qml Qt6::Positioning Qt6::Network
     GTest::gtest_main)
   target_include_directories(blocktime-qt-tests PRIVATE tests)

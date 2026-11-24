@@ -80,3 +80,40 @@ void QtPlanner::fetchLatestOfp(std::function<void(QByteArray, QString)> done) {
 }
 
 void QtPlanner::openUrl(const QString& url) { QDesktopServices::openUrl(QUrl(url)); }
+
+void QtPlanner::fetchWx(QString icao, std::function<void(QByteArray, QString)> done) {
+    getSayIntentions(blocktime::getWxUrl(settings_.sayIntentionsApiKey, icao.toStdString()), std::move(done));
+}
+
+void QtPlanner::fetchCommsHistory(std::function<void(QByteArray, QString)> done) {
+    getSayIntentions(blocktime::commsHistoryUrl(settings_.sayIntentionsApiKey), std::move(done));
+}
+
+void QtPlanner::getSayIntentions(const std::string& url, std::function<void(QByteArray, QString)> done) {
+    if (settings_.sayIntentionsApiKey.empty() || settings_.sayIntentionsDeveloperKey.empty()) {
+        done({}, QStringLiteral("No SayIntentions keys in settings.json"));
+        return;
+    }
+    QNetworkRequest r = request(url, kRunwayTimeoutMs);
+    r.setRawHeader("X-Developer-Key", QByteArray::fromStdString(settings_.sayIntentionsDeveloperKey));
+    QNetworkReply* reply = network_.get(r);
+    connect(reply, &QNetworkReply::finished, this, [reply, done = std::move(done)] {
+        reply->deleteLater();
+        const QByteArray body = reply->readAll();
+        // The error text can quote the URL, which holds the pilot key: say only that it failed.
+        if (body.isEmpty() && reply->error() != QNetworkReply::NoError) {
+            done({}, QStringLiteral("SayIntentions didn't answer"));
+            return;
+        }
+        if (const std::string error = blocktime::atisError(body.toStdString()); !error.empty()) {
+            done({}, "SayIntentions: " + QString::fromStdString(error));
+            return;
+        }
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (status >= 400) {
+            done({}, QStringLiteral("SayIntentions answered HTTP %1").arg(status));
+            return;
+        }
+        done(body, {});
+    });
+}

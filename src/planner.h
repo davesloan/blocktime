@@ -24,4 +24,9 @@ public:
     // carries SimBrief's status), or a network error when there's no body.
     virtual void fetchLatestOfp(std::function<void(QByteArray body, QString networkError)> done) = 0;
     virtual void openUrl(const QString& url) = 0;
+    // During the flight (D-123, FlightWatcher): one airport's getWX, and getCommsHistory. `done` is always called
+    // once; `error` is set (and nothing should be logged) for a network failure, an HTTP error or SayIntentions'
+    // own {"error": ...}.
+    virtual void fetchWx(QString icao, std::function<void(QByteArray body, QString error)> done) = 0;
+    virtual void fetchCommsHistory(std::function<void(QByteArray body, QString error)> done) = 0;
 };

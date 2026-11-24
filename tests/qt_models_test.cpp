@@ -25,7 +25,9 @@
 
 #include <gtest/gtest.h>
 
+#include "app_event_queue.h"
 #include "event_feed_model.h"
+#include "flight_watcher.h"
 #include "fleet_table_model.h"
 #include "ledger_model.h"
 #include "flight_list_model.h"
@@ -537,6 +539,22 @@ public:
         done(ofpBody, ofpError);
     }
     void openUrl(const QString& url) override { opened << url; }
+
+    // The flight's SayIntentions calls (FlightWatcher, D-123).
+    QByteArray wxBody = QByteArray::fromStdString(dataFile("getwx_live.json"));
+    QString wxError;
+    QStringList wxCalls;
+    QByteArray commsBody = QByteArray::fromStdString(dataFile("comms_history.json"));
+    QString commsError;
+    int commsCalls = 0;
+    void fetchWx(QString icao, std::function<void(QByteArray, QString)> done) override {
+        wxCalls << icao;
+        done(wxBody, wxError);
+    }
+    void fetchCommsHistory(std::function<void(QByteArray, QString)> done) override {
+        ++commsCalls;
+        done(commsBody, commsError);
+    }
 };
 
 db::Database deliveredAirline() {
@@ -1155,4 +1173,136 @@ TEST_F(LiveFlight, NoBannerOverTheSummary) {  // review finding 6
     EXPECT_EQ(m->notRecording(), "");
     m->doneForNow();
     EXPECT_EQ(m->notRecording(), "Not recording: no flight is planned. Plan one from Fleet.");
+}
+
+// --- FlightWatcher (D-123, D-127) ---------------------------------------------------------------------------------
+
+namespace {
+
+struct WatcherRig {
+    FakePlanner planner;
+    RecorderBridge bridge;
+    blocktime::FlightTargetSlot target;
+    blocktime::AppEventQueue queue;
+    std::vector<blocktime::LogEvent> drained;
+    std::unique_ptr<FlightWatcher> watcher;
+
+    WatcherRig() {
+        qtApp();
+        blocktime::FlightTarget t;
+        t.originIcao = "KBFI";
+        t.destinationIcao = "KPDX";
+        target.set(t);
+        watcher = std::make_unique<FlightWatcher>(planner, bridge, target, queue);
+        watcher->setIntervals(std::chrono::milliseconds(30), std::chrono::milliseconds(30));
+    }
+    void blockOut() {
+        blocktime::BlockOut out;
+        out.flightId = "2026-11-23T22:51:08.969Z";
+        bridge.applyBlockEvent(out);
+    }
+    void flight(const QString& type, QVariantMap data = {}) { bridge.applyFlightEvent(type, data); }
+    // Everything pushed so far, of one type.
+    std::vector<blocktime::LogEvent> pushed(const std::string& type) {
+        for (auto& e : queue.drain()) drained.push_back(std::move(e));
+        std::vector<blocktime::LogEvent> out;
+        for (const auto& e : drained)
+            if (e.type == type) out.push_back(e);
+        return out;
+    }
+    void wait(int ms) {
+        QElapsedTimer timer;
+        timer.start();
+        while (timer.elapsed() < ms) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+    }
+};
+
+}  // namespace
+
+TEST(FlightWatcher, PollsTheOriginUntilLiftoff) {
+    WatcherRig r;
+    r.blockOut();
+    ASSERT_FALSE(r.planner.wxCalls.isEmpty());
+    EXPECT_EQ(r.planner.wxCalls.front(), "KBFI");
+    const auto atis = r.pushed("atis");
+    ASSERT_EQ(atis.size(), 1u);
+    EXPECT_EQ(atis[0].data["role"], "origin");
+    EXPECT_EQ(atis[0].data["letter"], "K");
+    EXPECT_EQ(atis[0].data["flight_id"], "2026-11-23T22:51:08.969Z");
+    r.wait(100);  // more polls, same answer: nothing new
+    EXPECT_GT(r.planner.wxCalls.size(), 1);
+    EXPECT_EQ(r.pushed("atis").size(), 1u);
+    r.flight("liftoff");
+    const auto calls = r.planner.wxCalls.size();
+    r.wait(100);
+    EXPECT_EQ(r.planner.wxCalls.size(), calls);
+}
+
+TEST(FlightWatcher, DestinationFromTopOfDescentToTouchdown) {
+    WatcherRig r;
+    r.blockOut();
+    r.flight("liftoff");
+    r.planner.wxCalls.clear();
+    r.wait(80);
+    EXPECT_TRUE(r.planner.wxCalls.isEmpty());  // nothing during the cruise
+    r.planner.wxBody = R"({"airports":[{"airport":"KPDX","current":"B","atis":"Portland information Bravo"}]})";
+    r.flight("phase_changed", {{"phase", "descent"}});
+    ASSERT_FALSE(r.planner.wxCalls.isEmpty());
+    EXPECT_EQ(r.planner.wxCalls.front(), "KPDX");
+    const auto atis = r.pushed("atis");
+    ASSERT_EQ(atis.size(), 2u);
+    EXPECT_EQ(atis[1].data["role"], "destination");
+    EXPECT_EQ(atis[1].data["letter"], "B");
+    r.flight("touchdown");
+    const auto calls = r.planner.wxCalls.size();
+    r.wait(100);
+    EXPECT_EQ(r.planner.wxCalls.size(), calls);
+}
+
+TEST(FlightWatcher, AtcEveryPollAndOnceAtBlockIn) {
+    WatcherRig r;
+    r.blockOut();
+    r.wait(100);
+    EXPECT_GT(r.planner.commsCalls, 1);
+    const auto exchanges = r.pushed("atc_exchange");
+    ASSERT_EQ(exchanges.size(), 2u);  // each exchange once, however many polls
+    EXPECT_EQ(exchanges[0].data["si_flight_id"], "987654321");
+    EXPECT_EQ(exchanges[0].data["entry"]["station_name"], "Boeing Ground");
+    blocktime::BlockIn in;
+    in.flightId = "2026-11-23T22:51:08.969Z";
+    const int before = r.planner.commsCalls;
+    r.bridge.applyBlockEvent(in);
+    EXPECT_EQ(r.planner.commsCalls, before + 1);
+    r.wait(100);
+    EXPECT_EQ(r.planner.commsCalls, before + 1);
+}
+
+TEST(FlightWatcher, FailedCallsLogNothingAndRetry) {
+    WatcherRig r;
+    r.planner.wxError = "SayIntentions didn't answer";
+    r.planner.commsError = "SayIntentions: No active flight could be found.";
+    r.blockOut();
+    r.wait(60);
+    EXPECT_TRUE(r.pushed("atis").empty());
+    EXPECT_TRUE(r.pushed("atc_exchange").empty());
+    r.planner.wxError.clear();
+    r.planner.commsError.clear();
+    r.wait(100);
+    EXPECT_EQ(r.pushed("atis").size(), 1u);
+    EXPECT_EQ(r.pushed("atc_exchange").size(), 2u);
+}
+
+TEST(FlightWatcher, InterruptStopsWithoutALastFetch) {
+    WatcherRig r;
+    r.blockOut();
+    const int before = r.planner.commsCalls;
+    blocktime::FlightInterrupted e;
+    e.flightId = "2026-11-23T22:51:08.969Z";
+    e.reason = "sim_stopped";
+    r.bridge.applyBlockEvent(e);
+    EXPECT_EQ(r.planner.commsCalls, before);
+    const auto wx = r.planner.wxCalls.size();
+    r.wait(100);
+    EXPECT_EQ(r.planner.commsCalls, before);
+    EXPECT_EQ(r.planner.wxCalls.size(), wx);
 }

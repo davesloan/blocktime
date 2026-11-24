@@ -23,8 +23,13 @@ public:
                       std::function<void(blocktime::AtisRunways, QString note)> done) override;
     void fetchLatestOfp(std::function<void(QByteArray body, QString networkError)> done) override;
     void openUrl(const QString& url) override;
+    void fetchWx(QString icao, std::function<void(QByteArray, QString)> done) override;
+    void fetchCommsHistory(std::function<void(QByteArray, QString)> done) override;
 
 private:
+    // GET with the developer key in its header; the same failure rules as fetchRunways.
+    void getSayIntentions(const std::string& url, std::function<void(QByteArray, QString)> done);
+
     blocktime::AppSettings settings_;
     QNetworkAccessManager network_;
 };

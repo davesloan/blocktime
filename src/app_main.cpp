@@ -41,6 +41,7 @@
 #include "new_flight_model.h"
 #include "planned_flight_model.h"
 #include "qml_hot_reload.h"
+#include "flight_watcher.h"
 #include "qt_planner.h"
 #include "recorder.h"
 #include "recorder_bridge.h"
@@ -251,6 +252,8 @@ int main(int argc, char* argv[]) {
     if (!airline.database()) blocktime::migrateAirlineDatabase(emptyDatabase, nullptr);
     blocktime::db::Database& planningDb = airline.database() ? *airline.database() : emptyDatabase;
     QtPlanner planner(settings);
+    // SayIntentions' ATIS and ATC log while a flight is open, into the event log (D-123, D-127).
+    FlightWatcher flightWatcher(planner, bridge, flightTarget, appEvents);
     const QString airlineIcao = QString::fromStdString(airline.airlineIcao());
     // Settled flights from the database, tracks from the log (D-111); refreshed when a flight is settled.
     FlightListModel flights(planningDb, logDir, airlineIcao);
