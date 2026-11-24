@@ -152,6 +152,16 @@ TEST(GsxTimeline, SimDisconnectedClearsNextLeg) {
     EXPECT_TRUE(t.nextLeg().empty());
 }
 
+TEST(GsxTimeline, RecorderExitKeepsNextLeg) {
+    GsxTimeline t;
+    gsx(t, "refuelling", "performing", "10:00:00");
+    gsx(t, "refuelling", "completed", "10:05:00");
+    // BlockTime closed for a new build while the sim carried on: the services already done still count.
+    t.onEvent("sim_disconnected", {{"reason", "recorder_exit"}, {"time", at("10:06:00")}});
+    ASSERT_EQ(t.nextLeg().size(), 1u);
+    EXPECT_EQ(t.nextLeg()[0].service, "refuelling");
+}
+
 TEST(GsxTimeline, SimStoppedDropsRunningDeboarding) {
     GsxTimeline t;
     block(t, "block_out", "10:00:00");

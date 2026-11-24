@@ -145,9 +145,15 @@ void FlightStages::clearFlight() {
 }
 
 void FlightStages::updateReady(const std::string& iso) {
-    if (!showingFlight_ || phase_ != "arrived" || !readyIso_.empty()) return;
+    if (!showingFlight_ || phase_ != "arrived") return;
     const auto& deboarding = gsx_.arrival();
-    if (anyRunning(deboarding)) return;  // wait for GSX to finish
+    // With GSX deboarding, Ready comes when it completes, even if the checks passed first (Dave turns the beacon off
+    // before calling GSX).
+    if (anyRunning(deboarding)) {
+        readyIso_.clear();
+        return;
+    }
+    if (!readyIso_.empty()) return;
     const bool checksPass =
         checks_ && checks_->enginesOff && checks_->parkingBrakeSet && checks_->beaconOff && checks_->strobeOff;
     if (anyCompleted(deboarding) || checksPass) readyIso_ = iso;

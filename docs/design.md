@@ -435,7 +435,8 @@ as they happen, each with its start and end time. The same records go into the f
   Pre-Departure simply shows as done with no lines (D-136, which drops D-073's "Turnaround and Boarding" line).
   "Cleaning" isn't a GSX service, so it isn't shown.
 - **Ready for shutdown or turnaround (D-135):** shown when GSX deboarding completes. If deboarding wasn't done through
-  GSX, it shows once the checks below all pass. Under it, an informational checklist that stays live (never a
+  GSX, it shows once the checks below all pass; if GSX deboarding starts after that, Ready waits for it to complete.
+  Under it, an informational checklist that stays live (never a
   requirement or penalty): engines off, parking brake set, deboarding complete (only when GSX deboarding was used),
   beacon off, strobes off. All from plain SimVars; no seat belts or APU, which the 737 only shows in PMDG's SDK data.
 - **Stored (D-137):** each settled flight keeps its phase start times and its completed GSX services in the database

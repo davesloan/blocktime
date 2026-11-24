@@ -287,12 +287,14 @@ TEST_F(Settlement, SettlingStoresPhases) {
     const char* phases[] = {"pushback", "taxi_out", "takeoff", "climb",   "cruise",  "descent",
                             "approach", "go_around", "approach", "landing", "taxi_in", "arrived"};
     std::vector<std::string> log{blockOut(kOut, id, 20000)};
-    for (int i = 0; i < 12; ++i) {
+    for (int i = 0; i < 11; ++i) {
         const std::string t = "2026-11-23T1" + std::to_string(i / 6) + ":" + std::to_string(i % 6) + "0:05.500Z";
         log.push_back(phaseLine(kOut, phases[i], t));
     }
     log.push_back(phaseLine("2026-11-22T09:00:00.000Z", "climb", "2026-11-23T11:00:00.000Z"));  // another flight's
+    // As the recorder writes them: block_in first, then the arrived phase (FlightTracker::onBlockIn).
     log.push_back(blockIn(kOut, kIn, kSanLat, kSanLon, 9400));
+    log.push_back(phaseLine(kOut, "arrived", kIn));
     writeLog(log);
     std::string error;
     ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
@@ -302,7 +304,11 @@ TEST_F(Settlement, SettlingStoresPhases) {
         ASSERT_TRUE(q.next());
         EXPECT_EQ(q.integer(0), i);
         EXPECT_EQ(q.text(1), phases[i]);
-        EXPECT_EQ(q.text(2), "2026-11-23T1" + std::to_string(i / 6) + ":" + std::to_string(i % 6) + "0:05Z");
+        if (i < 11) {
+            EXPECT_EQ(q.text(2), "2026-11-23T1" + std::to_string(i / 6) + ":" + std::to_string(i % 6) + "0:05Z");
+        } else {
+            EXPECT_EQ(q.text(2), "2026-11-23T13:20:41Z");  // arrived is the block in
+        }
     }
 }
 

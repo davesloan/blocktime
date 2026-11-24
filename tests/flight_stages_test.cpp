@@ -304,6 +304,21 @@ TEST(FlightStages, ReadyWaitsForRunningDeboarding) {
               (std::vector<std::string>{"Parked", "Deboarding", "Ready for shutdown or turnaround"}));
 }
 
+TEST(FlightStages, LateDeboardingMovesReady) {
+    FlightStages s;
+    flyTo(s, "12:00:00");
+    // Dave shuts down and turns the beacon off first, then calls GSX deboarding.
+    EXPECT_TRUE(s.onShutdownChecks({true, true, true, true}, at("12:03:00")));
+    EXPECT_EQ(s.view()[5].lines.back().text, "Ready for shutdown or turnaround");
+    gsx(s, "deboarding", "performing", "12:05:00");
+    EXPECT_EQ(texts(s.view()[5]), (std::vector<std::string>{"Parked", "Deboarding"}));
+    gsx(s, "deboarding", "completed", "12:10:00");
+    const auto v = s.view();
+    ASSERT_EQ(texts(v[5]), (std::vector<std::string>{"Parked", "Deboarding", "Ready for shutdown or turnaround"}));
+    EXPECT_EQ(v[5].lines[2].start, "12:10Z");
+    EXPECT_TRUE(v[5].lines[2].checks[2].done);  // Deboarding complete
+}
+
 TEST(FlightStages, ChecksUpdateLive) {
     FlightStages s;
     flyTo(s, "12:00:00");

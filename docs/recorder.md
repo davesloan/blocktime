@@ -256,7 +256,7 @@ GSX Pro reports each ground service's state as an L:var, which SimConnect can re
   - a service starts when it's performing and is complete when it then shows completed or goes back to available;
     bypassed while performing abandons it;
   - catering, refuelling and boarding belong to the next block out, counted from the later of the last block in and
-    the last `sim_stopped` / `sim_disconnected`;
+    the last `sim_stopped` / `sim_disconnected` (not BlockTime's own exit, `recorder_exit`);
   - deboarding belongs to the last block in, until the next block out;
   - an interrupted flight drops its services (D-072);
   - pushback is never a service; Live's pushback line says "(GSX)" when GSX was pushing at block out.

@@ -110,6 +110,9 @@ std::optional<FlownFlight> findFlownFlight(const std::filesystem::path& logDir, 
                 f.inLat = number(data, "lat");
                 f.inLon = number(data, "lon");
                 f.blockS = static_cast<long long>(number(data, "block_time_s"));
+                // The recorder logs block_in, then phase_changed arrived (FlightTracker::onBlockIn), and settling runs
+                // on block_in, often before that line is written. Arrived is the block in, so it's added here.
+                if (f.phases.empty() || f.phases.back().phase != "arrived") f.phases.push_back({"arrived", f.blockInAt});
                 return f;
             }
         }

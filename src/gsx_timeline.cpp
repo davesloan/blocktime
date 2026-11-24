@@ -62,7 +62,8 @@ void GsxTimeline::onEvent(std::string_view type, const nlohmann::json& d) {
         departed_.clear();
         arrival_.clear();
         lastBlockIn_.clear();
-    } else if (type == "sim_stopped" || type == "sim_disconnected") {
+    } else if (type == "sim_stopped" || (type == "sim_disconnected" && str(d, "reason") != "recorder_exit")) {
+        // BlockTime closing (recorder_exit) leaves the sim's session, and GSX's services, as they were.
         nextLeg_.clear();
         dropRunning(arrival_);
         pushbackState_.clear();

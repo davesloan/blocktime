@@ -2038,13 +2038,19 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
     boarding and deboarding) on each state change. A 0 (GSX not running) is ignored, and so is a service's first
     state when it is "available".
   - **A service** starts when it reaches performing (5) and is complete when it then goes to completed (6) or back to
-    available (1): boarding and pushback skip 6. Bypassed or anything else while performing abandons it: it isn't
-    shown or stored. Requested alone is not a line.
+    available (1): boarding and pushback skip 6. Bypassed (3) or not available (2) while performing abandons it: it
+    isn't shown or stored. Requested alone is not a line, and a performing service that goes back to requested stays
+    running (never seen).
   - **Which leg:** catering, refuelling and boarding belong to the next block out, if they started after the later of
-    the last block in and the last `sim_stopped`/`sim_disconnected`. Deboarding belongs to the last block in, until
+    the last block in and the last `sim_stopped`/`sim_disconnected`. BlockTime's own exit (`sim_disconnected`
+    `recorder_exit`) doesn't count: the sim session carries on, so a restart between legs keeps the services done. Deboarding belongs to the last block in, until
     the next block out. An interrupted flight drops its services (D-072).
   - **Pushback:** the Departure line reads "Pushback (GSX)" when GSX's pushback was requested or performing at block
     out. It isn't stored as a service: the phases already time it.
+  - **Ready after a late deboarding:** if GSX deboarding starts after the shutdown checks passed (the beacon goes off
+    before Dave calls GSX), Ready disappears while it runs and comes back when it completes (design.md §13.5).
+  - **The `arrived` phase** is stored at the block-in time: the recorder logs it just after `block_in`, which
+    settling runs on.
   - **Passenger counts** are logged, not shown or stored: GSX's count is its own (285 on N916SX, which SimBrief loaded
     with 370).
 - Why: Matches what the probe flights showed (`docs/notes/probe-flight.md`). Logging each state keeps the log the one

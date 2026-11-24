@@ -7,8 +7,9 @@
 // - A service starts when it's performing, and is complete when it then goes to completed or back to available
 //   (boarding and pushback skip completed). Bypassed or not_available while performing abandons it: it's dropped.
 // - Catering, refuelling and boarding belong to the next block out (nextLeg), counted from the later of the last
-//   block in and the last sim_stopped / sim_disconnected. Deboarding belongs to the last block in, until the next
-//   block out (arrival). An interrupted flight drops its services (D-072).
+//   block in and the last sim_stopped / sim_disconnected (not BlockTime's own exit, recorder_exit: the sim carries
+//   on). Deboarding belongs to the last block in, until the next block out (arrival). An interrupted flight drops
+//   its services (D-072).
 // - Pushback is never a span: the phases time it. Only whether GSX was pushing at block out is kept.
 
 #pragma once
