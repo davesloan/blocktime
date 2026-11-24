@@ -197,6 +197,10 @@ std::string flightLine(const LogEvent& e) {
         return now + "  " + phase;
     }
     if (e.type == "liftoff") return now + "  LIFTOFF  " + e.data.value("runway", "");
+    if (e.type == "lined_up") {
+        return std::format("{}  LINED UP  runway {}  {:.1f} nm", now, e.data.value("runway", ""),
+                           e.data.value("distance_nm", 0.0));
+    }
     if (e.type == "gsx_service") {
         const std::string state = e.data.value("state", "");
         if (state != "requested" && state != "performing" && state != "completed") return "";

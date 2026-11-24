@@ -18,6 +18,7 @@
 
 #include "block_detector.h"
 #include "flight_match.h"
+#include "lined_up.h"
 #include "log_event.h"
 #include "phase_detector.h"
 #include "parking.h"
@@ -68,6 +69,8 @@ private:
     std::optional<AltimeterSample> logged_;     // the last one logged in this flight (rounded)
 
     std::optional<PhaseDetector> detector_;
+    std::string destinationIcao_;
+    std::optional<LinedUpDetector> linedUp_;
     std::string flightId_;
     std::vector<RollPoint> takeoffRoll_, landingRoll_;
     bool liftoffLogged_ = false;

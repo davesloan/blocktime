@@ -108,6 +108,7 @@ std::vector<LogEvent> FlightTracker::onBlockOut(const BlockOut& out, const std::
         plan.destinationLon = target->destinationLon;
     }
     flightId_ = out.flightId;
+    destinationIcao_ = target ? target->destinationIcao : "";
     detector_.emplace(plan, out.time, altFt);
     std::vector<LogEvent> events{toLog(detector_->started())};
     if (altimeter_) {
@@ -159,6 +160,23 @@ std::vector<LogEvent> FlightTracker::onSample(const PhaseSample& s) {
         takeoffRoll_.clear();
     }
 
+    // "Final approach": lined up with a destination runway (D-143, D-145). Built once the runways are known.
+    if (!linedUp_) {
+        const auto it = airports_.find(destinationIcao_);
+        if (it != airports_.end() && !it->second.runways.empty()) linedUp_.emplace(it->second.runways);
+    }
+    if (linedUp_) {
+        if (const auto l = linedUp_->onSample(s, phase)) {
+            events.push_back({"lined_up",
+                              {{"flight_id", flightId_},
+                               {"time", formatUtc(l->time)},
+                               {"airport", destinationIcao_},
+                               {"runway", l->runway},
+                               {"alt_ft", l->altFt},
+                               {"distance_nm", l->distanceNm}}});
+        }
+    }
+
     updateFastSampling(s);
     return events;
 }
@@ -208,6 +226,8 @@ std::vector<LogEvent> FlightTracker::onBlockIn(const BlockIn& in, double altFt) 
 void FlightTracker::onFlightEnded() {
     detector_.reset();
     flightId_.clear();
+    destinationIcao_.clear();
+    linedUp_.reset();
     takeoffRoll_.clear();
     landingRoll_.clear();
     liftoffLogged_ = false;

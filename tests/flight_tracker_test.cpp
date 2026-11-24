@@ -237,3 +237,14 @@ TEST(FlightTracker, ParkingAtNamesNearestSpot) {
     EXPECT_EQ(t.parkingAt(37.6188 + 5 / 111320.0, -122.3750), "Gate D14");
     EXPECT_EQ(t.parkingAt(37.6188 + 100 / 111320.0, -122.3750), "");
 }
+
+TEST(FlightTracker, LogsLinedUp) {
+    FlightTracker t;
+    const auto all = replayKbfiKpdx(t);
+    const LogEvent* e = find(all, "lined_up");
+    ASSERT_NE(e, nullptr);
+    EXPECT_EQ(e->data["runway"], "10R");
+    EXPECT_GT(e->data["distance_nm"].get<double>(), 0.0);
+    EXPECT_LE(e->data["distance_nm"].get<double>(), 10.0);
+    EXPECT_EQ(e->data["flight_id"], formatUtc(replay::loadReplay("replay-kbfi-kpdx.csv").blockOut));
+}
