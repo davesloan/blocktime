@@ -78,6 +78,7 @@ add_library(blocktime-core STATIC
   src/planned_flight.cpp
   src/pricing.cpp
   src/rates.cpp
+  src/runway_match.cpp
   src/sayintentions.cpp
   src/simbrief.cpp
   src/money.cpp
@@ -159,7 +160,8 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/money_test.cpp
     tests/open_flight_test.cpp
     tests/pmdg_probe_test.cpp
-    tests/phase_detector_test.cpp)
+    tests/phase_detector_test.cpp
+    tests/runway_match_test.cpp)
   target_link_libraries(blocktime-tests PRIVATE blocktime-core GTest::gtest_main)
   # Tests read the repo's config files (config/catalog.yaml, config/airline.example.yaml).
   target_compile_definitions(blocktime-tests PRIVATE BLOCKTIME_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
