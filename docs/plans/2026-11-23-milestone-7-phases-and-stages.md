@@ -53,7 +53,10 @@ gtest), Qt 6 Quick + Network + Location, SimConnect (MSFS 2020 SDK).
   - altimeter: `PERIOD_SECOND` + `CHANGED`.
 - **Phase numbers (D-124), as constants in `phase_detector.h`:**
   - pushback ends: brake set after block out, then ≥ **3 kt** with the brake off; or ≥ **6 kt** at any time;
-  - takeoff roll: on the ground at ≥ **40 kt**; climb: airborne at ≥ **1,000 ft AGL**;
+  - takeoff roll: confirmed on the ground at ≥ **40 kt**, but timed from where the acceleration began: walk back from
+    the first 40 kt sample while each earlier sample is at least **0.5 kt** slower than the next (the sim has no
+    takeoff-roll signal, and Dave's rolling takeoffs reached 40 kt 7–8 s after the roll began);
+  - climb: airborne at ≥ **1,000 ft AGL**;
   - level: indicated altitude within **±100 ft** of the hold's first sample for **20 s** of active time; a level ends
     when the altitude is more than **200 ft** from the level;
   - cruise: a level within **1,000 ft** of the plan's cruise altitude; without a plan, a level above **10,000 ft**
@@ -155,7 +158,7 @@ sample per line, and two comment lines `# block_out <time>` and `# block_in <tim
   ```cpp
   TEST(PhaseDetector, ReplaysKbfiKpdx) {
       // plan: cruise 20000, TA 18000, TL 18000, destination KPDX 45.5887, -122.5975
-      // phases: pushback 22:51:08, taxi_out 22:54:17, takeoff 22:56:16, climb 22:56:51, cruise 23:03:10 (20000),
+      // phases: pushback 22:51:08, taxi_out 22:54:17, takeoff 22:56:08 (40 kt at 22:56:16), climb 22:56:51, cruise 23:03:10 (20000),
       //         descent 23:04:32, approach 23:12:34, landing 23:27:16, taxi_in 23:27:40
       // levels: climb 2000 @22:57:15 (ended 2000 @22:57:57), climb 11000 @23:00:05 (ended 11000 @23:00:31),
       //         descent 10000 @23:11:40, approach 5000 @23:17:38, approach 2000 @23:23:55
@@ -163,7 +166,7 @@ sample per line, and two comment lines `# block_out <time>` and `# block_in <tim
   }
   TEST(PhaseDetector, ReplaysKpdxKsfo) {
       // plan: cruise 39000, TA 18000, TL 18000, destination KSFO 37.6190, -122.3750
-      // phases: pushback 23:54:32, taxi_out 23:57:43, takeoff 00:03:21, climb 00:04:06, cruise 00:23:12 (39000),
+      // phases: pushback 23:54:32, taxi_out 23:57:43, takeoff 00:03:13 (40 kt at 00:03:21), climb 00:04:06, cruise 00:23:12 (39000),
       //         descent 00:56:25, approach 01:18:19, landing 01:30:29, taxi_in 01:30:43
       // levels: descent 11000 @01:16:28, approach 6000 @01:20:35, approach 4000 @01:23:15,
       //         approach 3100 @01:25:02 ended 3000 @01:26:25 (the window mean vs the whole level's mean)
@@ -182,11 +185,17 @@ sample per line, and two comment lines `# block_out <time>` and `# block_in <tim
     3,000 ft: Approach again;
   - `FreezeAddsNothingToAHold`: level at 11,000 ft for 10 s of active time, then one sample 51 s later whose
     `activeS` is only 2 s on: no `LevelOff`;
-  - `PushbackEndsWithoutABrakeSet`: no brake set, ground speed 7 kt: TaxiOut.
+  - `PushbackEndsWithoutABrakeSet`: no brake set, ground speed 7 kt: TaxiOut;
+  - `RollingTakeoffTimedFromTheAcceleration`: taxi steady at 12 kt, then +5 kt a second: Takeoff is reported on the
+    first sample at 40 kt, with the time of the 12 kt sample just before the speed started rising;
+  - `StandingTakeoffTimedFromTheStop`: stopped at 0 kt (lined up), then accelerating: the time is the last 0 kt
+    sample;
+  - `FastTaxiIsNotATakeoff`: 30 kt on the ground for a minute: still TaxiOut.
 - [ ] **Step 2: Run `--gtest_filter=PhaseDetector.*`.** Expected: fails to compile (no `phase_detector.h`).
 - [ ] **Step 3: Implement `ActiveClock` (header-only) and `PhaseDetector`** with the D-124 numbers as `inline constexpr`
   constants. The level window resets whenever a sample is more than 100 ft from the window's first sample; a level is
-  confirmed once `activeS − windowStartActiveS ≥ 20`, and its time is the window's first sample. In Cruise, leaving
+  confirmed once `activeS − windowStartActiveS ≥ 20`, and its time is the window's first sample. In TaxiOut, keep
+  the last 60 s of samples for the takeoff walk-back. In Cruise, leaving
   the level upward is a `StepClimb` at once; leaving it downward waits for the descent hold, which is top of descent
   inside the range and a `StepClimb` (its `fromFt` above the new level) outside it.
 - [ ] **Step 4: Run the suite.** Expected: all pass. If a replay time is off by more than 3 s, find which rule

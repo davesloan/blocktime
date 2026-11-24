@@ -1789,7 +1789,11 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Decision: recorder.md's phase rules get these starting values (constants in `phase_detector.h`):
   - **Pushback → Taxi out:** the brake set after block out (the push's end), then 3 kt with the brake off; or 6 kt at
     any time, for a departure without a push. GSX pushes ran at about 4 kt and taxiing at up to 23 kt.
-  - **Takeoff** at 40 kt on the ground; **Climb** once airborne at 1,000 ft AGL.
+  - **Takeoff** is confirmed at 40 kt on the ground, so a fast taxi never counts. It's timed from where the
+    acceleration began: walk back from the 40 kt sample while each earlier sample is at least 0.5 kt slower than
+    the next. The sim has no takeoff-roll signal, and on Dave's rolling takeoffs 40 kt came 7-8 s after the roll
+    began (Dave asked, 2026-11-23).
+  - **Climb** once airborne at 1,000 ft AGL.
   - **Level:** indicated altitude within ±100 ft for 20 s of active time (D-058). It's reported at the nearest
     100 ft of the samples' mean, and ends more than 200 ft away.
   - **Cruise:** a level within 1,000 ft of the plan's cruise altitude. With no plan, a level above 10,000 ft held
