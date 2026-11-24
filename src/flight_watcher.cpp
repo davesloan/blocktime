@@ -35,6 +35,7 @@ void FlightWatcher::onBlockEvent(const QString& type, const QString& flightId) {
         destination_ = t ? QString::fromStdString(t->destinationIcao) : QString();
         comms_.reset();
         atis_.reset();
+        destinationDone_ = false;
         fetchAtc();
         atcTimer_.start();
         if (!origin_.isEmpty()) {
@@ -56,11 +57,14 @@ void FlightWatcher::onFlightEvent(const QString& type, const QVariantMap& data) 
     // liftoff and touchdown are the cues; the phase changes cover a flight where either wasn't logged.
     if (type == "liftoff" || (type == "phase_changed" && phase == "climb")) {
         originTimer_.stop();
-    } else if (type == "phase_changed" && phase == "descent" && !destination_.isEmpty()) {
+    } else if (type == "phase_changed" && (phase == "descent" || phase == "approach") && !destination_.isEmpty() &&
+               !destinationTimer_.isActive() && !destinationDone_) {
+        // Top of descent, or Approach straight from Cruise when no descent was confirmed (D-124).
         fetchAtis(destination_, QStringLiteral("destination"));
         destinationTimer_.start();
     } else if (type == "touchdown" || (type == "phase_changed" && phase == "landing")) {
         destinationTimer_.stop();
+        destinationDone_ = true;
     }
 }
 

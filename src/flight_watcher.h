@@ -44,6 +44,7 @@ private:
     blocktime::AppEventQueue& queue_;
     QTimer atcTimer_, originTimer_, destinationTimer_;
     QString flightId_, origin_, destination_;
+    bool destinationDone_ = false;  // touched down: no more destination ATIS this flight
     blocktime::CommsDedupe comms_;
     blocktime::AtisDedupe atis_;
 };

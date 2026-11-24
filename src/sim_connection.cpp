@@ -372,7 +372,7 @@ bool SimConnection::pump() {
             log_.write("sim_responsive", {{"silent_s", secondsSince(lastMessage_)}});
         }
         lastMessage_ = Clock::now();
-        clock_.onMessage(lastMessage_);
+        clock_.onMessage(lastMessage_, pauseFlags_ <= 0);  // a pause adds nothing to phase holds (D-058)
         handleMessage(msg, size);
     }
     if (processGone && !lost_) markLost("sim_process_gone");

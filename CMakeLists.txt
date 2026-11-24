@@ -171,7 +171,8 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/flight_tracker_test.cpp
     tests/app_event_queue_test.cpp
     tests/atc_log_test.cpp
-    tests/flight_stages_test.cpp)
+    tests/flight_stages_test.cpp
+    tests/active_clock_test.cpp)
   target_link_libraries(blocktime-tests PRIVATE blocktime-core GTest::gtest_main)
   # Tests read the repo's config files (config/catalog.yaml, config/airline.example.yaml).
   target_compile_definitions(blocktime-tests PRIVATE BLOCKTIME_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

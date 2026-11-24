@@ -1362,3 +1362,16 @@ TEST(RecorderBridge, StagesResetOnInterrupt) {
     EXPECT_TRUE(stage(b, 1)["lines"].toList().isEmpty());
     EXPECT_EQ(stage(b, 0)["state"].toString(), "current");
 }
+
+TEST(FlightWatcher, DestinationStartsAtApproachWithoutADescent) {
+    WatcherRig r;
+    r.blockOut();
+    r.flight("liftoff");
+    r.planner.wxCalls.clear();
+    r.flight("phase_changed", {{"phase", "approach"}});  // Cruise straight to Approach (D-124's fallback)
+    ASSERT_FALSE(r.planner.wxCalls.isEmpty());
+    EXPECT_EQ(r.planner.wxCalls.front(), "KPDX");
+    r.planner.wxCalls.clear();
+    r.flight("phase_changed", {{"phase", "approach"}});  // after a go-around: already polling, no extra call
+    EXPECT_TRUE(r.planner.wxCalls.isEmpty());
+}
