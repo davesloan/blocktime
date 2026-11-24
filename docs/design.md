@@ -427,6 +427,9 @@ as they happen, each with its start and end time. The same records go into the f
 - **The card spans the gate (milestone 8, D-134).** Before block out it shows the next leg: Pre-Departure with the GSX
   services so far, whenever a flight is planned or a service has run. After block in it stays under the summary with
   the flight's Arrival stage. It switches to the next leg at At Gate Turnaround, Done for now, or a new plan.
+- **Three columns (milestone 9, D-139).** Below the planned flight header (which stays full width), Live's row has
+  three columns: the Flight progress card on the left, the flight panel in the middle, and the running event log on
+  the right. The progress card no longer runs full width. The flight summary is unchanged.
 - **Departure runway:** from the takeoff position and heading, matched against the sim's runways.
 - **Transition altitude and level, and "200 nm from destination":** from the SimBrief plan.
 - **GSX services (D-073, D-138):** each service shows as its own line with start and end: "Catering",

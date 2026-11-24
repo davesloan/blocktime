@@ -2057,3 +2057,15 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   record; the app derives spans the same way for Live and for settling.
 - Alternatives considered: the requested time as the start (catering sat at requested for minutes waiting for its
   truck); logging every passenger count change (boarding logs one line every few seconds).
+
+## D-139 — Live in three columns
+- Date: 2026-11-24
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: In milestone 9, the Flight progress card moves out of the full width into Live's row, so the row has
+  three columns: Flight progress on the left, the flight panel in the middle, the running event log on the right.
+  The planned flight header stays full width above it; the flight summary is unchanged.
+- Why: The progress card only ran full width because milestone 8 put it under the header (D-134); nothing needs it
+  that wide, and side by side the stages, the live data and the log all fit on screen during a flight.
+- Alternatives considered: today's layout (progress full width under the header, then data and log in a row).
