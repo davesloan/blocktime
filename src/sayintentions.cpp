@@ -20,6 +20,7 @@ std::string field(const json& airport, const char* name) {
     if (f == airport.end()) return {};
     if (f->is_string()) return f->get<std::string>();
     if (f->is_number_integer()) return std::to_string(f->get<long long>());
+    if (f->is_number_float()) return f->dump();
     return {};
 }
 
@@ -48,6 +49,41 @@ AtisRunways parseAtisRunways(std::string_view body, std::string_view origin, std
     const json root = json::parse(body, nullptr, false);
     if (root.is_discarded() || !root.is_object()) return {};
     return {runwayFor(root, origin, "active_runways_departing"), runwayFor(root, destination, "active_runways_arriving")};
+}
+
+std::string getWxUrl(std::string_view apiKey, std::string_view icao) {
+    return "https://apipri.sayintentions.ai/sapi/getWX?api_key=" + percentEncode(apiKey) + "&icao=" +
+           percentEncode(icao);
+}
+
+std::string commsHistoryUrl(std::string_view apiKey) {
+    return "https://apipri.sayintentions.ai/sapi/getCommsHistory?api_key=" + percentEncode(apiKey);
+}
+
+std::optional<Atis> parseAtis(std::string_view body, std::string_view icao) {
+    const json root = json::parse(body, nullptr, false);
+    if (root.is_discarded() || !root.is_object()) return std::nullopt;
+    const auto airports = root.find("airports");
+    if (airports == root.end() || !airports->is_array()) return std::nullopt;
+    for (const json& a : *airports) {
+        if (!a.is_object() || field(a, "airport") != icao) continue;
+        return Atis{std::string(icao),        field(a, "current"),  field(a, "atis"),
+                    field(a, "metar"),        field(a, "altimeter"), field(a, "active_runways_departing"),
+                    field(a, "active_runways_arriving")};
+    }
+    return std::nullopt;
+}
+
+std::optional<CommsHistory> parseCommsHistory(std::string_view body) {
+    const json root = json::parse(body, nullptr, false);
+    if (root.is_discarded() || !root.is_object()) return std::nullopt;
+    const auto history = root.find("comm_history");
+    if (history == root.end() || !history->is_array()) return std::nullopt;
+    CommsHistory h;
+    h.flightId = field(root, "flight_id");
+    for (const json& e : *history)
+        if (e.is_object()) h.entries.push_back(e);
+    return h;
 }
 
 std::string atisError(std::string_view body) {

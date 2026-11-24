@@ -8,8 +8,12 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
+
+#include <nlohmann/json.hpp>
 
 namespace blocktime {
 
@@ -29,5 +33,24 @@ std::string atisError(std::string_view json);
 
 // "9R" → "09R"; "" for anything that isn't 1-2 digits and an optional L, R or C.
 std::string normalizeRunway(std::string_view runway);
+
+// ---- During the flight (D-123): the ATIS and the ATC log, for milestone 10's analysis ----
+
+std::string getWxUrl(std::string_view apiKey, std::string_view icao);  // one airport
+std::string commsHistoryUrl(std::string_view apiKey);                  // getCommsHistory, no since_id (D-127)
+
+// One airport's ATIS from getWX's live fields (letter is "current", text is "atis"). Numbers come back as text.
+struct Atis {
+    std::string icao, letter, text, metar, altimeter, departing, arriving;
+};
+// nullopt for an error, an answer that isn't getWX's, or an airport not in it.
+std::optional<Atis> parseAtis(std::string_view json, std::string_view icao);
+
+// getCommsHistory's answer: SayIntentions' flight id and each exchange as it came (logged verbatim).
+struct CommsHistory {
+    std::string flightId;
+    std::vector<nlohmann::json> entries;
+};
+std::optional<CommsHistory> parseCommsHistory(std::string_view json);
 
 }  // namespace blocktime

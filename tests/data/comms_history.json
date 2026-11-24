@@ -1,0 +1,19 @@
+{
+  "flight_id": 987654321,
+  "comm_history": [
+    {"id": 12345, "ident": "XLY8", "copilot": 0, "lat": 47.5367, "lon": -122.3125, "frequency": "121.900",
+     "is_acars": 0, "channel": "COM1", "stamp_zulu": "2026-11-23T22:47:10Z", "station_name": "Boeing Ground",
+     "incoming_message": "Boeing Ground, Xly 8 at the south ramp with Kilo, ready to taxi.",
+     "incoming_message_english": "Boeing Ground, Xly 8 at the south ramp with Kilo, ready to taxi.",
+     "outgoing_message": "Xly 8, Boeing Ground, runway 14R, taxi via Alpha.",
+     "outgoing_message_english": "Xly 8, Boeing Ground, runway 14R, taxi via Alpha.",
+     "language": "en", "atc_url": "https://example.invalid/atc/12345.mp3", "pilot_url": ""},
+    {"id": 12346, "ident": "XLY8", "copilot": 0, "lat": 47.5301, "lon": -122.3050, "frequency": "120.600",
+     "is_acars": 0, "channel": "COM1", "stamp_zulu": "2026-11-23T22:55:40Z", "station_name": "Boeing Tower",
+     "incoming_message": "Boeing Tower, Xly 8 holding short 14R, ready.",
+     "incoming_message_english": "Boeing Tower, Xly 8 holding short 14R, ready.",
+     "outgoing_message": "", "outgoing_message_english": "",
+     "language": "en", "atc_url": "", "pilot_url": ""}
+  ],
+  "mission": {"mission_id": null, "mission_type": null, "status": null}
+}

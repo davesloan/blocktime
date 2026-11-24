@@ -71,3 +71,32 @@ TEST(Atis, ErrorText) {  // review finding 2: a bad key must not look like "no A
     EXPECT_EQ(atisError(R"({"airports":[]})"), "");
     EXPECT_EQ(atisError("not json"), "");
 }
+
+TEST(Atis, ParsesTheLiveFields) {
+    const auto a = parseAtis(fixture("getwx_live.json"), "KBFI");
+    ASSERT_TRUE(a.has_value());
+    EXPECT_EQ(a->icao, "KBFI");
+    EXPECT_EQ(a->letter, "K");
+    EXPECT_EQ(a->altimeter, "30.02");
+    EXPECT_EQ(a->departing, "14R,14L");
+    EXPECT_EQ(a->arriving, "14R");
+    EXPECT_EQ(a->text.rfind("Boeing Field information Kilo", 0), 0u);
+}
+
+TEST(Atis, NumbersComeBackAsText) {
+    const auto a = parseAtis(R"({"airports":[{"airport":"KSFO","current":"C","atis":"x","altimeter":29.92}]})", "KSFO");
+    ASSERT_TRUE(a.has_value());
+    EXPECT_EQ(a->altimeter, "29.92");
+}
+
+TEST(Atis, ErrorOrUnknownAirportIsNothing) {
+    EXPECT_FALSE(parseAtis(R"({"error":"The provided API key is invalid."})", "KBFI").has_value());
+    EXPECT_FALSE(parseAtis(R"({"airports":[]})", "KBFI").has_value());
+    EXPECT_FALSE(parseAtis(fixture("getwx_live.json"), "KSFO").has_value());
+    EXPECT_FALSE(parseAtis("not json", "KBFI").has_value());
+}
+
+TEST(Atis, OneAirportUrl) {
+    EXPECT_EQ(getWxUrl("k e y", "KBFI"), "https://apipri.sayintentions.ai/sapi/getWX?api_key=k%20e%20y&icao=KBFI");
+    EXPECT_EQ(commsHistoryUrl("abc"), "https://apipri.sayintentions.ai/sapi/getCommsHistory?api_key=abc");
+}
