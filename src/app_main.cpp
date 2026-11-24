@@ -183,6 +183,7 @@ int main(int argc, char* argv[]) {
     RecorderBridge bridge;
     BridgeObserver observer(bridge);
     blocktime::FlightTargetSlot flightTarget;  // the planned flight, for the recorder's matching check (D-088)
+    blocktime::AppEventQueue appEvents;        // the app's web results, written to the log by the recorder (D-127)
     // Demo mode records nothing, so it doesn't take the recorder mutex (a recording copy can run beside it).
     std::optional<blocktime::SingleInstance> instance;
     if (!demo) instance.emplace();
@@ -202,7 +203,7 @@ int main(int argc, char* argv[]) {
         fillDemo(bridge);
     } else if (instance->acquired()) {
         worker = std::jthread([&] {
-            const int result = blocktime::Recorder(logDir, observer, flightTarget, recorderOptions).run(stop);
+            const int result = blocktime::Recorder(logDir, observer, flightTarget, appEvents, recorderOptions).run(stop);
             QMetaObject::invokeMethod(&bridge, [&bridge, result] { bridge.applyStopped(result); },
                                       Qt::QueuedConnection);
         });

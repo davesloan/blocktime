@@ -59,6 +59,7 @@ add_library(blocktime-core STATIC
   src/airline_queries.cpp
   src/airline_session.cpp
   src/airport_import.cpp
+  src/app_event_queue.cpp
   src/app_settings.cpp
   src/dates.cpp
   src/error_log.cpp
@@ -165,7 +166,8 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/phase_detector_test.cpp
     tests/runway_match_test.cpp
     tests/touchdown_capture_test.cpp
-    tests/flight_tracker_test.cpp)
+    tests/flight_tracker_test.cpp
+    tests/app_event_queue_test.cpp)
   target_link_libraries(blocktime-tests PRIVATE blocktime-core GTest::gtest_main)
   # Tests read the repo's config files (config/catalog.yaml, config/airline.example.yaml).
   target_compile_definitions(blocktime-tests PRIVATE BLOCKTIME_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

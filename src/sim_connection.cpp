@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <format>
 #include <iostream>
@@ -38,13 +39,70 @@ constexpr auto kHandshakeTimeoutNoProcess = std::chrono::minutes(5);
 // MSFS 2020 process name (assumed the same for Steam and MS Store installs; unverified for Steam).
 constexpr wchar_t kSimExeName[] = L"FlightSimulator.exe";
 
-enum DefinitionId : SIMCONNECT_DATA_DEFINITION_ID { DEF_TELEMETRY = 1 };
+enum DefinitionId : SIMCONNECT_DATA_DEFINITION_ID {
+    DEF_TELEMETRY = 1,
+    DEF_TOUCHDOWN = 2,  // milestone 7's: each its own definition, so a name the sim refuses drops only that one
+    DEF_BARO_MB = 3,
+    DEF_BARO_STD = 4,
+    DEF_RUNWAYS = 5
+};
 
 enum RequestId : SIMCONNECT_DATA_REQUEST_ID {
-    REQ_TELEMETRY = 1,        // periodic, once a second, only on change
-    REQ_SNAPSHOT = 2,         // one-off full sample (after sim start / aircraft load / unpause)
-    REQ_SIM_STATE = 10,       // RequestSystemState("Sim")
-    REQ_AIRCRAFT_LOADED = 11  // RequestSystemState("AircraftLoaded")
+    REQ_TELEMETRY = 1,         // periodic, once a second, only on change
+    REQ_SNAPSHOT = 2,          // one-off full sample (after sim start / aircraft load / unpause)
+    REQ_TOUCHDOWN = 3,         // every sim frame, only while fast sampling is on (D-125)
+    REQ_BARO_MB = 4,           // the altimeter settings, once a second on change (D-123)
+    REQ_BARO_STD = 5,
+    REQ_SIM_STATE = 10,        // RequestSystemState("Sim")
+    REQ_AIRCRAFT_LOADED = 11,  // RequestSystemState("AircraftLoaded")
+    REQ_RUNWAYS_FIRST = 20,    // facility data, one per airport asked for (D-126)
+    REQ_RUNWAYS_COUNT = 20
+};
+
+#pragma pack(push, 1)
+struct TouchdownRecord {
+    double vsFpm;
+    std::int32_t onGround;
+    double aglFt, gForce, iasKt, lat, lon;
+};
+struct BaroMbRecord {
+    double capt, fo;
+};
+struct BaroStdRecord {
+    std::int32_t capt, fo;
+};
+// The probe's facility layout (sim_probe.cpp), confirmed on the first probe flights.
+struct RunwayFacilityRecord {
+    double lat, lon, alt;
+    float heading, length, width;
+    std::int32_t primaryNumber, primaryDesignator, secondaryNumber, secondaryDesignator;
+};
+#pragma pack(pop)
+
+struct FlightVar {
+    const char* name;
+    const char* units;
+    SIMCONNECT_DATATYPE type;
+};
+constexpr FlightVar kTouchdownVars[] = {
+    {"VERTICAL SPEED", "feet per minute", SIMCONNECT_DATATYPE_FLOAT64},
+    {"SIM ON GROUND", "bool", SIMCONNECT_DATATYPE_INT32},
+    {"PLANE ALT ABOVE GROUND", "feet", SIMCONNECT_DATATYPE_FLOAT64},
+    {"G FORCE", "GForce", SIMCONNECT_DATATYPE_FLOAT64},
+    {"AIRSPEED INDICATED", "knots", SIMCONNECT_DATATYPE_FLOAT64},
+    {"PLANE LATITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64},
+    {"PLANE LONGITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64},
+};
+// Two definitions, as in the probe: a refused STD name can't take the millibar values down with it.
+constexpr FlightVar kBaroMbVars[] = {{"KOHLSMAN SETTING MB:1", "millibars", SIMCONNECT_DATATYPE_FLOAT64},
+                                     {"KOHLSMAN SETTING MB:2", "millibars", SIMCONNECT_DATATYPE_FLOAT64}};
+constexpr FlightVar kBaroStdVars[] = {{"KOHLSMAN SETTING STD:1", "bool", SIMCONNECT_DATATYPE_INT32},
+                                      {"KOHLSMAN SETTING STD:2", "bool", SIMCONNECT_DATATYPE_INT32}};
+constexpr const char* kRunwayFields[] = {
+    "OPEN AIRPORT", "LATITUDE", "LONGITUDE", "ALTITUDE",
+    "OPEN RUNWAY", "LATITUDE", "LONGITUDE", "ALTITUDE", "HEADING", "LENGTH", "WIDTH", "PRIMARY_NUMBER",
+    "PRIMARY_DESIGNATOR", "SECONDARY_NUMBER", "SECONDARY_DESIGNATOR", "CLOSE RUNWAY",
+    "CLOSE AIRPORT",
 };
 
 enum EventId : SIMCONNECT_CLIENT_EVENT_ID { EVT_SIM = 1, EVT_PAUSE = 2, EVT_AIRCRAFT_LOADED = 3 };
@@ -144,6 +202,32 @@ void SimConnection::requestProbeFacilities(const std::vector<std::string>& icaos
     if (probe_ && handle_ != nullptr && handshake_) probe_->requestFacilities(handle_, icaos);
 }
 
+void SimConnection::setFlightCallbacks(FastSampleCallback onFast, AltimeterCallback onAltimeter,
+                                       RunwaysCallback onRunways) {
+    onFast_ = std::move(onFast);
+    onAltimeter_ = std::move(onAltimeter);
+    onRunways_ = std::move(onRunways);
+}
+
+bool SimConnection::requestRunways(const std::vector<std::string>& icaos) {
+    if (handle_ == nullptr || !handshake_) return false;
+    for (const std::string& icao : icaos) {
+        if (icao.empty()) continue;
+        const unsigned long id = REQ_RUNWAYS_FIRST + nextRunwayRequest_++ % REQ_RUNWAYS_COUNT;
+        runwayRequests_[id] = AirportRunways{icao, {}};
+        check(SimConnect_RequestFacilityData(h(handle_), DEF_RUNWAYS, id, icao.c_str()), "runways request");
+    }
+    return true;
+}
+
+void SimConnection::setFastSampling(bool on) {
+    if (on == fastOn_ || handle_ == nullptr || !handshake_) return;
+    fastOn_ = on;
+    check(SimConnect_RequestDataOnSimObject(h(handle_), REQ_TOUCHDOWN, DEF_TOUCHDOWN, SIMCONNECT_OBJECT_ID_USER,
+                                            on ? SIMCONNECT_PERIOD_SIM_FRAME : SIMCONNECT_PERIOD_NEVER),
+          "touchdown request");
+}
+
 SimConnection::~SimConnection() { close("recorder_exit"); }
 
 void SimConnection::markLost(const char* reason) {
@@ -194,6 +278,8 @@ bool SimConnection::open() {
     unresponsive_ = false;
     sent_ = {};
     sentNext_ = 0;
+    fastOn_ = false;
+    runwayRequests_.clear();
     lastMessage_ = lastHeartbeat_ = Clock::now();
 
     if (!setup()) {
@@ -220,6 +306,23 @@ bool SimConnection::setup() {
     ok &= check(SimConnect_RequestSystemState(h(handle_), REQ_SIM_STATE, "Sim"), "state Sim");
     ok &= check(SimConnect_RequestSystemState(h(handle_), REQ_AIRCRAFT_LOADED, "AircraftLoaded"),
                 "state AircraftLoaded");
+    // Milestone 7's requests don't decide whether the session works either: a refused name shows as a
+    // simconnect_exception and only that request is lost.
+    const auto define = [&](SIMCONNECT_DATA_DEFINITION_ID def, const auto& vars) {
+        for (const FlightVar& v : vars) {
+            check(SimConnect_AddToDataDefinition(h(handle_), def, v.name, v.units, v.type), v.name);
+        }
+    };
+    define(DEF_TOUCHDOWN, kTouchdownVars);
+    define(DEF_BARO_MB, kBaroMbVars);
+    define(DEF_BARO_STD, kBaroStdVars);
+    check(SimConnect_RequestDataOnSimObject(h(handle_), REQ_BARO_MB, DEF_BARO_MB, SIMCONNECT_OBJECT_ID_USER,
+                                            SIMCONNECT_PERIOD_SECOND, SIMCONNECT_DATA_REQUEST_FLAG_CHANGED),
+          "altimeter request");
+    check(SimConnect_RequestDataOnSimObject(h(handle_), REQ_BARO_STD, DEF_BARO_STD, SIMCONNECT_OBJECT_ID_USER,
+                                            SIMCONNECT_PERIOD_SECOND, SIMCONNECT_DATA_REQUEST_FLAG_CHANGED),
+          "altimeter STD request");
+    for (const char* f : kRunwayFields) check(SimConnect_AddToFacilityDefinition(h(handle_), DEF_RUNWAYS, f), f);
     // The probe's requests don't decide whether the session works: a failure is logged, not fatal (D-116).
     if (probe_ && !probe_->setup(handle_)) log_.write("warning", {{"message", "probe setup failed in part"}});
     return ok;
@@ -269,6 +372,7 @@ bool SimConnection::pump() {
             log_.write("sim_responsive", {{"silent_s", secondsSince(lastMessage_)}});
         }
         lastMessage_ = Clock::now();
+        clock_.onMessage(lastMessage_);
         handleMessage(msg, size);
     }
     if (processGone && !lost_) markLost("sim_process_gone");
@@ -349,8 +453,36 @@ void SimConnection::handleMessage(const void* raw, unsigned long size) {
                                                            size - offset);
                 break;
             }
-            if (d->dwRequestID != REQ_TELEMETRY && d->dwRequestID != REQ_SNAPSHOT) break;
             const std::size_t offset = offsetof(SIMCONNECT_RECV_SIMOBJECT_DATA, dwData);
+            const char* data = reinterpret_cast<const char*>(d) + offset;
+            const std::size_t dataSize = size > offset ? size - offset : 0;
+            if (d->dwRequestID == REQ_TOUCHDOWN) {
+                TouchdownRecord r{};
+                if (dataSize < sizeof(r) || !onFast_) break;
+                std::memcpy(&r, data, sizeof(r));
+                onFast_(FastSample{std::chrono::system_clock::now(), r.onGround != 0, r.vsFpm, r.aglFt, r.gForce,
+                                   r.iasKt, r.lat, r.lon});
+                break;
+            }
+            if (d->dwRequestID == REQ_BARO_MB) {
+                BaroMbRecord r{};
+                if (dataSize < sizeof(r)) break;
+                std::memcpy(&r, data, sizeof(r));
+                baroMb_[0] = r.capt;
+                baroMb_[1] = r.fo;
+                if (onAltimeter_) onAltimeter_(AltimeterSample{baroMb_[0], baroMb_[1], baroStd_[0], baroStd_[1]});
+                break;
+            }
+            if (d->dwRequestID == REQ_BARO_STD) {
+                BaroStdRecord r{};
+                if (dataSize < sizeof(r)) break;
+                std::memcpy(&r, data, sizeof(r));
+                baroStd_[0] = r.capt != 0;
+                baroStd_[1] = r.fo != 0;
+                if (onAltimeter_) onAltimeter_(AltimeterSample{baroMb_[0], baroMb_[1], baroStd_[0], baroStd_[1]});
+                break;
+            }
+            if (d->dwRequestID != REQ_TELEMETRY && d->dwRequestID != REQ_SNAPSHOT) break;
             if (size < offset + sizeof(TelemetrySample)) {
                 log_.write("simconnect_exception", {{"name", "SHORT_TELEMETRY_PACKET"}, {"size", size}});
                 break;
@@ -368,12 +500,33 @@ void SimConnection::handleMessage(const void* raw, unsigned long size) {
             }
             break;
         }
-        case SIMCONNECT_RECV_ID_FACILITY_DATA:
-            if (probe_) probe_->onFacilityData(msg);
+        case SIMCONNECT_RECV_ID_FACILITY_DATA: {
+            const auto* r = static_cast<const SIMCONNECT_RECV_FACILITY_DATA*>(msg);
+            const auto it = runwayRequests_.find(r->UserRequestId);
+            if (it == runwayRequests_.end()) {
+                if (probe_) probe_->onFacilityData(msg);
+                break;
+            }
+            const std::size_t offset = offsetof(SIMCONNECT_RECV_FACILITY_DATA, Data);
+            RunwayFacilityRecord w{};
+            if (r->Type == SIMCONNECT_FACILITY_DATA_RUNWAY && r->dwSize >= offset + sizeof(w)) {
+                std::memcpy(&w, &r->Data, sizeof(w));
+                it->second.runways.push_back(Runway{w.lat, w.lon, w.heading, w.length, w.width, w.primaryNumber,
+                                                    w.primaryDesignator, w.secondaryNumber, w.secondaryDesignator});
+            }
             break;
-        case SIMCONNECT_RECV_ID_FACILITY_DATA_END:
-            if (probe_) probe_->onFacilityDataEnd(static_cast<const SIMCONNECT_RECV_FACILITY_DATA_END*>(msg)->RequestId);
+        }
+        case SIMCONNECT_RECV_ID_FACILITY_DATA_END: {
+            const DWORD id = static_cast<const SIMCONNECT_RECV_FACILITY_DATA_END*>(msg)->RequestId;
+            const auto it = runwayRequests_.find(id);
+            if (it == runwayRequests_.end()) {
+                if (probe_) probe_->onFacilityDataEnd(id);
+                break;
+            }
+            if (onRunways_) onRunways_(std::move(it->second));
+            runwayRequests_.erase(it);
             break;
+        }
         default:
             break;
     }

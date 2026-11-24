@@ -213,3 +213,24 @@ TEST(Planned, NearMlw) {
     v.plan->estLandingWeightLb = 138900;
     EXPECT_FALSE(nearMlw(v));
 }
+
+TEST(Planned, TargetCarriesThePlan) {
+    db::Database db = test::testAirline();
+    std::string error;
+    const auto id = createPlannedFlight(db, vipToKsan(db), &error);
+    ASSERT_TRUE(id.has_value()) << error;
+    auto t = flightTarget(db, *currentPlannedFlight(db));
+    ASSERT_TRUE(t.has_value());
+    EXPECT_NEAR(t->destinationLat, 32.7336, 1e-9);  // KSAN, known before any plan
+    EXPECT_NEAR(t->destinationLon, -117.19, 1e-9);
+    EXPECT_EQ(t->cruiseAltitudeFt, 0);
+    EXPECT_EQ(t->transitionAltitudeFt, 0);
+    EXPECT_EQ(t->transitionLevelFt, 0);
+
+    ASSERT_TRUE(storeSimbriefPlan(db, *id, fixturePlan(), fixture("ofp_v2_min.json"), "2026-11-23T14:05:00Z", &error));
+    t = flightTarget(db, *currentPlannedFlight(db));
+    ASSERT_TRUE(t.has_value());
+    EXPECT_EQ(t->cruiseAltitudeFt, 37000);
+    EXPECT_EQ(t->transitionAltitudeFt, 18000);
+    EXPECT_EQ(t->transitionLevelFt, 18000);
+}

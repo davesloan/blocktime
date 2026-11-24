@@ -5,6 +5,8 @@
 #include "recorder_bridge.h"
 
 #include <QDesktopServices>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLocale>
 #include <QMetaObject>
 #include <QRegularExpression>
@@ -155,6 +157,10 @@ void RecorderBridge::setBlocked() {
                         "one, then restart this one.");
 }
 
+void RecorderBridge::applyFlightEvent(const QString& type, const QVariantMap& data) {
+    emit flightEvent(type, data);
+}
+
 void RecorderBridge::applyStopped(int result) {
     if (result != 0) events_.add("warn", "Couldn't write to the log folder, so nothing is being recorded.");
 }
@@ -187,4 +193,10 @@ void BridgeObserver::onBlockEvent(const BlockEvent& e) {
 
 void BridgeObserver::onMatch(const MatchResult& m) {
     QMetaObject::invokeMethod(&bridge_, [b = &bridge_, m] { b->applyMatch(m); }, Qt::QueuedConnection);
+}
+
+void BridgeObserver::onFlightEvent(const std::string& type, const nlohmann::json& data) {
+    const QString t = QString::fromStdString(type);
+    const QVariantMap d = QJsonDocument::fromJson(QByteArray::fromStdString(data.dump())).object().toVariantMap();
+    QMetaObject::invokeMethod(&bridge_, [b = &bridge_, t, d] { b->applyFlightEvent(t, d); }, Qt::QueuedConnection);
 }

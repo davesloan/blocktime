@@ -8,6 +8,7 @@
 #include "recorder.h"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstring>
 #include <format>
@@ -17,6 +18,7 @@
 
 #include "event_log.h"
 #include "event_outbox.h"
+#include "flight_tracker.h"
 #include "geo.h"
 #include "open_flight.h"
 #include "sim_connection.h"
@@ -69,6 +71,7 @@ nlohmann::json toJson(const TelemetrySample& s) {
         {"vs_fpm", s.verticalSpeedFpm},
         {"gs_kt", s.groundSpeedKt},
         {"ias_kt", s.indicatedAirspeedKt},
+        {"heading_true_deg", s.headingTrueDeg},
         {"engines", s.numEngines},
         {"eng_running", engRunning(s)},
         {"fuel_flow_pph", totalFuelFlow(s)},
@@ -160,8 +163,38 @@ void logBlockEvent(EventOutbox& outbox, RecorderObserver& observer, const BlockE
     observer.onBlockEvent(event);
 }
 
-void endSession(EventOutbox& outbox, RecorderObserver& observer, BlockDetector& detector, std::string_view reason) {
-    if (auto e = detector.onSessionEnded(reason)) logBlockEvent(outbox, observer, *e);
+PhaseSample toPhaseSample(const TelemetrySample& s, TimePoint time, double activeS) {
+    PhaseSample p;
+    p.time = time;
+    p.activeS = activeS;
+    p.parkingBrake = s.parkingBrake != 0;
+    p.onGround = s.onGround != 0;
+    p.altFt = s.indicatedAltitudeFt;
+    p.aglFt = s.altitudeAglFt;
+    p.vsFpm = s.verticalSpeedFpm;
+    p.groundSpeedKt = s.groundSpeedKt;
+    p.lat = s.latitudeDeg;
+    p.lon = s.longitudeDeg;
+    p.iasKt = s.indicatedAirspeedKt;
+    return p;
+}
+
+// A short feed line for the flight events worth seeing as they happen; "" for the rest.
+std::string flightLine(const LogEvent& e) {
+    const std::string now = utcTimestamp().substr(11, 8);
+    if (e.type == "phase_changed") {
+        std::string phase = e.data.value("phase", "");
+        std::transform(phase.begin(), phase.end(), phase.begin(), [](unsigned char c) {
+            return c == '_' ? ' ' : static_cast<char>(std::toupper(c));
+        });
+        return now + "  " + phase;
+    }
+    if (e.type == "liftoff") return now + "  LIFTOFF  " + e.data.value("runway", "");
+    if (e.type == "touchdown") {
+        return std::format("{}  TOUCHDOWN  {:.0f} fpm  {:.2f} g", now, e.data.value("vs_fpm", 0.0),
+                           e.data.value("g", 0.0));
+    }
+    return "";
 }
 
 // Retries held block events at most every 5 s (D-049), so a failing disk isn't hammered every 100 ms.
@@ -191,8 +224,8 @@ int enginesRunning(const TelemetrySample& s) {
 }
 
 Recorder::Recorder(std::filesystem::path logDir, RecorderObserver& observer, const FlightTargetSlot& target,
-                   RecorderOptions options)
-    : logDir_(std::move(logDir)), observer_(observer), target_(target), options_(options) {}
+                   AppEventQueue& appEvents, RecorderOptions options)
+    : logDir_(std::move(logDir)), observer_(observer), target_(target), appEvents_(appEvents), options_(options) {}
 
 int Recorder::run(const std::atomic<bool>& stop) {
     RecorderObserver& observer = observer_;
@@ -208,7 +241,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
         observer.onLine("Previous flight " + *id +
                             " was left open (the recorder didn't close cleanly); logged as interrupted.",
                         false);
-        logBlockEvent(outbox, observer, FlightInterrupted{*id, "recorder_crash"});
+        logBlockEvent(outbox, observer, FlightInterrupted{*id, "recorder_crash"});  // the tracker has no flight yet
     }
 
     TelemetryLogger telemetry(log, observer);
@@ -216,6 +249,39 @@ int Recorder::run(const std::atomic<bool>& stop) {
     BlockDetector detector([&target](const BlockSample& release) { return checkMatch(target.get(), release); });
     std::optional<MatchResult> lastMatch;  // the last one reported; reset at each connect
     SimConnection* simPtr = nullptr;
+
+    // One flight's phases, runways, touchdown and altimeter (milestone 7). Its events are logged, then shown.
+    FlightTracker tracker;
+    const auto writeFlightEvents = [&](const std::vector<LogEvent>& events) {
+        for (const LogEvent& e : events) {
+            log.write(e.type, e.data);
+            observer.onFlightEvent(e.type, e.data);
+            if (const std::string line = flightLine(e); !line.empty()) observer.onLine(line, false);
+        }
+    };
+    // Every block event goes through here, so the tracker opens and closes with the flight.
+    const auto blockEvent = [&](const BlockEvent& e, const TelemetrySample* s) {
+        logBlockEvent(outbox, observer, e);
+        if (const auto* out = std::get_if<BlockOut>(&e)) {
+            writeFlightEvents(tracker.onBlockOut(*out, target.get(), s ? s->indicatedAltitudeFt : 0));
+        } else if (const auto* in = std::get_if<BlockIn>(&e)) {
+            writeFlightEvents(tracker.onBlockIn(*in, s ? s->indicatedAltitudeFt : 0));
+        } else if (std::holds_alternative<FlightInterrupted>(e)) {
+            tracker.onFlightEnded();
+        }
+        if (simPtr) simPtr->setFastSampling(tracker.wantsFastSampling());
+    };
+    const auto endSession = [&](std::string_view reason) {
+        if (auto e = detector.onSessionEnded(reason)) blockEvent(*e, nullptr);
+    };
+    // The airports whose runways were last asked for, so a new planned flight asks again (D-126).
+    std::vector<std::string> runwaysAsked;
+    const auto askRunways = [&](SimConnection& sim) {
+        const auto t = target.get();
+        if (!t) return;
+        std::vector<std::string> want{t->originIcao, t->destinationIcao};
+        if (want != runwaysAsked && sim.requestRunways(want)) runwaysAsked = std::move(want);
+    };
     SimConnection sim(log, [&](const TelemetrySample& s, bool running) {
         // Only samples that pass the junk filter may start or end a flight (D-025).
         if (!telemetry.onSample(s, running)) {
@@ -237,20 +303,34 @@ int Recorder::run(const std::atomic<bool>& stop) {
             }
         }
         if (auto e = detector.onSample(b)) {
-            logBlockEvent(outbox, observer, *e);
+            blockEvent(*e, &s);
             // The probe looks at the airports again after a flight, when the arrival's parking matters (D-116).
             if (options_.probe && std::holds_alternative<BlockIn>(*e)) {
                 if (const auto t = target.get()) simPtr->requestProbeFacilities({t->originIcao, t->destinationIcao});
             }
         }
+        if (tracker.flightOpen()) {
+            writeFlightEvents(tracker.onSample(toPhaseSample(s, b.time, simPtr->activeSeconds())));
+            simPtr->setFastSampling(tracker.wantsFastSampling());
+        }
     }, [&](bool running) {
         // Leaving the flight (main menu, restart, quit) ends it; it is never resumed (D-046, D-047).
         if (!running) {
-            if (auto e = detector.onSimStopped()) logBlockEvent(outbox, observer, *e);
+            if (auto e = detector.onSimStopped()) blockEvent(*e, nullptr);
         }
     }, options_.probe);
 
     simPtr = &sim;
+    sim.setFlightCallbacks(
+        [&](const FastSample& f) {
+            writeFlightEvents(tracker.onFastSample(f));
+            sim.setFastSampling(tracker.wantsFastSampling());
+        },
+        [&](const AltimeterSample& a) { writeFlightEvents(tracker.onAltimeter(a)); },
+        [&](AirportRunways a) {
+            log.write("airport_runways", toJson(a));
+            tracker.setRunways(std::move(a));
+        });
     if (options_.probe) observer.onLine("Probe on: logging GSX, PMDG and airport data (D-116).", false);
     auto waitingSince = std::chrono::steady_clock::now();
     bool announcedWaiting = false;
@@ -258,6 +338,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
 
     while (!stop) {
         retry.tick();
+        for (const LogEvent& e : appEvents_.drain()) log.write(e.type, e.data);
         if (!sim.isOpen()) {
             if (sim.open()) {
                 observer.onLine("Sim found, waiting for it to finish starting...", false);
@@ -279,6 +360,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
         const bool alive = sim.pump();
         if (sim.handshakeComplete() && !announcedConnected) {
             lastMatch.reset();  // report afresh in this session
+            runwaysAsked.clear();
             observer.onLine("Connected to sim.", false);
             if (options_.probe) {
                 if (const auto t = target.get()) sim.requestProbeFacilities({t->originIcao, t->destinationIcao});
@@ -286,13 +368,14 @@ int Recorder::run(const std::atomic<bool>& stop) {
             observer.onConnection(ConnectionState::Connected);
             announcedConnected = true;
         }
+        if (announcedConnected) askRunways(sim);
         if (!alive) {
             observer.onLine(std::string(announcedConnected ? "Disconnected (" : "Gave up waiting for sim (") +
                                 sim.lostReason() + ").",
                             false);
             const std::string reason = sim.lostReason();
             sim.close(reason);
-            endSession(outbox, observer, detector, reason);
+            endSession(reason);
             waitingSince = std::chrono::steady_clock::now();
             continue;
         }
@@ -300,7 +383,8 @@ int Recorder::run(const std::atomic<bool>& stop) {
     }
 
     sim.close("recorder_exit");
-    endSession(outbox, observer, detector, "recorder_exit");
+    endSession("recorder_exit");
+    for (const LogEvent& e : appEvents_.drain()) log.write(e.type, e.data);
     // Last chance for held block events; anything still held is reported so it can be recovered by hand (D-049).
     if (!outbox.flush()) {
         for (const auto& [type, data] : outbox.held()) {

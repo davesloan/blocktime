@@ -36,6 +36,7 @@ struct TelemetrySample {
     double verticalSpeedFpm;     // VERTICAL SPEED, feet per minute
     double groundSpeedKt;        // GROUND VELOCITY, knots
     double indicatedAirspeedKt;  // AIRSPEED INDICATED, knots
+    double headingTrueDeg;       // PLANE HEADING DEGREES TRUE, degrees (logged only, D-129)
     std::int32_t numEngines;     // NUMBER OF ENGINES, number
     std::int32_t engCombustion[4];   // GENERAL ENG COMBUSTION:1..4, bool
     double engFuelFlowPph[4];        // ENG FUEL FLOW PPH:1..4, pounds per hour
@@ -57,6 +58,7 @@ inline constexpr SimVarSpec kTelemetryVars[] = {
     {"VERTICAL SPEED", "feet per minute", VarType::Float64, 10.0f},
     {"GROUND VELOCITY", "knots", VarType::Float64, 0.5f},
     {"AIRSPEED INDICATED", "knots", VarType::Float64, 0.5f},
+    {"PLANE HEADING DEGREES TRUE", "degrees", VarType::Float64, 0.5f},
     {"NUMBER OF ENGINES", "number", VarType::Int32, 0.0f},
     {"GENERAL ENG COMBUSTION:1", "bool", VarType::Int32, 0.0f},
     {"GENERAL ENG COMBUSTION:2", "bool", VarType::Int32, 0.0f},

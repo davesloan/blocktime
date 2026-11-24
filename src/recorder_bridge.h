@@ -12,6 +12,7 @@
 #include <QDateTime>
 #include <QObject>
 #include <QString>
+#include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 
 #include "event_feed_model.h"
@@ -78,6 +79,8 @@ public:
     void applySample(const blocktime::TelemetrySample& s);
     void applyBlockEvent(const blocktime::BlockEvent& e);
     void applyMatch(const blocktime::MatchResult& m);
+    // A flight event the recorder logged (phase_changed, level_off, liftoff, ...); data is its log "data" object.
+    void applyFlightEvent(const QString& type, const QVariantMap& data);
     // The matching check's latest answer (D-088); empty until the first one and after the connection is lost.
     const std::optional<blocktime::MatchResult>& match() const { return match_; }
     // A brake release was refused and the brake hasn't been set since, so no flight can open until it's set and
@@ -98,6 +101,8 @@ signals:
     // Every block event, after it's applied: "block_out", "block_in", "flight_interrupted" or "block_out_refused",
     // with its flight id ("" for a refusal).
     void blockEvent(const QString& type, const QString& flightId);
+    // Every flight event, after it's applied.
+    void flightEvent(const QString& type, const QVariantMap& data);
 
 private:
     void setConnection(const QString& c);
@@ -129,6 +134,7 @@ public:
     void onTelemetry(const blocktime::TelemetrySample& s) override;
     void onBlockEvent(const blocktime::BlockEvent& e) override;
     void onMatch(const blocktime::MatchResult& m) override;
+    void onFlightEvent(const std::string& type, const nlohmann::json& data) override;
 
 private:
     RecorderBridge& bridge_;  // only used as the target of queued calls

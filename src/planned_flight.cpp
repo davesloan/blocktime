@@ -282,9 +282,11 @@ bool storeSimbriefPlan(db::Database& db, std::int64_t plannedFlightId, const Sim
 }
 
 std::optional<FlightTarget> flightTarget(db::Database& db, const PlannedFlightView& flight) {
-    db::Statement q(db, "SELECT t.sim_folder, o.latitude, o.longitude, a.fuel_on_board_lb FROM planned_flight f"
+    db::Statement q(db, "SELECT t.sim_folder, o.latitude, o.longitude, a.fuel_on_board_lb, d.latitude, d.longitude"
+                        " FROM planned_flight f"
                         " JOIN airplane a USING (airplane_id) JOIN aircraft_type t USING (aircraft_type_id)"
-                        " JOIN airport o ON o.airport_id = f.origin_airport_id WHERE f.planned_flight_id = ?");
+                        " JOIN airport o ON o.airport_id = f.origin_airport_id"
+                        " JOIN airport d ON d.airport_id = f.destination_airport_id WHERE f.planned_flight_id = ?");
     q.bind(1, flight.id);
     if (!q.next()) return std::nullopt;
     FlightTarget t;
@@ -298,6 +300,13 @@ std::optional<FlightTarget> flightTarget(db::Database& db, const PlannedFlightVi
     t.originLat = q.real(1);
     t.originLon = q.real(2);
     t.fuelOnRecordLb = static_cast<int>(q.integer(3));
+    t.destinationLat = q.real(4);
+    t.destinationLon = q.real(5);
+    if (flight.plan) {  // the phases' plan values (D-124)
+        t.cruiseAltitudeFt = flight.plan->cruiseAltitudeFt;
+        t.transitionAltitudeFt = flight.plan->originTransitionAltitudeFt;
+        t.transitionLevelFt = flight.plan->destinationTransitionLevelFt;
+    }
     return t;
 }
 

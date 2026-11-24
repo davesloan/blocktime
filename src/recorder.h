@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <string>
 
+#include "app_event_queue.h"
 #include "block_detector.h"
 #include "flight_match.h"
 #include "sim_vars.h"
@@ -37,6 +38,9 @@ public:
     // The matching check's answer for the current sample changed, while no flight is open (D-088). Also sent once
     // after each connect. The app shows "Not recording" from it.
     virtual void onMatch(const MatchResult& /*match*/) {}
+    // A flight event after it was logged: phase_changed, level_off, flight_marker, liftoff, touchdown, ... (milestone
+    // 7, FlightTracker). The app builds the six stages from these.
+    virtual void onFlightEvent(const std::string& /*type*/, const nlohmann::json& /*data*/) {}
 };
 
 struct RecorderOptions {
@@ -46,8 +50,9 @@ struct RecorderOptions {
 class Recorder {
 public:
     // `target` is the planned flight, set by the app; every brake release is checked against it (D-088).
+    // `appEvents` holds what the app wants in the log (the ATIS and ATC exchanges); the loop writes them (D-127).
     Recorder(std::filesystem::path logDir, RecorderObserver& observer, const FlightTargetSlot& target,
-             RecorderOptions options = {});
+             AppEventQueue& appEvents, RecorderOptions options = {});
 
     // Runs until `stop` is true, then closes cleanly: ends the sim session (an open flight is interrupted with
     // reason recorder_exit), flushes held block events and writes recorder_stopped. Returns 0, or 1 if
@@ -60,6 +65,7 @@ private:
     std::filesystem::path logDir_;
     RecorderObserver& observer_;
     const FlightTargetSlot& target_;
+    AppEventQueue& appEvents_;
     RecorderOptions options_;
 };
 
