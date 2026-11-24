@@ -1014,6 +1014,20 @@ TEST_F(LiveFlight, TurnaroundShowsNextLeg) {
     EXPECT_FALSE(bridge_.showingFlight());
 }
 
+TEST_F(LiveFlight, DeboardingRecordedWhenItEnds) {
+    write({liveOut(plannedId_), liveIn()});
+    auto m = model();
+    m->checkFlown();
+    write({liveLine("gsx_service", R"({"service":"deboarding","state":"performing","time":"2026-11-23T13:22:00.000Z"})"),
+           liveLine("gsx_service", R"({"service":"deboarding","state":"completed","time":"2026-11-23T13:28:00.000Z"})")},
+          true);
+    bridge_.applyFlightEvent("gsx_service",
+                             {{"service", "deboarding"}, {"state", "completed"}, {"time", "2026-11-23T13:28:00.000Z"}});
+    db::Statement q(db_, "SELECT COUNT(*) FROM flight_service WHERE service = 'deboarding'");
+    ASSERT_TRUE(q.next());
+    EXPECT_EQ(q.integer(0), 1);
+}
+
 TEST_F(LiveFlight, DoneForNowClearsTheSummary) {
     write({liveOut(plannedId_), liveIn()});
     auto m = model();

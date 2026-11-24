@@ -373,6 +373,61 @@ TEST_F(Settlement, TwoRefuelsBothStored) {
     EXPECT_EQ(count("flight_service"), 2);
 }
 
+std::vector<std::string> deboarding(const std::string& from, const std::string& to) {
+    return {gsxLine("deboarding", "requested", from), gsxLine("deboarding", "performing", from),
+            gsxLine("deboarding", "completed", to)};
+}
+
+TEST_F(Settlement, DeboardingAfterBlockInRecorded) {
+    const auto id = planDelivery();
+    writeLog({blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    std::string error;
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    writeLog(deboarding("2026-11-23T13:22:00.400Z", "2026-11-23T13:28:00.400Z"));
+    EXPECT_EQ(recordDeboardings(db_, dir_), 1);
+    EXPECT_EQ(text("SELECT service || ' ' || started_at || ' ' || ended_at FROM flight_service"),
+              "deboarding 2026-11-23T13:22:00Z 2026-11-23T13:28:00Z");
+}
+
+TEST_F(Settlement, DeboardingRecordedOnce) {
+    const auto id = planDelivery();
+    writeLog({blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    std::string error;
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    writeLog(deboarding("2026-11-23T13:22:00.000Z", "2026-11-23T13:28:00.000Z"));
+    EXPECT_EQ(recordDeboardings(db_, dir_), 1);
+    EXPECT_EQ(recordDeboardings(db_, dir_), 0);
+    EXPECT_EQ(count("flight_service"), 1);
+}
+
+TEST_F(Settlement, DeboardingForUnsettledFlightSkipped) {
+    const auto id = planDelivery();
+    writeLog({blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    writeLog(deboarding("2026-11-23T13:22:00.000Z", "2026-11-23T13:28:00.000Z"));
+    EXPECT_EQ(recordDeboardings(db_, dir_), 0);  // not settled
+    EXPECT_EQ(count("flight_service"), 0);
+}
+
+TEST_F(Settlement, DeboardingStillRunningNotRecorded) {
+    const auto id = planDelivery();
+    writeLog({blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    std::string error;
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    writeLog({gsxLine("deboarding", "performing", "2026-11-23T13:22:00.000Z")});
+    EXPECT_EQ(recordDeboardings(db_, dir_), 0);
+}
+
+TEST_F(Settlement, DeboardingAfterNewPlanStillRecorded) {
+    const auto id = planDelivery();
+    writeLog({blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    std::string error;
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    planDelivery();  // Dave plans the next leg while the passengers walk off
+    writeLog(deboarding("2026-11-23T13:22:00.000Z", "2026-11-23T13:28:00.000Z"));
+    EXPECT_EQ(recordDeboardings(db_, dir_), 1);
+    EXPECT_EQ(text("SELECT f.log_flight_id FROM flight_service s JOIN flight f USING (flight_id)"), kOut);
+}
+
 TEST_F(Settlement, KeepsThePlanAndCabins) {
     NewPlannedFlight f;
     f.airplaneId = loadFlightAirplane(db_, "N814SX")->airplaneId;

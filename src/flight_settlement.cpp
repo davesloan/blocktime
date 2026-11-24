@@ -11,6 +11,7 @@
 #include <vector>
 
 #include <nlohmann/json.hpp>
+#include <sqlite3.h>
 
 #include "airline_queries.h"
 #include "event_log.h"
@@ -229,6 +230,44 @@ std::optional<SettledFlight> settleFlight(db::Database& db, const PlannedFlightV
     if (!tx.commit(&message)) return fail(message);
     if (error) error->clear();
     return settled;
+}
+
+int recordDeboardings(db::Database& db, const std::filesystem::path& logDir, std::size_t maxFiles) {
+    std::vector<std::filesystem::path> files = dailyLogFiles(logDir);  // oldest first
+    if (files.size() > maxFiles) files.erase(files.begin(), files.end() - static_cast<std::ptrdiff_t>(maxFiles));
+
+    db::Statement insert(db, "INSERT OR IGNORE INTO flight_service (flight_id, service, started_at, ended_at)"
+                             " SELECT flight_id, 'deboarding', ?, ? FROM flight WHERE log_flight_id = ?");
+    int added = 0;
+    GsxTimeline gsx;
+    for (const auto& file : files) {
+        std::ifstream in(file, std::ios::binary);
+        std::string line;
+        while (std::getline(in, line)) {
+            if (!isTimingLine(line) && !isFlightLine(line)) continue;
+            auto j = nlohmann::json::parse(line, nullptr, false);
+            if (j.is_discarded() || !j.is_object()) continue;
+            if (!j.contains("data") || !j["data"].is_object()) j["data"] = nlohmann::json::object();
+            auto& data = j["data"];
+            const std::string type = j.value("type", std::string());
+            if (type == "phase_changed") continue;
+            if (type == "sim_stopped" || type == "sim_disconnected") data["time"] = j.value("ts", std::string());
+            const std::size_t before = gsx.arrival().size();
+            const bool wasRunning = before > 0 && gsx.arrival().back().running;
+            gsx.onEvent(type, data);
+            // A deboarding that just completed: the last arrival span, running before this line and done after it.
+            if (type != "gsx_service" || gsx.arrival().size() != before || !wasRunning || gsx.arrival().back().running) {
+                continue;
+            }
+            const ServiceSpan& s = gsx.arrival().back();
+            insert.reset();
+            insert.bind(1, wholeSeconds(s.startIso));
+            insert.bind(2, wholeSeconds(s.endIso));
+            insert.bind(3, gsx.lastBlockInFlightId());
+            if (insert.run()) added += sqlite3_changes(db.handle());
+        }
+    }
+    return added;
 }
 
 std::optional<SettledFlight> settleIfFlown(db::Database& db, const std::filesystem::path& logDir, const Rates& rates,

@@ -65,6 +65,12 @@ struct SettledFlight {
 std::optional<SettledFlight> settleFlight(db::Database& db, const PlannedFlightView& planned, const FlownFlight& flown,
                                           const Rates& rates, std::string* error);
 
+// Adds each completed GSX deboarding in the log to the settled flight whose block_in came before it (D-137): deboarding
+// happens after block in, when the flight is already settled. Rows that exist are skipped (INSERT OR IGNORE on the
+// UNIQUE), so it can run at startup and whenever a deboarding ends. Returns the rows added.
+int recordDeboardings(db::Database& db, const std::filesystem::path& logDir,
+                      std::size_t maxFiles = kOpenFlightLookbackFiles);
+
 // findFlownFlight, then settleFlight, for the current planned flight. nullopt with `error` "" when nothing was flown.
 std::optional<SettledFlight> settleIfFlown(db::Database& db, const std::filesystem::path& logDir, const Rates& rates,
                                            std::string* error);

@@ -40,6 +40,14 @@ PlannedFlightModel::PlannedFlightModel(db::Database& db, QString airlineIcao, Pl
     connect(&bridge_, &RecorderBridge::matchChanged, this, &PlannedFlightModel::notRecordingChanged);
     connect(&bridge_, &RecorderBridge::releaseRefusedChanged, this, &PlannedFlightModel::notRecordingChanged);
     connect(&bridge_, &RecorderBridge::blockEvent, this, [this](const QString& type) { onBlockEvent(type); });
+    // Deboarding ends after the flight is settled; its row goes on that flight then (D-137).
+    connect(&bridge_, &RecorderBridge::flightEvent, this, [this](const QString& type, const QVariantMap& data) {
+        const QString state = data.value("state").toString();
+        if (type == "gsx_service" && data.value("service").toString() == "deboarding" &&
+            (state == "completed" || state == "available")) {
+            recordDeboardings(db_, logDir_);
+        }
+    });
     rates_ = loadRates(ratesFile_, nullptr).value_or(Rates{});
     flight_ = currentPlannedFlight(db_);
     const auto t = flight_ ? flightTarget(db_, *flight_) : std::nullopt;
@@ -77,6 +85,7 @@ void PlannedFlightModel::onBlockEvent(const QString& type) {
 }
 
 void PlannedFlightModel::checkFlown() {
+    recordDeboardings(db_, logDir_);  // one that ended while BlockTime was closed (D-137)
     if (!flight_) flight_ = currentPlannedFlight(db_);
     if (!flight_) return;
     const std::string registration = flight_->registration;
