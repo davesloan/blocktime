@@ -6,7 +6,7 @@ built around the parts that make flying feel meaningful and none of the busywork
 You lease aircraft, build rotations, and fly legs yourself while the rest of your fleet keeps flying in the background.
 Every flight you fly is recorded automatically, from parking brake release to parking brake set.
 
-> **Status:** early development, version 0.9.0. The app records flights (block out / block in), shows live flight
+> **Status:** early development, version 0.10.0. The app records flights (block out / block in), shows live flight
 > data and past flights with the route flown on a dark map, and runs the airline's foundation: your airline and
 > leased airplanes from config files, the monthly lease charges, and the money ledger. New Flight sets up a leg with
 > its loads and money preview, opens a pre-filled SimBrief dispatch page with SayIntentions' runways, and imports
@@ -15,7 +15,10 @@ Every flight you fly is recorded automatically, from parking brake release to pa
 > level-offs, markers, the runways and the touchdown rate), and the log collects the ATC exchanges, the ATIS and the
 > altimeter settings for the debrief to come. GSX's services (catering, refuelling, boarding, pushback, deboarding)
 > show with their times from the gate to the gate, with a shutdown checklist after arrival, and each flight keeps its
-> phase and service times. Gates come next (`docs/roadmap.md`).
+> phase and service times. Once SayIntentions has picked its arrival gate, BlockTime picks its own by the airline's
+> rules (gate or ramp, size, closest to the landing runway) and asks SayIntentions for it; each flight keeps the spot
+> it parked at, which the next flight shows as where to load in. Live shows the stages, the live values and the event
+> log in three columns. The debrief comes next (`docs/roadmap.md`).
 
 This project is built for one pilot's own use and shared in case others want to tinker. It isn't designed to be easy to
 set up, and there's no support — but you're welcome to clone it and play.
@@ -121,12 +124,15 @@ New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\BlockTime" | Out-Null; Co
   D-082).
   Optional per airplane: `flight_number`, the default number of its free flights (re-read at every start, D-106), and
   `limits`, its own values in place of its airframe's (read only when it's leased, D-100).
+  Optional for the airline: `preferred_gates`, your own gates by airport in SayIntentions' short form
+  (`{ KPDX: [D14] }`), asked for first on passenger and VIP flights (D-147).
 - **`catalog.yaml`:** aircraft types (lease rate, family, role) and airframes (seats, holds and `limits`: minimum
   runway, MLW, passenger and bag weight, and max payload, which must match the airplane's SimBrief airframe). Numbers
   marked `estimate` are placeholders until they're read from the PMDG load pages. Each type also names its
   `sim_folder`, the sim's folder for that PMDG variant, which the app compares with the loaded aircraft before it
-  records a flight (D-112). **Upgrading from 0.5 or 0.6:** copy the repo's `catalog.yaml` again, since airframes need
-  `limits` and types need `sim_folder` (keep your own edits).
+  records a flight (D-112), and its `wingspan_m`, which decides which parking spots fit (D-147). **Upgrading from 0.5
+  or 0.6:** copy the repo's `catalog.yaml` again, since airframes need `limits` and types need `sim_folder` (keep your
+  own edits). **Upgrading to 0.10:** add `wingspan_m` to each type, as in the repo's `catalog.yaml`.
 - **`rates.yaml`:** the fare and cost rates and the fuel price (design.md §10–12, D-107). It's read whenever New
   Flight opens and when a flight is settled, so an edit applies to the next flight without restarting. A planned
   flight keeps its fuel price. **Upgrading from 0.6:** copy it, then delete `fuel_price_per_100lb` from

@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.25)
 # SimConnect itself is still linked statically, so no SimConnect.dll ships; the VC++ runtime comes with MSFS.
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 
-project(blocktime VERSION 0.9.0 LANGUAGES CXX)
+project(blocktime VERSION 0.10.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
