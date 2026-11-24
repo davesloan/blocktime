@@ -132,7 +132,8 @@ the row below the planned flight header: progress on the left, the flight data i
 right (design.md section 13.5, D-139). The flight panel loses the Aircraft card and the Position tile, Parking brake
 and each engine become green/grey status tiles, and the airspeed tile switches to Mach at M0.70 and back to knots
 below M0.66 (D-140). Approach starts at the first flap extension below 10,000 ft instead of 30 nm out, after a
-probe check that the sim's flap value follows PMDG's lever (D-142).
+probe check that the sim's flap value follows PMDG's lever (D-142). "Final approach" shows when lined up with the
+landing runway within 10 nm, not at 1,000 ft (D-143).
 
 ### Milestone 10 — Procedure capture and Claude's debrief
 

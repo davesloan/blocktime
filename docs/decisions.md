@@ -2120,3 +2120,18 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   The first flap setting is when the approach actually starts, on any route, without PMDG's data.
 - Alternatives considered: the FMC's distance to destination along the route (PMDG's `FMC_DistanceToDest_nm`; ties
   the phase to PMDG's broadcast); keeping the 30 nm rule with a smaller distance.
+
+## D-143 — "Final approach" when lined up with the runway
+- Date: 2026-11-24
+- Status: Accepted (the exact limits and the 1,000 ft line are Proposed)
+- Decided by: Dave (the line), Claude (limits, proposed)
+- Area: recorder, app
+- Decision: In milestone 9, Live's "Final approach" line under Approach comes when the aircraft is lined up with
+  the landing runway, not at 1,000 ft AGL. Proposed limits, to tune in the plan: within 10 nm of the runway
+  threshold, track within 10 degrees of the runway's heading, and within 0.5 nm of its extended centreline, held
+  for 10 seconds. The runway is SayIntentions' landing runway (D-141), else the plan's; its threshold and heading
+  come from the airport data. Proposed: the 1,000 ft AGL `final_approach` marker stays in the log (the stabilised
+  approach gate) but no longer adds a Live line, so there is one "Final approach" line, not two.
+- Why: Dave wants Live to show when he's on final, which is well before 1,000 ft (about 3,000 ft AGL at 10 nm).
+- Alternatives considered: keeping only the 1,000 ft line; the localizer capture (PMDG's annunciators, and RNAV
+  approaches have none).
