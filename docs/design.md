@@ -82,8 +82,18 @@ few days, so store a copy of each plan when a flight is filed.
 
 ### Fuel burn
 
-Learned per **configuration** from Dave's actual flights; used only for previews. Until enough data exists, previews
-show "+ fuel cost". SimBrief always decides the actual fuel loaded.
+An estimate in **pounds per great-circle NM**, per catalog airframe, used only for previews before a SimBrief plan
+exists (D-119). SimBrief always decides the actual fuel loaded.
+
+- **Entered:** an optional value on the airframe (in `catalog.yaml` until the settings screen exists). It's used
+  whenever it's set and not 0.
+- **Learned:** BlockTime works out its own value from completed flights longer than 200 NM (great-circle) on any
+  airplane of that airframe, once there are at least 3: fuel burned (block-out fuel − shutdown fuel) divided by
+  the great-circle distance, averaged. It's used when nothing is entered, and shown next to the entered value on
+  the settings screen.
+- **Neither:** the preview shows "+ fuel cost".
+- The estimate is padded 10% (a constant in `pricing.h`) to allow for variation. Great-circle distance is what
+  previews know, so routing and typical winds end up in the number.
 
 ## 4. Where aircraft are
 

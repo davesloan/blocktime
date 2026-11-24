@@ -1679,3 +1679,23 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   EFB already does it for the airplane being flown. Pulling charts in goes against keeping the app simple.
 - Alternatives considered: reproducing SimBrief's takeoff calculator (needs unpublished data, weeks of tuning); reading
   the takeoff report from the plan (fixed at planning time, so stale when conditions change); showing charts.
+
+## D-119 — Fuel burn estimate per airframe: entered, or learned from 3 flights
+- Date: 2026-11-23
+- Status: Accepted (the 10% padding, averaging all qualifying flights and counting delivery flights are Claude's,
+  Proposed)
+- Decided by: Dave + Claude
+- Area: design
+- Decision: Each catalog airframe has an optional fuel burn in lb per great-circle NM, entered by Dave (catalog,
+  later the settings screen). BlockTime also learns one: the average burn (block-out fuel − shutdown fuel) per
+  great-circle NM over all completed flights longer than 200 NM on airplanes of that airframe, delivery flights
+  included, once there are at least 3. The entered value is used unless it's empty or 0; then the learned one; with
+  neither, the preview shows "+ fuel cost". The settings screen shows the learned value next to the field. The
+  estimate is padded 10%. Previews only: once a plan is imported, SimBrief's burn is used.
+- Why: New Flight can't preview fuel cost before a plan exists. Per airframe (not per airplane), so an airplane Dave
+  never flies still gets an estimate from its siblings or the entered value, and Dave doesn't have to fly every
+  airframe to get one. Great-circle NM because that's the distance a preview has. 200 NM keeps out short legs,
+  where taxi and climb dominate. It's only an estimate, so lb/NM plus padding is enough.
+- Alternatives considered: per airplane (more to enter; a never-flown plane only gets the entered value); a fixed
+  amount per flight plus lb/NM (more accurate on short legs, more machinery than a preview needs); learned only, as
+  design.md section 3 first said (no estimate until 3 flights).
