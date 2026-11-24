@@ -22,6 +22,93 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-24 — Milestone 8 built: GSX (version 0.9.0)
+
+**Done:**
+- Plan `docs/plans/2026-11-24-milestone-8-gsx.md`, all 7 tasks, executed inline (D-033). Dave's calls are D-134..D-137;
+  Claude's GSX rules are D-138 (Proposed).
+  - **Recorder:** `GsxWatcher` reads GSX's five service states and the passenger totals on every flight (not only with
+    `--probe`) and logs `gsx_service` on each state change. Telemetry gains `beacon` and `strobe`.
+  - **`GsxTimeline`:** turns the log's GSX, block and sim session events into services with start and end, and gives
+    each its leg. Live and settling both use it.
+  - **Live (D-134..D-136):**
+    - the Flight progress card spans the gate: the next leg's services before block out, the flight with its
+      deboarding under the summary after block in;
+    - "Pushback (GSX)";
+    - "Ready for shutdown or turnaround" with a live checklist: engines, brake, deboarding, beacon, strobes;
+    - no "Turnaround and Boarding" line.
+  - **Database (D-137):** migration 5 adds `flight_phase` and `flight_service`. Settling stores the phases and the
+    pre-departure services; deboarding is added when it ends (and at startup).
+- **Whole-milestone review** by a fresh reviewer: 0 Critical, 1 Important, 9 Minor. Fixed, each with a test that
+  failed first:
+  - the `arrived` phase was never stored (it's logged just after `block_in`), so taxi-in had no end;
+  - re-graded from Minor: a BlockTime restart between legs dropped the services already done from the stored flight;
+  - re-graded from Minor: Ready showed at shutdown, before a GSX deboarding called after the beacon went off.
+- **Backup:** `blocktime.before-m8.db` next to `blocktime.db`, made before 0.9.0 migrates it.
+
+**Working / verified (without the sim):**
+- Clean release and debug builds have no warnings. **479 tests pass.** qmllint reports nothing.
+- Migration 5 ran on a scratch copy of Dave's database (3 flights) with nothing in `errors.log`.
+- `--demo --grab` shows Refuelling and Boarding under Pre-Departure and "Pushback (GSX)".
+
+**Unverified or broken:**
+- Everything in the sim: Dave's checks below.
+- **The checklist rows haven't been seen on screen** (the demo is in cruise); their data is tested.
+- **Deferred minors from the review:**
+  - after block in, if settling fails (a rates.yaml error), the card hides and the next leg's lines only show after
+    the next block out;
+  - after a BlockTime restart mid-turnaround, Live doesn't show the services already done (it doesn't read them back
+    from the log), though they're still stored;
+  - a late-settled flight's deboarding row is added at the next block in, not at once;
+  - a timing row that fails its CHECK (a clock step) would block settling;
+  - a new plan during the summary switching the card to the next leg has no test;
+  - `INSERT OR IGNORE` also hides a CHECK failure on a deboarding row.
+- **Proposed decision for Dave:** D-138 (the GSX rules).
+
+**Dave's checks.** Two legs in N916SX (777-300ER) in one sim session, with a GSX turnaround at KLAS: **KSLC → KLAS →
+KSAN**. `--probe` also collects the 777's PMDG data, which the last flight missed (the broadcast is on now).
+N916SX is at KSLC with 11,102 lb on record, so load at least 10,802 lb.
+
+1. **No sim.** Start `build\x64-release\BlockTime.exe --probe`. Expected:
+   - v0.9.0 in the sidebar and "Probe on" in the feed;
+   - nothing new in `%LOCALAPPDATA%\BlockTime\errors.log` (the database moved to schema 5);
+   - Fleet shows N916SX at KSLC with 11,102 lb.
+2. **New Flight** for N916SX, KSLC → KLAS, then Generate in SimBrief and Import. Expected: Live shows the planned
+   flight, and the Flight progress card with Pre-Departure current and no lines.
+3. **Load in** at KSLC at the gate, with at least 10,802 lb, and start GSX. Expected: no GSX lines yet.
+4. **GSX refuelling, catering and boarding.** Expected:
+   - each line appears under Pre-Departure when its service starts working (not when you request it), shown as
+     "05:34Z –" while it runs and "05:34Z – 05:39Z" when done;
+   - they may overlap;
+   - the feed shows "GSX refuelling performing", then "completed".
+5. **Push with GSX.** Expected: Departure shows "Pushback (GSX)"; Pre-Departure turns done and keeps its three lines.
+6. **Fly to KLAS.** The stages work as in 0.8.0.
+7. **Block in at KLAS** (brake set, engines off). Expected: the summary, with the Flight progress card under it
+   showing Arrival "Parked". If the beacon and strobes are already off, "Ready for shutdown or turnaround" appears
+   with four ticks.
+8. **GSX deboarding.** Expected:
+   - while it runs, "Deboarding 21:05Z –" shows and any Ready line goes away;
+   - when it completes, the line gets its end time and Ready comes back at that time with five items, including
+     "Deboarding complete ✓";
+   - switching the beacon on and off flips its tick.
+9. **Still on the summary, request GSX refuelling for the next leg.** Expected: nothing new on the card; it still
+   shows the KLAS arrival.
+10. **At Gate Turnaround.** Expected: the card switches to the next leg, with "Refuelling" under Pre-Departure, and
+    New Flight opens for N916SX at KLAS.
+11. **Plan KLAS → KSAN,** Generate, and Import.
+12. **Board with GSX, skip catering, and push with GSX.** Expected: Pre-Departure keeps Refuelling and Boarding only.
+13. **Fly to KSAN, and don't use GSX deboarding.** At the gate, set the brake and switch off the engines, beacon and
+    strobes. Expected: Ready appears when the last of the four goes off, with four items, all ticked.
+14. **Done for now.** Expected: the card goes away (no plan, no services yet).
+15. **Tell Claude** the flights are done. Claude reads the database and the log:
+    - each flight's phases, ending with `arrived` at its block in;
+    - KSLC → KLAS: refuelling, catering, boarding and deboarding;
+    - KLAS → KSAN: refuelling and boarding;
+    - the 777's PMDG switch data from `--probe`.
+
+**Next step:**
+- Dave's checks above. Once they pass, `main` is pushed (D-121) and milestone 9 (gates) starts in a new session.
+
 ## 2026-11-24 — Milestone 7 sim checks passed; levels snap to the thousand
 
 **Done:**
