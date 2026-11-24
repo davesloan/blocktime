@@ -56,8 +56,9 @@ reports nothing.
   should clear within a second.
 - D-143's limits (10 nm, 10°, 0.5 nm) and dropping the 1,000 ft Live line are proposed.
 
-**Next step:** push `main` (D-121) and start milestone 9
-in a new session.
+**Next step:** `main` is pushed (D-121). Milestone 9 (gates) starts in a new session: its roadmap entry lists the work
+and D-139..D-143; the gate fields and the open `assignGate` questions are in `docs/notes/sayintentions-api.md`. At
+the end of any flight, check the three items above that the sim hasn't shown yet.
 
 ## 2026-11-24 — Milestone 8 built: GSX (version 0.9.0)
 

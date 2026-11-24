@@ -118,15 +118,16 @@ It also starts logging what milestone 10's analysis needs (D-123). These can't b
 
 ### Milestone 8 — GSX
 
-**Built in 0.9.0** (`docs/plans/2026-11-24-milestone-8-gsx.md`, D-134..D-138); Dave's sim checks are in
-`docs/progress.md`. Each flight also stores its phase and GSX service times for the leg templates (D-137).
+**Built in 0.9.0** (`docs/plans/2026-11-24-milestone-8-gsx.md`, D-134..D-138) and checked in the sim on 2026-11-24
+(KSLC → KLAS, `docs/progress.md`). Each flight also stores its phase and GSX service times for the leg templates (D-137).
 
 `gsx_service` events (D-073), each service on the dashboard with start and end, the "Turnaround and Boarding"
 line, and "Ready for Shutdown or Turnaround" with its checklist (the items the probe found readable).
 
 ### Milestone 9 — Gates
 
-The arrival gate rule and `assignGate` (section 13.6, D-074), preferred gates in config, the parked-at gate in the
+The arrival gate rule and `assignGate` (section 13.6, D-074), asked once SayIntentions has picked its own gate and
+landing runway (D-141; the fields are in `docs/notes/sayintentions-api.md`), preferred gates in config, the parked-at gate in the
 summary, and the load-in gate for the next flight. Live's Flight progress card moves out of the full width into
 the row below the planned flight header: progress on the left, the flight data in the middle, the event log on the
 right (design.md section 13.5, D-139). The flight panel loses the Aircraft card and the Position tile, Parking brake
@@ -137,7 +138,7 @@ landing runway within 10 nm, not at 1,000 ft (D-143).
 
 ### Milestone 10 — Procedure capture and Claude's debrief
 
-Old milestone 7 and D-040: cockpit state for the analysis, the SayIntentions ATC log (still to find out how), and
+Old milestone 7 and D-040: cockpit state for the analysis, the SayIntentions ATC log (collected into the event log since 0.8.0, D-123), and
 the Claude score and evaluation in the summary. **The MVP is done here.**
 
 ## After the MVP (not ordered)
