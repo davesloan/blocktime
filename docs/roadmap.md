@@ -126,6 +126,9 @@ line, and "Ready for Shutdown or Turnaround" with its checklist (the items the p
 
 ### Milestone 9 — Gates
 
+**Built in 0.10.0** (`docs/plans/2026-11-24-milestone-9-gates.md`, D-145..D-149); Dave's sim checks are in
+`docs/progress.md`.
+
 The arrival gate rule and `assignGate` (section 13.6, D-074), asked once SayIntentions has picked its own gate and
 landing runway (D-141; the fields are in `docs/notes/sayintentions-api.md`), preferred gates in config, the parked-at gate in the
 summary, and the load-in gate for the next flight. Live's Flight progress card moves out of the full width into

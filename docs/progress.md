@@ -22,6 +22,113 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-24 — Milestone 9 built: gates (version 0.10.0)
+
+**Done:**
+- Plan `docs/plans/2026-11-24-milestone-9-gates.md`, all 8 tasks, executed inline (D-033). Dave's calls are D-145
+  (accepted Claude's proposal), D-146/D-149 (Short final at 1,000 ft), D-147 and D-148 (approved), and two BBJ2 test
+  legs.
+  - **Recorder:**
+    - the facility request reads each airport's parking spots, and `block_out`/`block_in` carry `parking`: the
+      nearest spot within 40 m ("Gate D14");
+    - telemetry gains `mach`, `flaps_te_pct` and `flaps_handle`;
+    - Approach starts at the first flap extension below 10,000 ft, falling back to 3,000 ft AGL (D-142);
+    - `lined_up` names the destination runway Dave is lined up with (D-143, D-145).
+  - **The arrival gate (D-141, D-147):**
+    - `pickGate` chooses preferred gates first, then the closest fitting spot of the right type to SayIntentions'
+      landing runway;
+    - FlightWatcher polls SayIntentions' local flightJSON from block out. Once SayIntentions' gate is at the
+      destination, it sends `assignGate` (unless SayIntentions already chose that spot), reads it back with
+      `getParking` and logs one `arrival_gate` per flight;
+    - with `--probe` it logs `getAirport`'s answer once, keys removed.
+  - **Database:** migration 6 adds `flight.origin_parking` and `arrival_parking`.
+  - **Live:**
+    - three columns (D-139);
+    - the brake and each engine as green/grey tiles, and Mach from M.70 (D-140);
+    - "Parked at Gate E7", the gate line, and "Final approach, runway 26L" turning into "Short final" at 1,000 ft;
+    - the planned flight says where to load in, and the summary says where the flight parked.
+  - **Config:** `wingspan_m` per type in catalog.yaml (required), and optional `preferred_gates` in airline.yaml.
+- **Whole-milestone review** by a fresh reviewer: 0 Critical, 1 Important, 5 Minor.
+  - Fixed, with a test that failed first: SayIntentions' gate was taken as its arrival pick as soon as it was set. At
+    the gate it may be the departure gate, so it would have been answered at pushback. It now counts only within
+    5 km of the destination.
+- **Dave's config:**
+  - `catalog.yaml` now has the wingspans; the old one is `catalog.before-m9.yaml`.
+  - `blocktime.before-m9.db` is a schema 5 backup.
+  - My `--demo` screenshot runs used the real `%LOCALAPPDATA%` files and migrated `blocktime.db` to schema 6 early.
+    That only added the two empty columns; no other writes, nothing in `errors.log`. The backup had the columns
+    dropped again, so it's a true schema 5 copy (4 flights, 44 ledger lines).
+
+**Working / verified (without the sim):**
+- Clean release and debug builds, no warnings. **563 tests pass.** qmllint reports nothing.
+- `--demo --grab` shows the three columns, green engine tiles, the grey brake and "M.78" (at 150% scaling).
+
+**Unverified or broken:**
+- Everything in the sim: Dave's checks below.
+- **Open questions the flight answers:**
+  - what flightJSON's `assigned_gate` holds before departure;
+  - whether `assignGate` takes MSFS's short names ("E7" where SayIntentions says "E7A"; "70" for a ramp) and
+    replaces SayIntentions' gate on its status screen;
+  - whether `TRAILING EDGE FLAPS LEFT PERCENT` (or `FLAPS HANDLE INDEX`) follows the PMDG 737's lever;
+  - what `getAirport` returns.
+- **Not covered by the BBJ2:** the 777's flaps (D-142). Its Approach uses the 3,000 ft AGL fallback until checked.
+- **Deferred minors from the review:**
+  - an `assignGate` answer arriving after an interrupt or a new block out is logged with the wrong or an empty
+    `flight_id`;
+  - no "Short final" on the approach after a go-around (the 1,000 ft marker fires once per flight);
+  - `lined_up` has no height limit and fires once. Overflying the field along a runway axis in Descent could name
+    the reciprocal runway and miss the real final. A late sidestep keeps the first name;
+  - literal sizes in StatusTile.qml and LivePage.qml instead of Theme.qml (D-054);
+  - parking spots are placed assuming the airport record comes first (true on every probe flight).
+- **Still unseen from milestone 8:** the banner fix (step 11), Ready with four items without GSX deboarding (step
+  15), and Done for now (step 16).
+
+**Dave's checks.** Two legs in N814SX (the BBJ2) in one sim session: **KSFO → KLAS as VIP airliner, then KLAS → KSAN
+as Charter.** N814SX is at KSFO with 6,434 lb on record, so load at least 6,134 lb.
+
+1. **No sim.** Start `build\x64-release\BlockTime.exe --probe`. Expected:
+   - v0.10.0 in the sidebar;
+   - nothing new in `errors.log` (catalog.yaml now has `wingspan_m`);
+   - Live in three columns (Flight progress, the panel, Events).
+2. **New Flight:** N814SX, KSFO → KLAS, **VIP airliner**, then Generate and Import. Expected: "Load in at KSFO, San
+   Francisco International Airport" with no gate (the last flight is from before 0.10.0).
+3. **Load in at a KSFO gate** with at least 6,134 lb, and start SayIntentions with the flight. Expected:
+   - Parking brake: green SET;
+   - Engine 1 and Engine 2: grey OFF, each turning green ON as it starts.
+4. **Before pushback**, open `http://localhost:43117/flightJSON` in a browser and note `assigned_gate` under
+   `current_flight` (empty, a KSFO gate, or a KLAS gate). Don't paste the page anywhere: it has your key.
+5. **Fly to KLAS.**
+   - In the climb, around FL220: the airspeed tile turns into "MACH M.70".
+   - In the descent: back to knots below M.66.
+6. **In cruise, when SayIntentions' status window shows its arrival gate.** Expected within 30 s:
+   - an "Arrival gate: …" line under Cruise, and "ARRIVAL GATE … (assigned)" in Events;
+   - note the line, and whether SayIntentions' status screen changed to that gate.
+   - If the line says "(it doesn't know Gate E7)", note SayIntentions' own name for the gate.
+7. **Approach** starts when you set flaps 1 below 10,000 ft, not about 30 nm out. Note the time you set flaps 1.
+8. **On final:** "Final approach, runway …" appears around 10 nm out once you're lined up. At 1,000 ft AGL it ends
+   and "Short final" starts, ending at touchdown.
+9. **Taxi to the gate ATC gives you and block in.** Expected:
+   - Arrival: "Parked at Gate …";
+   - the summary's top line ends "· Parked at Gate …".
+   - Note which gate ATC gave and where you parked.
+10. **GSX turnaround at KLAS**, then At Gate Turnaround.
+11. **New Flight:** N814SX, KLAS → KSAN, **Charter**. Plan it at the gate without touching anything. Expected:
+    - "Load in at KLAS, Harry Reid International Airport, Gate …" (the gate from step 9);
+    - any "Not recording" banner clears within a second.
+12. **Fly to KSAN.** In cruise, the arrival gate line should name a ramp ("Arrival gate: Parking …" or "… Parking
+    …"). Note what SayIntentions' status screen shows.
+13. **Lined up and Short final** as in step 8.
+14. **Block in at the spot ATC gives.** Expected: "Parked at …".
+15. **Don't use GSX deboarding.** Turn the beacon and strobes off. Expected: "Ready for shutdown or turnaround" with
+    four ticks.
+16. **Done for now**, then New Flight from KSAN to anywhere. Expected: "Load in at KSAN, …, Parking …". Then Cancel
+    the flight.
+17. Tell me when it's done. I'll read the log for the flap values, the `lined_up` distances and the `getAirport`
+    answer.
+
+**Next step:** Dave's sim test above, then fixes, then push `main` (D-121). Milestone 10 (procedure capture and
+Claude's debrief) starts in a new session.
+
 ## 2026-11-24 — Milestone 8 sim test (KSLC → KLAS), banner fix
 
 **Done:**
