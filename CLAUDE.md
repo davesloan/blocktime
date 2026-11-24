@@ -103,6 +103,8 @@ This file overrides the plugin's "invoke a skill on any 1% chance" rule. Use onl
   Dave via `docs/progress.md`.
 - **Before each milestone's final commit:** `requesting-code-review`, then `receiving-code-review` for the
   findings. No pull requests and no feature branches: work is committed straight to `main` (D-038).
+- **One Claude Code session per milestone (D-121).** The session that finishes a milestone pushes `main` to `origin`;
+  the next milestone starts in a new session from the latest `docs/progress.md` entry.
 - **Sometimes:** `brainstorming` for undesigned areas (mainly the airline side of the app), but start from
   `docs/decisions.md` and don't reopen settled decisions.
 - **Skip:** `using-git-worktrees`, `finishing-a-development-branch`, `subagent-driven-development`,

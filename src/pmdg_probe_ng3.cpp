@@ -5,7 +5,9 @@
 // The PMDG 737 half of the probe (D-116). Built only when BLOCKTIME_PMDG_NG3_SDK_DIR points at PMDG_NG3_SDK.h.
 
 #include "pmdg_probe.h"
+#include "pmdg_probe_common.h"
 
+#include <cmath>
 #include <cstring>
 
 #include <windows.h>
@@ -15,17 +17,6 @@
 #include <PMDG_NG3_SDK.h>
 
 namespace blocktime::probe {
-
-namespace {
-
-template <class T, std::size_t N>
-nlohmann::json list(const T (&values)[N]) {
-    nlohmann::json out = nlohmann::json::array();
-    for (const T& v : values) out.push_back(static_cast<int>(v));
-    return out;
-}
-
-}  // namespace
 
 bool registerPmdg737(void* handle, unsigned long requestId) {
     HANDLE h = static_cast<HANDLE>(handle);
@@ -40,11 +31,13 @@ nlohmann::json decodePmdg737(const void* data, std::size_t size) {
     if (size < sizeof(PMDG_NG3_Data)) return nullptr;
     PMDG_NG3_Data d;
     std::memcpy(&d, data, sizeof d);
-    return {
+    nlohmann::json out = {
+        {"AircraftModel", d.AircraftModel},
         {"ELEC_BatSelector", d.ELEC_BatSelector},
         {"COMM_FastenBeltsSelector", d.COMM_FastenBeltsSelector},
         {"APU_Selector", d.APU_Selector},
-        {"APU_EGTNeedle", d.APU_EGTNeedle},
+        // Rounded to 10°: whole degrees logged a line every second the APU ran (2026-11-23 probe flights).
+        {"APU_EGTNeedle_10", std::lround(d.APU_EGTNeedle / 10.0) * 10},
         {"APU_annunMAINT", d.APU_annunMAINT},
         {"APU_annunLOW_OIL_PRESSURE", d.APU_annunLOW_OIL_PRESSURE},
         {"APU_annunFAULT", d.APU_annunFAULT},
@@ -75,6 +68,8 @@ nlohmann::json decodePmdg737(const void* data, std::size_t size) {
         {"MAIN_annunGEAR_locked", list(d.MAIN_annunGEAR_locked)},
         {"PED_annunParkingBrake", d.PED_annunParkingBrake},
     };
+    out.update(fmcFields(d));
+    return out;
 }
 
 }  // namespace blocktime::probe

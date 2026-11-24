@@ -22,6 +22,43 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-23 — Probe gets the FMC and more 777 fields; milestone 6 closed
+
+**Done:**
+- **The probe's PMDG halves now log more fields** (`src/pmdg_probe_common.h`, both `pmdg_probe_*.cpp`):
+  - both families: the aircraft model and the FMC's figures (D-120). Those are the distances to top of descent and to
+    destination in whole nm, the cruise altitude, V-speeds and flaps, the transition altitude and level, and the
+    flight number;
+  - the 777 adds window heat, the APP light, `APURunning` and `WheelChocksSet`;
+  - the 737's APU EGT is rounded to 10°, because whole degrees logged a line every second the APU ran.
+- **Tests:** two for the shared FMC helper, using a stand-in struct (the PMDG headers aren't committed).
+- **The gate name:** Dave confirmed SayIntentions called the KPDX gate "D14", maybe "D 14". The sim's parking
+  `name` 15 (Gate D) + `number` 14 gives that name. This is recorded in `docs/notes/probe-flight.md` and design.md §17.
+- **Next probe flight:** `docs/notes/probe-flight.md` now ends with what it should check. That's the 777, the FMC
+  figures, GSX deboarding and the D14 space.
+- **Milestone 6 is closed:** pushed to `origin/main`, as one Claude Code session per milestone (D-121).
+
+**Working / verified:**
+- Clean release and debug builds have no warnings; both PMDG halves compiled. **335 tests pass** in each:
+  blocktime-tests 269 (one timing check skipped) and blocktime-qt-tests 66.
+
+**Unverified or broken:**
+- The new probe fields haven't been read in the sim.
+- Carried over from the entries below:
+  - the fuel check at release (milestone 6's step 5);
+  - the review's deferred minors;
+  - the 777 and GSX deboarding.
+
+**Next step: milestone 7, in a new Claude Code session.**
+- **What it is:** phases and the six stages (`docs/roadmap.md`): the phase rules in `docs/recorder.md` (with D-058),
+  touchdown capture, and design.md §13.5's six stages and sub-events.
+- **Where to start:** the start-of-session checklist in `CLAUDE.md`, then `superpowers:writing-plans`. Save the plan
+  under `docs/plans/`.
+- **Runways:** the sim's runways can name the departure and arrival runway from the ground roll. The method and its
+  margins are in `docs/notes/probe-flight.md`, results item 4.
+- **Its sim checks** should take in the next probe flight (the list at the end of `probe-flight.md`) and the
+  deferred fuel check.
+
 ## 2026-11-23 — Milestone 6 sim checks passed; the first probe flights read
 
 **Done:**

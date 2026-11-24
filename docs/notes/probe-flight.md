@@ -27,10 +27,12 @@ Nothing extra is requested without the flag. Results go in this note once a prob
 | `probe_started` | Each sim session | Whether the probe's requests went in, and which PMDG halves are built |
 | `probe_gsx` | Any GSX value changes (checked once a second) | GSX's state values through a turnaround: 1 available … 6 completed (unverified, D-073), passenger counts, cargo percent, fuel hose. The L:var names come from community tools; all zeros means they're wrong or GSX isn't running |
 | `probe_simvars` | Any changes (once a second) | `LIGHT BEACON`, `LIGHT STROBE`, `LIGHT LANDING`, `LIGHT TAXI`, `LIGHT NAV`, `CABIN SEATBELTS ALERT SWITCH`, `APU SWITCH`, `GEAR HANDLE POSITION`, `GEAR TOTAL PCT EXTENDED`: whether the plain SimVars follow PMDG's switches |
-| `probe_pmdg_737` / `probe_pmdg_777` | Any listed value changes, at most once a second | The switches in `pmdg-variables-from-spad.md`, by SDK name: battery, seatbelt sign, APU, every light, anti-ice, window and probe heat, doors, CMD/AP and A/T, LNAV/VNAV, gear lights, parking brake |
+| `probe_pmdg_737` / `probe_pmdg_777` | Any listed value changes, at most once a second | The switches in `pmdg-variables-from-spad.md`, by SDK name: battery, seatbelt sign, APU, every light, anti-ice, window and probe heat, doors, CMD/AP and A/T, LNAV/VNAV, gear lights, parking brake. Also the aircraft model and the FMC's figures (distance to top of descent and to destination in whole nm, cruise altitude, V-speeds, transition altitude and level, flight number). The 777 adds `APURunning`, `WheelChocksSet` and the APP light. The 737's APU EGT is rounded to 10° |
 | `probe_facility` | When the sim connects with a flight planned, and after each block in, for its origin and destination | Each runway (position, heading, length, width, number and designator) and parking spot (type, name, suffix, number, heading, radius, offset from the airport). Every record also has `raw` (its bytes in hex), in case a field type in the request is wrong |
 
 ## Questions for the first probe flight
+
+These were answered by the 2026-11-23 flights (Results below), except the 777 parts.
 
 1. **GSX (milestone 8):** which states each service goes through, whether `FSDT_GSX_DEPARTURE_STATE` covers pushback,
    and whether the passenger counts fill in.
@@ -156,7 +158,9 @@ spots closely. These enum readings come from the values seen, not from documenta
 - **Compared with SayIntentions:**
   - At KPDX, Dave parked at the gate SayIntentions assigned.
   - At KSFO he parked at the nearest gate instead, so KSFO doesn't test the match.
-  - Whether SayIntentions' name for the KPDX gate was "D14" is still to be confirmed on a later flight.
+  - **SayIntentions called the KPDX gate "D14"** (Dave, 2026-11-23; there may have been a space after the D). So
+    `name` 15 (Gate D) + `number` 14 gives SayIntentions' gate name. Confirm the space on a later flight before
+    milestone 9 sends gate names to SayIntentions.
 
 **4. Runways.** Each record has the runway's centre, its true heading, its length and width, and both ends'
 numbers and designators (0 none, 1 L, 2 R, 3 C). KBFI 14L/32R comes out as 1,131 m (3,709 ft), which is right.
@@ -183,7 +187,22 @@ numbers and designators (0 none, 1 L, 2 R, 3 C). KBFI 14L/32R comes out as 1,131
   - `DOOR_state` values: 0 open, 1 closed, 2 closed and armed, 3 closing, 4 opening;
   - the doors: 0–9 entry 1L to 5R, 10 forward cargo, 11 aft cargo, 12 main cargo (freighter), 13 bulk cargo,
     14 avionics, 15 EE access.
-- The probe reads neither header's FMC fields yet.
+- **The probe reads them from 2026-11-23 on** (after the first probe flights), in both halves.
 
 The analysis scripts weren't kept. Rerun from the events: the GSX and switch timelines are the changes in each
 `probe_*` event. The runway match is the telemetry's ground roll against each runway's centreline.
+
+## Questions for the next probe flight
+
+Flown during milestone 7's sim checks, with `--probe`:
+
+1. **The 777** (ideally the 777-300ER, the one with the parking brake question in `msfs-observed-behaviour.md`):
+   - which `probe_pmdg_777` values move with each switch;
+   - whether `BRAKES_ParkingBrakeLeverOn` and the plain `BRAKE PARKING POSITION` agree on a release;
+   - the `DOOR_state` values through a GSX turnaround.
+   - BlockTime can't record a 777 flight yet (one slot until 10 h flown), but the probe logs the switches anyway. The
+     runways and parking spots are logged only with a flight planned.
+2. **The FMC's figures (D-120), on either family:** whether `FMC_DistanceToTOD_nm` counts down to 0 at the top of
+   descent, and whether `FMC_DistanceToDest_nm` tracks the distance flown.
+3. **GSX deboarding:** its states and passenger counts.
+4. **The gate name:** whether SayIntentions writes "D14" or "D 14".

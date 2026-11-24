@@ -1713,3 +1713,15 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   already have what's needed; the ahead/behind method is how airline ops does it and copes with winds.
 - Alternatives considered: computing descent from altitude and distance (the 3:1 rule), which ignores the planned
   route and winds; relying on the PMDG FMC (better, if readable; unknown).
+
+## D-121 — One Claude Code session per milestone, pushed to main at its end
+- Date: 2026-11-23
+- Status: Accepted
+- Decided by: Dave
+- Area: process
+- Decision: Each milestone gets its own Claude Code session. That session plans, builds, gets Dave's sim checks and
+  closes the milestone. Closing it includes pushing `main` to `origin`. The next milestone starts in a fresh session
+  from the latest `docs/progress.md` entry. Work still goes straight to `main` (D-038).
+- Why: When Dave questions a decision later, he can find the conversation that made it by milestone.
+- Alternatives considered: one long session across milestones, which runs through several context compactions and
+  is hard to search; pushing after every commit, which publishes half-finished milestones.

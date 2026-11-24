@@ -5,7 +5,9 @@
 // The PMDG 777 half of the probe (D-116). Built only when BLOCKTIME_PMDG_777X_SDK_DIR points at PMDG_777X_SDK.h.
 
 #include "pmdg_probe.h"
+#include "pmdg_probe_common.h"
 
+#include <cmath>
 #include <cstring>
 
 #include <windows.h>
@@ -15,17 +17,6 @@
 #include <PMDG_777X_SDK.h>
 
 namespace blocktime::probe {
-
-namespace {
-
-template <class T, std::size_t N>
-nlohmann::json list(const T (&values)[N]) {
-    nlohmann::json out = nlohmann::json::array();
-    for (const T& v : values) out.push_back(static_cast<int>(v));
-    return out;
-}
-
-}  // namespace
 
 bool registerPmdg777(void* handle, unsigned long requestId) {
     HANDLE h = static_cast<HANDLE>(handle);
@@ -41,7 +32,8 @@ nlohmann::json decodePmdg777(const void* data, std::size_t size) {
     if (size < sizeof(PMDG_777X_Data)) return nullptr;
     PMDG_777X_Data d;
     std::memcpy(&d, data, sizeof d);
-    return {
+    nlohmann::json out = {
+        {"AircraftModel", d.AircraftModel},
         {"ELEC_Battery_Sw_ON", d.ELEC_Battery_Sw_ON},
         {"ELEC_APU_Selector", d.ELEC_APU_Selector},
         {"SIGNS_SeatBeltsSelector", d.SIGNS_SeatBeltsSelector},
@@ -53,6 +45,7 @@ nlohmann::json decodePmdg777(const void* data, std::size_t size) {
         {"LTS_RunwayTurnoff_Sw_ON", list(d.LTS_RunwayTurnoff_Sw_ON)},
         {"LTS_Taxi_Sw_ON", d.LTS_Taxi_Sw_ON},
         {"LTS_Strobe_Sw_ON", d.LTS_Strobe_Sw_ON},
+        {"ICE_WindowHeat_Sw_ON", list(d.ICE_WindowHeat_Sw_ON)},
         {"ICE_WingAntiIceSw", d.ICE_WingAntiIceSw},
         {"ICE_EngAntiIceSw", list(d.ICE_EngAntiIceSw)},
         {"GEAR_Lever", d.GEAR_Lever},
@@ -60,9 +53,14 @@ nlohmann::json decodePmdg777(const void* data, std::size_t size) {
         {"MCP_annunAT", d.MCP_annunAT},
         {"MCP_annunLNAV", d.MCP_annunLNAV},
         {"MCP_annunVNAV", d.MCP_annunVNAV},
+        {"MCP_annunAPP", d.MCP_annunAPP},
         {"BRAKES_ParkingBrakeLeverOn", d.BRAKES_ParkingBrakeLeverOn},
         {"DOOR_state", list(d.DOOR_state)},
+        {"APURunning", d.APURunning},
+        {"WheelChocksSet", d.WheelChocksSet},
     };
+    out.update(fmcFields(d));
+    return out;
 }
 
 }  // namespace blocktime::probe
