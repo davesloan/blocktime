@@ -990,6 +990,30 @@ TEST_F(LiveFlight, TurnaroundAsksForNewFlight) {
     EXPECT_EQ(m->summaryFlightId(), "");
 }
 
+TEST_F(LiveFlight, DoneForNowShowsNextLeg) {
+    write({liveOut(plannedId_), liveIn()});
+    auto m = model();
+    BlockOut out;
+    out.flightId = kLiveOut;
+    bridge_.applyBlockEvent(out);
+    EXPECT_TRUE(bridge_.showingFlight());
+    m->checkFlown();
+    EXPECT_TRUE(bridge_.showingFlight());  // the summary shows with the flight's Arrival under it
+    m->doneForNow();
+    EXPECT_FALSE(bridge_.showingFlight());
+}
+
+TEST_F(LiveFlight, TurnaroundShowsNextLeg) {
+    write({liveOut(plannedId_), liveIn()});
+    auto m = model();
+    BlockOut out;
+    out.flightId = kLiveOut;
+    bridge_.applyBlockEvent(out);
+    m->checkFlown();
+    m->turnaround();
+    EXPECT_FALSE(bridge_.showingFlight());
+}
+
 TEST_F(LiveFlight, DoneForNowClearsTheSummary) {
     write({liveOut(plannedId_), liveIn()});
     auto m = model();
@@ -1361,6 +1385,74 @@ TEST(RecorderBridge, StagesResetOnInterrupt) {
     b.applyBlockEvent(e);
     EXPECT_TRUE(stage(b, 1)["lines"].toList().isEmpty());
     EXPECT_EQ(stage(b, 0)["state"].toString(), "current");
+}
+
+// --- RecorderBridge: GSX and the progress card across the gate (milestone 8, D-134, D-135) ------------------------
+
+TEST(RecorderBridge, GsxServicesBeforeBlockOut) {
+    qtApp();
+    RecorderBridge b;
+    EXPECT_FALSE(b.hasNextLegServices());
+    b.applyFlightEvent("gsx_service",
+                       {{"service", "refuelling"}, {"state", "performing"}, {"time", "2026-11-24T09:30:00.000Z"}});
+    EXPECT_TRUE(b.hasNextLegServices());
+    EXPECT_FALSE(b.showingFlight());
+    const QVariantList lines = stage(b, 0)["lines"].toList();
+    ASSERT_EQ(lines.size(), 1);
+    EXPECT_EQ(lines[0].toMap()["text"].toString(), "Refuelling");
+    EXPECT_TRUE(lines[0].toMap()["checks"].toList().isEmpty());
+}
+
+TEST(RecorderBridge, ArrivalStaysUntilShowNextLeg) {
+    qtApp();
+    RecorderBridge b;
+    BlockOut out;
+    out.flightId = "2026-11-24T10:00:00.000Z";
+    out.time = std::chrono::sys_days{std::chrono::November / 24 / 2026} + std::chrono::hours(10);
+    b.applyBlockEvent(out);
+    b.applyFlightEvent("phase_changed", phaseEvent("pushback", "10:00:00"));
+    BlockIn in;
+    in.flightId = out.flightId;
+    in.time = out.time + std::chrono::hours(2);
+    b.applyBlockEvent(in);
+    b.applyFlightEvent("phase_changed", phaseEvent("arrived", "12:00:00"));
+    EXPECT_TRUE(b.showingFlight());
+
+    TelemetrySample s{};
+    s.parkingBrake = 1;
+    s.onGround = 1;
+    s.numEngines = 2;
+    s.lightBeacon = 0;
+    s.lightStrobe = 0;
+    b.applySample(s);
+    const QVariantList arrival = stage(b, 5)["lines"].toList();
+    ASSERT_EQ(arrival.size(), 2);
+    EXPECT_EQ(arrival[1].toMap()["text"].toString(), "Ready for shutdown or turnaround");
+    const QVariantList checks = arrival[1].toMap()["checks"].toList();
+    ASSERT_EQ(checks.size(), 4);
+    EXPECT_EQ(checks[0].toMap()["text"].toString(), "Engines off");
+    EXPECT_TRUE(checks[0].toMap()["done"].toBool());
+
+    b.showNextLeg();
+    EXPECT_FALSE(b.showingFlight());
+    EXPECT_TRUE(stage(b, 5)["lines"].toList().isEmpty());
+}
+
+TEST(RecorderBridge, BeaconOnKeepsReadyAway) {
+    qtApp();
+    RecorderBridge b;
+    BlockOut out;
+    out.flightId = "2026-11-24T10:00:00.000Z";
+    b.applyBlockEvent(out);
+    BlockIn in;
+    in.flightId = out.flightId;
+    b.applyBlockEvent(in);
+    b.applyFlightEvent("phase_changed", phaseEvent("arrived", "12:00:00"));
+    TelemetrySample s{};
+    s.parkingBrake = 1;
+    s.lightBeacon = 1;
+    b.applySample(s);
+    EXPECT_EQ(stage(b, 5)["lines"].toList().size(), 1);  // Parked only
 }
 
 TEST(FlightWatcher, DestinationStartsAtApproachWithoutADescent) {

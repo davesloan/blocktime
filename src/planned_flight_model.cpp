@@ -54,7 +54,10 @@ void PlannedFlightModel::reload(const QString& message) {
     fuelOnRecordLb_ = t ? t->fuelOnRecordLb : 0;
     target_.set(t);
     message_ = message;
-    if (flight_) summaryFlightId_.clear();  // a new plan replaces the summary
+    if (flight_ && !summaryFlightId_.isEmpty()) {  // a new plan replaces the summary
+        summaryFlightId_.clear();
+        bridge_.showNextLeg();
+    }
     emit changed();
     emit flightChanged();
     emit notRecordingChanged();
@@ -104,6 +107,7 @@ void PlannedFlightModel::checkFlown() {
 
 void PlannedFlightModel::doneForNow() {
     summaryFlightId_.clear();
+    bridge_.showNextLeg();
     emit changed();
     emit notRecordingChanged();
 }
@@ -111,6 +115,7 @@ void PlannedFlightModel::doneForNow() {
 void PlannedFlightModel::turnaround() {
     const QString registration = summaryRegistration_;
     summaryFlightId_.clear();
+    bridge_.showNextLeg();
     emit changed();
     emit notRecordingChanged();
     if (!registration.isEmpty()) emit turnaroundRequested(registration);

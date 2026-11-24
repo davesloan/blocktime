@@ -76,6 +76,8 @@ nlohmann::json toJson(const TelemetrySample& s) {
         {"engines", s.numEngines},
         {"eng_running", engRunning(s)},
         {"fuel_flow_pph", totalFuelFlow(s)},
+        {"beacon", s.lightBeacon != 0},
+        {"strobe", s.lightStrobe != 0},
         {"title", std::string(simString(s.title, sizeof(s.title)))},
         {"atc_id", std::string(simString(s.atcId, sizeof(s.atcId)))},
     };

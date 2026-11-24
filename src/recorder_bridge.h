@@ -48,9 +48,14 @@ class RecorderBridge : public QObject {
     Q_PROPERTY(QString lastFlightSummary READ lastFlightSummary NOTIFY flightChanged)
 
     // The six stages of the open (or last) flight (design.md §13.5, D-128): [{name, state ("upcoming", "current",
-    // "done"), lines: [{text, start, end, running}]}], and the phase with its sub-state ("Climb — level at 9,000 ft").
+    // "done"), lines: [{text, start, end, running, checks: [{text, done}]}]}], and the phase with its sub-state
+    // ("Climb — level at 9,000 ft"). Only the Ready line has checks (D-135).
     Q_PROPERTY(QVariantList stages READ stages NOTIFY stagesChanged)
     Q_PROPERTY(QString phase READ phase NOTIFY stagesChanged)
+    // The stages show the flight from block out until showNextLeg() (the summary was dismissed), else the next leg,
+    // whose Pre-Departure has the GSX services so far (D-134).
+    Q_PROPERTY(bool showingFlight READ showingFlight NOTIFY stagesChanged)
+    Q_PROPERTY(bool hasNextLegServices READ hasNextLegServices NOTIFY stagesChanged)
 
     Q_PROPERTY(EventFeedModel* events READ events CONSTANT)
 
@@ -78,6 +83,10 @@ public:
     EventFeedModel* events() { return &events_; }
     QVariantList stages() const;
     QString phase() const { return QString::fromStdString(stages_.phaseLabel()); }
+    bool showingFlight() const { return stages_.showingFlight(); }
+    bool hasNextLegServices() const { return stages_.hasNextLegServices(); }
+    // The last flight's Arrival is done with: the stages show the next leg.
+    Q_INVOKABLE void showNextLeg();
 
     Q_INVOKABLE void openLogFolder() const;
 

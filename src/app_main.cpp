@@ -82,6 +82,16 @@ void fillDemo(RecorderBridge& bridge) {
     bridge.applyLine(QString::fromStdString(released + "  BLOCK OUT  N737BT  released " + released + "  fuel 26310 lb"),
                      false);
     bridge.applySample(s);
+    // GSX's refuelling and boarding before the push, and a GSX push (D-138).
+    const auto gsx = [&](const char* service, const char* state, std::chrono::seconds before) {
+        bridge.applyFlightEvent("gsx_service", {{"service", service}, {"state", state},
+                                                {"time", QString::fromStdString(blocktime::formatUtc(out.time - before))}});
+    };
+    gsx("refuelling", "performing", 31min);
+    gsx("refuelling", "completed", 24min);
+    gsx("boarding", "performing", 22min);
+    gsx("boarding", "available", 4min);
+    gsx("pushback", "performing", 10s);
     bridge.applyBlockEvent(out);
 
     // A made-up departure and climb to FL350, so the Flight progress card has something to show (D-128).

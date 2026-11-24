@@ -19,6 +19,7 @@
 #include <type_traits>
 #include <variant>
 
+#include "event_log.h"
 #include "telemetry_filter.h"
 
 using namespace blocktime;
@@ -101,6 +102,15 @@ void RecorderBridge::applySample(const TelemetrySample& s) {
     atcId_ = QString::fromUtf8(simString(s.atcId, sizeof(s.atcId)));
     if (parkingBrake_) setReleaseRefused(false);
     emit sampleChanged();
+    // The shutdown checklist after block in (D-135); the stages ignore it at any other time.
+    const ShutdownChecks checks{enginesRunning_ == 0, parkingBrake_, s.lightBeacon == 0, s.lightStrobe == 0};
+    if (stages_.onShutdownChecks(checks, utcTimestamp())) emit stagesChanged();
+}
+
+void RecorderBridge::showNextLeg() {
+    if (!stages_.showingFlight()) return;
+    stages_.showNextLeg();
+    emit stagesChanged();
 }
 
 void RecorderBridge::applyBlockEvent(const BlockEvent& event) {
@@ -177,10 +187,15 @@ QVariantList RecorderBridge::stages() const {
     for (const StageView& v : stages_.view()) {
         QVariantList lines;
         for (const StageLine& l : v.lines) {
+            QVariantList checks;
+            for (const ChecklistItem& c : l.checks) {
+                checks.append(QVariantMap{{"text", QString::fromStdString(c.text)}, {"done", c.done}});
+            }
             lines.append(QVariantMap{{"text", QString::fromStdString(l.text)},
                                      {"start", QString::fromStdString(l.start)},
                                      {"end", QString::fromStdString(l.end)},
-                                     {"running", l.running}});
+                                     {"running", l.running},
+                                     {"checks", checks}});
         }
         out.append(QVariantMap{{"name", QString::fromStdString(v.name)},
                                {"state", kStates[static_cast<int>(v.state)]},

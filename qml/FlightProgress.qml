@@ -53,32 +53,54 @@ Card {
             Repeater {
                 model: stage.modelData.lines
 
-                delegate: RowLayout {
+                delegate: ColumnLayout {
                     id: line
 
                     required property var modelData
 
                     Layout.fillWidth: true
                     Layout.leftMargin: Theme.stageDotSize + 8
-                    spacing: 8
+                    spacing: 2
 
-                    Text {
-                        Layout.preferredWidth: Theme.stageTimeWidth
-                        text: line.modelData.end !== "" ? line.modelData.start + " – " + line.modelData.end
-                            : line.modelData.running ? line.modelData.start + " –" : line.modelData.start
-                        color: Theme.textSecondary
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSmall
-                        font.features: { "tnum": 1 }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Text {
+                            Layout.preferredWidth: Theme.stageTimeWidth
+                            text: line.modelData.end !== "" ? line.modelData.start + " – " + line.modelData.end
+                                : line.modelData.running ? line.modelData.start + " –" : line.modelData.start
+                            color: Theme.textSecondary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.features: { "tnum": 1 }
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: line.modelData.text
+                            color: line.modelData.running ? Theme.textPrimary : Theme.textSecondary
+                            wrapMode: Text.Wrap
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSmall
+                        }
                     }
 
-                    Text {
-                        Layout.fillWidth: true
-                        text: line.modelData.text
-                        color: line.modelData.running ? Theme.textPrimary : Theme.textSecondary
-                        wrapMode: Text.Wrap
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSmall
+                    // "Ready for shutdown or turnaround": informational, never a requirement (D-135).
+                    Repeater {
+                        model: line.modelData.checks
+
+                        delegate: Text {
+                            id: check
+
+                            required property var modelData
+
+                            Layout.leftMargin: Theme.stageTimeWidth + 8
+                            text: (check.modelData.done ? "✓  " : "○  ") + check.modelData.text
+                            color: check.modelData.done ? Theme.good : Theme.textPrimary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSmall
+                        }
                     }
                 }
             }

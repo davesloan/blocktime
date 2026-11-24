@@ -106,10 +106,12 @@ Item {
                 flight: page.plannedFlight
             }
 
-            // The open flight's six stages (design.md §13.5).
+            // The six stages across the gate (design.md §13.5, D-134): the flight from block out until its summary is
+            // dismissed, otherwise the next leg with its GSX services so far.
             FlightProgress {
                 Layout.fillWidth: true
-                visible: page.recorder.flightOpen
+                visible: page.recorder.showingFlight ? (page.recorder.flightOpen || page.showSummary)
+                    : (page.plannedFlight.hasFlight || page.recorder.hasNextLegServices)
                 recorder: page.recorder
             }
 

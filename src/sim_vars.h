@@ -40,6 +40,8 @@ struct TelemetrySample {
     std::int32_t numEngines;     // NUMBER OF ENGINES, number
     std::int32_t engCombustion[4];   // GENERAL ENG COMBUSTION:1..4, bool
     double engFuelFlowPph[4];        // ENG FUEL FLOW PPH:1..4, pounds per hour
+    std::int32_t lightBeacon;        // LIGHT BEACON, bool: the shutdown checklist (D-135)
+    std::int32_t lightStrobe;        // LIGHT STROBE, bool
     char title[256];            // TITLE, string256
     char atcId[64];              // ATC ID, string64 (tail number)
 };
@@ -68,6 +70,9 @@ inline constexpr SimVarSpec kTelemetryVars[] = {
     {"ENG FUEL FLOW PPH:2", "pounds per hour", VarType::Float64, 5.0f},
     {"ENG FUEL FLOW PPH:3", "pounds per hour", VarType::Float64, 5.0f},
     {"ENG FUEL FLOW PPH:4", "pounds per hour", VarType::Float64, 5.0f},
+    // Both follow the PMDG 737's and 777's switches (probe flights, docs/notes/probe-flight.md).
+    {"LIGHT BEACON", "bool", VarType::Int32, 0.0f},
+    {"LIGHT STROBE", "bool", VarType::Int32, 0.0f},
     {"TITLE", nullptr, VarType::String256, 0.0f},
     {"ATC ID", nullptr, VarType::String64, 0.0f},
 };
