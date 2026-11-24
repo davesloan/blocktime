@@ -1,0 +1,49 @@
+{
+ "icao": "KSFO",
+ "runways": [
+  {
+   "lat": 37.6171831,
+   "lon": -122.3767908,
+   "heading": 27.76,
+   "length_m": 2328.7,
+   "width_m": 50.0,
+   "primary_number": 1,
+   "primary_designator": 1,
+   "secondary_number": 19,
+   "secondary_designator": 2
+  },
+  {
+   "lat": 37.6168244,
+   "lon": -122.374101,
+   "heading": 27.73,
+   "length_m": 2633.2,
+   "width_m": 59.8,
+   "primary_number": 1,
+   "primary_designator": 2,
+   "secondary_number": 19,
+   "secondary_designator": 1
+  },
+  {
+   "lat": 37.621133,
+   "lon": -122.3752423,
+   "heading": 117.9,
+   "length_m": 3613.3,
+   "width_m": 61.0,
+   "primary_number": 10,
+   "primary_designator": 1,
+   "secondary_number": 28,
+   "secondary_designator": 2
+  },
+  {
+   "lat": 37.6189973,
+   "lon": -122.3757268,
+   "heading": 117.91,
+   "length_m": 3469.3,
+   "width_m": 61.0,
+   "primary_number": 10,
+   "primary_designator": 2,
+   "secondary_number": 28,
+   "secondary_designator": 1
+  }
+ ]
+}

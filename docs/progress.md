@@ -22,6 +22,38 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-23 — Milestone 7 planning (docs and test fixtures only)
+
+**Done:**
+- **Plan:** `docs/plans/2026-11-23-milestone-7-phases-and-stages.md`, 11 tasks, version 0.8.0. It covers:
+  - the phase rules;
+  - markers, runways and touchdown;
+  - `FlightTracker`, the recorder's per-flight glue;
+  - the ATIS and ATC logging (D-123);
+  - the six stages on Live.
+- **Tuned on real data:**
+  - The phase rules were prototyped on Dave's KBFI→KPDX and KPDX→KSFO flights from the event log.
+  - Those flights are now replay fixtures (`tests/data/replay-*.csv`). The plan's expected times come from that run.
+  - The runway method was checked on the same rolls: 14R, 10R, 10R and 28R, each 1–4 m off the sim's centreline. The
+    runways are fixtures too (`tests/data/runways-*.json`).
+- **SayIntentions docs checked:** `getCommsHistory` entries carry an integer `id`, so the dedupe is by `id` (D-127).
+- **Claude's calls, all Proposed:**
+  - D-124: the phase numbers, including a 20 s level hold instead of recorder.md's suggested 30–60 s;
+  - D-125: touchdown from sim-frame samples near the ground;
+  - D-126: the recorder names the runways;
+  - D-127: web results reach the log through the recorder thread;
+  - D-128: the six stages built from the log's events.
+
+**Working / verified:**
+- No code changed.
+
+**Unverified or broken:**
+- Whether PMDG drives `KOHLSMAN SETTING MB/STD` (D-123): milestone 7's sim checks.
+- Whether the sim accepts `G FORCE` in the touchdown definition. If it doesn't, only that request fails.
+
+**Next step:**
+- Dave reviews the plan and D-124..D-128. Then execute it (executing-plans, D-033) from Task 1.
+
 ## 2026-11-23 — Probe gets the FMC and more 777 fields; milestone 6 closed
 
 **Done:**

@@ -1,0 +1,38 @@
+{
+ "icao": "KPDX",
+ "runways": [
+  {
+   "lat": 45.588241,
+   "lon": -122.6085399,
+   "heading": 45.0,
+   "length_m": 1827.2,
+   "width_m": 46.0,
+   "primary_number": 3,
+   "primary_designator": 0,
+   "secondary_number": 21,
+   "secondary_designator": 0
+  },
+  {
+   "lat": 45.5899948,
+   "lon": -122.5832485,
+   "heading": 119.05,
+   "length_m": 2996.1,
+   "width_m": 46.0,
+   "primary_number": 10,
+   "primary_designator": 1,
+   "secondary_number": 28,
+   "secondary_designator": 2
+  },
+  {
+   "lat": 45.5878601,
+   "lon": -122.6027003,
+   "heading": 119.01,
+   "length_m": 3354.7,
+   "width_m": 46.0,
+   "primary_number": 10,
+   "primary_designator": 2,
+   "secondary_number": 28,
+   "secondary_designator": 1
+  }
+ ]
+}

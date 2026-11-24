@@ -1780,3 +1780,103 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   ATC exchanges. None of it can be fetched after the flight, so it has to be logged from the start.
 - Alternatives considered: waiting for milestone 10, which would leave its analysis with no real flights to build
   and test on.
+
+## D-124 — The phase rules' numbers, tuned on two real flights
+- Date: 2026-11-23
+- Status: Proposed
+- Decided by: Claude
+- Area: recorder
+- Decision: recorder.md's phase rules get these starting values (constants in `phase_detector.h`):
+  - **Pushback → Taxi out:** the brake set after block out (the push's end), then 3 kt with the brake off; or 6 kt at
+    any time, for a departure without a push. GSX pushes ran at about 4 kt and taxiing at up to 23 kt.
+  - **Takeoff** at 40 kt on the ground; **Climb** once airborne at 1,000 ft AGL.
+  - **Level:** indicated altitude within ±100 ft for 20 s of active time (D-058). It's reported at the nearest
+    100 ft of the samples' mean, and ends more than 200 ft away.
+  - **Cruise:** a level within 1,000 ft of the plan's cruise altitude. With no plan, a level above 10,000 ft held
+    5 minutes.
+  - **Top of descent:** VS of −500 fpm or less for 60 s, within 2 × the 3:1 distance (3 nm per 1,000 ft) of the
+    destination. A descent farther out is a step down and stays Cruise. A sustained descent during Climb is Descent.
+  - **Approach:** within 30 nm and below 10,000 ft, or below 3,000 ft AGL (which covers a diversion).
+  - **Go-around:** +500 fpm for 10 s, 200 ft above the approach's lowest point. The next level-off returns it to
+    Approach. It's logged as `phase_changed` to `go_around`.
+  - **Landing** at the first sample on the ground; **Taxi in** below 30 kt.
+  - **Indicated altitude** everywhere: it's what the pilot flies, and ATC's levels show as round numbers in it.
+- Why: Replayed on Dave's KBFI→KPDX and KPDX→KSFO flights of 2026-11-23 (the fixtures in `tests/data`), these give
+  every phase and level-off he flew. The KBFI leg's cruise at FL200 lasted only about 75 s, and an ATC level-off at
+  11,000 ft lasted about 25 s, so recorder.md's suggested 30–60 s hold would miss both. 20 s gave no false
+  level-offs on either flight.
+- Alternatives considered: a 30 s hold (misses the 11,000 ft level-off); a vertical-speed threshold for level (noisier
+  than an altitude band); true or pressure altitude (needs a new SimVar; true altitude was 300–800 ft off the
+  levels flown).
+
+## D-125 — Touchdown from sim-frame samples near the ground
+- Date: 2026-11-23
+- Status: Proposed
+- Decided by: Claude
+- Area: recorder
+- Decision: A second small data definition (vertical speed, on ground, AGL, G force, IAS, position) is requested
+  every sim frame, only from 300 ft AGL on the way down until the touchdown is captured, or above 500 ft after a
+  go-around. The touchdown rate is the vertical speed of the last airborne frame. The g is the peak in the second
+  after contact. A bounce isn't a second touchdown.
+- Why: The once-a-second telemetry read −118 and −182 fpm on the probe flights, but that was the last sample before
+  contact, up to a second early. Sim-frame sampling for about 20 s per flight is the "fast only briefly" that
+  recorder.md asks for.
+- Alternatives considered: `PLANE TOUCHDOWN NORMAL VELOCITY`, not yet seen working in MSFS 2020 with the PMDG, and an
+  unknown name would drop the whole request; the 1 Hz sample (too coarse).
+
+## D-126 — The recorder names the runways, from the sim's facility data
+- Date: 2026-11-23
+- Status: Proposed
+- Decided by: Claude
+- Area: recorder
+- Decision:
+  - **The data:** the recorder requests the runways of the planned origin and destination at connect, and when the
+    planned flight changes. That's a runway-only facility request in the normal build. It logs them as
+    `airport_runways`.
+  - **The naming:** it names the takeoff runway at liftoff (`liftoff`) and the landing runway at Taxi in
+    (`landing_runway`). The roll is the samples on the ground at 40 kt or more. A runway end fits when the roll's
+    track is within 20° of its heading and its mean distance from the centreline is 75 m or less. The nearest fit
+    wins; with none, the runway is `""`.
+  - **The offsets** are logged as information and never scored (D-122).
+  - **This replaces recorder.md's line** that matching positions to runways is the app's job. Gates stay open for
+    milestone 9.
+- Why: On the probe flights the four rolls were named right, 1–4 m off the sim's centreline. The next-best runway was
+  at least 115 m away, so 75 m can't pick a parallel. Naming in the recorder puts the answer in the log next to the
+  roll, so the analysis and the stages read one file.
+- Alternatives considered: OurAirports runway ends from the database (not the sim's geometry); the app naming from
+  logged runways (a second place that has to know the roll).
+
+## D-127 — The app's web results reach the log through the recorder thread
+- Date: 2026-11-23
+- Status: Proposed
+- Decided by: Claude
+- Area: app, recorder
+- Decision:
+  - **One writer:** the GUI thread pushes `atis` and `atc_exchange` events onto an `AppEventQueue`, and the recorder
+    thread drains it into the event log on each loop, so the log keeps one writer.
+  - **The events:** both carry the recorder's `flight_id`. `atc_exchange` holds SayIntentions' entry verbatim, plus
+    `si_flight_id`.
+  - **The dedupe:** an exchange is keyed by its `id`. It's logged when new, and again when its content has changed (a
+    reply written late, D-123). A reader keeps the last line per `id`. ATIS lines are logged when the letter or the
+    text changes.
+- Why: Two `std::ofstream`s appending to one file from two threads can interleave lines. The queue is a few lines and
+  keeps D-008's "the log first" for the web results too. Logging the entry verbatim keeps fields BlockTime doesn't use
+  yet, such as `ident` and `is_acars`.
+- Alternatives considered: a mutex inside `EventLog` shared by both threads; a second log file for web results (two
+  files for the analysis to join); `since_id` polling (skips late replies).
+
+## D-128 — The six stages are built from the log's events
+- Date: 2026-11-23
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision: `FlightStages` (plain C++) builds design.md §13.5's six stages from the recorder's events. Live shows them
+  in a Flight progress card while a flight is open. The phase with its sub-state ("Climb — level at 11,000 ft") is
+  shown in the Flight card.
+  - Altitudes read as flight levels from the plan's transition altitude (climb and cruise) or transition level
+    (descent).
+  - "Landed" carries the runway and the touchdown rate.
+  - Pre-Departure stays empty until milestone 8's GSX services, and Arrival shows "Parked" until milestone 9's gate.
+  - The summary is unchanged in this milestone.
+- Why: Building from the same events the log holds means Live and a later debrief or summary read the same thing.
+- Alternatives considered: a separate stage model fed by the observer (a second interpretation of the same facts).

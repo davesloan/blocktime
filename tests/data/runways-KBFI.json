@@ -1,0 +1,27 @@
+{
+ "icao": "KBFI",
+ "runways": [
+  {
+   "lat": 47.5336096,
+   "lon": -122.303752,
+   "heading": 150.28,
+   "length_m": 1131.1,
+   "width_m": 31.1,
+   "primary_number": 14,
+   "primary_designator": 1,
+   "secondary_number": 32,
+   "secondary_designator": 2
+  },
+  {
+   "lat": 47.5286442,
+   "lon": -122.3013116,
+   "heading": 150.25,
+   "length_m": 3047.1,
+   "width_m": 60.4,
+   "primary_number": 14,
+   "primary_designator": 2,
+   "secondary_number": 32,
+   "secondary_designator": 1
+  }
+ ]
+}
