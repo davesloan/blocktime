@@ -20,6 +20,7 @@ const std::string kType = R"(types:
     cruise_speed_kt: 490
     lease_per_month: 3000000
     sim_folder: PMDG 777F
+    wingspan_m: 64.8
 )";
 
 std::string withAirframes(const std::string& airframes) { return kType + "airframes:\n" + airframes; }
@@ -142,4 +143,22 @@ TEST(Catalog, SimFolderIsRequired) {
     std::string error;
     EXPECT_FALSE(parseCatalog(yaml + "airframes: []\n", &error).has_value());
     EXPECT_NE(error.find("sim_folder"), std::string::npos) << error;
+}
+
+TEST(Catalog, ReadsWingspan) {
+    std::string error;
+    const auto catalog = loadCatalog(BLOCKTIME_SOURCE_DIR "/config/catalog.yaml", &error);
+    ASSERT_TRUE(catalog.has_value()) << error;
+    EXPECT_DOUBLE_EQ(catalog->type("737-800 BBJ2")->wingspanM, 35.8);
+    EXPECT_DOUBLE_EQ(catalog->type("777-300ER")->wingspanM, 64.8);
+    EXPECT_DOUBLE_EQ(catalog->type("737-600")->wingspanM, 34.3);
+}
+
+TEST(Catalog, WingspanIsRequired) {
+    const std::string line = "    wingspan_m: 64.8\n";
+    std::string yaml = kType;
+    yaml.replace(yaml.find(line), line.size(), "");
+    std::string error;
+    EXPECT_FALSE(parseCatalog(yaml + "airframes: []\n", &error).has_value());
+    EXPECT_NE(error.find("wingspan_m"), std::string::npos) << error;
 }

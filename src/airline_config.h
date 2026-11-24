@@ -8,6 +8,7 @@
 #pragma once
 
 #include <filesystem>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -46,6 +47,8 @@ struct AirlineConfig {
     Cents startingCashCents = 0;
     std::vector<std::string> fleets;
     std::vector<ConfigAirplane> airplanes;
+    // By ICAO, SayIntentions' short gate names ("D14"), first choice first; only for gate flights (D-147).
+    std::map<std::string, std::vector<std::string>> preferredGates;
 };
 
 // Parses and validates airline.yaml's text. On failure returns nullopt with "airline.yaml line N: ..." in *error.

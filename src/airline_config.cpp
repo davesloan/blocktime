@@ -148,6 +148,17 @@ std::optional<AirlineConfig> parseAirlineConfig(std::string_view yaml, std::stri
             }
             config.airplanes.push_back(std::move(a));
         }
+
+        // Optional: { KPDX: [D14, D12] }, SayIntentions' short gate names by ICAO (D-147).
+        const YAML::Node preferred = (*root)["preferred_gates"];
+        if (preferred.IsDefined() && !preferred.IsNull()) {
+            if (!preferred.IsMap()) return r.fail(preferred, "preferred_gates must be a map like { KPDX: [D14] }"), finish();
+            for (const auto& entry : preferred) {
+                std::vector<std::string> gates;
+                for (const YAML::Node& g : entry.second) gates.push_back(g.as<std::string>());
+                config.preferredGates[entry.first.as<std::string>()] = std::move(gates);
+            }
+        }
         if (error) error->clear();
         return config;
     } catch (const YAML::Exception& e) {

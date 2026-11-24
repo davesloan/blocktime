@@ -139,3 +139,19 @@ TEST(Config, FlightNumberIsOptional) {
     ASSERT_TRUE(config.has_value()) << error;
     EXPECT_EQ(config->airplanes[0].flightNumber, "8");
 }
+
+TEST(Config, ReadsPreferredGates) {
+    std::string error;
+    const auto config = parseAirlineConfig(kConfig + "preferred_gates:\n  KPDX: [D14, D12]\n  KSAN: [\"20\"]\n", &error);
+    ASSERT_TRUE(config.has_value()) << error;
+    ASSERT_EQ(config->preferredGates.size(), 2u);
+    EXPECT_EQ(config->preferredGates.at("KPDX"), (std::vector<std::string>{"D14", "D12"}));
+    EXPECT_EQ(config->preferredGates.at("KSAN"), (std::vector<std::string>{"20"}));
+}
+
+TEST(Config, PreferredGatesAreOptional) {
+    std::string error;
+    const auto config = parseAirlineConfig(kConfig, &error);
+    ASSERT_TRUE(config.has_value()) << error;
+    EXPECT_TRUE(config->preferredGates.empty());
+}

@@ -22,6 +22,7 @@ struct CatalogType {
     int turnaroundMin, cruiseSpeedKt;
     Cents monthlyLeaseCents;
     std::string simFolder;  // the sim's aircraft.cfg folder for this type, "PMDG 737-800BBJ2" (D-112)
+    double wingspanM = 0;   // for the arrival gate's size (D-147)
 };
 
 struct Cabin {

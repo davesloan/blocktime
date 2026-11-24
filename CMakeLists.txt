@@ -88,6 +88,7 @@ add_library(blocktime-core STATIC
   src/runway_match.cpp
   src/parking.cpp
   src/lined_up.cpp
+  src/gate_picker.cpp
   src/sayintentions.cpp
   src/simbrief.cpp
   src/money.cpp
@@ -174,6 +175,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/runway_match_test.cpp
     tests/parking_test.cpp
     tests/lined_up_test.cpp
+    tests/gate_picker_test.cpp
     tests/touchdown_capture_test.cpp
     tests/flight_tracker_test.cpp
     tests/app_event_queue_test.cpp

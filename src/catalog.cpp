@@ -46,7 +46,9 @@ bool readType(YamlReader& r, const YAML::Node& node, CatalogType& t) {
         return r.fail(node["lease_per_month"], "lease_per_month must be a positive multiple of 5 dollars");
     }
     t.monthlyLeaseCents = lease * 100;
-    return r.string(node, "sim_folder", t.simFolder);
+    if (!r.string(node, "sim_folder", t.simFolder) || !r.number(node, "wingspan_m", t.wingspanM)) return false;
+    if (t.wingspanM <= 0) return r.fail(node["wingspan_m"], "wingspan_m must be positive");
+    return true;
 }
 
 bool readAirframe(YamlReader& r, const YAML::Node& node, const Catalog& catalog, CatalogAirframe& a) {
