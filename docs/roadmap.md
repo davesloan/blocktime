@@ -149,6 +149,9 @@ after milestone 10 sorts and designs them.
 - **Altitude-coloured track:** the flight's line on the map coloured by altitude, red near the ground through yellow
   and green to blue at cruise, then back through green and yellow to red on the way down, fading smoothly between
   colours rather than in bands.
+- **Short final view:** on short final the dashboard shows altitude above ground, and below 300 ft it refreshes at
+  a higher rate. (The recorder already samples fast only briefly around touchdown, milestone 7's touchdown capture;
+  this would show that data live.)
 
 ## Before starting, Dave needs to
 
