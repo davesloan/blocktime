@@ -66,7 +66,19 @@ struct StepClimbEnded {
     int altFt;
 };
 
-using PhaseEvent = std::variant<PhaseChanged, LevelOff, LevelOffEnded, StepClimb, StepClimbEnded>;
+enum class MarkerKind { Above10000, TransitionAltitude, Within200Nm, TransitionLevel, Below10000, FinalApproach };
+
+// "above_10000", "transition_altitude", "within_200nm", "transition_level", "below_10000", "final_approach"
+std::string_view markerCode(MarkerKind k);
+
+// Each fires once per flight, on the sample that crosses (design.md §13.5's sub-events).
+struct Marker {
+    MarkerKind kind;
+    TimePoint time;
+    int altFt;
+};
+
+using PhaseEvent = std::variant<PhaseChanged, LevelOff, LevelOffEnded, StepClimb, StepClimbEnded, Marker>;
 
 // D-124
 inline constexpr double kPushbackMoveKt = 3.0;      // after the brake set that ends the push
@@ -91,6 +103,9 @@ inline constexpr double kGoAroundVsFpm = 500.0;
 inline constexpr double kGoAroundHoldS = 10.0;
 inline constexpr double kGoAroundGainFt = 200.0;
 inline constexpr double kTaxiInKt = 30.0;
+inline constexpr double kMarkerAltFt = 10000.0;
+inline constexpr double kMarkerRangeNm = 200.0;
+inline constexpr double kFinalApproachAglFt = 1000.0;
 
 class PhaseDetector {
 public:
@@ -123,6 +138,8 @@ private:
         TimePoint start{};
     };
 
+    void advance(std::vector<PhaseEvent>& out, const PhaseSample& s);
+    void markers(std::vector<PhaseEvent>& out, const PhaseSample& s);
     void change(std::vector<PhaseEvent>& out, Phase to, TimePoint t, int altFt);
     void onTaxiOut(std::vector<PhaseEvent>& out, const PhaseSample& s);
     void onAirborneLevels(std::vector<PhaseEvent>& out, const PhaseSample& s);
@@ -144,6 +161,8 @@ private:
     std::optional<int> step_;               // a step climb in progress: the level it left
     int cruiseLevelFt_ = 0;
     double approachLowestFt_ = 0;
+    std::optional<PhaseSample> previous_;  // for the markers' crossings
+    bool fired_[6] = {};                   // by MarkerKind
 };
 
 }  // namespace blocktime

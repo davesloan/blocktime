@@ -97,11 +97,21 @@ Seen describe(const PhaseEvent& e) {
                 return {"ended:" + std::string(phaseCode(x.phase)) + ":" + std::to_string(x.altFt), x.time};
             } else if constexpr (std::is_same_v<T, StepClimb>) {
                 return {"step:" + std::to_string(x.fromFt), x.time};
+            } else if constexpr (std::is_same_v<T, Marker>) {
+                return {"marker:" + std::string(markerCode(x.kind)), x.time};
             } else {
                 return {"stepped:" + std::to_string(x.altFt), x.time};
             }
         },
         e);
+}
+
+// The events with (or without) markers, so phases and markers can be checked apart.
+std::vector<Seen> markersOnly(const std::vector<Seen>& seen, bool markers) {
+    std::vector<Seen> out;
+    for (const auto& s : seen)
+        if ((s.key.rfind("marker:", 0) == 0) == markers) out.push_back(s);
+    return out;
 }
 
 std::vector<Seen> run(PhaseDetector& d, const std::vector<PhaseSample>& samples) {
@@ -142,7 +152,13 @@ TEST(PhaseDetector, ReplaysKbfiKpdx) {
     PhaseDetector d(plan(20000, 45.5887, -122.5975), r.blockOut, 25);
     EXPECT_EQ(describe(d.started()).key, "pushback");
     EXPECT_EQ(hms(d.started().time), "22:51:08");
-    const auto seen = run(d, r.samples);
+    const auto all = run(d, r.samples);
+    expectEvents(markersOnly(all, true), {{"marker:above_10000", "22:59:34"},
+                                          {"marker:transition_altitude", "23:02:20"},
+                                          {"marker:transition_level", "23:06:33"},
+                                          {"marker:below_10000", "23:11:41"},
+                                          {"marker:final_approach", "23:25:36"}});  // no 200 nm: a 114 nm flight
+    const auto seen = markersOnly(all, false);
     expectEvents(seen, {{"taxi_out", "22:54:17"},
                         {"takeoff", "22:56:08"},  // 40 kt at 22:56:16; timed from where the roll began
                         {"climb", "22:56:51"},
@@ -167,7 +183,14 @@ TEST(PhaseDetector, ReplaysKbfiKpdx) {
 TEST(PhaseDetector, ReplaysKpdxKsfo) {
     const Replay r = loadReplay("replay-kpdx-ksfo.csv");
     PhaseDetector d(plan(39000, 37.6190, -122.3750), r.blockOut, 28);
-    const auto seen = run(d, r.samples);
+    const auto all = run(d, r.samples);
+    expectEvents(markersOnly(all, true), {{"marker:above_10000", "00:06:48"},
+                                          {"marker:transition_altitude", "00:10:02"},
+                                          {"marker:within_200nm", "00:48:47"},
+                                          {"marker:transition_level", "01:12:14"},
+                                          {"marker:below_10000", "01:18:19"},
+                                          {"marker:final_approach", "01:28:59"}});
+    const auto seen = markersOnly(all, false);
     expectEvents(seen, {{"taxi_out", "23:57:43"},
                         {"takeoff", "00:03:13"},  // 40 kt at 00:03:21
                         {"climb", "00:04:06"},
@@ -282,6 +305,22 @@ TEST(PhaseDetector, ForwardOnly) {
     int climbs = 0;
     for (const auto& k : f.keys()) climbs += k == "climb";
     EXPECT_EQ(climbs, 1);
+}
+
+TEST(PhaseDetector, MarkersFireOnce) {
+    Flight f;
+    f.toClimb().air(60, 9000, 3000).air(50, 12000, -2500).air(60, 9900, 3000);  // up through 10,000, dip, up again
+    int above = 0;
+    for (const auto& k : f.keys()) above += k == "marker:above_10000";
+    EXPECT_EQ(above, 1);
+}
+
+TEST(PhaseDetector, NoTransitionMarkersWithoutAPlan) {
+    PhasePlan p;
+    Flight f(p);
+    f.toClimb().air(400, 2000, 3000);  // to about 22,000 ft
+    EXPECT_TRUE(f.saw("marker:above_10000"));
+    EXPECT_FALSE(f.saw("marker:transition_altitude"));
 }
 
 TEST(PhaseDetector, LevelBelowCruiseStaysClimb) {

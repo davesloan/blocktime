@@ -26,6 +26,18 @@ bool levelPhase(Phase p) {
 
 }  // namespace
 
+std::string_view markerCode(MarkerKind k) {
+    switch (k) {
+        case MarkerKind::Above10000: return "above_10000";
+        case MarkerKind::TransitionAltitude: return "transition_altitude";
+        case MarkerKind::Within200Nm: return "within_200nm";
+        case MarkerKind::TransitionLevel: return "transition_level";
+        case MarkerKind::Below10000: return "below_10000";
+        case MarkerKind::FinalApproach: return "final_approach";
+    }
+    return "";
+}
+
 std::string_view phaseCode(Phase p) {
     switch (p) {
         case Phase::AtGate: return "at_gate";
@@ -70,6 +82,13 @@ double PhaseDetector::distanceToDestinationNm(const PhaseSample& s) const {
 
 std::vector<PhaseEvent> PhaseDetector::onSample(const PhaseSample& s) {
     std::vector<PhaseEvent> out;
+    advance(out, s);
+    markers(out, s);
+    previous_ = s;
+    return out;
+}
+
+void PhaseDetector::advance(std::vector<PhaseEvent>& out, const PhaseSample& s) {
     const bool airborne = !s.onGround && s.aglFt >= kAirborneMinAglFt;
 
     switch (phase_) {
@@ -80,20 +99,20 @@ std::vector<PhaseEvent> PhaseDetector::onSample(const PhaseSample& s) {
                 change(out, Phase::TaxiOut, s.time, roundFt(s.altFt));
                 taxi_.push_back(s);
             }
-            return out;
+            return;
         case Phase::TaxiOut:
             onTaxiOut(out, s);
-            return out;
+            return;
         case Phase::Takeoff:
             if (airborne && s.aglFt >= kClimbAglFt) change(out, Phase::Climb, s.time, roundFt(s.altFt));
             break;
         case Phase::Landing:
             if (s.onGround && s.groundSpeedKt < kTaxiInKt) change(out, Phase::TaxiIn, s.time, roundFt(s.altFt));
-            return out;
+            return;
         default:
             break;
     }
-    if (!levelPhase(phase_)) return out;
+    if (!levelPhase(phase_)) return;
 
     // Back on the ground after being airborne: the landing (the one rule that doesn't care which phase it was).
     if (s.onGround) {
@@ -104,11 +123,11 @@ std::vector<PhaseEvent> PhaseDetector::onSample(const PhaseSample& s) {
         goAroundHold_.reset();
         step_.reset();
         leftCruiseAt_.reset();
-        return out;
+        return;
     }
     if (!airborne) {
         window_.reset();
-        return out;
+        return;
     }
 
     onAirborneLevels(out, s);
@@ -139,7 +158,6 @@ std::vector<PhaseEvent> PhaseDetector::onSample(const PhaseSample& s) {
             goAroundHold_.reset();
         }
     }
-    return out;
 }
 
 void PhaseDetector::onTaxiOut(std::vector<PhaseEvent>& out, const PhaseSample& s) {
@@ -244,6 +262,33 @@ void PhaseDetector::onDescentHold(std::vector<PhaseEvent>& out, const PhaseSampl
         step_ = cruiseLevelFt_;
         leftCruiseAt_.reset();
     }
+}
+
+void PhaseDetector::markers(std::vector<PhaseEvent>& out, const PhaseSample& s) {
+    if (!previous_) return;
+    const PhaseSample& p = *previous_;
+    const auto fire = [&](MarkerKind k, bool crossed) {
+        bool& done = fired_[static_cast<int>(k)];
+        if (done || !crossed) return;
+        done = true;
+        out.push_back(Marker{k, s.time, roundFt(s.altFt)});
+    };
+    const bool up = phase_ == Phase::Takeoff || phase_ == Phase::Climb || phase_ == Phase::Cruise;
+    const bool down = phase_ == Phase::Cruise || phase_ == Phase::Descent || phase_ == Phase::Approach;
+    const auto above = [&](double ft) { return p.altFt < ft && s.altFt >= ft; };
+    const auto below = [&](double ft) { return p.altFt >= ft && s.altFt < ft; };
+
+    fire(MarkerKind::Above10000, up && above(kMarkerAltFt));
+    fire(MarkerKind::TransitionAltitude,
+         up && plan_.transitionAltitudeFt > 0 && above(plan_.transitionAltitudeFt));
+    if (plan_.hasDestination && !s.onGround && s.aglFt >= kAirborneMinAglFt) {
+        const double before = distanceMeters(p.lat, p.lon, plan_.destinationLat, plan_.destinationLon) / kMetersPerNm;
+        fire(MarkerKind::Within200Nm, before > kMarkerRangeNm && distanceToDestinationNm(s) <= kMarkerRangeNm);
+    }
+    fire(MarkerKind::TransitionLevel, down && plan_.transitionLevelFt > 0 && below(plan_.transitionLevelFt));
+    fire(MarkerKind::Below10000, (phase_ == Phase::Descent || phase_ == Phase::Approach) && below(kMarkerAltFt));
+    fire(MarkerKind::FinalApproach,
+         phase_ == Phase::Approach && p.aglFt >= kFinalApproachAglFt && s.aglFt < kFinalApproachAglFt);
 }
 
 }  // namespace blocktime
