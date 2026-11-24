@@ -45,8 +45,8 @@ gtest), Qt 6 Quick + Network + Location, SimConnect (MSFS 2020 SDK).
   - QML files `import BlockTime`, use `pragma ComponentBehavior: Bound`, and take every colour, size and font from
     `Theme.qml`;
   - `blocktime-core` and its tests include no Qt, `windows.h` or `SimConnect.h`.
-- **Recorder budget:** the main telemetry definition is unchanged. The new requests are each their own definition,
-  so a SimVar name the sim refuses drops only that request:
+- **Recorder budget:** the main telemetry definition gains only `PLANE HEADING DEGREES TRUE` (D-129, logged and not
+  used yet). The new requests are each their own definition, so a SimVar name the sim refuses drops only that request:
   - runways: one facility request per airport, at connect and when the planned flight changes;
   - touchdown: `SIMCONNECT_PERIOD_SIM_FRAME` only while armed (below 300 ft AGL on the way down), `PERIOD_NEVER`
     otherwise;
@@ -405,6 +405,10 @@ sample per line, and two comment lines `# block_out <time>` and `# block_in <tim
   own requests stay as they are.
 - `flightTarget()` fills the new `FlightTarget` fields from the destination airport and the imported plan (0 without
   one).
+- **Heading (D-129):** `TelemetrySample` gains `double headingTrueDeg` and `kTelemetryVars` gains
+  `{"PLANE HEADING DEGREES TRUE", "degrees", VarType::Float64, 0.5f}`, both after `indicatedAirspeedKt` /
+  `AIRSPEED INDICATED` (the `static_assert` keeps them in step). The `telemetry` event logs it as `heading_true_deg`.
+  Nothing reads it in this milestone.
 
 - [ ] **Step 1: Failing tests:**
   - `AppEventQueue.DrainsInOrderAndEmpties`, `AppEventQueue.PushFromAnotherThread`;
@@ -614,7 +618,8 @@ create `qml/FlightStages.qml`; add it to the QML module in `CMakeLists.txt`.
 
 - [ ] **Step 1: Version 0.8.0.**
 - [ ] **Step 2: Docs.**
-  - recorder.md: the phase rules' numbers (D-124) and the events table's new rows; "Parking spots and runways" says
+  - recorder.md: the phase rules' numbers (D-124), the events table's new rows and `heading_true_deg` in `telemetry`
+    (D-129); "Parking spots and runways" says
     the recorder names the runway (D-126); "ATC log, ATIS and altimeter" says how the app's results reach the log
     (D-127); milestones 4–5 marked built.
   - design.md §13.5: what milestone 7 shows (and that GSX and the gate come in milestones 8–9).

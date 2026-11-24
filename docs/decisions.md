@@ -1884,3 +1884,19 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   - The summary is unchanged in this milestone.
 - Why: Building from the same events the log holds means Live and a later debrief or summary read the same thing.
 - Alternatives considered: a separate stage model fed by the observer (a second interpretation of the same facts).
+
+## D-129 — Telemetry logs the true heading, for later milestones
+- Date: 2026-11-23
+- Status: Accepted (Dave). True rather than magnetic is Claude's call, Proposed.
+- Decided by: Dave + Claude
+- Area: recorder
+- Decision: From milestone 7, the `telemetry` event includes `heading_true_deg`, the sim's `PLANE HEADING DEGREES TRUE`,
+  with a 0.5° change threshold. It's logged only; nothing uses it in milestone 7.
+- Why: Dave wants sample data in hand before the milestones that need heading. Milestone 9 could compare how he parked
+  with the parking spot's heading, and milestone 10's analysis could see crab angle and pushback direction. The track
+  from positions can't give these: it differs from heading in a crosswind and during pushback, and doesn't exist
+  while stopped.
+  - **True, not magnetic:** the sim's runway and parking headings are true, so they compare directly.
+  - **No extra log lines in flight:** a sample is already written every second while the position changes.
+- Alternatives considered: waiting until a milestone needs it (no real data to design with); magnetic heading (needs
+  the variation to compare with the facility data).
