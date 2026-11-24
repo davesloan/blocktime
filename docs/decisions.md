@@ -2069,3 +2069,20 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: The progress card only ran full width because milestone 8 put it under the header (D-134); nothing needs it
   that wide, and side by side the stages, the live data and the log all fit on screen during a flight.
 - Alternatives considered: today's layout (progress full width under the header, then data and log in a row).
+
+## D-140 — Live's flight panel: fewer cards, status tiles, Mach at altitude
+- Date: 2026-11-24
+- Status: Accepted (the Mach switch rule is still open)
+- Decided by: Dave
+- Area: app
+- Decision: In milestone 9, Live's flight panel changes:
+  - the Aircraft card (title and registration) and the Position tile (GROUND / AIR) go;
+  - Parking brake becomes a status tile: green when set, grey when released;
+  - "Engines running" becomes one tile per engine, 1 on the left and 2 on the right: green when running, grey when
+    not;
+  - the airspeed tile shows Mach above some point and goes back to knots below it. The rule is decided in milestone
+    9's plan. Two candidates: follow the aircraft's MCP speed window (PMDG's `MCP_IASMach`, Mach when under 10,
+    in both SDKs), or a fixed altitude with a gap so it doesn't flicker, using the sim's `AIRSPEED MACH`.
+- Why: Ideas from Dave's first 0.9.0 test flight (KSLC to KLAS, in cruise): the dropped cards repeat what's shown
+  elsewhere, and status reads faster as colour than as text.
+- Alternatives considered: keeping today's text tiles ("SET" / "OFF", "2 / 2").
