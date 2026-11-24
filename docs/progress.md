@@ -49,15 +49,14 @@ Newest entries at the top. Add an entry at the end of every working session.
 reports nothing.
 
 **Unverified or broken:**
-- **The KLAS → KSAN plan was gone from the database after the exit** (no `planned_flight` row, no block out, no new
-  flight). Only "Cancel flight" (with its confirmation) or settling deletes a plan, and nothing was settled: asked
-  Dave whether he cancelled it. N916SX is at KLAS with 19,920 lb.
+- The KLAS → KSAN plan is gone from the database: Dave cancelled it after quitting to the menu (not a bug).
+  N916SX is at KLAS with 19,920 lb.
 - Not seen in the sim: Ready with four items without GSX deboarding, and "Done for now" (steps 13-14).
 - The banner fix itself isn't checked in the sim: plan a flight at the gate without touching anything, and the banner
   should clear within a second.
 - D-143's limits (10 nm, 10°, 0.5 nm) and dropping the 1,000 ft Live line are proposed.
 
-**Next step:** Dave's answers (the cancelled plan; whether to push now). Then push `main` (D-121) and start milestone 9
+**Next step:** push `main` (D-121) and start milestone 9
 in a new session.
 
 ## 2026-11-24 — Milestone 8 built: GSX (version 0.9.0)
