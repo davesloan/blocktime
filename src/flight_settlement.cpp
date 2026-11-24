@@ -97,6 +97,7 @@ std::optional<FlownFlight> findFlownFlight(const std::filesystem::path& logDir, 
                 f.logFlightId = id;
                 f.blockOutAt = wholeSeconds(data.value("time", id));
                 f.fuelOutLb = pounds(number(data, "fuel_lb"));
+                f.originParking = data.value("parking", std::string());
                 for (const ServiceSpan& s : gsx.departed()) {
                     f.services.push_back({s.service, wholeSeconds(s.startIso), wholeSeconds(s.endIso)});
                 }
@@ -109,6 +110,7 @@ std::optional<FlownFlight> findFlownFlight(const std::filesystem::path& logDir, 
                 f.fuelInLb = pounds(number(data, "shutdown_fuel_lb"));
                 f.inLat = number(data, "lat");
                 f.inLon = number(data, "lon");
+                f.arrivalParking = data.value("parking", std::string());
                 f.blockS = static_cast<long long>(number(data, "block_time_s"));
                 // The recorder logs block_in, then phase_changed arrived (FlightTracker::onBlockIn), and settling runs
                 // on block_in, often before that line is written. Arrived is the block in, so it's added here.
@@ -152,10 +154,10 @@ std::optional<SettledFlight> settleFlight(db::Database& db, const PlannedFlightV
                          "INSERT INTO flight (log_flight_id, airplane_id, flight_number, kind, origin_airport_id,"
                          " planned_destination_airport_id, arrival_airport_id, cargo_lb, fuel_price_cents_per_100lb,"
                          " planned_at, block_out_at, block_in_at, fuel_on_record_lb, fuel_out_lb, fuel_in_lb,"
-                         " origin_runway, destination_runway)"
+                         " origin_runway, destination_runway, origin_parking, arrival_parking)"
                          " SELECT ?, airplane_id, flight_number, kind, origin_airport_id, destination_airport_id, ?,"
                          " cargo_lb, fuel_price_cents_per_100lb, planned_at, ?, ?, ?, ?, ?, origin_runway,"
-                         " destination_runway FROM planned_flight WHERE planned_flight_id = ?");
+                         " destination_runway, ?, ? FROM planned_flight WHERE planned_flight_id = ?");
     flight.bind(1, flown.logFlightId);
     flight.bind(2, arrival->id);
     flight.bind(3, flown.blockOutAt);
@@ -163,7 +165,16 @@ std::optional<SettledFlight> settleFlight(db::Database& db, const PlannedFlightV
     flight.bind(5, static_cast<std::int64_t>(fuelOnRecord));
     flight.bind(6, static_cast<std::int64_t>(flown.fuelOutLb));
     flight.bind(7, static_cast<std::int64_t>(flown.fuelInLb));
-    flight.bind(8, planned.id);
+    const auto bindSpot = [&flight](int index, const std::string& spot) {
+        if (spot.empty()) {
+            flight.bindNull(index);
+        } else {
+            flight.bind(index, std::string_view(spot));
+        }
+    };
+    bindSpot(8, flown.originParking);
+    bindSpot(9, flown.arrivalParking);
+    flight.bind(10, planned.id);
     if (!flight.run()) return fail(flight.error());
     const std::int64_t flightId = db.lastInsertRowId();
 

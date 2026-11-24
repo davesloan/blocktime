@@ -63,12 +63,12 @@ protected:
 
 }  // namespace
 
-TEST(AirlineDb, EmptyDatabaseMigratesToVersion5) {
+TEST(AirlineDb, EmptyDatabaseMigratesToVersion6) {
     db::Database d = db::Database::openInMemory();
     std::string error;
     EXPECT_TRUE(migrateAirlineDatabase(d, &error)) << error;
-    EXPECT_EQ(d.userVersion(), 5);
-    EXPECT_EQ(kAirlineSchemaVersion, 5);
+    EXPECT_EQ(d.userVersion(), 6);
+    EXPECT_EQ(kAirlineSchemaVersion, 6);
 }
 
 TEST(AirlineDb, ForeignKeysAreOn) {
@@ -337,7 +337,7 @@ TEST(AirlineDb, Migration5Tables) {
     std::string error;
     ASSERT_TRUE(migrateAirlineDatabaseTo(d, 4, &error)) << error;
     EXPECT_FALSE(hasTable(d, "flight_phase"));
-    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 5, &error)) << error;
     EXPECT_EQ(d.userVersion(), 5);
     EXPECT_TRUE(hasTable(d, "flight_phase"));
     EXPECT_TRUE(hasTable(d, "flight_service"));
@@ -378,4 +378,20 @@ TEST(AirlineDb, FlightLedgerCategoriesExist) {
         q.bind(1, std::string_view(code));
         EXPECT_TRUE(q.next()) << code;
     }
+}
+
+TEST(AirlineDb, Migration6AddsParking) {
+    db::Database d = db::Database::openInMemory();
+    std::string error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 5, &error)) << error;
+    addFlightParents(d);
+    ASSERT_TRUE(insertFlight(d, "2026-11-23T10:30:05.120Z", "delivery", "2026-11-23T10:30:05Z", "2026-11-23T13:20:41Z",
+                             20000));
+    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    EXPECT_EQ(d.userVersion(), 6);
+    db::Statement q(d, "SELECT origin_parking IS NULL AND arrival_parking IS NULL FROM flight");
+    ASSERT_TRUE(q.next());
+    EXPECT_EQ(q.integer(0), 1);  // flights from before 0.10.0 have no spot
+    EXPECT_TRUE(d.exec("UPDATE flight SET origin_parking = 'Gate D14', arrival_parking = 'Parking 70'"));
+    EXPECT_FALSE(d.exec("UPDATE flight SET arrival_parking = ''"));
 }

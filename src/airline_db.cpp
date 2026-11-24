@@ -269,6 +269,13 @@ CREATE TABLE flight_service (
 ) STRICT;
 )sql";
 
+// Milestone 9 (D-148): the parking spot at block out and block in, as the recorder named it ("Gate D14"). NULL when
+// no spot was within 40 m, the airport's spots weren't loaded, or the flight is from before 0.10.0.
+constexpr const char* kMigration6 = R"sql(
+ALTER TABLE flight ADD COLUMN origin_parking TEXT CHECK (origin_parking IS NULL OR origin_parking <> '');
+ALTER TABLE flight ADD COLUMN arrival_parking TEXT CHECK (arrival_parking IS NULL OR arrival_parking <> '');
+)sql";
+
 #undef BT_INSTANT
 #undef BT_DATE
 
@@ -278,7 +285,7 @@ struct Migration {
 };
 
 constexpr std::array kMigrations{Migration{2, kMigration2}, Migration{3, kMigration3}, Migration{4, kMigration4},
-                                 Migration{5, kMigration5}};
+                                 Migration{5, kMigration5}, Migration{6, kMigration6}};
 
 constexpr int kFirstRealSchemaVersion = 2;  // what a clobbered milestone 4 airline really is (D-098)
 

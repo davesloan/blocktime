@@ -549,3 +549,31 @@ TEST_F(Settlement, ListFlightsReadsLinesBack) {
     EXPECT_EQ(f.costs[0].label, "Fuel");
     EXPECT_EQ(f.totalCents, s->money.totalCents);
 }
+
+namespace {
+
+// The block line with a parking spot, as the recorder writes it from 0.10.0 (D-148).
+std::string withParking(std::string line, const std::string& parking) {
+    line.insert(line.size() - 2, R"(,"parking":")" + parking + R"(")");
+    return line;
+}
+
+}  // namespace
+
+TEST_F(Settlement, ParkingStored) {
+    const auto id = planDelivery();
+    writeLog({withParking(blockOut(kOut, id, 20000), "Gate D14"),
+              withParking(blockIn(kOut, kIn, kSanLat, kSanLon, 9400), "Parking 70")});
+    std::string error;
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    EXPECT_EQ(text("SELECT origin_parking FROM flight"), "Gate D14");
+    EXPECT_EQ(text("SELECT arrival_parking FROM flight"), "Parking 70");
+}
+
+TEST_F(Settlement, NoParkingStoredAsNull) {
+    const auto id = planDelivery();
+    writeLog({withParking(blockOut(kOut, id, 20000), ""), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    std::string error;
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    EXPECT_EQ(integer("SELECT count(*) FROM flight WHERE origin_parking IS NULL AND arrival_parking IS NULL"), 1);
+}

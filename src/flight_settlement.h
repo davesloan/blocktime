@@ -38,6 +38,7 @@ struct FlownFlight {
     int fuelOutLb = 0;                  // block_out fuel_lb
     int fuelInLb = 0;                   // block_in shutdown_fuel_lb: what's left in the tanks (D-110)
     double inLat = 0, inLon = 0;        // where it parked
+    std::string originParking, arrivalParking;  // the block events' spots ("Gate D14"); "" = none (D-148)
     long long blockS = 0;               // block_in block_time_s
     std::vector<PhaseStart> phases;     // its phase_changed events, in log order (D-137)
     std::vector<ServiceTime> services;  // the GSX services completed before block out (D-137, D-138)
