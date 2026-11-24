@@ -40,6 +40,7 @@ struct PhaseSample {
     bool parkingBrake = false, onGround = false;
     double altFt = 0;  // indicated
     double aglFt = 0, vsFpm = 0, groundSpeedKt = 0, lat = 0, lon = 0;
+    double iasKt = 0;  // not used by the rules; the liftoff event logs it
 };
 
 struct PhaseChanged {

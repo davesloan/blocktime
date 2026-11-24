@@ -30,6 +30,9 @@ struct FlightTarget {
     std::string destinationIcao;  // only for --probe's facility data (D-116)
     double originLat = 0, originLon = 0;
     int fuelOnRecordLb = 0;
+    // For the phases (D-124); 0 = unknown (no plan imported yet).
+    double destinationLat = 0, destinationLon = 0;
+    int cruiseAltitudeFt = 0, transitionAltitudeFt = 0, transitionLevelFt = 0;
 };
 
 // Checked in this order; the first that applies is reported.
