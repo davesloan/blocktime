@@ -2125,8 +2125,8 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-143 — "Final approach" when lined up with the runway
 - Date: 2026-11-24
-- Status: Accepted (the exact limits and the 1,000 ft line are Proposed)
-- Decided by: Dave (the line), Claude (limits, proposed)
+- Status: Accepted (limits accepted by Dave, 2026-11-24); runway source superseded by D-145, the 1,000 ft line by D-146
+- Decided by: Dave (the line), Claude (limits, accepted)
 - Area: recorder, app
 - Decision: In milestone 9, Live's "Final approach" line under Approach comes when the aircraft is lined up with
   the landing runway, not at 1,000 ft AGL. Proposed limits, to tune in the plan: within 10 nm of the runway
@@ -2163,3 +2163,80 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Alternatives considered: reset only, without claim; a journey tied to one airplane or one type (any airplane makes
   positioning part of the trip); leaving the journey airplane Inactive between legs (could be put on a rotation and
   lose its place).
+
+## D-145 — "Final approach" names whichever destination runway Dave is lined up with
+- Date: 2026-11-24
+- Status: Proposed (Dave asked for Claude's input)
+- Decided by: Dave + Claude
+- Area: recorder
+- Decision: Supersedes D-143's runway source. The recorder checks every runway end at the destination (the sim's
+  runways, which it already loads for D-126) against D-143's limits and names the one Dave is lined up with: "Final
+  approach, runway 26L". Close parallels go to the nearer centreline. SayIntentions' and the plan's runway aren't
+  used for this.
+- Why: Dave asked whether to use SayIntentions' runway (else the plan's), then check which runway he's lined up
+  with, and go with that one when they differ. In every case the lined-up runway wins, and when he's lined up with
+  none there is no line either way, so the expected runway never changes the answer. Checking every runway gives
+  the same result with one input fewer, and it's right when ATC changes the runway late. SayIntentions' runway is
+  still used where it decides something: picking the gate (D-141).
+- Alternatives considered: D-143's SayIntentions-or-plan runway only (no line after a late runway change); the
+  expected runway first with the lined-up one as an override (same answer, more inputs).
+
+## D-146 — Keep a Live line at 1,000 ft
+- Date: 2026-11-24
+- Status: Accepted
+- Decided by: Dave (keep it), Claude (the text, proposed)
+- Area: app
+- Decision: Replaces D-143's proposal to drop it. The 1,000 ft AGL `final_approach` marker keeps its Live line under
+  Descent, renamed "1,000 ft above ground", next to D-143's "Final approach, runway 26L".
+- Why: Dave wants both. The old text "Final approach" now belongs to the lined-up line; "stabilised gate" would be
+  confusing in a milestone about parking gates.
+- Alternatives considered: dropping the line (D-143's proposal); "Stabilised approach gate".
+
+## D-147 — Milestone 9's gate rules
+- Date: 2026-11-24
+- Status: Proposed
+- Decided by: Claude
+- Area: app, recorder
+- Decision:
+  - **Names.** MSFS's parking name codes: 0 none, 1 Parking, 2–9 N/NE/E/SE/S/SW/W/NW Parking, 10 Gate, 11 Dock,
+    12–37 Gate A–Z. Shown as "Gate E7", "Gate 46", "Parking 70". Sent to SayIntentions in short form, letters and
+    digits only: "E7", "46", "70". The suffix is ignored (always 0 at KLAS and almost everywhere else).
+  - **Size.** A spot fits when twice its radius is at least the type's wingspan. The wingspan is a per-type
+    `wingspan_m` in catalog.yaml, not per family (a 777-300ER is 4 m wider than a 777-200ER). The BBJ2 parked at
+    KSFO's D14, radius 18 m, with a 35.8 m wingspan.
+  - **Kinds.** Passenger and VIP flights use gates (types 8–10). Charters and deliveries use GA ramps (2–4),
+    freighters cargo ramps (5); then any ramp (2–5), then a gate. Military spots (6–7) are never picked.
+  - **Preferred gates** (`preferred_gates` in airline.yaml, by ICAO, short names) apply only to gate flights, so a
+    charter never lands on the airline's gates.
+  - **Closest to the runway** means the shortest distance to SayIntentions' landing runway as a line from end to end;
+    with no such runway, to the airport's reference point.
+  - **SayIntentions' own gate** is matched to an MSFS spot by position (within 40 m, like the parked spot). If it's
+    the picked spot, nothing is sent.
+  - **One try per flight.** If `assignGate` answers "Unknown gate" or fails, SayIntentions keeps its own gate and
+    Live says so. SayIntentions' names aren't always MSFS's: its KLAS "Terminal 3 Gate E7A" is MSFS's Gate E7, 16.6 m
+    away. Milestone 9's first sim leg shows whether "E7" is accepted there.
+  - **The spot list isn't logged.** It's the scenery's static data (250+ spots); the picked spot and the parked spot
+    are logged. The recorder passes the list to the app through its observer.
+- Why: D-074 and D-141 set the order; these are the details the plan needs, from the probe flights' spot data.
+- Alternatives considered: wingspan per family (the 777s differ too much); preferred gates for every kind;
+  retrying `assignGate` with SayIntentions' own spelling (no endpoint lists its names: `getAirport`'s answer is
+  undocumented, so milestone 9's probe logs it once).
+
+## D-148 — Milestone 9's recorder calls
+- Date: 2026-11-24
+- Status: Proposed
+- Decided by: Claude
+- Area: recorder
+- Decision:
+  - **Flaps (D-142).** "Flaps out" is `TRAILING EDGE FLAPS LEFT PERCENT` above 1% (flaps 1 is 2.5% on the 737).
+    `FLAPS HANDLE INDEX` is logged too, so the sim flights show whether either follows PMDG's lever. Telemetry also
+    gains `AIRSPEED MACH` for D-140.
+  - **The parked spot is a fact of the block event.** `block_out` and `block_in` carry `parking` ("Gate E7"): the
+    nearest spot of the loaded airports within 40 m, or "" (D-122). The flight table stores both, NULL for "".
+  - **The lined-up check (D-143, D-145)** uses the track over the ground from positions at least 150 m apart, not
+    the heading, so a crab in a crosswind doesn't stop it. It runs in Descent and Approach, airborne, and once per
+    approach: a go-around lets it fire again.
+- Why: Each is the simplest rule the existing data supports; the sim flights check them.
+- Alternatives considered: `FLAPS HANDLE INDEX` as the rule (unknown on PMDG); the parked spot worked out later from
+  the block position (the app doesn't keep the spot list); the true heading for the lined-up check (off by the crab
+  angle, up to 10°).
