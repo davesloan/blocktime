@@ -1973,3 +1973,80 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Alternatives considered: 150 ft (turns real 100-ft levels into thousands); the window's last sample instead of its
   mean (fixed FL369 but read the 4,500 ft level as 4,600); snapping to 500s; the plan's cruise altitude when near it
   (cruise only, not ATC levels).
+
+## D-134 — The Flight progress card spans the gate
+- Date: 2026-11-24
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: Live's Flight progress card no longer shows only between block out and block in. Before block out it
+  shows the next leg (Pre-Departure current, GSX services as they start) whenever a flight is planned or a service has
+  run. After block in it stays under the summary with the flight's Arrival stage: Parked, Deboarding, and "Ready for
+  shutdown or turnaround". It switches to the next leg at At Gate Turnaround, Done for now, or a new plan.
+- Why: GSX's catering, refuelling and boarding happen before block out and deboarding after block in, when the card
+  was hidden.
+- Alternatives considered: the Arrival lines and checklist inside the summary card.
+
+## D-135 — The shutdown checklist reads plain SimVars only
+- Date: 2026-11-24
+- Status: Accepted
+- Decided by: Dave
+- Area: app, recorder
+- Decision: "Ready for shutdown or turnaround" lists engines off, parking brake set, deboarding complete (only when GSX
+  deboarding was used), beacon off and strobes off. No seat belts and no APU on either family. Beacon and strobe come
+  from `LIGHT BEACON` and `LIGHT STROBE`, added to the main telemetry. Refines D-073's checklist.
+- Why: The probe flights showed both SimVars follow the 737's and the 777's switches. The 737's seat belt sign and APU
+  are only in PMDG's SDK data, and the 777's APU is unknown; Dave chose not to depend on PMDG's SDK for this.
+- Alternatives considered: reading PMDG's SDK broadcast in normal running for seat belts and APU (milestone 10 may
+  still need it for procedure capture).
+
+## D-136 — No "Turnaround and Boarding" line
+- Date: 2026-11-24
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: If no GSX service was completed before pushback, Pre-Departure simply shows as done with no lines.
+  Supersedes D-073's "Turnaround and Boarding" line (design.md §13.5).
+- Why: Dave: "Simply mark pre-departure complete, no other lines needed."
+- Alternatives considered: the line with the gate time as its start and end; the line with no times.
+
+## D-137 — Each flight stores its phase and GSX service times
+- Date: 2026-11-24
+- Status: Accepted (tables Proposed)
+- Decided by: Dave (store them now), Claude (the tables)
+- Area: data
+- Decision: Migration 5 adds `flight_phase` (each phase's start, in order) and `flight_service` (each completed GSX
+  catering, refuelling, boarding and deboarding, with start and end). Phases and pre-departure services are written
+  when the flight is settled. Deboarding comes after block in, so its row is added when it completes (and at startup
+  if the app missed it). Flights settled before 0.9.0 get none.
+- Why: Leg templates (D-075) need taxi and GSX turnaround times, and the event log is deleted after 30 days. Taxi out
+  and in follow from the phases (taxi_out → takeoff, taxi_in → arrived).
+- Alternatives considered: deferring with a note in the roadmap; keeping the event logs forever. Columns for taxi
+  times on `flight` (would leave the other phases for a later migration). Backfilling old flights from the log
+  (only one flight, N916SX's, has phase events).
+
+## D-138 — Milestone 8's GSX rules
+- Date: 2026-11-24
+- Status: Proposed
+- Decided by: Claude
+- Area: recorder, app
+- Decision:
+  - **The recorder** reads the five GSX states and the boarding and deboarding passenger totals always (not only with
+    `--probe`), once a second on change. It logs `gsx_service` (`service`: catering, refuelling, boarding, deboarding,
+    pushback; `state`: available, not_available, bypassed, requested, performing, completed; `time`; `passengers` for
+    boarding and deboarding) on each state change. A 0 (GSX not running) is ignored, and so is a service's first
+    state when it is "available".
+  - **A service** starts when it reaches performing (5) and is complete when it then goes to completed (6) or back to
+    available (1): boarding and pushback skip 6. Bypassed or anything else while performing abandons it: it isn't
+    shown or stored. Requested alone is not a line.
+  - **Which leg:** catering, refuelling and boarding belong to the next block out, if they started after the later of
+    the last block in and the last `sim_stopped`/`sim_disconnected`. Deboarding belongs to the last block in, until
+    the next block out. An interrupted flight drops its services (D-072).
+  - **Pushback:** the Departure line reads "Pushback (GSX)" when GSX's pushback was requested or performing at block
+    out. It isn't stored as a service: the phases already time it.
+  - **Passenger counts** are logged, not shown or stored: GSX's count is its own (285 on N916SX, which SimBrief loaded
+    with 370).
+- Why: Matches what the probe flights showed (`docs/notes/probe-flight.md`). Logging each state keeps the log the one
+  record; the app derives spans the same way for Live and for settling.
+- Alternatives considered: the requested time as the start (catering sat at requested for minutes waiting for its
+  truck); logging every passenger count change (boarding logs one line every few seconds).
