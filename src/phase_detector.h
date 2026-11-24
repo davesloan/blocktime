@@ -91,6 +91,7 @@ inline constexpr double kClimbAglFt = 1000.0;
 inline constexpr double kLevelBandFt = 100.0;       // from the hold window's first sample
 inline constexpr double kLevelHoldS = 20.0;
 inline constexpr double kLevelLeftFt = 200.0;       // a level ends this far from it
+inline constexpr double kLevelSnapFt = 150.0;       // a level this close to a thousand is that thousand
 inline constexpr double kCruiseWindowFt = 1000.0;   // from the plan's cruise altitude
 inline constexpr double kNoPlanCruiseMinFt = 10000.0;
 inline constexpr double kNoPlanCruiseHoldS = 300.0;

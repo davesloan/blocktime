@@ -188,7 +188,7 @@ active time (D-058): each sim message adds at most 2 s.
 | Pushback → Taxi out | The brake set after block out, then 3 kt with the brake off; or 6 kt at any time |
 | Taxi out → Takeoff | 40 kt on the ground. Timed from where the acceleration began (walk back while each earlier sample is ≥ 0.5 kt slower) |
 | Takeoff → Climb | Airborne at 1,000 ft AGL |
-| Level-off (sub-state) | Within ±100 ft for 20 s. Reported to the nearest 100 ft of the window's mean; ends more than 200 ft away, with the whole level's mean |
+| Level-off (sub-state) | Within ±100 ft for 20 s. Reported as the window's mean: the nearest 1,000 ft when within 150 ft of it, else the nearest 100 ft (D-133); ends more than 200 ft away, with the whole level's mean rounded the same way |
 | Climb → Cruise | A level within 1,000 ft of the plan's cruise altitude. Without a plan, a level above 10,000 ft held 5 minutes |
 | Cruise: step climb | Leaving the cruise level upward; ends at the next level. A descent too far out for top of descent is a step down |
 | Climb/Cruise → Descent | VS ≤ −500 fpm for 60 s. From Cruise only within 2 × 3 nm per 1,000 ft of the destination |

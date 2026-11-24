@@ -3,6 +3,23 @@
 These facts come from BlockTime Recorder logs. Each entry says when and with what it was seen. Add new
 observations at the top.
 
+## 2026-11-24: PMDG 777-300ER N916SX, KSAN → KSLC with a go-around (recorder 0.8.0)
+
+- **The level detector reads indicated altitude, and the 777 captures a level slowly:** the last 100 ft to FL370 took
+  about 30 s at 100–200 fpm. That made the cruise read FL369 until D-133. True altitude (`alt_ft`) sat about 300 ft
+  above indicated at FL370 and about 170 ft below it at 8,000 ft at KSLC.
+- **Altimeter (D-123), 777 side:**
+  - `KOHLSMAN SETTING MB:1` and `:2` followed the baro knob: 1021.7 at KSAN (A30.17), 1028.1 at KSLC (A30.36).
+  - `:1` and `:2` were always equal.
+  - **`KOHLSMAN SETTING STD:1/2` stayed 0 all flight.** At the transition altitude the millibars went to 1013.2
+    instead. On the 777, "STD" shows as 1013.2 with the STD flag off.
+- **The touchdown names were all accepted:** `G FORCE` gave 1.14 g at −172 fpm. `PLANE HEADING DEGREES TRUE` is in
+  telemetry. The only `simconnect_exception` was the known `UNRECOGNIZED_ID` on the connect snapshot (ignored).
+- **The go-around below 300 ft logged no touchdown.** The one touchdown was the landing on 16R.
+- **The 777 matched by folder** `pmdg 777-300er` at block out (D-112), and block out came on the brake release.
+- **No `probe_pmdg_777` lines at all:** `777_Options.ini` has no `[SDK]` section, so the 777 doesn't broadcast its
+  data (`probe-flight.md`).
+
 ## 2026-11-23: PMDG 737-800 BBJ2, KBFI → KPDX → KSFO, probe flights (recorder 0.7.0)
 
 The full results are in `probe-flight.md`. The SimVar quirks:

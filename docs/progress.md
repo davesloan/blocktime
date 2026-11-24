@@ -22,6 +22,47 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-24 — Milestone 7 sim checks passed; levels snap to the thousand
+
+**Done:**
+- **Dave flew the sim check:** N916SX (777-300ER) KSAN → KSLC with a go-around at KSLC, `--probe`, 1 h 59 min block.
+  Dave: "Tests complete."
+- **The FL369 finding is fixed (D-133):** a level within 150 ft of a thousand is that thousand, else the nearest
+  100 ft. Two new tests. The KSFO replay's approach level now reads 3,000 and ends 8 s later (200 ft below 3,000, not
+  below 3,100).
+- **The fuel check deferred from milestone 6 is dropped,** Dave's call: it's an edge case, tested if it ever happens
+  in normal flying.
+- The flight's findings are written up in `notes/msfs-observed-behaviour.md` and `notes/probe-flight.md`.
+
+**Working / verified (in the sim, 2026-11-24, from the log):**
+- Block out on the 777's brake release, matched by folder `pmdg 777-300er`. Pushback, then taxi out 3 min later.
+- **Takeoff walked back** to 06:00:47 (40 kt at 06:00:54). Liftoff named KSAN 27, 1.6 m off the centreline.
+- Climb at 1,050 ft. Above 10,000 and transition altitude at the right altitudes. No level-off was logged in the
+  climb, pauses included.
+- Cruise confirmed at 06:20:51 (shown as FL369, now FL370). The 200 nm marker, then top of descent at 07:03:58.
+- **ATIS:** KSAN V at block out, W ten minutes later, KSLC B at top of descent. **ATC:** 100 exchanges, radio and
+  intercom.
+- Transition level, below 10,000 / approach, level-offs at 9,000 and 7,000, final approach at about 1,000 ft AGL.
+- **Go-around** confirmed 10 s after it began (07:33:28), with the first approach ended there. Back to Approach at
+  the missed approach level (logged 8,100; 8,000 under D-133). No touchdown from the go-around.
+- **Landing:** −172 fpm, 1.14 g, runway 16R named 2.3 m off the centreline. Taxi in, then block in at the gate.
+- The `altimeter` lines follow the baro: 1021.7 at KSAN, 1013.2 at 18,000 ft, 1028.1 at KSLC. `heading_true_deg` is
+  in telemetry. `G FORCE` and `KOHLSMAN SETTING MB` were accepted, with no new SimConnect exceptions.
+- Release build has no warnings; **416 tests pass** (one timing check skipped).
+
+**Unverified or broken:**
+- **No `probe_pmdg_777` data:** the 777's `777_Options.ini` files have no `[SDK]` section, so the data broadcast is
+  off. The 777's switches, doors, parking brake lever and FMC figures (D-120) wait for a 777 flight with
+  `EnableDataBroadcast=1` added. Nothing in milestones 7–8 needs them.
+- **The 777 never sets `KOHLSMAN SETTING STD`;** STD shows as 1013.2. Whoever uses the `altimeter` lines (milestone
+  10's analysis) treats 1013.2 as STD.
+- Left for a later BBJ2 flight: the 737 half of the altimeter check (D-123).
+- **Proposed decisions for Dave:** D-124 to D-130, D-129's true heading, and D-132's lease values.
+
+**Next step:**
+- Dave's answers on the Proposed decisions. Then close milestone 7: push `main` (D-121). Milestone 8 (GSX) starts in
+  a new session from this entry.
+
 ## 2026-11-23 — Milestone 7 built: phases and the six stages (version 0.8.0)
 
 **Done:**

@@ -153,9 +153,9 @@ TEST(PhaseDetector, ReplaysKpdxKsfo) {
                         {"ended:approach:6000", "01:22:00"},
                         {"level:approach:4000", "01:23:15"},
                         {"ended:approach:4000", "01:24:25"},
-                        // the window's mean was 3,100 while the altitude settled; the whole level's mean is 3,000
-                        {"level:approach:3100", "01:25:02"},
-                        {"ended:approach:3000", "01:26:25"},
+                        // the window's mean (3,100 to the nearest 100) was within 150 ft of 3,000 (D-133)
+                        {"level:approach:3000", "01:25:02"},
+                        {"ended:approach:3000", "01:26:33"},
                         {"landing", "01:30:29"},
                         {"taxi_in", "01:30:43"}});
 }
@@ -279,6 +279,21 @@ TEST(PhaseDetector, LevelBelowCruiseStaysClimb) {
     EXPECT_TRUE(f.saw("level:climb:9000"));
     EXPECT_EQ(f.detector().phase(), Phase::Climb);
     EXPECT_EQ(f.detector().levelFt(), 9000);
+}
+
+// A slow capture (the 777 creeps up the last 100 ft) drags the window's mean below the level actually flown: the
+// mean here is about 8,910 ft. Within 150 ft of a thousand, the level is that thousand (Dave's FL369 finding).
+TEST(PhaseDetector, LevelSnapsToTheThousandWhenClose) {
+    Flight f;
+    f.toClimb().air(60, 2000, 3000).air(78, 5000, 3000).air(30, 8880, 200);
+    EXPECT_TRUE(f.saw("level:climb:9000"));
+    EXPECT_EQ(f.detector().levelFt(), 9000);
+}
+
+TEST(PhaseDetector, LevelFarFromAThousandRoundsToTheHundred) {
+    Flight f;
+    f.toClimb().air(30, 8800, 0);
+    EXPECT_TRUE(f.saw("level:climb:8800"));
 }
 
 TEST(PhaseDetector, NoPlanCruiseAfterFiveMinutes) {

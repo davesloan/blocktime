@@ -16,7 +16,13 @@ namespace {
 
 constexpr double kMetersPerNm = 1852.0;
 
-int round100(double ft) { return static_cast<int>(std::lround(ft / 100.0)) * 100; }
+// A level's altitude from its samples' mean: the nearest thousand when within kLevelSnapFt of one (a slow capture
+// drags the mean short of the level flown, D-133), else the nearest 100 ft.
+int levelAltitude(double ft) {
+    const double thousand = std::round(ft / 1000.0) * 1000.0;
+    if (std::abs(ft - thousand) <= kLevelSnapFt) return static_cast<int>(thousand);
+    return static_cast<int>(std::lround(ft / 100.0)) * 100;
+}
 int roundFt(double ft) { return static_cast<int>(std::lround(ft)); }
 
 bool levelPhase(Phase p) {
@@ -187,7 +193,7 @@ void PhaseDetector::onAirborneLevels(std::vector<PhaseEvent>& out, const PhaseSa
                     leftCruiseAt_ = s.time;  // top of descent or a step down: the descent hold decides
                 }
             } else {
-                out.push_back(LevelOffEnded{phase_, s.time, round100(level_->sum / level_->count)});
+                out.push_back(LevelOffEnded{phase_, s.time, levelAltitude(level_->sum / level_->count)});
             }
             level_.reset();
         } else {
@@ -201,14 +207,14 @@ void PhaseDetector::onAirborneLevels(std::vector<PhaseEvent>& out, const PhaseSa
     // Without a plan, a level held long enough above 10,000 ft is the cruise (recorder.md rule 9).
     if (level_ && phase_ == Phase::Climb && plan_.cruiseAltitudeFt <= 0 && level_->altFt >= kNoPlanCruiseMinFt &&
         s.activeS - level_->startActiveS >= kNoPlanCruiseHoldS) {
-        out.push_back(LevelOffEnded{Phase::Climb, s.time, round100(level_->sum / level_->count)});
+        out.push_back(LevelOffEnded{Phase::Climb, s.time, levelAltitude(level_->sum / level_->count)});
         change(out, Phase::Cruise, level_->start, level_->altFt);
         cruiseLevelFt_ = level_->altFt;
     }
 }
 
 void PhaseDetector::onLevelConfirmed(std::vector<PhaseEvent>& out, const PhaseSample& s) {
-    const int alt = round100(window_->sum / window_->count);
+    const int alt = levelAltitude(window_->sum / window_->count);
     level_ = Level{alt, window_->start, window_->startActiveS, window_->sum, window_->count};
     switch (phase_) {
         case Phase::Climb:

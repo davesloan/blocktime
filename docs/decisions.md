@@ -1956,3 +1956,18 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   - In the MVP only Dave's own legs earn. A BBJ2 VIP leg made about $10.6k (KPDX→KSFO). A 777-300ER leg is estimated
     at about $23.5k (750 nm, 70% full). At the old rates those took about 85 and 98 legs a month to cover.
 - Alternatives considered: raising the starting cash (only buys time, about 8 months at $25M with both planes); both.
+
+## D-133 — A level close to a thousand is that thousand
+- Date: 2026-11-24
+- Status: Accepted (the 150 ft is Claude's)
+- Decided by: Dave (round it when it's really close), Claude (the rule)
+- Area: recorder
+- Decision: A level-off's altitude, the cruise level included, is its samples' mean snapped to the nearest 1,000 ft
+  when within 150 ft of it (`kLevelSnapFt`), else rounded to the nearest 100 ft as before (refines D-124). The snapped
+  value is also the reference the level is left from (200 ft away).
+- Why: N916SX's cruise read "Cruising at FL369" while the altimeter showed 36,994 and then 37,001. The 777 crept up
+  the last 100 ft at about 150 fpm, and the 20 s window's mean (36,926) held that creep. The same rule makes the KSFO
+  replay's approach level 3,000 (it read 3,100 while ending at 3,000), and the missed approach at KSLC 8,000 (its mean
+  was 8,095).
+- Alternatives considered: the window's last sample instead of its mean (fixed FL369 but read the 4,500 ft level as
+  4,600); snapping to 500s within 100 ft; the plan's cruise altitude when near it (cruise only, not ATC levels).
