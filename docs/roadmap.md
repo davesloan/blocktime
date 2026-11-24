@@ -130,8 +130,8 @@ The arrival gate rule and `assignGate` (section 13.6, D-074), preferred gates in
 summary, and the load-in gate for the next flight. Live's Flight progress card moves out of the full width into
 the row below the planned flight header: progress on the left, the flight data in the middle, the event log on the
 right (design.md section 13.5, D-139). The flight panel loses the Aircraft card and the Position tile, Parking brake
-and each engine become green/grey status tiles, and the airspeed tile switches to Mach at altitude and back (D-140;
-the switch rule is decided in the plan).
+and each engine become green/grey status tiles, and the airspeed tile switches to Mach at M0.70 and back to knots
+below M0.66 (D-140).
 
 ### Milestone 10 — Procedure capture and Claude's debrief
 
