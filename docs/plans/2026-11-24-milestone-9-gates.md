@@ -33,7 +33,7 @@ yaml), Qt 6 Quick, SimConnect (MSFS 2020 SDK).
 - `docs/recorder.md`, the phase table (Approach).
 - `docs/notes/sayintentions-api.md` (flightJSON, `assignGate`, `getParking`), `docs/notes/probe-flight.md` (parking
   spots, runways).
-- Decisions: D-074, D-122, D-126, D-127, D-139..D-143, **D-145..D-148** (written with this plan).
+- Decisions: D-074, D-122, D-126, D-127, D-139..D-143, **D-145..D-149** (written with this plan).
 
 ## Global Constraints
 
@@ -62,8 +62,8 @@ yaml), Qt 6 Quick, SimConnect (MSFS 2020 SDK).
   No key in any URL that gets logged.
 - **Copy:**
   - spot names "Gate E7", "Gate 46", "Parking 70", "N Parking 3", "Dock 2"; short names "E7", "46", "70";
-  - Descent lines "Final approach, runway 26L" (lined up) and "1,000 ft above ground" (the old `final_approach`
-    marker, D-146);
+  - Descent lines "Final approach, runway 26L" from `lined_up` until the 1,000 ft `final_approach` marker, then
+    "Short final" until touchdown (D-149); a go-around closes both;
   - Arrival "Parked at Gate E7" (plain "Parked" when no spot is known);
   - the gate line, one per flight, added to the current stage:
     - `assigned`: "Arrival gate: Gate E7";
@@ -417,7 +417,8 @@ yaml), Qt 6 Quick, SimConnect (MSFS 2020 SDK).
   - `FlightStages.ParkedAtSpot`: and plain "Parked" with `parking` "".
   - `FlightStages.ArrivalGateLines`: one case per `result`, with the exact copy.
   - `FlightStages.LinedUpLine`: "Final approach, runway 26L" under Descent.
-  - `FlightStages.ThousandFeetRenamed`: "1,000 ft above ground".
+  - `FlightStages.ShortFinalAtThousandFeet`: the final approach line ends at the marker and "Short final" starts
+    there, ending at touchdown; without `lined_up`, "Short final" alone.
 - [ ] **Step 2: Run them to make sure they fail.**
 - [ ] **Step 3: Implement**
 - [ ] **Step 4: Run all tests.** Then migrate a scratch copy of Dave's `blocktime.db` with `--demo` off and check
@@ -486,7 +487,7 @@ values and SayIntentions' `getAirport` answer once.
   - whether SayIntentions accepts "E7"-style names at KLAS (its own name there was "E7A") and shows BlockTime's gate
     on its status screen (D-141's open question);
   - Approach at the first flaps;
-  - "Final approach, runway …" around 10 nm out, and "1,000 ft above ground";
+  - "Final approach, runway …" around 10 nm out, turning into "Short final" at 1,000 ft;
   - "Parked at Gate …" and the stored spot.
 - **GSX turnaround at KLAS**, then **leg 2, KLAS → KSAN, Charter (a ramp):**
   - "Load in at KLAS, Gate …" on the planned flight;

@@ -2166,7 +2166,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-145 — "Final approach" names whichever destination runway Dave is lined up with
 - Date: 2026-11-24
-- Status: Proposed (Dave asked for Claude's input)
+- Status: Accepted (Dave, 2026-11-24)
 - Decided by: Dave + Claude
 - Area: recorder
 - Decision: Supersedes D-143's runway source. The recorder checks every runway end at the destination (the sim's
@@ -2183,7 +2183,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-146 — Keep a Live line at 1,000 ft
 - Date: 2026-11-24
-- Status: Accepted
+- Status: Accepted; the text superseded by D-149
 - Decided by: Dave (keep it), Claude (the text, proposed)
 - Area: app
 - Decision: Replaces D-143's proposal to drop it. The 1,000 ft AGL `final_approach` marker keeps its Live line under
@@ -2194,7 +2194,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-147 — Milestone 9's gate rules
 - Date: 2026-11-24
-- Status: Proposed
+- Status: Accepted (Dave, 2026-11-24)
 - Decided by: Claude
 - Area: app, recorder
 - Decision:
@@ -2224,7 +2224,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-148 — Milestone 9's recorder calls
 - Date: 2026-11-24
-- Status: Proposed
+- Status: Accepted (Dave, 2026-11-24)
 - Decided by: Claude
 - Area: recorder
 - Decision:
@@ -2240,3 +2240,15 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Alternatives considered: `FLAPS HANDLE INDEX` as the rule (unknown on PMDG); the parked spot worked out later from
   the block position (the app doesn't keep the spot list); the true heading for the lined-up check (off by the crab
   angle, up to 10°).
+
+## D-149 — "Final approach" becomes "Short final" at 1,000 ft
+- Date: 2026-11-24
+- Status: Accepted (the exact form is Proposed)
+- Decided by: Dave (the idea), Claude (the form)
+- Area: app
+- Decision: Supersedes D-146's text. Under Descent, "Final approach, runway 26L" runs from the lined-up check (D-143,
+  D-145) until the 1,000 ft AGL `final_approach` marker, which ends it and starts "Short final", ending at touchdown.
+  Without a lined-up check, "Short final" still starts at 1,000 ft. A go-around closes both.
+- Why: Dave: "the 1000 ft point could change it from Final Approach to Short Final". Start and end times show both
+  stretches of the approach, as the other Live lines do.
+- Alternatives considered: D-146's separate "1,000 ft above ground" line.
