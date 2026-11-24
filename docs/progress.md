@@ -22,6 +22,59 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-23 — Milestone 6 sim checks passed; the first probe flights read
+
+**Done:**
+- **Dave's sim checks.** Dave ran the milestone 6 checks. He flew the delivery leg to KPDX instead of KSAN, and the
+  VIP leg KPDX → KSFO, to keep the flights short.
+- I checked the results against the event log and the database.
+- The probe data went into `docs/notes/probe-flight.md`, `msfs-observed-behaviour.md`, recorder.md (GSX states) and
+  design.md §17.
+
+**Working / verified (in the sim, 2026-11-23):**
+- **Wrong aircraft.**
+  - The Soxxly 737-800's release at KBFI was refused as `wrong_aircraft_type`, and no flight opened.
+  - The BBJ2 then matched by folder `pmdg 737-800bbj2`, which confirms D-112 for the BBJ2.
+- **Delivery KBFI → KPDX.**
+  - `block_out` carried `planned_flight_id` 1, and the flight settled at block in.
+  - The money:
+    - fuel: 10,790 lb from 0 on record, $4,425;
+    - landing fee $660, ATC $115, pilots $325, maintenance $195;
+    - total $5,720.
+- **VIP KPDX → KSFO.**
+  - Fuel was charged only on what was added: 14,679 out − 7,501 on record = 7,178 lb, $2,945 (D-109).
+  - VIP fares were $18,025 against $7,465 of costs.
+- **Discarded third leg at KSFO.**
+  - Leaving after BLOCK OUT logged `flight_interrupted`.
+  - The plan (VIP, flight 8) is still waiting.
+  - No money lines were added, and N814SX stayed at KSFO.
+- **The database:**
+  - flights 1 and 2, with the plan's runways (14R → 10R, 10R → 28R), which were the runways flown;
+  - N814SX at KSFO with 6,434 lb, the shutdown fuel;
+  - no longer awaiting delivery;
+  - cash $4,104,840 = $4.1M − $5,720 + $10,560;
+  - `user_version` 4, integrity ok, and `errors.log` empty.
+- **The probe:**
+  - The GSX states and passenger counts read.
+  - Every PMDG 737 switch on the list reads.
+  - The parking spots give gate names: Gate D 14 at both KPDX and KSFO.
+  - The runway data names the takeoff and landing runway from the ground roll, without doubt.
+
+**Unverified or broken:**
+- **The fuel check at release** (step 5's "Not recording: load at least … lb") wasn't tried. Save it for a future
+  flight: release with less than the fuel on record minus 300 lb, and expect the banner and a `NOT RECORDING
+  fuel_below_record` line.
+- **Still open from the probe:**
+  - the 777, which hasn't been flown with the probe, including its parking brake;
+  - GSX deboarding, which wasn't used;
+  - the parking spots' `suffix` values;
+  - whether SayIntentions called the KPDX and KSFO gates D14.
+- The deferred minors from the milestone 6 review (in the entry below) are unchanged.
+
+**Next step:**
+- Plan milestone 7 (phases and the six stages) with what the probe found. The departure and arrival runways can come
+  from the ground roll against the sim's runways.
+
 ## 2026-11-23 — Milestone 6 built: record the planned flight (version 0.7.0)
 
 **Done:**

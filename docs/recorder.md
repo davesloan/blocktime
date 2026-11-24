@@ -205,9 +205,13 @@ GSX Pro reports each ground service's state as an L:var, which SimConnect can re
 - **What's read:** the state of catering, refuelling, boarding, deboarding, and departure (pushback), plus the
   passenger counts while boarding and deboarding and the cargo loading percentage. Whether GSX is running is
   read first; without GSX, nothing is logged and nothing else changes.
-- **States** as reported by community tools (unverified): 1 available, 2 not available, 3 bypassed, 4 requested,
-  5 performing, 6 completed. **Confirm with a probe flight** that logs every GSX variable through a full
-  turnaround, and record the result in `docs/notes/`.
+- **States** as reported by community tools: 1 available, 2 not available, 3 bypassed, 4 requested, 5 performing,
+  6 completed.
+  - The first probe flight (2026-11-23, `docs/notes/probe-flight.md`) saw 1, 3, 4, 5 and 6 with those meanings. 6
+    lasts about 10 s before the state goes back to 1.
+  - Pushback (`DEPARTURE_STATE`) goes 4 → 5 → 1 with no 6, and boarding did too.
+  - Requesting pushback sets the other services to 3.
+  - Deboarding hasn't been seen yet.
 - **When:** from the first valid telemetry sample in a flight (the same point at which block-out detection starts),
   whether or not a flight is open. Change-based, at most once a second.
 - **Event:** `gsx_service` with `service`, `state`, `time` (and counts where they apply). Read only: the recorder

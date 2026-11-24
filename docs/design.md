@@ -535,7 +535,10 @@ when the recorder's procedure-capture milestone starts.
 ## 17. Open items
 
 - Exact seats per class, hold maximums and hold ratios per configuration (collect from PMDG when needed).
-- GSX state values, PMDG switch readability, and SayIntentions gate names: confirm in probe flights before building
-  on them.
+- GSX state values, PMDG switch readability, and SayIntentions gate names.
+  - The first probe flight (2026-11-23, `docs/notes/probe-flight.md`) confirmed the GSX states except deboarding,
+    and every listed PMDG 737 switch.
+  - It also confirmed the sim's parking names, for example Gate D 14.
+  - Still open: the 777, GSX deboarding, and whether SayIntentions' names match the sim's.
 - Whether the PMDG SDK (or the sim's GPS flight-plan SimVars) exposes the FMC's predictions (ETAs, distance to TOD)
   for the 737 and 777: check in a probe flight before building predictions (D-120).

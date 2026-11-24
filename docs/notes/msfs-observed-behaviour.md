@@ -3,6 +3,22 @@
 These facts come from BlockTime Recorder logs. Each entry says when and with what it was seen. Add new
 observations at the top.
 
+## 2026-11-23: PMDG 737-800 BBJ2, KBFI → KPDX → KSFO, probe flights (recorder 0.7.0)
+
+The full results are in `probe-flight.md`. The SimVar quirks:
+- **On the PMDG 737, `CABIN SEATBELTS ALERT SWITCH` and `APU SWITCH` never move.** Use the PMDG data
+  (`COMM_FastenBeltsSelector`, `APU_Selector`) instead.
+- **`LIGHT NAV` is 1 whenever the aircraft has power**, whatever the position switch is set to.
+- **`LIGHT TAXI` is on with the taxi light or the runway turnoff lights.**
+- **`GEAR HANDLE POSITION` reads 0 while the sim is paused** (the Escape menu), with the gear down. It's back to 1 on
+  unpause.
+- **The ground roll matches the sim's runway data closely:** within 1° of the runway heading and 5 m of the
+  centreline, on all four takeoffs and landings.
+- **Matching at block out (D-088, D-112):**
+  - The BBJ2 loads from folder `pmdg 737-800bbj2` and the Soxxly 737-800 from `pmdg 737-800`.
+  - The release in the Soxxly was refused as `wrong_aircraft_type`.
+  - The BBJ2 matched at KBFI, KPDX and KSFO.
+
 ## 2026-11-22: PMDG 737-800 at KSAN, Qt UI test 1 app (recorder 0.3.0)
 
 ### Scenery-loading freezes (D-058)
