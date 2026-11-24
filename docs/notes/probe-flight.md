@@ -218,6 +218,34 @@ The analysis scripts weren't kept. Rerun from the events: the GSX and switch tim
   figures. They wait for the next 777 flight with `--probe`: `[SDK] EnableDataBroadcast=1` was added to the three
   `777_Options.ini` files on 2026-11-24.
 
+## Results: the 777 flight, 2026-11-24 (N916SX KSLC → KLAS, recorder 0.9.0)
+
+The broadcast was on: 1,163 `probe_pmdg_777` lines from 16:23Z (cold and dark) to 19:10Z (exit at KLAS during the
+second leg's departure). `AircraftModel` 6 is the 777-300ER.
+
+- **Every listed 777 value moved with its switch:** battery, APU selector (0, 1, 2) and `APURunning`, all lights
+  (beacon, strobe, nav, logo, wing, taxi, landing ×3, runway turnoff ×2), window heat ×4, seat belt selector (0, 1, 2),
+  gear lever, the AP/AT/LNAV/VNAV/APP annunciators, `WheelChocksSet`, `EFIS_BaroSTD_Sw_Pushed`. Engine and wing
+  anti-ice stayed 1 (auto) the whole flight.
+- **Parking brake:** `BRAKES_ParkingBrakeLeverOn` and the plain `BRAKE PARKING POSITION` agree within a second on every
+  set and release (16:44:40, 16:53:16 release, 16:54:23, 16:56:10, 18:05:02). The plain SimVar is enough on the 777.
+- **Plain SimVars on the 777:** the lights and the seat belt sign (0/1) follow PMDG's switches; `APU SWITCH` stayed 0
+  with the APU running, as on the 737. Gear handle and gear percent follow.
+- **The FMC's figures (D-120):**
+  - `FMC_DistanceToTOD_nm` counts down and drops to 0 when the descent starts (9 → 0 at 17:36:26; BlockTime's
+    descent began 17:36:39), then stays 0; -1 on the ground.
+  - `FMC_DistanceToDest_nm` is the distance along the route: 30 nm at 17:49:02 (straight line 30.2 nm), 0 at
+    17:57:37, touchdown 17:57:56. It reset to 36 just after landing, then -1.
+  - `FMC_CruiseAlt` 30000, V1/VR/V2 156/158/160 (later 152/156/160), takeoff flaps 5, landing flaps 30, VREF 144,
+    `FMC_flightNumber` "XLY8", `FMC_LandingAltitude` 2233 (KLAS) and later 67 (KSAN, planned next).
+- **`DOOR_state`:** 16 entries, 68 distinct combinations through boarding, deboarding and the second departure. The
+  values seen are 0, 1, 2, 3, 4. Entries 10 and 11 (likely the forward and aft cargo doors) cycled 0 → 3 → 1 → 4 → 0
+  every minute or so from 19:05Z: GSX's departure loop opening and closing the cargo doors, which made Dave quit.
+  Which entry is which door isn't confirmed.
+- **GSX:** first leg: boarding 16:31-16:50, refuelling 16:32-16:38, catering 16:33-16:36, deboarding 18:07-18:12,
+  all stored in `flight_service`. Second leg: refuelling and boarding completed; pushback requested twice and
+  cancelled (GSX bypasses all the other services at a pushback request).
+
 ## Questions for the next probe flight
 
 Flown during milestone 7's sim checks, with `--probe`:
