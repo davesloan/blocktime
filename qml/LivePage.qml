@@ -106,6 +106,13 @@ Item {
                 flight: page.plannedFlight
             }
 
+            // The open flight's six stages (design.md §13.5).
+            FlightProgress {
+                Layout.fillWidth: true
+                visible: page.recorder.flightOpen
+                recorder: page.recorder
+            }
+
             RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true

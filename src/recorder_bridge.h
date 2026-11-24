@@ -12,10 +12,12 @@
 #include <QDateTime>
 #include <QObject>
 #include <QString>
+#include <QVariantList>
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 
 #include "event_feed_model.h"
+#include "flight_stages.h"
 #include "recorder.h"
 
 class RecorderBridge : public QObject {
@@ -45,6 +47,11 @@ class RecorderBridge : public QObject {
     Q_PROPERTY(double blockOutFuelLb READ blockOutFuelLb NOTIFY flightChanged)
     Q_PROPERTY(QString lastFlightSummary READ lastFlightSummary NOTIFY flightChanged)
 
+    // The six stages of the open (or last) flight (design.md §13.5, D-128): [{name, state ("upcoming", "current",
+    // "done"), lines: [{text, start, end, running}]}], and the phase with its sub-state ("Climb — level at 9,000 ft").
+    Q_PROPERTY(QVariantList stages READ stages NOTIFY stagesChanged)
+    Q_PROPERTY(QString phase READ phase NOTIFY stagesChanged)
+
     Q_PROPERTY(EventFeedModel* events READ events CONSTANT)
 
 public:
@@ -69,6 +76,8 @@ public:
     double blockOutFuelLb() const { return blockOutFuelLb_; }
     QString lastFlightSummary() const { return lastFlightSummary_; }
     EventFeedModel* events() { return &events_; }
+    QVariantList stages() const;
+    QString phase() const { return QString::fromStdString(stages_.phaseLabel()); }
 
     Q_INVOKABLE void openLogFolder() const;
 
@@ -98,6 +107,7 @@ signals:
     void flightChanged();
     void matchChanged();
     void releaseRefusedChanged();
+    void stagesChanged();
     // Every block event, after it's applied: "block_out", "block_in", "flight_interrupted" or "block_out_refused",
     // with its flight id ("" for a refusal).
     void blockEvent(const QString& type, const QString& flightId);
@@ -122,6 +132,7 @@ private:
     bool releaseRefused_ = false;
     void setReleaseRefused(bool refused);
     EventFeedModel events_;
+    blocktime::FlightStages stages_;
 };
 
 // Runs on the recorder thread. Copies what it gets and posts it to the bridge on the GUI thread.

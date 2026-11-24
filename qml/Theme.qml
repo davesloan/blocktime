@@ -20,6 +20,7 @@ QtObject {
     // Text
     readonly property color textPrimary: "#E6EAF0"
     readonly property color textSecondary: "#8B95A3"
+    readonly property color textMuted: "#5B6573"  // stages not reached yet
 
     // Meaning
     readonly property color accent: "#3B82F6"
@@ -38,6 +39,8 @@ QtObject {
     readonly property int headerHeight: 64
     readonly property int sidebarWidth: 200
     readonly property int navItemHeight: 40
+    readonly property int stageDotSize: 8      // Flight progress: the marker before each stage
+    readonly property int stageTimeWidth: 104  // Flight progress: "22:51Z – 22:54Z"
 
     // Type
     readonly property string fontFamily: "Segoe UI Variable"

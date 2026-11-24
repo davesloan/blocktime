@@ -1306,3 +1306,59 @@ TEST(FlightWatcher, InterruptStopsWithoutALastFetch) {
     EXPECT_EQ(r.planner.commsCalls, before);
     EXPECT_EQ(r.planner.wxCalls.size(), wx);
 }
+
+// --- RecorderBridge: the six stages (D-128) -----------------------------------------------------------------------
+
+namespace {
+
+QVariantMap phaseEvent(const QString& phase, const QString& hms) {
+    return {{"phase", phase}, {"time", "2026-11-23T" + hms + ".000Z"}, {"alt_ft", 25}, {"flight_level", false}};
+}
+
+QVariantMap stage(RecorderBridge& b, int i) { return b.stages().at(i).toMap(); }
+
+}  // namespace
+
+TEST(RecorderBridge, StagesFollowFlightEvents) {
+    qtApp();
+    RecorderBridge b;
+    EXPECT_EQ(b.stages().size(), 6);
+    EXPECT_EQ(stage(b, 0)["state"].toString(), "current");
+    int changes = 0;
+    QObject::connect(&b, &RecorderBridge::stagesChanged, [&changes] { ++changes; });
+    b.applyFlightEvent("phase_changed", phaseEvent("pushback", "22:51:08"));
+    EXPECT_GE(changes, 1);
+    const QVariantMap departure = stage(b, 1);
+    EXPECT_EQ(departure["name"].toString(), "Departure");
+    EXPECT_EQ(departure["state"].toString(), "current");
+    const QVariantList lines = departure["lines"].toList();
+    ASSERT_EQ(lines.size(), 1);
+    EXPECT_EQ(lines[0].toMap()["text"].toString(), "Pushback");
+    EXPECT_EQ(lines[0].toMap()["start"].toString(), "22:51Z");
+    EXPECT_TRUE(lines[0].toMap()["running"].toBool());
+    EXPECT_EQ(b.phase(), "Pushback");
+}
+
+TEST(RecorderBridge, StagesResetAtBlockOut) {
+    qtApp();
+    RecorderBridge b;
+    b.applyFlightEvent("phase_changed", phaseEvent("pushback", "22:51:08"));
+    b.applyFlightEvent("phase_changed", phaseEvent("taxi_out", "22:54:17"));
+    blocktime::BlockOut out;
+    out.flightId = "2026-11-24T10:00:00.000Z";
+    b.applyBlockEvent(out);
+    EXPECT_TRUE(stage(b, 1)["lines"].toList().isEmpty());
+    EXPECT_EQ(b.phase(), "");
+}
+
+TEST(RecorderBridge, StagesResetOnInterrupt) {
+    qtApp();
+    RecorderBridge b;
+    b.applyFlightEvent("phase_changed", phaseEvent("pushback", "22:51:08"));
+    blocktime::FlightInterrupted e;
+    e.flightId = "2026-11-23T22:51:08.969Z";
+    e.reason = "sim_stopped";
+    b.applyBlockEvent(e);
+    EXPECT_TRUE(stage(b, 1)["lines"].toList().isEmpty());
+    EXPECT_EQ(stage(b, 0)["state"].toString(), "current");
+}

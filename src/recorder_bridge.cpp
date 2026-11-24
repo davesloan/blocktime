@@ -108,6 +108,8 @@ void RecorderBridge::applyBlockEvent(const BlockEvent& event) {
         [this](const auto& e) {
             using T = std::decay_t<decltype(e)>;
             if constexpr (std::is_same_v<T, BlockOut>) {
+                stages_.reset();  // the new flight's pushback follows (D-128)
+                emit stagesChanged();
                 setReleaseRefused(false);
                 flightOpen_ = true;
                 blockOutTime_ = toQDateTime(e.time);
@@ -123,6 +125,8 @@ void RecorderBridge::applyBlockEvent(const BlockEvent& event) {
                 setReleaseRefused(true);
             } else {
                 // A recorder_crash at startup closes a flight this app never saw open; the summary still applies.
+                stages_.reset();
+                emit stagesChanged();
                 flightOpen_ = false;
                 lastFlightSummary_ = QString("Interrupted (%1)").arg(QString::fromStdString(e.reason));
             }
@@ -158,7 +162,28 @@ void RecorderBridge::setBlocked() {
 }
 
 void RecorderBridge::applyFlightEvent(const QString& type, const QVariantMap& data) {
+    const QByteArray json = QJsonDocument(QJsonObject::fromVariantMap(data)).toJson(QJsonDocument::Compact);
+    stages_.onEvent(type.toStdString(), nlohmann::json::parse(json.toStdString(), nullptr, false));
+    emit stagesChanged();
     emit flightEvent(type, data);
+}
+
+QVariantList RecorderBridge::stages() const {
+    static const char* kStates[] = {"upcoming", "current", "done"};
+    QVariantList out;
+    for (const StageView& v : stages_.view()) {
+        QVariantList lines;
+        for (const StageLine& l : v.lines) {
+            lines.append(QVariantMap{{"text", QString::fromStdString(l.text)},
+                                     {"start", QString::fromStdString(l.start)},
+                                     {"end", QString::fromStdString(l.end)},
+                                     {"running", l.running}});
+        }
+        out.append(QVariantMap{{"name", QString::fromStdString(v.name)},
+                               {"state", kStates[static_cast<int>(v.state)]},
+                               {"lines", lines}});
+    }
+    return out;
 }
 
 void RecorderBridge::applyStopped(int result) {

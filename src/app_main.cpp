@@ -83,6 +83,22 @@ void fillDemo(RecorderBridge& bridge) {
                      false);
     bridge.applySample(s);
     bridge.applyBlockEvent(out);
+
+    // A made-up departure and climb to FL350, so the Flight progress card has something to show (D-128).
+    const auto at = [&](std::chrono::seconds after) { return QString::fromStdString(blocktime::formatUtc(out.time + after)); };
+    const auto phase = [&](const char* p, std::chrono::seconds after, int alt, bool fl = false) {
+        bridge.applyFlightEvent("phase_changed", {{"phase", p}, {"time", at(after)}, {"alt_ft", alt}, {"flight_level", fl}});
+    };
+    phase("pushback", 0s, 20);
+    phase("taxi_out", 3min, 20);
+    phase("takeoff", 9min, 20);
+    bridge.applyFlightEvent("liftoff", {{"time", at(9min + 35s)}, {"runway", "14R"}, {"airport", "KBFI"}});
+    phase("climb", 10min, 1200);
+    bridge.applyFlightEvent("level_off", {{"phase", "climb"}, {"time", at(11min)}, {"alt_ft", 5000}, {"flight_level", false}});
+    bridge.applyFlightEvent("level_off_ended", {{"phase", "climb"}, {"time", at(12min)}, {"alt_ft", 5000}, {"flight_level", false}});
+    bridge.applyFlightEvent("flight_marker", {{"marker", "above_10000"}, {"time", at(14min)}, {"alt_ft", 10000}});
+    bridge.applyFlightEvent("flight_marker", {{"marker", "transition_altitude"}, {"time", at(17min)}, {"alt_ft", 18000}});
+    phase("cruise", 31min, 35000, true);
 }
 
 struct MapSettings {

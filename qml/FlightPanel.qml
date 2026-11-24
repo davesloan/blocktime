@@ -162,6 +162,16 @@ ColumnLayout {
                 font.features: { "tnum": 1 }
             }
 
+            // The phase with its sub-state, "Climb — level at 9,000 ft" (D-128).
+            Text {
+                visible: text !== ""
+                text: panel.recorder.phase
+                color: Theme.textPrimary
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeTitle
+                font.weight: Font.DemiBold
+            }
+
             Text {
                 text: "Fuel at block out " + panel.grouped(panel.recorder.blockOutFuelLb) + " lb"
                 color: Theme.textSecondary
