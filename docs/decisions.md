@@ -2105,3 +2105,18 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   in milestone 9's sim test.
 - Alternatives considered: D-074's "around top of descent or 200 nm out" with the runway from a fresh ATIS or the
   plan (the runway could differ from SayIntentions' own choice, and SayIntentions has already picked by then).
+
+## D-142 — Approach starts at the first flap extension
+- Date: 2026-11-24
+- Status: Accepted
+- Decided by: Dave
+- Area: recorder
+- Decision: In milestone 9, Cruise/Descent → Approach becomes the first flap extension below 10,000 ft, with
+  "below 3,000 ft AGL" kept as the fallback. The "within 30 nm and below 10,000 ft" rule goes. Which flap value to
+  read is checked first with a probe: whether the sim's flap SimVars (for example `FLAPS HANDLE INDEX`,
+  `TRAILING EDGE FLAPS LEFT PERCENT`) follow the PMDG 737 and 777 flap levers.
+- Why: On 2026-11-24's KSLC-KLAS flight, Approach started at 17:49Z, 30.2 nm from KLAS in a straight line and just
+  under 10,000 ft, with far more track left on CHOWW4 to runway 26L. Straight-line distance doesn't know the route.
+  The first flap setting is when the approach actually starts, on any route, without PMDG's data.
+- Alternatives considered: the FMC's distance to destination along the route (PMDG's `FMC_DistanceToDest_nm`; ties
+  the phase to PMDG's broadcast); keeping the 30 nm rule with a smaller distance.

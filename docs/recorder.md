@@ -192,7 +192,7 @@ active time (D-058): each sim message adds at most 2 s.
 | Climb → Cruise | A level within 1,000 ft of the plan's cruise altitude. Without a plan, a level above 10,000 ft held 5 minutes |
 | Cruise: step climb | Leaving the cruise level upward; ends at the next level. A descent too far out for top of descent is a step down |
 | Climb/Cruise → Descent | VS ≤ −500 fpm for 60 s. From Cruise only within 2 × 3 nm per 1,000 ft of the destination |
-| Cruise/Descent → Approach | Within 30 nm and below 10,000 ft, or below 3,000 ft AGL |
+| Cruise/Descent → Approach | Within 30 nm and below 10,000 ft, or below 3,000 ft AGL. Changing in milestone 9 (D-142): the first flap extension below 10,000 ft, or below 3,000 ft AGL |
 | Approach → Go-around | +500 fpm for 10 s, 200 ft above the approach's lowest point. The next level-off returns to Approach |
 | → Landing | The first sample on the ground after being airborne |
 | Landing → Taxi in | Below 30 kt on the ground |
