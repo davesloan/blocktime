@@ -47,4 +47,10 @@ Sources:
   pilot, `outgoing_message` from ATC, English versions, audio URLs). **Current flight only**: it can't be fetched
   after the flight ends, so it has to be collected during it. Unread report: a reply can be written a few seconds
   late, so `since_id` polling may skip it (https://github.com/psyraxaus/ProsimCompanion/issues/237).
+  - **No local copy.** Checked 2026-11-23: SayIntentions' folders on Dave's PC hold no ATC text:
+    - `%LOCALAPPDATA%\SayIntentions\SI-Telemetry\logs\si_telemetry.log` is the telemetry bridge's own log;
+    - the rest is the client's WebView cache and a Stream Deck log.
+
+    So a flight's ATC log exists for BlockTime only if it was polled during the flight. Milestone 6's flights
+    (KBFI–KPDX–KSFO) have none.
 - Also listed: getParking, getAirport, getTFRs, getVATSIM, setFreq, importVAData (for virtual airlines).

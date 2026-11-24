@@ -1728,8 +1728,8 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-122 — Runway and gate positions name things; they never score
 - Date: 2026-11-23
-- Status: Accepted (the 40 m figure is Proposed, to be settled in milestone 9's plan)
-- Decided by: Dave (rule), Claude (gate tolerance)
+- Status: Accepted (including the 40 m gate tolerance: Dave, 2026-11-23)
+- Decided by: Dave (rule), Claude (gate tolerance, confirmed by Dave)
 - Area: design
 - Decision:
   - **Runways:** BlockTime uses the sim's runway geometry only to *name* the departure and arrival runway. It may
