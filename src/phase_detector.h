@@ -41,6 +41,7 @@ struct PhaseSample {
     double altFt = 0;  // indicated
     double aglFt = 0, vsFpm = 0, groundSpeedKt = 0, lat = 0, lon = 0;
     double iasKt = 0;  // not used by the rules; the liftoff event logs it
+    bool flapsOut = false;  // trailing-edge flaps above kFlapsOutPct (D-142, D-148)
 };
 
 struct PhaseChanged {
@@ -98,7 +99,7 @@ inline constexpr double kNoPlanCruiseHoldS = 300.0;
 inline constexpr double kDescentVsFpm = -500.0;
 inline constexpr double kDescentHoldS = 60.0;
 inline constexpr double kTodRangeFactor = 2.0;      // times 3 nm per 1,000 ft
-inline constexpr double kApproachRangeNm = 30.0;
+inline constexpr double kFlapsOutPct = 1.0;         // flaps 1 is 2.5 % on the 737 (D-148)
 inline constexpr double kApproachBelowFt = 10000.0;
 inline constexpr double kApproachAglFt = 3000.0;
 inline constexpr double kGoAroundVsFpm = 500.0;

@@ -120,9 +120,10 @@ TEST(PhaseDetector, ReplaysKbfiKpdx) {
                         {"descent", "23:04:32"},
                         {"level:descent:10000", "23:11:40"},
                         {"ended:descent:10000", "23:12:26"},
-                        {"approach", "23:12:34"},
-                        {"level:approach:5000", "23:17:38"},
-                        {"ended:approach:5000", "23:20:23"},
+                        {"level:descent:5000", "23:17:38"},
+                        {"ended:descent:5000", "23:20:23"},
+                        // no flaps in this replay: the 3,000 ft AGL fallback (D-142)
+                        {"approach", "23:22:17"},
                         {"level:approach:2000", "23:23:55"},
                         {"ended:approach:2000", "23:24:31"},
                         {"landing", "23:27:16"},
@@ -148,11 +149,12 @@ TEST(PhaseDetector, ReplaysKpdxKsfo) {
                         {"descent", "00:56:25"},
                         {"level:descent:11000", "01:16:28"},
                         {"ended:descent:11000", "01:17:55"},
-                        {"approach", "01:18:19"},
-                        {"level:approach:6000", "01:20:35"},
-                        {"ended:approach:6000", "01:22:00"},
-                        {"level:approach:4000", "01:23:15"},
-                        {"ended:approach:4000", "01:24:25"},
+                        {"level:descent:6000", "01:20:35"},
+                        {"ended:descent:6000", "01:22:00"},
+                        {"level:descent:4000", "01:23:15"},
+                        {"ended:descent:4000", "01:24:25"},
+                        // no flaps in this replay: the 3,000 ft AGL fallback (D-142)
+                        {"approach", "01:25:06"},
                         // the window's mean (3,100 to the nearest 100) was within 90 ft of 3,000 (D-133)
                         {"level:approach:3000", "01:25:02"},
                         {"ended:approach:3000", "01:26:33"},
@@ -212,6 +214,7 @@ public:
         s.activeS = active_;
         s.lat = lat_;
         s.lon = 0;
+        s.flapsOut = flaps_;
         return s;
     }
     void push(const PhaseSample& s) {
@@ -221,6 +224,10 @@ public:
     }
     Flight& at(double lat) {
         lat_ = lat;
+        return *this;
+    }
+    Flight& flaps(bool out) {
+        flaps_ = out;
         return *this;
     }
     std::vector<std::string> keys() const {
@@ -242,6 +249,7 @@ private:
     long long wall_ = 0;
     double active_ = 0;
     double lat_ = 0;  // the destination is at 0, 10: about 600 nm east
+    bool flaps_ = false;
 };
 
 }  // namespace
@@ -388,4 +396,53 @@ TEST(PhaseDetector, FastTaxiIsNotATakeoff) {
     Flight f;
     f.ground(1, 7).ground(60, 30);
     EXPECT_EQ(f.detector().phase(), Phase::TaxiOut);
+}
+
+// ---- Approach at the first flaps (D-142) -------------------------------------------------------------------------
+
+namespace {
+
+// Cruise at 12,000 ft, then a descent to 9,000 ft held in Descent, all far below 3,000 ft AGL's fallback.
+Flight descentAt9000(PhasePlan p = plan(12000, 0, 0)) {
+    Flight f(p);
+    f.toClimb().air(30, 12000, 0).air(120, 12000, -1500).air(60, 9000, 0);
+    return f;
+}
+
+}  // namespace
+
+TEST(PhaseDetector, ApproachAtFirstFlapsBelow10000) {
+    Flight f = descentAt9000();
+    ASSERT_EQ(f.detector().phase(), Phase::Descent);
+    f.flaps(true).air(1, 9000, 0);
+    EXPECT_EQ(f.detector().phase(), Phase::Approach);
+    EXPECT_EQ(f.keys().back(), "approach");
+}
+
+TEST(PhaseDetector, FlapsAbove10000NoApproach) {
+    Flight f(plan(14000, 0, 0));
+    f.toClimb().air(30, 14000, 0).air(90, 14000, -1500).flaps(true).air(30, 11000, 0);
+    EXPECT_EQ(f.detector().phase(), Phase::Descent);
+    f.air(1, 9900, -1000);
+    EXPECT_EQ(f.detector().phase(), Phase::Approach);
+}
+
+TEST(PhaseDetector, ApproachFallbackBelow3000Agl) {
+    Flight f = descentAt9000();
+    f.air(1, 9000, -1000, -6100);  // 2,900 ft AGL: high ground, no flaps
+    EXPECT_EQ(f.detector().phase(), Phase::Approach);
+}
+
+TEST(PhaseDetector, ThirtyNmNoLongerStartsApproach) {
+    Flight f = descentAt9000(plan(12000, 0, 0.4));  // the destination is 24 nm east
+    f.air(30, 9000, 0);
+    EXPECT_EQ(f.detector().phase(), Phase::Descent);
+}
+
+TEST(PhaseDetector, CruiseStraightToApproachWithFlaps) {
+    Flight f(plan(8000, 0, 10));
+    f.toClimb().air(30, 8000, 0);
+    ASSERT_EQ(f.detector().phase(), Phase::Cruise);
+    f.flaps(true).air(1, 8000, 0);
+    EXPECT_EQ(f.detector().phase(), Phase::Approach);
 }

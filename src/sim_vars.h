@@ -42,6 +42,9 @@ struct TelemetrySample {
     double engFuelFlowPph[4];        // ENG FUEL FLOW PPH:1..4, pounds per hour
     std::int32_t lightBeacon;        // LIGHT BEACON, bool: the shutdown checklist (D-135)
     std::int32_t lightStrobe;        // LIGHT STROBE, bool
+    double mach;                     // AIRSPEED MACH, mach: Live's airspeed tile at altitude (D-140)
+    double flapsTrailingPct;         // TRAILING EDGE FLAPS LEFT PERCENT, percent: Approach (D-142, D-148)
+    std::int32_t flapsHandleIndex;   // FLAPS HANDLE INDEX, number: logged to learn whether it follows PMDG's lever
     char title[256];            // TITLE, string256
     char atcId[64];              // ATC ID, string64 (tail number)
 };
@@ -73,6 +76,9 @@ inline constexpr SimVarSpec kTelemetryVars[] = {
     // Both follow the PMDG 737's and 777's switches (probe flights, docs/notes/probe-flight.md).
     {"LIGHT BEACON", "bool", VarType::Int32, 0.0f},
     {"LIGHT STROBE", "bool", VarType::Int32, 0.0f},
+    {"AIRSPEED MACH", "mach", VarType::Float64, 0.002f},
+    {"TRAILING EDGE FLAPS LEFT PERCENT", "percent", VarType::Float64, 0.5f},
+    {"FLAPS HANDLE INDEX", "number", VarType::Int32, 0.0f},
     {"TITLE", nullptr, VarType::String256, 0.0f},
     {"ATC ID", nullptr, VarType::String64, 0.0f},
 };

@@ -140,9 +140,9 @@ void PhaseDetector::advance(std::vector<PhaseEvent>& out, const PhaseSample& s) 
     if (phase_ == Phase::Climb || phase_ == Phase::Cruise) onDescentHold(out, s);
 
     if (phase_ == Phase::Cruise || phase_ == Phase::Descent) {
-        const bool near = plan_.hasDestination && distanceToDestinationNm(s) <= kApproachRangeNm &&
-                          s.altFt < kApproachBelowFt;
-        if (near || s.aglFt < kApproachAglFt) {
+        // The first flaps below 10,000 ft start the approach; 3,000 ft AGL is the fallback (D-142).
+        const bool flaps = s.flapsOut && s.altFt < kApproachBelowFt;
+        if (flaps || s.aglFt < kApproachAglFt) {
             if (phase_ == Phase::Cruise) level_.reset();  // a cruise level isn't an approach level-off
             change(out, Phase::Approach, s.time, roundFt(s.altFt));
             approachLowestFt_ = s.altFt;

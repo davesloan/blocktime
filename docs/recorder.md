@@ -171,7 +171,7 @@ temporarily, which is misleading.
    `sim_unresponsive`) doesn't count toward any hold or timer, including short silences that never reach the
    30 s warning. Otherwise a freeze right after a level-off would look like a sustained level-off.
 6. **Top of descent:** leaving cruise altitude with a sustained descent, not a small drift.
-7. **Approach:** based on distance to destination plus height (e.g. within ~30 nm and below ~10,000 ft), not
+7. **Approach:** the first flap extension below 10,000 ft, with 3,000 ft AGL as the fallback (D-142), not
    vertical speed alone.
 8. **Go-around:** the one allowed backwards step. A sustained climb from Approach becomes "Go-around", then back to
    Approach. Log it as an event.
@@ -194,7 +194,7 @@ active time (D-058): each sim message adds at most 2 s.
 | Climb → Cruise | A level within 1,000 ft of the plan's cruise altitude. Without a plan, a level above 10,000 ft held 5 minutes |
 | Cruise: step climb | Leaving the cruise level upward; ends at the next level. A descent too far out for top of descent is a step down |
 | Climb/Cruise → Descent | VS ≤ −500 fpm for 60 s. From Cruise only within 2 × 3 nm per 1,000 ft of the destination |
-| Cruise/Descent → Approach | Within 30 nm and below 10,000 ft, or below 3,000 ft AGL. Changing in milestone 9 (D-142): the first flap extension below 10,000 ft, or below 3,000 ft AGL |
+| Cruise/Descent → Approach | The first flap extension below 10,000 ft (`TRAILING EDGE FLAPS LEFT PERCENT` above 1 %), or below 3,000 ft AGL (D-142, D-148; 0.10.0). Until 0.9.0: within 30 nm and below 10,000 ft |
 | Approach → Go-around | +500 fpm for 10 s, 200 ft above the approach's lowest point. The next level-off returns to Approach |
 | → Landing | The first sample on the ground after being airborne |
 | Landing → Taxi in | Below 30 kt on the ground |
@@ -342,7 +342,7 @@ with none the runway is `""`. The offsets are logged as information only.
 | `sim_running` / `sim_stopped` | The sim enters / leaves a flight (MSFS "Sim" state). Flips several times while loading |
 | `paused` / `unpaused` | The pause state changes. `flags` is the raw `Pause_EX1` value. `kinds` names its bits: `full` (main menu, loading screens), `active` (active pause), `sim` (Escape menu), `legacy` (unused), or `bit_<n>` for an unknown bit |
 | `aircraft_loaded` | Path of the loaded `aircraft.cfg`; logged only when the aircraft changes |
-| `telemetry` | A valid sample: on change, at most once a second; identical repeats are skipped. Includes `engines`, `eng_running` (per engine), `fuel_flow_pph` (total), from 0.8.0 `heading_true_deg` (logged only, D-129), and from 0.9.0 `beacon` and `strobe` (`LIGHT BEACON`, `LIGHT STROBE`: the shutdown checklist, D-135) |
+| `telemetry` | A valid sample: on change, at most once a second; identical repeats are skipped. Includes `engines`, `eng_running` (per engine), `fuel_flow_pph` (total), from 0.8.0 `heading_true_deg` (logged only, D-129), from 0.9.0 `beacon` and `strobe` (`LIGHT BEACON`, `LIGHT STROBE`: the shutdown checklist, D-135), and from 0.10.0 `mach` (`AIRSPEED MACH`, D-140), `flaps_te_pct` (`TRAILING EDGE FLAPS LEFT PERCENT`, the Approach rule) and `flaps_handle` (`FLAPS HANDLE INDEX`, logged to learn whether it follows PMDG's lever; D-148) |
 | `telemetry_invalid` | Samples start being rejected as junk; `reason` says why |
 | `block_out` | The flight started: a matching parking brake release that was followed by 10 m of movement. `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` are from the release; also `flight_id` (= that time), `moved_m`, `atc_id`, `title`, `planned_flight_id`, `aircraft_folder` |
 | `block_out_refused` | A release didn't match the planned flight, so no flight opened (D-088). `reason` is `no_planned_flight`, `wrong_aircraft_type`, `wrong_airport` or `fuel_below_record`; the rest is what the check saw |

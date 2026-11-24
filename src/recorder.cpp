@@ -78,6 +78,9 @@ nlohmann::json toJson(const TelemetrySample& s) {
         {"fuel_flow_pph", totalFuelFlow(s)},
         {"beacon", s.lightBeacon != 0},
         {"strobe", s.lightStrobe != 0},
+        {"mach", s.mach},
+        {"flaps_te_pct", s.flapsTrailingPct},
+        {"flaps_handle", s.flapsHandleIndex},
         {"title", std::string(simString(s.title, sizeof(s.title)))},
         {"atc_id", std::string(simString(s.atcId, sizeof(s.atcId)))},
     };
@@ -179,6 +182,7 @@ PhaseSample toPhaseSample(const TelemetrySample& s, TimePoint time, double activ
     p.lat = s.latitudeDeg;
     p.lon = s.longitudeDeg;
     p.iasKt = s.indicatedAirspeedKt;
+    p.flapsOut = s.flapsTrailingPct > kFlapsOutPct;
     return p;
 }
 
