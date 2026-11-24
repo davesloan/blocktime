@@ -65,6 +65,14 @@ Newest entries at the top. Add an entry at the end of every working session.
   - `INSERT OR IGNORE` also hides a CHECK failure on a deboarding row.
 - **D-138 (the GSX rules):** accepted by Dave.
 
+- **Bug found in the sim test (2026-11-24, at KLAS), to fix after the flights:** after At Gate Turnaround, Live
+  showed "Not recording: no flight is planned" although KLAS → KSAN was planned (18:13:39Z) and imported. The
+  recorder rechecks the match only when a telemetry sample arrives, and telemetry is requested on change, so a
+  parked airplane sends none (the last came at 18:12:41Z). The banner kept the answer from before the plan; the
+  summary had hidden it until the turnaround. Recording wasn't affected (block out checks the plan fresh).
+  Toggling the beacon cleared it. Fix: recheck the match when the planned flight changes, with a test that fails
+  first.
+
 **Dave's checks.** Two legs in N916SX (777-300ER) in one sim session, with a GSX turnaround at KLAS: **KSLC → KLAS →
 KSAN**. `--probe` also collects the 777's PMDG data, which the last flight missed (the broadcast is on now).
 N916SX is at KSLC with 11,102 lb on record, so load at least 10,802 lb.
