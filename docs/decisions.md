@@ -1900,3 +1900,27 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   - **No extra log lines in flight:** a sample is already written every second while the position changes.
 - Alternatives considered: waiting until a milestone needs it (no real data to design with); magnetic heading (needs
   the variation to compare with the facility data).
+
+## D-130 — Milestone 7's execution calls
+- Date: 2026-11-23
+- Status: Proposed
+- Decided by: Claude
+- Area: recorder, app
+- Decision: Calls made while building milestone 7 that change what Dave sees or what's logged:
+  - **Approach can start from Cruise** as well as Descent. Otherwise a flight whose descent never held −500 fpm for
+    60 s would go from Cruise to Landing with no Approach. The destination ATIS then starts at Approach too.
+  - **Go-around:** a level confirmed during a go-around returns the phase to Approach and is shown as a level-off.
+  - **Level-offs:** a level-off line on Live closes at any phase change except Descent → Approach, which is the same
+    stage. The detector drops a level without an end event on a go-around or a landing.
+  - **After a step climb,** a new "Cruising at FL410" line starts, so the Cruise stage always shows the current level.
+  - **"Landed"** appears at the landing phase. The touchdown rate and the runway fill it in when they arrive, which
+    can be a second later, or never if the fast samples are refused.
+  - **A pause adds nothing to phase holds (refines D-058).** The sim keeps answering the 5 s heartbeat while paused.
+    Counting those replies would let a long pause mid-climb confirm a level-off, or an early cruise, that never
+    happened.
+  - **The altimeter settings are two SimConnect requests** (millibars and STD), as in the probe, so a refused STD
+    name can't take the millibar values with it.
+  - **The Live card is `FlightProgress.qml`.** The plan's name, `FlightStages`, is already the C++ class.
+- Why: each came up while building or in the whole-milestone review. They're recorded so Dave can confirm or change
+  them, and so nobody undoes them by accident.
+- Alternatives considered: following the plan to the letter on each point, with the gaps described above.

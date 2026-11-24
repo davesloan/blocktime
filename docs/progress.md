@@ -22,6 +22,112 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-23 — Milestone 7 built: phases and the six stages (version 0.8.0)
+
+**Done:**
+- Plan `docs/plans/2026-11-23-milestone-7-phases-and-stages.md`, all 11 tasks, executed inline (D-033):
+  - **Phases** (`PhaseDetector`, D-124): pushback to arrived, plus level-offs, step climbs and go-arounds. Tuned and
+    tested on Dave's KBFI→KPDX and KPDX→KSFO flights, replayed from the event log. Holds count only active time: a
+    freeze or a pause adds nothing (D-058, D-130).
+  - **Markers:** 10,000 ft, the transition altitude and level, 200 nm out, final approach.
+  - **Runways** (D-126): named by the recorder from the ground roll and the sim's runways, at liftoff and at taxi in.
+  - **Touchdown** (D-125): from sim-frame samples below 300 ft. The rate is the last airborne frame's; the g is the
+    peak in the second after contact.
+  - **`FlightTracker`:** the recorder's per-flight glue, which turns all of the above into log events.
+  - **Altimeter settings** (D-123): logged at block out and on every change.
+  - **True heading** in telemetry, logged only (D-129).
+  - **SayIntentions** (D-123, D-127): the ATC log every minute and at block in, and the origin's and destination's
+    ATIS, through a queue the recorder thread writes. An exchange is logged again if its reply arrives late.
+  - **Live:** a Flight progress card with the six stages, and the phase in the Flight card (D-128). `--demo` shows a
+    made-up departure.
+- **Whole-milestone review** by a fresh reviewer: 0 Critical, 1 Important, 7 Minor. Fixed, each with a test that failed
+  first:
+  - a long pause mid-climb could log a level-off, or an early cruise, that never happened: the sim answers the
+    heartbeat while paused;
+  - the destination ATIS was skipped on a flight that went from Cruise straight to Approach (re-graded from Minor).
+- **Docs:** recorder.md (the phase rules as built, every new event, runway naming, the app's log lines), design.md
+  §13.5, README, the roadmap. D-130 records the calls made while building.
+
+**Working / verified (without the sim):**
+- Clean release and debug builds have no warnings. **414 tests pass** (one timing check skipped). qmllint reports
+  nothing.
+- The app started on a scratch copy of the data folder, with nothing in `errors.log`. `--demo --grab` showed the
+  Flight progress card as designed.
+
+**Unverified or broken:**
+- Everything that needs the sim: Dave's checks below.
+- **SimVar names not seen working yet:** `G FORCE` (touchdown), `KOHLSMAN SETTING MB/STD` driven by PMDG, and `PLANE
+  HEADING DEGREES TRUE`. Heading is the only addition to the main telemetry: if the sim refused it, telemetry would
+  stop, which the first minute in the sim would show.
+- **Proposed decisions for Dave:** D-124 (phase numbers), D-125 (touchdown), D-126 (runway naming in the recorder),
+  D-127 (web results through the recorder thread), D-128 (stages), D-129's true-not-magnetic heading, and D-130 (the
+  calls made while building).
+- **Deferred minors from the review:**
+  - Flight events are shown even when their log write fails (a failing disk only).
+  - With no plan imported, "Level at FL240" and "Cruising at FL240" overlap on Live: the level is ended at the time
+    cruise is confirmed, which the cruise line backdates.
+  - An empty ATIS (no letter, no text) is logged once per airport.
+  - `FlightTracker.InterruptForgetsTheFlight` doesn't interrupt with fast sampling on.
+  - Touchdown time and the g window are ±0.1 s (frames are stamped when the loop reads them).
+- **Not checked:** the Live page at the smallest window size.
+
+**Dave's checks.** The steps are ordered to need one sim session, plus an optional 777 session at the end. They
+combine the next probe flight (end of `docs/notes/probe-flight.md`) and the fuel check deferred from milestone 6.
+N814SX is at KSFO with 6,434 lb on record. A leg over 200 nm (KSFO → KSEA, about 590 nm) also tests the 200 nm marker.
+
+1. **No sim.** Start `build\x64-release\BlockTime.exe --probe`. Expected: v0.8.0 in the sidebar, "Probe on" in the feed.
+   Plan N814SX KSFO → KSEA, generate on SimBrief and import the plan.
+2. **Load in.** Start SayIntentions, then MSFS, and load the BBJ2 at KSFO. Expected:
+   - telemetry flowing (the live values move): this proves `PLANE HEADING DEGREES TRUE` was accepted;
+   - no `simconnect_exception` naming `G FORCE`, `KOHLSMAN` or `runways request` in the log.
+3. **Altimeter at the gate.** Set a different baro on the captain's and first officer's side once, then press STD on
+   each and back. Expected: `probe_altimeter` lines following each knob and STD button.
+4. **Fuel check (from milestone 6).** With less than 6,134 lb on board, release the brake. Expected: "Not recording:
+   load at least … lb", and a `NOT RECORDING fuel_below_record` line. Refuel, then set the brake.
+5. **Push and taxi with GSX.** Expected:
+   - in Flight progress, Departure shows "Pushback" from the brake release, then "Taxiing to runway" from when you
+     start moving after the push;
+   - the Flight card shows "Pushback", then "Taxi out";
+   - feed lines PUSHBACK and TAXI OUT.
+6. **Takeoff.** Expected:
+   - "Takeoff roll" starting when you added power, not when you passed 40 kt;
+   - "Takeoff" and, in Climb, "Departed runway 28R" (or whichever runway you used);
+   - the feed: TAKEOFF, LIFTOFF 28R, CLIMB.
+7. **Climb.** Expected:
+   - "Above 10,000 ft" and "Passed transition altitude";
+   - for any ATC level-off, "Level at …" with the phase reading "Climb — level at …";
+   - **pause test:** pause for 2 minutes mid-climb (Escape or active pause), then carry on. Expected: no "Level at"
+     line from the pause.
+8. **Cruise.** Expected: "Cruising at FL3xx" when you level at the planned altitude, and "200 nm from destination".
+   A step climb, if ATC gives one, shows "Step climb to …".
+9. **Descent and landing.** Expected, in order:
+   - "Top of descent";
+   - "Passed transition level" (set the QNH there, so the `altimeter` lines show it);
+   - "Below 10,000 ft", "Approach", "Final approach";
+   - "Landed on 16L, −NNN fpm" with a believable rate (compare with what you felt);
+   - "Taxiing to gate";
+   - a TOUCHDOWN feed line with the rate and g.
+10. **Gate.** Note the gate SayIntentions gives you, and whether it writes "D14" or "D 14". Park, set the brake and
+    shut down. Expected:
+    - the summary as in milestone 6;
+    - Arrival shows "Parked" in Flight progress until the summary replaces it.
+
+    Then **deboard with GSX** (probe: the deboarding states and counts).
+11. **No sim.** Send the day's log files (`events-YYYY-MM-DD.jsonl`). I'll check:
+    - `atis` lines for KSFO before takeoff and KSEA after top of descent;
+    - `atc_exchange` lines matching SayIntentions' own history;
+    - `altimeter` lines against the knobs;
+    - `heading_true_deg` in telemetry;
+    - the FMC figures (`FMC_DistanceToTOD_nm` counting down to 0, D-120);
+    - the touchdown.
+12. **Optional, a second session: the 777.** Load the 777-300ER (it can't be recorded yet: one slot). Expected:
+    `probe_pmdg_777` values moving with each switch, `BRAKES_ParkingBrakeLeverOn` against `BRAKE PARKING POSITION`
+    on a release, and the `DOOR_state` values through a GSX turnaround.
+
+**Next step:**
+- Dave's checks above and his answers on D-124..D-130. Then close milestone 7: push `main` (D-121). Milestone 8 (GSX)
+  starts in a new session.
+
 ## 2026-11-23 — Milestone 7 planning (docs and test fixtures only)
 
 **Done:**

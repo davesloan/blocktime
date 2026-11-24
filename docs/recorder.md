@@ -201,6 +201,14 @@ active time (D-058): each sim message adds at most 2 s.
 Markers fire once per flight when crossed: above and below 10,000 ft, the plan's transition altitude (climbing) and
 level (descending), 200 nm from the destination, and final approach at 1,000 ft AGL.
 
+A pause (any `Pause_EX1` flag) adds nothing to holds either: the sim keeps answering the heartbeat while paused
+(D-130). Approach can also start straight from Cruise when no descent was confirmed (D-130).
+
+**Times:** a flight event's `data.time` is when the thing happened, which can be earlier than the line's `ts` and than
+lines written before it. The takeoff is timed back to where the roll began, a level-off or cruise to the start of its
+20 s hold, and top of descent to the start of its 60 s hold. Readers order by `data.time`, not by line. The touchdown's
+time is that of the first sim frame on the ground, give or take 0.1 s: frames are stamped when the loop reads them.
+
 ## Data to capture
 
 At minimum (exact SimVar names to be confirmed against the MSFS 2020 SDK docs and recorded in `docs/notes/`):
