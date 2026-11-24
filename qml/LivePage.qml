@@ -106,20 +106,26 @@ Item {
                 flight: page.plannedFlight
             }
 
-            // The six stages across the gate (design.md §13.5, D-134): the flight from block out until its summary is
-            // dismissed, otherwise the next leg with its GSX services so far.
-            FlightProgress {
-                Layout.fillWidth: true
-                visible: page.recorder.showingFlight ? (page.recorder.flightOpen || page.showSummary)
-                    : (page.plannedFlight.hasFlight || page.recorder.hasNextLegServices)
-                recorder: page.recorder
-            }
-
+            // Three columns (D-139): Flight progress, the flight panel, the event log.
             RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.minimumHeight: flightPanel.implicitHeight
+                Layout.minimumHeight: Math.max(flightPanel.implicitHeight, progress.implicitHeight)
                 spacing: Theme.spacing
+
+                // The six stages across the gate (design.md §13.5, D-134): the flight from block out until its summary
+                // is dismissed, otherwise the next leg with its GSX services so far.
+                FlightProgress {
+                    id: progress
+
+                    Layout.alignment: Qt.AlignTop
+                    Layout.fillWidth: false
+                    Layout.preferredWidth: 340
+                    Layout.maximumWidth: 340
+                    visible: page.recorder.showingFlight ? (page.recorder.flightOpen || page.showSummary)
+                        : (page.plannedFlight.hasFlight || page.recorder.hasNextLegServices)
+                    recorder: page.recorder
+                }
 
                 FlightPanel {
                     id: flightPanel
@@ -131,7 +137,9 @@ Item {
 
                 EventFeed {
                     Layout.fillHeight: true
-                    Layout.preferredWidth: 360
+                    Layout.fillWidth: false
+                    Layout.preferredWidth: 300
+                    Layout.maximumWidth: 300
                     recorder: page.recorder
                 }
             }

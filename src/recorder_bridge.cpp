@@ -19,6 +19,7 @@
 #include <type_traits>
 #include <variant>
 
+#include "airspeed_display.h"
 #include "event_log.h"
 #include "telemetry_filter.h"
 
@@ -98,6 +99,10 @@ void RecorderBridge::applySample(const TelemetrySample& s) {
     onGround_ = s.onGround != 0;
     enginesRunning_ = blocktime::enginesRunning(s);
     engineCount_ = std::clamp(s.numEngines, 0, 4);
+    engineRunning_.clear();
+    for (int i = 0; i < engineCount_; ++i) engineRunning_.append(s.engCombustion[i] != 0);
+    showMach_ = blocktime::showMach(showMach_, s.mach);
+    machText_ = QString::fromStdString(blocktime::machText(s.mach));
     aircraft_ = QString::fromUtf8(simString(s.title, sizeof(s.title)));
     atcId_ = QString::fromUtf8(simString(s.atcId, sizeof(s.atcId)));
     if (parkingBrake_) setReleaseRefused(false);

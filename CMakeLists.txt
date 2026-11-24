@@ -178,6 +178,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/lined_up_test.cpp
     tests/gate_picker_test.cpp
     tests/gate_assigner_test.cpp
+    tests/airspeed_display_test.cpp
     tests/touchdown_capture_test.cpp
     tests/flight_tracker_test.cpp
     tests/app_event_queue_test.cpp
@@ -213,6 +214,7 @@ set(BLOCKTIME_QML_FILES
   qml/Theme.qml
   qml/Card.qml
   qml/StatTile.qml
+  qml/StatusTile.qml
   qml/PrimaryButton.qml
   qml/StatusPill.qml
   qml/FlightPanel.qml

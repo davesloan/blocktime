@@ -440,6 +440,9 @@ as they happen, each with its start and end time. The same records go into the f
 - **Three columns (milestone 9, D-139).** Below the planned flight header (which stays full width), Live's row has
   three columns: the Flight progress card on the left, the flight panel in the middle, and the running event log on
   the right. The progress card no longer runs full width. The flight summary is unchanged.
+- **The flight panel (milestone 9, D-140):** no Aircraft card or Position tile. Parking brake and each engine (1 on
+  the left) are status tiles, green when set or running, grey otherwise. The airspeed tile shows Mach ("M.78") from
+  M0.70 until it drops below M0.66, knots otherwise.
 - **Departure runway:** from the takeoff position and heading, matched against the sim's runways.
 - **Transition altitude and level, and "200 nm from destination":** from the SimBrief plan.
 - **GSX services (D-073, D-138):** each service shows as its own line with start and end: "Catering",

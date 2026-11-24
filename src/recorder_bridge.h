@@ -41,6 +41,10 @@ class RecorderBridge : public QObject {
     Q_PROPERTY(bool onGround READ onGround NOTIFY sampleChanged)
     Q_PROPERTY(int enginesRunning READ enginesRunning NOTIFY sampleChanged)
     Q_PROPERTY(int engineCount READ engineCount NOTIFY sampleChanged)
+    // Live's flight panel (D-140): one running flag per engine, and the airspeed tile in Mach at altitude.
+    Q_PROPERTY(QVariantList engineRunning READ engineRunning NOTIFY sampleChanged)
+    Q_PROPERTY(bool showMach READ showMach NOTIFY sampleChanged)
+    Q_PROPERTY(QString machText READ machText NOTIFY sampleChanged)
     Q_PROPERTY(QString aircraft READ aircraft NOTIFY sampleChanged)
     Q_PROPERTY(QString atcId READ atcId NOTIFY sampleChanged)
 
@@ -76,6 +80,9 @@ public:
     bool onGround() const { return onGround_; }
     int enginesRunning() const { return enginesRunning_; }
     int engineCount() const { return engineCount_; }
+    QVariantList engineRunning() const { return engineRunning_; }
+    bool showMach() const { return showMach_; }
+    QString machText() const { return machText_; }
     QString aircraft() const { return aircraft_; }
     QString atcId() const { return atcId_; }
     bool flightOpen() const { return flightOpen_; }
@@ -140,6 +147,9 @@ private:
     bool parkingBrake_ = false, onGround_ = false;
     int enginesRunning_ = 0, engineCount_ = 0;
     QString aircraft_, atcId_;
+    QVariantList engineRunning_;
+    bool showMach_ = false;
+    QString machText_;
     bool flightOpen_ = false;
     QDateTime blockOutTime_;
     double blockOutFuelLb_ = 0;

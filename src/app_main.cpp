@@ -65,6 +65,7 @@ void fillDemo(RecorderBridge& bridge) {
     s.verticalSpeedFpm = -12;
     s.groundSpeedKt = 463;
     s.indicatedAirspeedKt = 268;
+    s.mach = 0.784;
     s.numEngines = 2;
     s.engCombustion[0] = s.engCombustion[1] = 1;
     copySimString(s.title, sizeof(s.title), "PMDG 737-800 (demo)");

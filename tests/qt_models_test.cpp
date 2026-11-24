@@ -1650,3 +1650,22 @@ TEST_F(LiveFlight, SummaryNamesTheParkedSpot) {
     ASSERT_EQ(list.count(), 1);
     EXPECT_EQ(list.summary(0)["parkedText"].toString(), "Parked at Gate 20");
 }
+
+TEST(RecorderBridge, EnginesRunningPerEngine) {
+    qtApp();
+    RecorderBridge b;
+    blocktime::TelemetrySample s{};
+    s.numEngines = 2;
+    s.engCombustion[1] = 1;
+    s.mach = 0.78;
+    b.applySample(s);
+    EXPECT_EQ(b.engineRunning(), (QVariantList{false, true}));
+    EXPECT_TRUE(b.showMach());
+    EXPECT_EQ(b.machText(), "M.78");
+    s.mach = 0.68;  // between the lines: stays Mach
+    b.applySample(s);
+    EXPECT_TRUE(b.showMach());
+    s.mach = 0.6;
+    b.applySample(s);
+    EXPECT_FALSE(b.showMach());
+}

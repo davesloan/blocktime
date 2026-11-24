@@ -2,7 +2,10 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// The live flight panel: aircraft, eight live values, and the current or last flight.
+// The live flight panel: the live values, the brake and each engine as status tiles (D-140), and the current or last
+// flight.
+
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import BlockTime  // explicit, so hot reload from the source folder still sees the module (D-055)
@@ -51,39 +54,12 @@ ColumnLayout {
         onTriggered: panel.now = Date.now()
     }
 
-    Card {
-        Layout.fillWidth: true
-        title: "Aircraft"
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 12
-
-            Text {
-                Layout.fillWidth: true
-                text: panel.live ? panel.recorder.aircraft : "No aircraft yet"
-                color: panel.live ? Theme.textPrimary : Theme.textSecondary
-                elide: Text.ElideRight
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeTitle
-                font.weight: Font.DemiBold
-            }
-
-            Text {
-                visible: panel.live && panel.recorder.atcId !== ""
-                text: panel.recorder.atcId
-                color: Theme.textSecondary
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeBody
-                font.weight: Font.DemiBold
-                font.letterSpacing: Theme.labelLetterSpacing
-            }
-        }
-    }
-
     GridLayout {
+        id: tiles
+
         Layout.fillWidth: true
-        columns: 4
+        // As many columns of ~150 px tiles as fit, two to four: the middle of Live's three columns (D-139).
+        columns: Math.max(2, Math.min(4, Math.floor((width + columnSpacing) / 162)))
         rowSpacing: 12
         columnSpacing: 12
 
@@ -93,11 +69,13 @@ ColumnLayout {
             unit: "ft"
             value: panel.live ? panel.grouped(panel.recorder.altitudeFt) : "—"
         }
+        // Knots, or Mach from M.70 until it drops below M.66 (D-140).
         StatTile {
             Layout.fillWidth: true
-            label: "Indicated airspeed"
-            unit: "kt"
-            value: panel.live ? panel.grouped(panel.recorder.iasKt) : "—"
+            label: panel.live && panel.recorder.showMach ? "Mach" : "Indicated airspeed"
+            unit: panel.live && panel.recorder.showMach ? "" : "kt"
+            value: !panel.live ? "—"
+                : panel.recorder.showMach ? panel.recorder.machText : panel.grouped(panel.recorder.iasKt)
         }
         StatTile {
             Layout.fillWidth: true
@@ -117,21 +95,29 @@ ColumnLayout {
             unit: "lb"
             value: panel.live ? panel.grouped(panel.recorder.fuelLb) : "—"
         }
-        StatTile {
+        StatusTile {
             Layout.fillWidth: true
             label: "Parking brake"
-            value: panel.live ? (panel.recorder.parkingBrake ? "SET" : "OFF") : "—"
-            accent: panel.live && panel.recorder.parkingBrake ? Theme.warn : Theme.textPrimary
+            known: panel.live
+            on: panel.recorder.parkingBrake
+            onText: "SET"
+            offText: "OFF"
         }
-        StatTile {
-            Layout.fillWidth: true
-            label: "Position"
-            value: panel.live ? (panel.recorder.onGround ? "GROUND" : "AIR") : "—"
-        }
-        StatTile {
-            Layout.fillWidth: true
-            label: "Engines running"
-            value: panel.live ? panel.recorder.enginesRunning + " / " + panel.recorder.engineCount : "—"
+        // One tile per engine, 1 on the left (D-140).
+        Repeater {
+            model: panel.recorder.engineRunning
+
+            StatusTile {
+                required property int index
+                required property bool modelData
+
+                Layout.fillWidth: true
+                label: "Engine " + (index + 1)
+                known: panel.live
+                on: modelData
+                onText: "ON"
+                offText: "OFF"
+            }
         }
     }
 
