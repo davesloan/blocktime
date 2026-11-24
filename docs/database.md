@@ -371,6 +371,7 @@ The planned flight it came from is deleted in the same transaction.
 | `fuel_out_lb` | INTEGER | ≥ 0; at block out |
 | `fuel_in_lb` | INTEGER | ≥ 0; when the last engine stopped (`shutdown_fuel_lb`, D-110), the airplane's new fuel on board |
 | `origin_runway`, `destination_runway` | TEXT NULL | the ATIS runways, as on `planned_flight`; NULL means none was found |
+| `origin_parking`, `arrival_parking` | TEXT NULL | migration 6 (D-148): the parking spot the recorder named at block out and block in ("Gate D14", "Parking 70"); NULL when no spot was within 40 m, the airport's spots weren't loaded, or the flight is from before 0.10.0 |
 
 Not stored, because they follow from the columns (D-114): the block time (`block_in_at − block_out_at`), the fuel
 added (`max(0, fuel_out_lb − fuel_on_record_lb)`) and the fuel used (`fuel_out_lb − fuel_in_lb`).
@@ -465,3 +466,9 @@ is never stored twice.
 **Deboarding.** It happens after block in, when the flight is already settled. `recordDeboardings` scans the log
 the same way and adds each completed deboarding to the settled flight whose block in came before it, with
 `INSERT OR IGNORE` on the `UNIQUE`. The app runs it at startup and whenever GSX deboarding ends.
+
+## Milestone 9 (migration 6)
+
+Migration 6 adds two columns to `flight`, `origin_parking` and `arrival_parking` (in the `flight` table above). Settling
+copies them from the block events' `parking`. **The load-in spot** of a planned flight is the airplane's latest
+flight's `arrival_parking`, when that flight ended at the planned origin (`currentPlannedFlight`, D-148).

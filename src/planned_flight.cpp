@@ -214,6 +214,14 @@ std::optional<PlannedFlightView> currentPlannedFlight(db::Database& db) {
     v.originRunway = q.text(16);
     v.destinationRunway = q.text(17);
     v.distanceNm = distanceMeters(q.real(18), q.real(19), q.real(20), q.real(21)) / kMetresPerNm;
+    // The latest flight's spot, if it ended where this one starts (D-148).
+    db::Statement last(db,
+                       "SELECT COALESCE(l.arrival_parking, '') FROM flight l JOIN airport ap"
+                       " ON ap.airport_id = l.arrival_airport_id WHERE l.airplane_id = ? AND ap.icao_code = ?"
+                       " AND l.block_in_at = (SELECT max(block_in_at) FROM flight WHERE airplane_id = l.airplane_id)");
+    last.bind(1, q.integer(22));
+    last.bind(2, std::string_view(v.origin));
+    if (last.next()) v.loadInParking = last.text(0);
     const std::int64_t airplaneId = q.integer(22);
     for (const Cabin& c : cabinsOf(db, airplaneId)) v.seatsInstalled += c.seats;
     v.limits = airplaneLimits(db, airplaneId).value_or(AirplaneLimits{});

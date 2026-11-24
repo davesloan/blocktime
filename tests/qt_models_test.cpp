@@ -1621,3 +1621,32 @@ TEST(FlightWatcher, ProbeLogsSayIntentionsAirportWithoutKeys) {
     EXPECT_EQ(probes[0].data["answer"].dump().find("api_key"), std::string::npos);
     EXPECT_EQ(probes[0].data["answer"]["airport"]["icao"], "KPDX");
 }
+
+TEST(PlannedFlightModel, LoadInTextNamesTheSpot) {
+    db::Database db = deliveredAirline();
+    ASSERT_TRUE(db.exec(
+        "INSERT INTO flight (log_flight_id, airplane_id, flight_number, kind, origin_airport_id,"
+        " planned_destination_airport_id, arrival_airport_id, cargo_lb, fuel_price_cents_per_100lb, planned_at,"
+        " block_out_at, block_in_at, fuel_on_record_lb, fuel_out_lb, fuel_in_lb, arrival_parking)"
+        " SELECT 'x', a.airplane_id, '8', 'vip', o.airport_id, o.airport_id, o.airport_id, 0, 4100,"
+        " '2026-11-20T10:00:00Z', '2026-11-20T11:00:00Z', '2026-11-20T12:00:00Z', 0, 9000, 8000, 'Parking 70'"
+        " FROM airplane a, airport o WHERE a.registration = 'N814SX' AND o.icao_code = 'KBFI'"));
+    planVip(db, "2026-11-23T14:00:00Z");
+    FakePlanner planner;
+    RecorderBridge bridge;
+    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
+    EXPECT_EQ(m.loadInText(), "Load in at KBFI, Boeing Field, Parking 70");
+}
+
+TEST_F(LiveFlight, SummaryNamesTheParkedSpot) {
+    write({liveOut(plannedId_),
+           liveLine("block_in", std::string(R"({"flight_id":")") + kLiveOut + R"(","time":")" + kLiveIn +
+                                    R"(","lat":32.7336,"lon":-117.19,"shutdown_fuel_lb":9400,"block_time_s":10236,)"
+                                    R"("parking":"Gate 20"})")});
+    auto m = model();
+    m->checkFlown();
+    FlightListModel list(db_, dir_, "XLY");
+    list.reloadBlocking();
+    ASSERT_EQ(list.count(), 1);
+    EXPECT_EQ(list.summary(0)["parkedText"].toString(), "Parked at Gate 20");
+}

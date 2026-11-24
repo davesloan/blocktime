@@ -68,6 +68,7 @@ struct FlightView {
     std::string blockOutAt, blockInAt;  // UTC instants
     long long blockS = 0;
     int fuelOutLb = 0, fuelInLb = 0;
+    std::string arrivalParking;  // "Gate E7"; "" when none was named (D-148)
     std::vector<MoneyLine> income, costs;  // in the order they were posted (the preview's order)
     Cents totalCents = 0;
 };

@@ -234,3 +234,41 @@ TEST(Planned, TargetCarriesThePlan) {
     EXPECT_EQ(t->transitionAltitudeFt, 18000);
     EXPECT_EQ(t->transitionLevelFt, 18000);
 }
+
+namespace {
+
+// A settled flight of N814SX, arriving at `arrival` and parking at `parking` ("" = NULL).
+void flownTo(db::Database& db, const std::string& logId, const std::string& arrival, const std::string& in,
+             const std::string& parking) {
+    const std::string spot = parking.empty() ? "NULL" : "'" + parking + "'";
+    ASSERT_TRUE(db.exec(
+        "INSERT INTO flight (log_flight_id, airplane_id, flight_number, kind, origin_airport_id,"
+        " planned_destination_airport_id, arrival_airport_id, cargo_lb, fuel_price_cents_per_100lb, planned_at,"
+        " block_out_at, block_in_at, fuel_on_record_lb, fuel_out_lb, fuel_in_lb, arrival_parking)"
+        " SELECT '" + logId + "', a.airplane_id, '8', 'vip', o.airport_id, d.airport_id, d.airport_id, 0, 4100,"
+        " '2026-11-20T10:00:00Z', '2026-11-20T11:00:00Z', '" + in + "', 0, 9000, 8000, " + spot +
+        " FROM airplane a, airport o, airport d WHERE a.registration = 'N814SX' AND o.icao_code = 'KSAN'"
+        " AND d.icao_code = '" + arrival + "'"));
+}
+
+}  // namespace
+
+TEST(Planned, LoadInParkingFromLastFlight) {
+    db::Database db = test::testAirline();
+    flownTo(db, "older", "KBFI", "2026-11-20T12:00:00Z", "Gate A1");
+    flownTo(db, "latest", "KBFI", "2026-11-21T12:00:00Z", "Parking 70");
+    std::string error;
+    ASSERT_TRUE(createPlannedFlight(db, vipToKsan(db), &error).has_value()) << error;  // from KBFI
+    EXPECT_EQ(currentPlannedFlight(db)->loadInParking, "Parking 70");
+}
+
+TEST(Planned, NoLoadInParkingAfterAMove) {
+    db::Database db = test::testAirline();
+    flownTo(db, "older", "KBFI", "2026-11-20T12:00:00Z", "Parking 70");
+    flownTo(db, "latest", "KSAN", "2026-11-21T12:00:00Z", "Gate 20");  // the airplane moved since
+    std::string error;
+    ASSERT_TRUE(createPlannedFlight(db, vipToKsan(db), &error).has_value()) << error;
+    EXPECT_EQ(currentPlannedFlight(db)->loadInParking, "");
+    flownTo(db, "parked-nowhere", "KBFI", "2026-11-22T12:00:00Z", "");
+    EXPECT_EQ(currentPlannedFlight(db)->loadInParking, "");
+}

@@ -83,6 +83,8 @@ struct PlannedFlightView {
     double distanceNm = 0;
     Cents fuelPriceCentsPer100Lb = 0;
     std::string plannedAt, originRunway, destinationRunway;  // runways "" = none from the ATIS
+    // Where the airplane last parked ("Gate E7"), if its latest flight ended at this origin; "" otherwise (D-148).
+    std::string loadInParking;
     std::optional<SimbriefPlan> plan;
 };
 

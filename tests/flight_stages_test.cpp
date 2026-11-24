@@ -145,7 +145,7 @@ TEST(FlightStages, Markers) {
     EXPECT_EQ(texts(v[2]), (std::vector<std::string>{"Above 10,000 ft", "Passed transition altitude"}));
     EXPECT_EQ(texts(v[3]), (std::vector<std::string>{"Cruising at FL200", "200 nm from destination"}));
     EXPECT_EQ(texts(v[4]), (std::vector<std::string>{"Top of descent", "Passed transition level", "Below 10,000 ft",
-                                                     "Final approach"}));
+                                                     "Short final"}));  // D-149
 }
 
 TEST(FlightStages, LinesSortByTimeWithinAStage) {
@@ -376,4 +376,89 @@ TEST(FlightStages, BlockOutStartsAFreshFlight) {
     block(s, "block_out", "13:00:00");
     EXPECT_TRUE(s.view()[5].lines.empty());
     EXPECT_TRUE(s.view()[1].lines.empty());
+}
+
+// ---- Milestone 9: the parked spot, the arrival gate, Final approach and Short final (D-147..D-149) --------------
+
+namespace {
+
+json gate(const std::string& result, const std::string& reason = "closest") {
+    return {{"time", at("19:10:00")}, {"icao", "KLAS"}, {"runway", "26L"}, {"si_gate", "Terminal 3 Gate E7A"},
+            {"gate", result == "none_fits" ? "" : "Gate E9"}, {"reason", reason}, {"sent", true},
+            {"result", result}, {"si_parking", ""}, {"error", ""}};
+}
+
+std::string gateLine(const json& event) {
+    FlightStages s;
+    phase(s, "cruise", "19:00:00", 35000, true);
+    s.onEvent("arrival_gate", event);
+    const auto lines = texts(s.view()[3]);
+    return lines.size() == 2 ? lines[1] : "(no line)";
+}
+
+}  // namespace
+
+TEST(FlightStages, ParkedAtSpot) {
+    FlightStages s;
+    phase(s, "taxi_in", "23:27:40", 27);
+    s.onEvent("block_in", {{"flight_id", "x"}, {"time", at("23:30:23")}, {"parking", "Gate D14"}});
+    phase(s, "arrived", "23:30:23", 27);
+    EXPECT_EQ(texts(s.view()[5]), (std::vector<std::string>{"Parked at Gate D14"}));
+
+    FlightStages t;
+    phase(t, "taxi_in", "23:27:40", 27);
+    t.onEvent("block_in", {{"flight_id", "x"}, {"time", at("23:30:23")}, {"parking", ""}});
+    phase(t, "arrived", "23:30:23", 27);
+    EXPECT_EQ(texts(t.view()[5]), (std::vector<std::string>{"Parked"}));
+}
+
+TEST(FlightStages, ArrivalGateLines) {
+    EXPECT_EQ(gateLine(gate("assigned")), "Arrival gate: Gate E9");
+    EXPECT_EQ(gateLine(gate("same_as_si")), "Arrival gate: Gate E9 (SayIntentions' choice)");
+    EXPECT_EQ(gateLine(gate("assigned", "gate_fallback")), "Arrival gate: Gate E9 (no ramp fits)");
+    EXPECT_EQ(gateLine(gate("unknown_gate")),
+              "Arrival gate: SayIntentions' Terminal 3 Gate E7A (it doesn't know Gate E9)");
+    EXPECT_EQ(gateLine(gate("error")), "Arrival gate: SayIntentions' Terminal 3 Gate E7A (assignGate failed)");
+    EXPECT_EQ(gateLine(gate("none_fits", "none_fits")),
+              "Arrival gate: SayIntentions' Terminal 3 Gate E7A (no spot fits)");
+}
+
+TEST(FlightStages, LinedUpLine) {
+    FlightStages s;
+    phase(s, "approach", "19:40:00", 6000);
+    s.onEvent("lined_up", {{"time", at("19:44:10")}, {"runway", "26L"}, {"alt_ft", 3100}, {"distance_nm", 9.6}});
+    const auto v = s.view()[4];
+    ASSERT_EQ(texts(v), (std::vector<std::string>{"Approach", "Final approach, runway 26L"}));
+    EXPECT_EQ(v.lines[1].start, "19:44Z");
+    EXPECT_EQ(v.lines[1].end, "");
+}
+
+TEST(FlightStages, ShortFinalAtThousandFeet) {
+    FlightStages s;
+    phase(s, "approach", "19:40:00", 6000);
+    s.onEvent("lined_up", {{"time", at("19:44:10")}, {"runway", "26L"}, {"alt_ft", 3100}, {"distance_nm", 9.6}});
+    s.onEvent("flight_marker", {{"marker", "final_approach"}, {"time", at("19:47:30")}, {"alt_ft", 3150}});
+    s.onEvent("touchdown", {{"time", at("19:48:40")}, {"vs_fpm", -120.0}, {"g", 1.1}});
+    const auto v = s.view()[4];
+    ASSERT_EQ(texts(v), (std::vector<std::string>{"Approach", "Final approach, runway 26L", "Short final",
+                                                  "Landed, −120 fpm"}));
+    EXPECT_EQ(v.lines[1].end, "19:47Z");
+    EXPECT_EQ(v.lines[2].start, "19:47Z");
+    EXPECT_EQ(v.lines[2].end, "19:48Z");
+
+    FlightStages t;  // no lined_up: Short final alone
+    phase(t, "approach", "19:40:00", 6000);
+    t.onEvent("flight_marker", {{"marker", "final_approach"}, {"time", at("19:47:30")}, {"alt_ft", 3150}});
+    EXPECT_EQ(texts(t.view()[4]), (std::vector<std::string>{"Approach", "Short final"}));
+}
+
+TEST(FlightStages, GoAroundClosesFinal) {
+    FlightStages s;
+    phase(s, "approach", "19:40:00", 6000);
+    s.onEvent("lined_up", {{"time", at("19:44:10")}, {"runway", "26L"}, {"alt_ft", 3100}, {"distance_nm", 9.6}});
+    s.onEvent("flight_marker", {{"marker", "final_approach"}, {"time", at("19:47:30")}, {"alt_ft", 3150}});
+    phase(s, "go_around", "19:48:10", 2700);
+    const auto v = s.view()[4];
+    EXPECT_EQ(v.lines[2].text, "Short final");
+    EXPECT_EQ(v.lines[2].end, "19:48Z");
 }

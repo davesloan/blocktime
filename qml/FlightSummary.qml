@@ -16,7 +16,7 @@ Card {
     id: card
 
     // FlightListModel.summary(row): { title, dateText, outText, inText, blockText, fuelText, routeText, income, costs,
-    // totalText }
+    // totalText, parkedText }
     required property var summary
     required property var track  // FlightListModel.track(row)
     required property string mapTileUrl
@@ -36,6 +36,7 @@ Card {
         Text {
             Layout.fillWidth: true
             text: (card.summary.dateText ?? "") + " · " + (card.summary.routeText ?? "")
+                  + (card.summary.parkedText ? " · " + card.summary.parkedText : "")
             color: Theme.textSecondary
             elide: Text.ElideRight
             font.family: Theme.fontFamily

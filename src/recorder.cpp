@@ -362,7 +362,16 @@ int Recorder::run(const std::atomic<bool>& stop) {
 
     while (!stop) {
         retry.tick();
-        for (const LogEvent& e : appEvents_.drain()) log.write(e.type, e.data);
+        // The app's events (D-127): logged first, then told back, so Live sees e.g. the arrival gate (D-147).
+        for (const LogEvent& e : appEvents_.drain()) {
+            log.write(e.type, e.data);
+            if (e.type == "arrival_gate") {
+                observer.onLine(utcTimestamp().substr(11, 8) + "  ARRIVAL GATE  " + e.data.value("gate", std::string()) +
+                                    "  (" + e.data.value("result", std::string()) + ")",
+                                false);
+            }
+            observer.onFlightEvent(e.type, e.data);
+        }
         if (!sim.isOpen()) {
             if (sim.open()) {
                 observer.onLine("Sim found, waiting for it to finish starting...", false);

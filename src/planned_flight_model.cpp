@@ -268,7 +268,10 @@ QString PlannedFlightModel::airplaneText() const {
 QString PlannedFlightModel::kindText() const { return flight_ ? NewFlightModel::kindLabel(flight_->kind) : QString(); }
 
 QString PlannedFlightModel::loadInText() const {
-    return flight_ ? "Load in at " + q(flight_->origin) + ", " + q(flight_->originName) : QString();
+    if (!flight_) return {};
+    QString text = "Load in at " + q(flight_->origin) + ", " + q(flight_->originName);
+    if (!flight_->loadInParking.empty()) text += ", " + q(flight_->loadInParking);  // where it last parked (D-148)
+    return text;
 }
 
 QString PlannedFlightModel::runwayText() const {

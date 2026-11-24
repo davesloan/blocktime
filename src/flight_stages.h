@@ -86,6 +86,8 @@ private:
     std::vector<Line> lines_;
     std::string phase_;
     std::optional<std::size_t> phaseLine_, cruiseLine_, levelLine_, stepLine_, landedLine_;
+    std::optional<std::size_t> finalLine_, shortFinalLine_;  // D-149
+    std::string parking_;  // block_in's spot, for "Parked at ..." (D-148)
     int levelFt_ = 0;
     bool levelFl_ = false;
     int stepFromFt_ = 0;

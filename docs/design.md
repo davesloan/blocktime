@@ -391,8 +391,9 @@ here, including delivery and free flights.
 - It shows the route with a **copy button**, so Dave can paste it into Navigraph Charts and pick his approach for
   the runways in use. The route is in the form Navigraph takes, with the plan's runways at both ends:
   `KBFI/14R <route> KSAN/27`.
-- It shows **where to load in:** the airport, and the gate where the aircraft was last parked, if known (section
-  13.7). The app can't make MSFS spawn there; Dave picks it on the world map.
+- It shows **where to load in:** the airport, and the spot where the aircraft was last parked, if known ("Load in
+  at KLAS, Harry Reid International Airport, Gate E7"; built in milestone 9, D-148). The app can't make MSFS spawn
+  there; Dave picks it on the world map.
 - Dave starts SayIntentions, SPAD.neXt and the sim, then GSX in the sim.
 
 ### 13.4 Matching check (D-088)
@@ -420,11 +421,19 @@ as they happen, each with its start and end time. The same records go into the f
 | Departure | Pushback, Taxi out, Takeoff | Pushback (GSX), Taxiing to runway, Takeoff roll, Takeoff |
 | Climb | Climb | Departed runway 30, Level-offs, Above 10,000 ft, Passed transition altitude |
 | Cruise | Cruise | Cruising at FL350, Step climb to FL370, 200 nm from destination |
-| Descent | Descent, Approach, Landing, Taxi in | Top of descent, Passed transition level, Level-offs, Below 10,000 ft, Final approach, Landed, Taxiing to gate |
-| Arrival | Arrived | Parked at gate, Deboarding (GSX), Ready for shutdown or turnaround |
+| Descent | Descent, Approach, Landing, Taxi in | Top of descent, Passed transition level, Level-offs, Below 10,000 ft, Final approach, Short final, Landed, Taxiing to gate |
+| Arrival | Arrived | Parked at Gate E7, Deboarding (GSX), Ready for shutdown or turnaround |
 
-- **Built in milestone 7** (D-128): Live's Flight progress card, from the recorder's events. Arrival shows "Parked"
-  until milestone 9's gate. "Landed" carries the landing runway and the touchdown rate.
+- **Built in milestone 7** (D-128): Live's Flight progress card, from the recorder's events. "Landed" carries the
+  landing runway and the touchdown rate.
+- **Milestone 9:**
+  - Arrival shows "Parked at Gate E7", the spot the recorder named at block in, or plain "Parked" (D-148).
+  - "Final approach, runway 26L" runs from when Dave is lined up with a destination runway (within 10 nm of the
+    threshold, 10° of its heading, 0.5 nm of its centreline, for 10 s; D-143, D-145) until 1,000 ft AGL, where
+    "Short final" takes over until touchdown (D-149). A go-around ends both.
+  - The arrival gate line ("Arrival gate: Gate E7") appears in the stage that's current when it's settled, usually
+    Cruise (section 13.6).
+  - Approach starts at the first flap extension below 10,000 ft, or 3,000 ft AGL (D-142).
 - **The card spans the gate (milestone 8, D-134).** Before block out it shows the next leg: Pre-Departure with the GSX
   services so far, whenever a flight is planned or a service has run. After block in it stays under the summary with
   the flight's Arrival stage. It switches to the next leg at At Gate Turnaround, Done for now, or a new plan.
@@ -454,15 +463,24 @@ SayIntentions flight), so ATC gives it after landing. It reads the result back f
 if SayIntentions already chose the same gate.
 1. **Preferred gates** for the airport, from config, first one that fits.
 2. Otherwise the parking spot of the **right size and type closest to the arrival runway** (SayIntentions'
-   landing runway, D-141). Size: the spot's radius fits the family's wingspan (in config).
+   landing runway, D-141, as a line between its thresholds). Size: twice the spot's radius is at least the type's
+   wingspan (`wingspan_m` in catalog.yaml, D-147).
 3. **Type:** passenger flights use gates. **Freighters and charters use ramps** (cargo ramps for freighters).
    If no ramp of the right size exists, any ramp that fits, then a gate as a last resort,
    with a note on the dashboard.
 - Parking spots (name, position, size, type) come from the sim over SimConnect. Gate names are sent to
-  SayIntentions in its format (alphanumeric, for example "B23"); the exact mapping is checked in a probe flight.
+  SayIntentions in short form, letters and digits only ("E7" for MSFS's Gate E7, "70" for Parking 70; D-147).
+  SayIntentions' own names aren't always MSFS's (its KLAS "E7A" is MSFS's E7): if it answers "Unknown gate", it keeps
+  its own gate and Live says so. SayIntentions' gate is matched to an MSFS spot by its position.
+- **Preferred gates** (`preferred_gates` in airline.yaml, by ICAO) apply only to passenger and VIP flights.
+  Charters and deliveries use GA ramps, freighters cargo ramps; military spots are never picked (D-147).
+- **One try per flight**, logged as an `arrival_gate` event and shown on Live (section 13.5). Built in milestone 9
+  (`gate_picker.h`, `gate_assigner.h`, `FlightWatcher`).
 - BlockTime can't see whether an AI aircraft is parked there; SayIntentions and GSX handle that on the ground.
   The summary records the spot where Dave actually parked: the nearest spot to the block-in position, up to 40 m
-  away, because the sim's spots don't always line up with the gate textures (D-122).
+  away, because the sim's spots don't always line up with the gate textures (D-122). It's stored on the flight
+  (`arrival_parking`) and shown in the summary and on Live ("Parked at Gate E7"), and it's the next flight's load-in
+  spot (section 13.3).
 
 ### 13.7 After the flight
 

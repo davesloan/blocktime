@@ -182,7 +182,8 @@ QVariantMap FlightListModel::summary(int row) const {
                               kindLabel(f.kind)},
             {"income", moneyLines(f.income)},
             {"costs", moneyLines(f.costs)},
-            {"totalText", q(blocktime::formatMoneyFull(f.totalCents))}};
+            {"totalText", q(blocktime::formatMoneyFull(f.totalCents))},
+            {"parkedText", f.arrivalParking.empty() ? QString() : "Parked at " + q(f.arrivalParking)}};
 }
 
 int FlightListModel::rowOf(const QString& flightId) const {

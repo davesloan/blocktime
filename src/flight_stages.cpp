@@ -69,6 +69,17 @@ std::string str(const nlohmann::json& d, const char* key) {
     const auto f = d.find(key);
     return f != d.end() && f->is_string() ? f->get<std::string>() : std::string();
 }
+
+// The arrival_gate event's line (D-147): BlockTime's gate, or SayIntentions' own when it kept it.
+std::string arrivalGateText(const nlohmann::json& d) {
+    const std::string result = str(d, "result"), gate = str(d, "gate"), si = str(d, "si_gate");
+    const std::string note = str(d, "reason") == "gate_fallback" ? " (no ramp fits)" : "";
+    if (result == "assigned") return "Arrival gate: " + gate + note;
+    if (result == "same_as_si") return "Arrival gate: " + gate + (note.empty() ? " (SayIntentions' choice)" : note);
+    if (result == "unknown_gate") return "Arrival gate: SayIntentions' " + si + " (it doesn't know " + gate + ")";
+    if (result == "none_fits") return "Arrival gate: SayIntentions' " + si + " (no spot fits)";
+    return "Arrival gate: SayIntentions' " + si + " (assignGate failed)";
+}
 int integer(const nlohmann::json& d, const char* key) {
     const auto f = d.find(key);
     return f != d.end() && f->is_number() ? static_cast<int>(std::lround(f->get<double>())) : 0;
@@ -127,13 +138,17 @@ void FlightStages::onPhase(const std::string& phase, const std::string& iso, int
     } else if (phase == "approach") {
         phaseLine_ = add(Stage::Descent, "Approach", iso, true);
     } else if (phase == "go_around") {
+        close(finalLine_, iso);
+        close(shortFinalLine_, iso);
         phaseLine_ = add(Stage::Descent, "Go-around", iso, true);
     } else if (phase == "landing") {
+        close(finalLine_, iso);
+        close(shortFinalLine_, iso);
         if (!landedLine_) landedLine_ = add(Stage::Descent, landedText(), iso, false);
     } else if (phase == "taxi_in") {
         phaseLine_ = add(Stage::Descent, "Taxiing to gate", iso, true);
     } else if (phase == "arrived") {
-        add(Stage::Arrival, "Parked", iso, false);
+        add(Stage::Arrival, parking_.empty() ? "Parked" : "Parked at " + parking_, iso, false);
         updateReady(iso);
     }
 }
@@ -196,6 +211,7 @@ void FlightStages::onEvent(std::string_view type, const nlohmann::json& d) {
         return;
     }
     if (type == "gsx_service" || type == "block_in" || type == "sim_stopped" || type == "sim_disconnected") {
+        if (type == "block_in") parking_ = str(d, "parking");
         gsx_.onEvent(type, d);
         if (type == "gsx_service") updateReady(iso);
         return;
@@ -228,13 +244,25 @@ void FlightStages::onEvent(std::string_view type, const nlohmann::json& d) {
         else if (m == "within_200nm") add(Stage::Cruise, "200 nm from destination", iso, false);
         else if (m == "transition_level") add(Stage::Descent, "Passed transition level", iso, false);
         else if (m == "below_10000") add(Stage::Descent, "Below 10,000 ft", iso, false);
-        else if (m == "final_approach") add(Stage::Descent, "Final approach", iso, false);
+        else if (m == "final_approach") {
+            // 1,000 ft AGL: Final approach becomes Short final (D-149).
+            close(finalLine_, iso);
+            if (!shortFinalLine_) shortFinalLine_ = add(Stage::Descent, "Short final", iso, true);
+        }
+    } else if (type == "lined_up") {
+        if (!finalLine_ && !shortFinalLine_) {
+            finalLine_ = add(Stage::Descent, "Final approach, runway " + str(d, "runway"), iso, true);
+        }
+    } else if (type == "arrival_gate") {
+        add(phase_.empty() ? Stage::Cruise : stageOf(phase_), arrivalGateText(d), iso, false);
     } else if (type == "liftoff") {
         if (phase_ == "takeoff") close(phaseLine_, iso);
         add(Stage::Departure, "Takeoff", iso, false);
         const std::string runway = str(d, "runway");
         add(Stage::Climb, runway.empty() ? "Departed" : "Departed runway " + runway, iso, false);
     } else if (type == "touchdown") {
+        close(finalLine_, iso);
+        close(shortFinalLine_, iso);
         const auto vs = d.find("vs_fpm");
         if (vs != d.end() && vs->is_number()) touchdownVsFpm_ = vs->get<double>();
         if (landedLine_) {

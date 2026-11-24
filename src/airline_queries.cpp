@@ -116,7 +116,7 @@ std::vector<FlightView> listFlights(db::Database& db) {
                     "SELECT f.flight_id, f.log_flight_id, f.flight_number, a.registration, t.code, f.kind,"
                     " o.icao_code, d.icao_code, r.icao_code, o.latitude, o.longitude, r.latitude, r.longitude,"
                     " f.block_out_at, f.block_in_at, unixepoch(f.block_in_at) - unixepoch(f.block_out_at),"
-                    " f.fuel_out_lb, f.fuel_in_lb"
+                    " f.fuel_out_lb, f.fuel_in_lb, COALESCE(f.arrival_parking, '')"
                     " FROM flight f JOIN airplane a USING (airplane_id) JOIN aircraft_type t USING (aircraft_type_id)"
                     " JOIN airport o ON o.airport_id = f.origin_airport_id"
                     " JOIN airport d ON d.airport_id = f.planned_destination_airport_id"
@@ -144,6 +144,7 @@ std::vector<FlightView> listFlights(db::Database& db) {
         f.blockS = q.integer(15);
         f.fuelOutLb = static_cast<int>(q.integer(16));
         f.fuelInLb = static_cast<int>(q.integer(17));
+        f.arrivalParking = q.text(18);
         lines.reset();
         lines.bind(1, q.integer(0));
         while (lines.next()) {
