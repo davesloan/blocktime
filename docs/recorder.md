@@ -128,7 +128,9 @@ A flight is only recorded when the sim matches the flight Dave set up in the app
   candidate when it matches. Otherwise no flight opens and the recorder logs `block_out_refused` once for that
   release, with the reason (`no_planned_flight`, `wrong_aircraft_type`, `wrong_airport`, `fuel_below_record`) and
   what it saw, so the log still explains what happened. A matched `block_out` carries the `planned_flight_id`.
-- The app shows the "Not recording" banner from the same check, run on each sample while no flight is open.
+- The app shows the "Not recording" banner from the same check, run on each sample while no flight is open, and
+  again against the last sample when the planned flight changes (`MatchReporter`): telemetry comes only on change, so
+  a parked airplane sends none.
 
 ### Diversions
 

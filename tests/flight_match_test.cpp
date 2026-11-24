@@ -9,6 +9,7 @@
 
 #include "block_detector.h"
 #include "flight_match.h"
+#include "match_reporter.h"
 
 using namespace blocktime;
 
@@ -141,4 +142,40 @@ TEST(Match, SlotHandsTheTargetOver) {
     EXPECT_EQ(slot.get()->registration, "N814SX");
     slot.set(std::nullopt);
     EXPECT_FALSE(slot.get().has_value());
+}
+
+// The banner's answer is reported when it changes (D-088). A parked airplane sends no samples (telemetry is asked for
+// on change), so a plan made at the gate must be checked against the last sample, not wait for the next one.
+TEST(MatchReporter, RechecksWhenAPlanArrivesWhileParked) {
+    MatchReporter reporter;
+    const auto first = reporter.onSample(std::nullopt, atKbfi());
+    ASSERT_TRUE(first.has_value());
+    EXPECT_EQ(first->problem, MatchProblem::NoPlannedFlight);
+    EXPECT_FALSE(reporter.recheck(std::nullopt).has_value());  // nothing changed
+
+    const auto planned = reporter.recheck(bbj2());  // no new sample: the airplane hasn't moved
+    ASSERT_TRUE(planned.has_value());
+    EXPECT_EQ(planned->problem, MatchProblem::None);
+    EXPECT_EQ(planned->plannedFlightId, 42);
+    EXPECT_FALSE(reporter.recheck(bbj2()).has_value());
+}
+
+TEST(MatchReporter, NothingToRecheckBeforeASample) {
+    MatchReporter reporter;
+    EXPECT_FALSE(reporter.recheck(bbj2()).has_value());
+}
+
+TEST(MatchReporter, ReportsOnlyWhatTheBannerShows) {
+    MatchReporter reporter;
+    ASSERT_TRUE(reporter.onSample(bbj2(), atKbfi()).has_value());
+    EXPECT_FALSE(reporter.onSample(bbj2(), north(atKbfi(), 500)).has_value());  // same airport
+    EXPECT_TRUE(reporter.onSample(bbj2(), north(atKbfi(), 1500)).has_value());   // more than a kilometre
+}
+
+TEST(MatchReporter, ResetReportsAfresh) {
+    MatchReporter reporter;
+    ASSERT_TRUE(reporter.onSample(bbj2(), atKbfi()).has_value());
+    reporter.reset();  // a new sim session: the last sample may be another aircraft's
+    EXPECT_FALSE(reporter.recheck(bbj2()).has_value());
+    EXPECT_TRUE(reporter.onSample(bbj2(), atKbfi()).has_value());
 }

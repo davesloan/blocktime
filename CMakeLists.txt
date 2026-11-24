@@ -72,6 +72,7 @@ add_library(blocktime-core STATIC
   src/csv.cpp
   src/flight_history.cpp
   src/flight_match.cpp
+  src/match_reporter.cpp
   src/flight_settlement.cpp
   src/flight_stages.cpp
   src/flight_tracker.cpp

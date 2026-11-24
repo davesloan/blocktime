@@ -2,6 +2,44 @@
 
 Newest entries at the top. Add an entry at the end of every working session.
 
+## 2026-11-24 — Milestone 8 sim test (KSLC → KLAS), banner fix
+
+**Done:**
+- **Dave's sim test** in N916SX with `--probe`: KSLC → KLAS flown and settled, then a GSX turnaround at KLAS. The second
+  leg (KLAS → KSAN) was abandoned at the gate: GSX's pushback kept opening and closing the 777's cargo doors, so Dave
+  quit to the menu. Dave saw on Live: the deboarding line and "Ready for shutdown or turnaround" with five items
+  including "Deboarding complete ✓"; on the second leg Refuelling and Boarding under Pre-Departure with no Catering.
+  He thinks the first leg showed "Pushback (GSX)" and the three KSLC services, but doesn't remember for sure.
+- **Database:** flight 4 (KSLC → KLAS) has all ten phases, `pushback` 16:53:17 to `arrived` 18:05:02 (the block in),
+  and boarding 16:31-16:50, refuelling 16:32-16:38, catering 16:33-16:36, deboarding 18:07-18:12. Schema version 5.
+- **777 probe results** in `docs/notes/probe-flight.md`: every listed PMDG 777 value moves; the plain parking brake
+  agrees with PMDG's; the FMC's distance to TOD and to destination behave.
+- **Bug fixed: the "Not recording" banner went stale after a turnaround.** Live said "no flight is planned" although
+  KLAS → KSAN was planned and imported. The match was rechecked only on a telemetry sample, and a parked airplane sends
+  none. New `MatchReporter` (`src/match_reporter.h`) keeps the last sample, and the recorder loop rechecks it every
+  pass while no flight is open, reporting only a change. Tests `MatchReporter.*` (3 failed first). Toggling the beacon
+  had cleared it in the sim.
+- **Ideas for milestone 9, from the flight:** D-140 (Live panel: drop Aircraft and Position, status tiles for the
+  brake and each engine, Mach from M0.70 back below M0.66), D-141 (ask for the gate once SayIntentions has picked
+  its own, using its landing runway), D-142 (Approach at the first flap extension), D-143 ("Final approach" when
+  lined up with the runway). SayIntentions' local flightJSON has the arrival gate with its position, the STAR and the
+  runway (`docs/notes/sayintentions-api.md`); there's no API access to TaxiTuner.
+
+**Working / verified (without the sim):** clean release and debug builds, no warnings; **483 tests pass**; qmllint
+reports nothing.
+
+**Unverified or broken:**
+- **The KLAS → KSAN plan was gone from the database after the exit** (no `planned_flight` row, no block out, no new
+  flight). Only "Cancel flight" (with its confirmation) or settling deletes a plan, and nothing was settled: asked
+  Dave whether he cancelled it. N916SX is at KLAS with 19,920 lb.
+- Not seen in the sim: Ready with four items without GSX deboarding, and "Done for now" (steps 13-14).
+- The banner fix itself isn't checked in the sim: plan a flight at the gate without touching anything, and the banner
+  should clear within a second.
+- D-143's limits (10 nm, 10°, 0.5 nm) and dropping the 1,000 ft Live line are proposed.
+
+**Next step:** Dave's answers (the cancelled plan; whether to push now). Then push `main` (D-121) and start milestone 9
+in a new session.
+
 ## Template
 
 ```

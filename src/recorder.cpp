@@ -19,8 +19,8 @@
 #include "event_log.h"
 #include "event_outbox.h"
 #include "flight_tracker.h"
-#include "geo.h"
 #include "gsx_watcher.h"
+#include "match_reporter.h"
 #include "open_flight.h"
 #include "sim_connection.h"
 #include "telemetry_filter.h"
@@ -255,7 +255,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
     TelemetryLogger telemetry(log, observer);
     const FlightTargetSlot& target = target_;
     BlockDetector detector([&target](const BlockSample& release) { return checkMatch(target.get(), release); });
-    std::optional<MatchResult> lastMatch;  // the last one reported; reset at each connect
+    MatchReporter matches;  // the banner's answer (D-088); reset at each connect
     SimConnection* simPtr = nullptr;
 
     // One flight's phases, runways, touchdown and altimeter (milestone 7). Its events are logged, then shown.
@@ -308,16 +308,8 @@ int Recorder::run(const std::atomic<bool>& stop) {
         BlockSample b = toBlockSample(s, std::chrono::system_clock::now());
         b.aircraftFolder = aircraftFolder(simPtr->aircraftPath());
         // The banner's answer: the same check a release would get, reported when it changes (D-088).
-        // Distance and fuel change with every sample, so only a change of what the banner says is reported: the
-        // problem, the planned flight, the aircraft, or a move of more than a kilometre (a different airport).
         if (!detector.flightOpen()) {
-            MatchResult m = checkMatch(target.get(), b);
-            if (!lastMatch || lastMatch->problem != m.problem || lastMatch->plannedFlightId != m.plannedFlightId ||
-                lastMatch->aircraftFolder != m.aircraftFolder ||
-                distanceMeters(lastMatch->lat, lastMatch->lon, m.lat, m.lon) > 1000.0) {
-                observer.onMatch(m);
-                lastMatch = std::move(m);
-            }
+            if (auto m = matches.onSample(target.get(), b)) observer.onMatch(*m);
         }
         if (auto e = detector.onSample(b)) {
             blockEvent(*e, &s);
@@ -378,7 +370,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
 
         const bool alive = sim.pump();
         if (sim.handshakeComplete() && !announcedConnected) {
-            lastMatch.reset();  // report afresh in this session
+            matches.reset();  // report afresh in this session
             runwaysAsked.clear();
             observer.onLine("Connected to sim.", false);
             if (options_.probe) {
@@ -388,6 +380,10 @@ int Recorder::run(const std::atomic<bool>& stop) {
             announcedConnected = true;
         }
         if (announcedConnected) askRunways(sim);
+        // A plan made or cancelled while the airplane sits still: no sample comes, so check the last one again.
+        if (announcedConnected && !detector.flightOpen()) {
+            if (auto m = matches.recheck(target.get())) observer.onMatch(*m);
+        }
         if (!alive) {
             observer.onLine(std::string(announcedConnected ? "Disconnected (" : "Gave up waiting for sim (") +
                                 sim.lostReason() + ").",
