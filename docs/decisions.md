@@ -1699,3 +1699,17 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Alternatives considered: per airplane (more to enter; a never-flown plane only gets the entered value); a fixed
   amount per flight plus lb/NM (more accurate on short legs, more machinery than a preview needs); learned only, as
   design.md section 3 first said (no estimate until 3 flights).
+
+## D-120 — Flight predictions on Live, after the MVP
+- Date: 2026-11-23
+- Status: Accepted
+- Decided by: Dave (idea), Claude (approach)
+- Area: design
+- Decision: After the MVP, Live predicts what's ahead (top of climb, top of descent, landing, gate arrival) from the
+  SimBrief navlog and the recorder's position, shifting the plan's remaining times by how far ahead or behind plan
+  the flight is at each waypoint passed. Taxi-in comes from the leg template. Reading the PMDG FMC's own predictions
+  is checked in a probe flight first.
+- Why: Dave wants to know roughly when descent starts and when he'll be at the gate. The plan and the recorder
+  already have what's needed; the ahead/behind method is how airline ops does it and copes with winds.
+- Alternatives considered: computing descent from altitude and distance (the 3:1 rule), which ignores the planned
+  route and winds; relying on the PMDG FMC (better, if readable; unknown).

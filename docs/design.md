@@ -523,6 +523,12 @@ when the recorder's procedure-capture milestone starts.
   nothing. The plan's weather is old by the time Dave is at the gate, so the ATIS is polled, around every 5 minutes.
   Charts stay in Navigraph. Its name (Dispatch Plan, Flight Plan, Pre-Departure Brief, Load Sheet?) and exactly what
   it shows are for a brainstorm when it is built.
+- **Predictions on Live (D-120).** Time and distance to top of climb and top of descent, landing and gate arrival,
+  from the SimBrief navlog (waypoints with planned times, TOC and TOD) and the recorder's position and groundspeed.
+  Each waypoint passed compares actual with planned time; the remaining times shift by that ahead/behind figure.
+  Taxi-in comes from Dave's past flights on the leg (leg templates) rather than SimBrief's. A TOD prediction could
+  also time the arrival gate assignment (section 13.6). Vectors, holds and route changes throw it off until the
+  flight is back on the plan. Whether the PMDG's own FMC predictions can be read is an open item (section 17).
 - Optional flavour ideas: special cargo jobs with supernumeraries on the 777F; display-only "published schedule"
   labels.
 
@@ -531,3 +537,5 @@ when the recorder's procedure-capture milestone starts.
 - Exact seats per class, hold maximums and hold ratios per configuration (collect from PMDG when needed).
 - GSX state values, PMDG switch readability, and SayIntentions gate names: confirm in probe flights before building
   on them.
+- Whether the PMDG SDK (or the sim's GPS flight-plan SimVars) exposes the FMC's predictions (ETAs, distance to TOD)
+  for the 737 and 777: check in a probe flight before building predictions (D-120).
