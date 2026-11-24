@@ -351,7 +351,7 @@ with none the runway is `""`. The offsets are logged as information only.
 | `phase_changed` | A new phase (rules above): `flight_id`, `phase`, `previous`, `time`, `alt_ft`, `flight_level`. A go-around is a `phase_changed` to `go_around` |
 | `level_off` / `level_off_ended` | A level-off began / ended: `flight_id`, `phase`, `time`, `alt_ft`, `flight_level` |
 | `step_climb` / `step_climb_ended` | The cruise level was left / a new one reached: `flight_id`, `time`, `from_ft` / `alt_ft`, `flight_level` |
-| `flight_marker` | `marker` is `above_10000`, `transition_altitude`, `within_200nm`, `transition_level`, `below_10000` or `final_approach`; also `flight_id`, `time`, `alt_ft` |
+| `flight_marker` | `marker` is `above_10000`, `transition_altitude`, `within_200nm`, `transition_level`, `below_10000` or `final_approach`; also `flight_id`, `time`, `alt_ft`. Each once per flight, except `final_approach` (1,000 ft AGL in Approach), which a go-around re-arms from 0.10.0 (D-149) |
 | `liftoff` | The first airborne sample after the takeoff roll: `flight_id`, `time`, `lat`, `lon`, `ias_kt`, `airport`, `runway`, `off_centreline_m`, `off_heading_deg` (D-126) |
 | `touchdown` | From the sim-frame samples (D-125): `flight_id`, `time`, `lat`, `lon`, `vs_fpm` (the last airborne frame), `g` (the peak in the second after contact), `ias_kt` |
 | `landing_runway` | At Taxi in: `flight_id`, `airport`, `runway`, `off_centreline_m`, `off_heading_deg` |

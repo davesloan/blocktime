@@ -156,6 +156,8 @@ void PhaseDetector::advance(std::vector<PhaseEvent>& out, const PhaseSample& s) 
             if (!goAroundHold_) goAroundHold_ = Hold{s.activeS, s.time};
             if (s.activeS - goAroundHold_->startActiveS >= kGoAroundHoldS) {
                 change(out, Phase::GoAround, goAroundHold_->start, roundFt(s.altFt));
+                // The next approach gets its own 1,000 ft marker, so Live shows Short final again (D-149).
+                fired_[static_cast<int>(MarkerKind::FinalApproach)] = false;
                 goAroundHold_.reset();
                 level_.reset();
                 window_.reset();

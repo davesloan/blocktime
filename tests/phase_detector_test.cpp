@@ -5,6 +5,7 @@
 // The phase rules (recorder.md "Phases", D-124), replayed on two of Dave's real flights and on small made-up ones.
 // The replay fixtures are telemetry cut from the event log between block_out and block_in (2026-11-23).
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <fstream>
@@ -445,4 +446,17 @@ TEST(PhaseDetector, CruiseStraightToApproachWithFlaps) {
     ASSERT_EQ(f.detector().phase(), Phase::Cruise);
     f.flaps(true).air(1, 8000, 0);
     EXPECT_EQ(f.detector().phase(), Phase::Approach);
+}
+
+// D-149: after a go-around, the next approach gets its own 1,000 ft marker, so Live shows Short final again.
+TEST(PhaseDetector, FinalApproachMarkerAgainAfterGoAround) {
+    Flight f(plan(9000, 0, 0));
+    f.toClimb().air(30, 9000, 0).air(150, 9000, -1500).air(20, 5250, -800, -4000);
+    f.air(30, 1600, -700, -400).air(25, 1250, 1500, -400);  // through 1,000 ft AGL, then the go-around
+    ASSERT_EQ(f.detector().phase(), Phase::GoAround);
+    f.air(70, 1875, 1500, -400).air(25, 3000, 0, -400);
+    ASSERT_EQ(f.detector().phase(), Phase::Approach);
+    f.air(150, 3000, -700, -400);  // down through 1,000 ft AGL again
+    const auto k = f.keys();
+    EXPECT_EQ(std::count(k.begin(), k.end(), "marker:final_approach"), 2);
 }

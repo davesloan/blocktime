@@ -73,7 +73,8 @@ enum class MarkerKind { Above10000, TransitionAltitude, Within200Nm, TransitionL
 // "above_10000", "transition_altitude", "within_200nm", "transition_level", "below_10000", "final_approach"
 std::string_view markerCode(MarkerKind k);
 
-// Each fires once per flight, on the sample that crosses (design.md §13.5's sub-events).
+// Each fires once per flight, on the sample that crosses (design.md §13.5's sub-events); FinalApproach once per
+// approach, since a go-around re-arms it (D-149).
 struct Marker {
     MarkerKind kind;
     TimePoint time;

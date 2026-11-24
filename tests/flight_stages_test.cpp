@@ -462,3 +462,19 @@ TEST(FlightStages, GoAroundClosesFinal) {
     EXPECT_EQ(v.lines[2].text, "Short final");
     EXPECT_EQ(v.lines[2].end, "19:48Z");
 }
+
+TEST(FlightStages, SecondApproachAfterGoAround) {
+    FlightStages s;
+    phase(s, "approach", "19:40:00", 6000);
+    s.onEvent("lined_up", {{"time", at("19:44:10")}, {"runway", "26L"}, {"alt_ft", 3100}, {"distance_nm", 9.6}});
+    s.onEvent("flight_marker", {{"marker", "final_approach"}, {"time", at("19:47:30")}, {"alt_ft", 3150}});
+    phase(s, "go_around", "19:48:10", 2700);
+    phase(s, "approach", "19:52:00", 5000);
+    s.onEvent("lined_up", {{"time", at("19:58:00")}, {"runway", "26R"}, {"alt_ft", 3000}, {"distance_nm", 9.0}});
+    s.onEvent("flight_marker", {{"marker", "final_approach"}, {"time", at("20:01:10")}, {"alt_ft", 3150}});
+    s.onEvent("touchdown", {{"time", at("20:02:20")}, {"vs_fpm", -110.0}, {"g", 1.1}});
+    EXPECT_EQ(texts(s.view()[4]),
+              (std::vector<std::string>{"Approach", "Final approach, runway 26L", "Short final", "Go-around", "Approach",
+                                        "Final approach, runway 26R", "Short final", "Landed, −110 fpm"}));
+    EXPECT_EQ(s.view()[4].lines[6].end, "20:02Z");
+}
