@@ -164,6 +164,12 @@ after milestone 10 sorts and designs them.
 - **Short final view:** on short final the dashboard shows altitude above ground, and below 300 ft it refreshes at
   a higher rate. (The recorder already samples fast only briefly around touchdown, milestone 7's touchdown capture;
   this would show that data live.)
+- **Leaner flight data cards:** drop the Aircraft and Position cards. Parking brake becomes a status card: green when
+  set, grey when released. One card per engine (1 left, 2 right), green when running, grey when not, in place of
+  "Engines running".
+- **Distance to destination card:** distance remaining to the destination, along the planned route.
+- **TOD card:** distance to top of descent counting down, and the estimated time it starts in Dave's local time
+  (the Windows time zone), for example "TOD: 45 NM, ~9:15 AM". The first concrete piece of the predictions (D-120).
 
 ## Before starting, Dave needs to
 
