@@ -445,7 +445,8 @@ Mid-flight (around top of descent or 200 nm out), the app picks an arrival gate 
 - Parking spots (name, position, size, type) come from the sim over SimConnect. Gate names are sent to
   SayIntentions in its format (alphanumeric, for example "B23"); the exact mapping is checked in a probe flight.
 - BlockTime can't see whether an AI aircraft is parked there; SayIntentions and GSX handle that on the ground.
-  The summary records the spot where Dave actually parked, matched from the block-in position.
+  The summary records the spot where Dave actually parked: the nearest spot to the block-in position, up to 40 m
+  away, because the sim's spots don't always line up with the gate textures (D-122).
 
 ### 13.7 After the flight
 
@@ -498,6 +499,11 @@ Claude sends back a written analysis and a **0–100 score**. Examples of what i
 - Seatbelt signs on below 18,000 ft.
 - Altimeters set to the right pressure at the right time (standard above the transition altitude, local QNH from
   the ATIS below the transition level).
+
+**Never scored (D-122):** how far a takeoff or landing was from the runway centreline or heading, or from the
+touchdown zone. The sim's runway positions often don't match the painted runway, so an autoland the sim calls perfect
+can look off and a landing on the painted centreline can read off. These figures may appear in the logs and the
+summary as information only.
 
 The full list of checks, how they're scored, and whether the score affects anything in the airline get brainstormed
 when the recorder's procedure-capture milestone starts.

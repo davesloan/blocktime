@@ -178,6 +178,10 @@ numbers and designators (0 none, 1 L, 2 R, 3 C). KBFI 14L/32R comes out as 1,131
 - In every case the next-best runway was at least 115 m off the centreline, including the close parallels at KSFO
   (28L, 235 m) and KBFI (14L).
 - The threshold positions come from centre ± half the length along the heading. That was good enough here.
+- **These are the sim's positions, not the painted runway.** Dave sees ILS autolands land visibly off the painted
+  centreline while the sim reads them as centred. So "5 m off the centreline" here means 5 m off the sim's
+  centreline: good for naming the runway, never for judging the landing (D-122). The same goes for the parking
+  spots' 5 m.
 
 **5. The FMC's predictions (D-120), from the SDK headers.** No flight has read these yet.
 

@@ -223,7 +223,8 @@ GSX Pro reports each ground service's state as an L:var, which SimConnect can re
 
 The app needs an airport's parking spots (name, position, radius, type) and runways for the departure runway, the
 arrival gate and the gate Dave parked at. The recorder fetches them on request through SimConnect's facility data
-while the sim runs, and hands them to the app. Matching positions to spots and runways is the app's job.
+while the sim runs, and hands them to the app. Matching positions to spots and runways is the app's job. That match
+names a runway or gate; it never judges precision (D-122).
 
 ## Sampling strategy
 

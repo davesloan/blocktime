@@ -1725,3 +1725,29 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: When Dave questions a decision later, he can find the conversation that made it by milestone.
 - Alternatives considered: one long session across milestones, which runs through several context compactions and
   is hard to search; pushing after every commit, which publishes half-finished milestones.
+
+## D-122 — Runway and gate positions name things; they never score
+- Date: 2026-11-23
+- Status: Accepted (the 40 m figure is Proposed, to be settled in milestone 9's plan)
+- Decided by: Dave (rule), Claude (gate tolerance)
+- Area: design
+- Decision:
+  - **Runways:** BlockTime uses the sim's runway geometry only to *name* the departure and arrival runway. It may
+    log how far the roll was from the centreline, off the runway heading, or how far down the runway the touchdown
+    was. That stays information for the logs and the summary. It never counts toward the flight score (D-040),
+    Claude's evaluation, or anything in the airline.
+  - **Gates:** the gate Dave parked at is the nearest parking spot to the block-in position, accepted up to 40 m
+    away. Beyond that the summary says no gate was matched.
+  - **Precision:** neither uses tight tolerances.
+- Why:
+  - **The sim's positions often don't match the scenery Dave sees.** An ILS CAT III autoland puts the aircraft on the
+    sim's centreline, but on many airports that's visibly left or right of the painted one. A visual landing on the
+    painted centreline then reads several metres off.
+  - **The same applies to parking spots against the gate textures.** FlyHub penalises these deviations and gets them
+    wrong, which Dave finds irritating.
+  - **Naming has wide margins.** On the first probe flights the next-best runway was at least 115 m off, and parking
+    spots were about 45 m apart (`docs/notes/probe-flight.md`).
+- Alternatives considered:
+  - scoring centreline and touchdown-zone accuracy, as FlyHub does: rejected, because it penalises flying that looks
+    right in the sim;
+  - a 5–10 m gate tolerance, which a scenery offset would break.
