@@ -22,6 +22,29 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-24 — Dashboard brainstorm (after the MVP), no code
+
+**Done:**
+- Brainstorm with Dave in the claude.ai chat (no Claude Code session) on the Live screen's post-MVP redesign, while
+  milestone 9 waits for its sim test. Written up in `docs/dashboard.md` with two sketches (`docs/images/`), and
+  decisions D-150 to D-154: the Flight Summary and the dashboard as names, Pre-Departure renamed Pre-Flight, the
+  header (identity row, route arc, phase pill), three status lines, the Pre-Flight panel, and block in keeping the
+  header.
+- `roadmap.md` and `design.md` section 16 point to the new doc. Nothing in the code or the specs of built features
+  changed.
+
+**Working / verified:**
+- Docs only.
+
+**Unverified or broken:**
+- Whether SayIntentions exposes the clearance, taxi route and frequencies (`docs/dashboard.md`, "Open before
+  building"). Needs a probe flight before the clearance card is planned.
+- D-151's parts marked Proposed (Claude's calls) wait for Dave's confirmation.
+
+**Next step:**
+- Unchanged: Dave's milestone 9 sim test (entry below). The departure, in-flight and arrival panels are for later
+  brainstorms.
+
 ## 2026-11-24 — Milestone 9 built: gates (version 0.10.0)
 
 **Done:**

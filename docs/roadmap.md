@@ -158,6 +158,9 @@ section 16), and whatever the deepening turns up.
 Deepening the live flight comes first after the MVP. Ideas collected while testing, one line each; the brainstorm
 after milestone 10 sorts and designs them.
 
+The first brainstorm (2026-11-24, during milestone 9) designed the dashboard's header, status lines and Pre-Flight
+panel: [dashboard.md](dashboard.md), D-150 to D-154. The ideas below that it doesn't cover yet stay open.
+
 - **Pre-departure view** (D-118): everything needed to set up the FMC before pushback; Live switches to the in-flight
   view at block out.
 - **Predictions** (D-120): top of climb and descent, landing and gate arrival, shifted by ahead/behind plan.

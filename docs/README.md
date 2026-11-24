@@ -5,6 +5,7 @@
 | [design.md](design.md) | Full product design: how the airline works, rules, numbers |
 | [recorder.md](recorder.md) | Spec for the flight recorder inside the app: events, phases, milestones, event log format |
 | [database.md](database.md) | The airline database: tables, keys, rules and the entity diagram (D-078) |
+| [dashboard.md](dashboard.md) | The dashboard (Live Flight Screen) redesign after the MVP, with sketches in `images/` (D-150 to D-154) |
 | [roadmap.md](roadmap.md) | Milestones from here to the MVP (the complete flight flow) and after |
 | [decisions.md](decisions.md) | Append-only log of decisions and why they were made |
 | [progress.md](progress.md) | Session-by-session progress log (newest first) |

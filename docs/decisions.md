@@ -2252,3 +2252,69 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: Dave: "the 1000 ft point could change it from Final Approach to Short Final". Start and end times show both
   stretches of the approach, as the other Live lines do.
 - Alternatives considered: D-146's separate "1,000 ft above ground" line.
+
+## D-150 — The Flight Summary and the dashboard; Pre-Departure becomes Pre-Flight
+- Date: 2026-11-24
+- Status: Accepted (after the MVP)
+- Decided by: Dave
+- Area: design
+- Decision: Two screens with fixed names: the **Flight Summary** (a finished flight, from Flights or at block in) and
+  the **dashboard** (the Live Flight Screen, used while flying). The first stage is renamed **Pre-Flight**. The
+  dashboard changes by itself with the phase of flight; once in the sim, Dave never clicks BlockTime.
+- Why: The brainstorm kept mixing the two up. Dave flies with BlockTime beside the sim and doesn't want to switch to it.
+- Alternatives considered: one Live page with fixed columns (D-139, today's layout).
+
+## D-151 — The dashboard header: identity row, route arc, phase pill
+- Date: 2026-11-24
+- Status: Accepted (after the MVP); the parts marked Proposed in `docs/dashboard.md` are Claude's calls
+- Decided by: Dave + Claude
+- Area: design
+- Decision: A card across the top (`docs/dashboard.md`): a three-column identity row (ICAO code and flight number;
+  airline name, flight, cities; block clock with block out and block in in local time, block in an estimate until
+  known), a thin line, a large arc from origin to destination that acts as a progress bar coloured by altitude, and a
+  full-width pill with one section per stage (grey, yellow in progress, green done). Claude's calls (Proposed): the
+  marker moves by distance along the planned route; sections about equal in width; the pill's small divisions are the
+  recorder's phases, never GSX or level-offs; the line sits between the identity row and the arc.
+- Why: Readable at a glance while flying; the arc gives the flight a shape; equal sections keep short stages visible.
+- Alternatives considered: the block clock at the pill's right end (it would shift the pill at block out; moved into the
+  header instead); a two-line identity block centred above the arc; the callsign (SOCKS) in the header (left out).
+
+## D-152 — Three status lines under the phase pill
+- Date: 2026-11-24
+- Status: Accepted (after the MVP)
+- Decided by: Dave + Claude
+- Area: design
+- Decision: Three lines centred under the pill: the current line in white, the previous one smaller and light grey, the
+  one before smaller and darker grey; each new line pushes the others down. Pre-Flight starts with "Preparing aircraft
+  for flight", which a GSX request replaces with one shared line for every running GSX service ("Catering complete ·
+  Boarding in progress"); it stays current until block out. Level-offs briefly replace the climb line. Local times.
+- Why: One glance tells Dave what's happening and what just happened, without an event log on screen. One GSX line
+  avoids flicker, and GSX stays optional.
+- Alternatives considered: a single status line; separate lines for each GSX service; the running event log (D-139).
+
+## D-153 — The Pre-Flight panel
+- Date: 2026-11-24
+- Status: Accepted (after the MVP); the clearance card depends on what SayIntentions exposes (to probe)
+- Decided by: Dave + Claude
+- Area: design
+- Decision: Builds on D-118. At the gate the dashboard shows a load sheet (block fuel as the total, ZFW, passengers by
+  class, cargo by hold at the configuration's ratios; pounds; no CG), the departure conditions (runway from the plan,
+  then the ATIS; heading, condition, wind, OAT, altimeter), the clearance (the plan's full SID matched to
+  SayIntentions' SID name, initial altitude, squawk, departure frequency, taxi route, a 30-minute expiry countdown
+  that disappears at block out) and the current and next frequency, which stays on the dashboard all flight.
+  Squawk, departure frequency and the countdown's colours were Claude's additions.
+- Why: Everything needed to set up the FMC and EFB in one place, so BlockTime is the only window open beside the sim.
+- Alternatives considered: the frequencies only from OurAirports (no departure or center frequencies); showing CG
+  (Dave doesn't need it).
+
+## D-154 — At block in the header stays and the Flight Summary fills the space below
+- Date: 2026-11-24
+- Status: Accepted (after the MVP); supersedes part of D-134 and D-135 when built
+- Decided by: Dave
+- Area: design
+- Decision: At block in the dashboard keeps its header, filled in, and only the panel below changes to the Flight
+  Summary. The status line always becomes "Parked at gate", changes to "Deboarding in progress" only if Dave starts GSX
+  deboarding, then to "Ready for next flight".
+- Why: The flight's identity and timeline stay in view while the summary appears; deboarding is optional like the
+  other GSX services.
+- Alternatives considered: today's switch of the whole page to the summary at block in (D-134, `design.md` 13.7).

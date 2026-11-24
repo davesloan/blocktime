@@ -568,6 +568,7 @@ when the recorder's procedure-capture milestone starts.
   nothing. The plan's weather is old by the time Dave is at the gate, so the ATIS is polled, around every 5 minutes.
   Charts stay in Navigraph. Its name (Dispatch Plan, Flight Plan, Pre-Departure Brief, Load Sheet?) and exactly what
   it shows are for a brainstorm when it is built.
+  Designed on 2026-11-24 as the dashboard's Pre-Flight panel: `dashboard.md` (D-153).
 - **Predictions on Live (D-120).** Time and distance to top of climb and top of descent, landing and gate arrival,
   from the SimBrief navlog (waypoints with planned times, TOC and TOD) and the recorder's position and groundspeed.
   Each waypoint passed compares actual with planned time; the remaining times shift by that ahead/behind figure.
