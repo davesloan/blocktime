@@ -48,6 +48,20 @@ Newest entries at the top. Add an entry at the end of every working session.
 - **Docs:** recorder.md (the phase rules as built, every new event, runway naming, the app's log lines), design.md
   §13.5, README, the roadmap. D-130 records the calls made while building.
 
+- **After the build, at Dave's request:**
+  - **Two starting fleet slots** (D-131): slot 3 comes at 10 h.
+  - **Lease rates cut to about a sixth** (D-132): BBJ2 $150k, 777-300ER $385k. Dave's data was changed to match:
+    - the new catalog was copied in;
+    - N814SX's stored rate was set to $150k from its next month (past months stay as charged);
+    - backups were made first (`blocktime.before-777.db`, `airline.before-777.yaml`, `catalog.before-777.yaml`).
+  - **N916SX, a 777-300ER** (SimBrief 730097_1791150052995, fin 713), was added to `airline.yaml`: delivered, at KSAN,
+    leased 2026-11-23, free-flight number 713, in a new "Widebody" fleet. It's leased at the next start. A rehearsal
+    on a scratch copy showed it Parked at KSAN with 0 lb, "2 of 2 slots in use · slot 3 at 10 h", and cash
+    $3,719,840 after its first $385,000 month.
+  - The catalog's 777-300ER Standard airframe takes N916SX's SimBrief limits: 7,000 ft minimum runway, MLW 554,000 lb,
+    max payload 152,320 lb. Its 42 + 328 seat split and its holds stay estimates, sized to SimBrief's 370 passengers
+    and 82,020 lb of cargo.
+
 **Working / verified (without the sim):**
 - Clean release and debug builds have no warnings. **414 tests pass** (one timing check skipped). qmllint reports
   nothing.
@@ -75,8 +89,13 @@ Newest entries at the top. Add an entry at the end of every working session.
 combine the next probe flight (end of `docs/notes/probe-flight.md`) and the fuel check deferred from milestone 6.
 N814SX is at KSFO with 6,434 lb on record. A leg over 200 nm (KSFO → KSLC, about 520 nm, Dave's choice) also tests the 200 nm marker.
 
-1. **No sim.** Start `build\x64-release\BlockTime.exe --probe`. Expected: v0.8.0 in the sidebar, "Probe on" in the feed.
-   Plan N814SX KSFO → KSLC, generate on SimBrief and import the plan.
+1. **No sim.** Start `build\x64-release\BlockTime.exe --probe`. Expected:
+   - v0.8.0 in the sidebar and "Probe on" in the feed;
+   - Fleet shows N916SX at KSAN, Parked, and "2 of 2 slots in use · slot 3 at 10 h";
+   - Money shows "Lease N916SX" for $385,000.
+
+   The old plan XLY8 KSFO–KLAS (from the discarded leg) is still waiting: **cancel it on Live** first. Then plan
+   N814SX KSFO → KSLC, generate on SimBrief and import the plan.
 2. **Load in.** Start SayIntentions, then MSFS, and load the BBJ2 at KSFO. Expected:
    - telemetry flowing (the live values move): this proves `PLANE HEADING DEGREES TRUE` was accepted;
    - no `simconnect_exception` naming `G FORCE`, `KOHLSMAN` or `runways request` in the log.
@@ -120,9 +139,13 @@ N814SX is at KSFO with 6,434 lb on record. A leg over 200 nm (KSFO → KSLC, abo
     - `heading_true_deg` in telemetry;
     - the FMC figures (`FMC_DistanceToTOD_nm` counting down to 0, D-120);
     - the touchdown.
-12. **Optional, a second session: the 777.** Load the 777-300ER (it can't be recorded yet: one slot). Expected:
-    `probe_pmdg_777` values moving with each switch, `BRAKES_ParkingBrakeLeverOn` against `BRAKE PARKING POSITION`
-    on a release, and the `DOOR_state` values through a GSX turnaround.
+12. **Optional, a second session: a recorded 777 flight.** Plan N916SX from KSAN (only one flight can be planned at a
+    time, so after the BBJ2 leg), for example KSAN → KSFO. Load the 777-300ER at KSAN with `--probe` and repeat steps
+    2–10. Expected also:
+    - the release matched by folder `PMDG 777-300ER` (D-112);
+    - `probe_pmdg_777` values moving with each switch;
+    - `BRAKES_ParkingBrakeLeverOn` against `BRAKE PARKING POSITION` on a release (block out must still be detected);
+    - the `DOOR_state` values through a GSX turnaround.
 
 **Next step:**
 - Dave's checks above and his answers on D-124..D-130. Then close milestone 7: push `main` (D-121). Milestone 8 (GSX)
