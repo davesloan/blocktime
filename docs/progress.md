@@ -2,6 +2,26 @@
 
 Newest entries at the top. Add an entry at the end of every working session.
 
+## Template
+
+```
+## YYYY-MM-DD — <short title>
+
+**Done:**
+- ...
+
+**Working / verified:**
+- ...
+
+**Unverified or broken:**
+- ... (include what Dave should test in the sim and the expected result)
+
+**Next step:**
+- ...
+```
+
+---
+
 ## 2026-11-24 — Milestone 8 sim test (KSLC → KLAS), banner fix
 
 **Done:**
@@ -39,26 +59,6 @@ reports nothing.
 
 **Next step:** Dave's answers (the cancelled plan; whether to push now). Then push `main` (D-121) and start milestone 9
 in a new session.
-
-## Template
-
-```
-## YYYY-MM-DD — <short title>
-
-**Done:**
-- ...
-
-**Working / verified:**
-- ...
-
-**Unverified or broken:**
-- ... (include what Dave should test in the sim and the expected result)
-
-**Next step:**
-- ...
-```
-
----
 
 ## 2026-11-24 — Milestone 8 built: GSX (version 0.9.0)
 
