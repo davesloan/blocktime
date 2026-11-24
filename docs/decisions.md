@@ -1754,8 +1754,8 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-123 — Milestone 7 starts logging the ATC log, the ATIS and the altimeter settings
 - Date: 2026-11-23
-- Status: Accepted (what to log: Dave). The fetch timing and the dedupe method are Proposed (Claude), to be settled in
-  milestone 7's plan.
+- Status: Accepted. Dave chose what to log. Claude proposed the fetch timing and the dedupe method, and Dave confirmed
+  them on 2026-11-23.
 - Decided by: Dave + Claude
 - Area: recorder, design
 - Decision: From milestone 7 on, every recorded flight collects what milestone 10's analysis (D-040) needs, so real

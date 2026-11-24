@@ -61,7 +61,7 @@ Newest entries at the top. Add an entry at the end of every working session.
   - the origin and destination ATIS, in the phases that use them;
   - the altimeter settings.
 
-  The fetch timing and the dedupe method are proposals to settle in the plan.
+  The fetch timing and the dedupe method are settled in D-123 (Dave confirmed them).
 - **The probe now logs the altimeter settings** (`probe_altimeter`) and PMDG's hPa selector. Any flight with
   `--probe` before milestone 7 is planned would show whether PMDG drives the sim's altimeter SimVars. Otherwise
   milestone 7's first sim check does.
