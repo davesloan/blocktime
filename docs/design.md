@@ -474,7 +474,9 @@ if SayIntentions already chose the same gate.
 - Parking spots (name, position, size, type) come from the sim over SimConnect. Gate names are sent to
   SayIntentions in short form, letters and digits only ("E7" for MSFS's Gate E7, "70" for Parking 70; D-147).
   SayIntentions' own names aren't always MSFS's (its KLAS "E7A" is MSFS's E7): if it answers "Unknown gate", it keeps
-  its own gate and Live says so. SayIntentions' gate is matched to an MSFS spot by its position.
+  its own gate and Live says so. SayIntentions' gate is matched to an MSFS spot by its position, and it counts as
+  its arrival pick only once that position is within 5 km of the destination (before departure flightJSON's
+  `assigned_gate` may be the departure gate).
 - **Preferred gates** (`preferred_gates` in airline.yaml, by ICAO) apply only to passenger and VIP flights.
   Charters and deliveries use GA ramps, freighters cargo ramps; military spots are never picked (D-147).
 - **One try per flight**, logged as an `arrival_gate` event and shown on Live (section 13.5). Built in milestone 9

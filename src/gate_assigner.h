@@ -18,6 +18,9 @@
 
 namespace blocktime {
 
+// SayIntentions' gate counts as an arrival gate only within this of the destination's reference point.
+inline constexpr double kSiGateMaxFromAirportM = 5000.0;
+
 struct GatePlan {
     bool send = false;
     std::string shortName;  // to send to assignGate
@@ -26,7 +29,8 @@ struct GatePlan {
     nlohmann::json event;
 };
 
-// nullopt while SayIntentions has no gate yet, or its destination isn't `destinationIcao`.
+// nullopt while SayIntentions has no arrival gate yet (none, or one without a position at the destination: before
+// departure it may be the departure gate), or its destination isn't `destinationIcao`.
 std::optional<GatePlan> planGate(const SiFlight& si, const std::string& destinationIcao,
                                  const AirportFacilities& airport, const GateContext& context);
 

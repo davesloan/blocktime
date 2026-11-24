@@ -107,3 +107,16 @@ TEST(GateAssigner, UnknownGateResult) {
     EXPECT_EQ(e["error"], "SayIntentions: Unknown gate: E7");
     EXPECT_EQ(finishSend(p->event, "SayIntentions didn't answer", std::nullopt)["result"], "error");
 }
+
+// Before departure, SayIntentions' assigned_gate may be the departure gate: it only counts once its position is at
+// the destination (D-141; review of milestone 9).
+TEST(GateAssigner, WaitsWhileTheGateIsntAtTheDestination) {
+    SiFlight atOrigin = si(0);
+    atOrigin.gateLat = 37.6188;  // KSFO
+    atOrigin.gateLon = -122.375;
+    EXPECT_FALSE(planGate(atOrigin, "KLAS", klas(), kBbj).has_value());
+    SiFlight noPosition = si(610);
+    noPosition.gateLat.reset();
+    noPosition.gateLon.reset();
+    EXPECT_FALSE(planGate(noPosition, "KLAS", klas(), kBbj).has_value());
+}

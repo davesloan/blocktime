@@ -91,6 +91,9 @@ Sources:
 - **How BlockTime uses it (0.10.0, `FlightWatcher`):** polls flightJSON every 30 s from block out; once
   `assigned_gate` is set for the planned destination and the destination's spots are loaded, it picks (D-147) and
   logs one `arrival_gate` event per flight. Failures before the send are quiet (SayIntentions may not be running).
+  SayIntentions' gate counts only when `assigned_gate_lat/lon` are within 5 km of the destination: what
+  `assigned_gate` holds before departure hasn't been read yet (it may be the departure gate). Milestone 9's sim test
+  reads it at the gate.
 - **getCommsHistory** (milestone 10, the ATC log for D-040): `GET .../sapi/getCommsHistory?api_key=&since_id=`.
   Returns `flight_id` and `comm_history[]` (`stamp_zulu`, `frequency`, `station_name`, `incoming_message` from the
   pilot, `outgoing_message` from ATC, English versions, audio URLs). **Current flight only**: it can't be fetched

@@ -4,6 +4,8 @@
 
 #include "gate_assigner.h"
 
+#include "geo.h"
+
 namespace blocktime {
 
 namespace {
@@ -17,6 +19,12 @@ bool sameSpot(const ParkingSpot& a, const ParkingSpot& b) {
 std::optional<GatePlan> planGate(const SiFlight& si, const std::string& destinationIcao,
                                  const AirportFacilities& airport, const GateContext& context) {
     if (si.assignedGate.empty() || si.destination != destinationIcao) return std::nullopt;
+    // Before departure assigned_gate may be the departure gate: SayIntentions has picked its arrival gate only once
+    // that gate is at the destination (D-141).
+    if (!si.gateLat || !si.gateLon ||
+        distanceMeters(*si.gateLat, *si.gateLon, airport.lat, airport.lon) > kSiGateMaxFromAirportM) {
+        return std::nullopt;
+    }
     const auto pick = pickGate(airport, si.arrivingRunway, context);
     GatePlan plan;
     plan.event = {{"icao", destinationIcao},
