@@ -85,67 +85,68 @@ Newest entries at the top. Add an entry at the end of every working session.
   - Touchdown time and the g window are ±0.1 s (frames are stamped when the loop reads them).
 - **Not checked:** the Live page at the smallest window size.
 
-**Dave's checks.** The steps are ordered to need one sim session, plus an optional 777 session at the end. They
-combine the next probe flight (end of `docs/notes/probe-flight.md`) and the fuel check deferred from milestone 6.
-N814SX is at KSFO with 6,434 lb on record. A leg over 200 nm (KSFO → KSLC, about 520 nm, Dave's choice) also tests the 200 nm marker.
+**Dave's checks.** One recorded flight, Dave's choice: **N916SX, the 777-300ER, KSAN → KSLC** (about 550 nm, so the
+200 nm marker fires). It also covers the 777 half of the next probe flight (end of `docs/notes/probe-flight.md`).
+Left for a later BBJ2 flight:
+- **the fuel check** deferred from milestone 6: N916SX has 0 lb on record, so it can't be refused for fuel;
+- **the 737 side of the altimeter check** (D-123 asks for both families).
+
+N916SX starts with 0 lb on record, so its first flight is charged for all the fuel loaded.
 
 1. **No sim.** Start `build\x64-release\BlockTime.exe --probe`. Expected:
    - v0.8.0 in the sidebar and "Probe on" in the feed;
    - Fleet shows N916SX at KSAN, Parked, and "2 of 2 slots in use · slot 3 at 10 h";
    - Money shows "Lease N916SX" for $385,000.
 
-   The old plan XLY8 KSFO–KLAS (from the discarded leg) is still waiting: **cancel it on Live** first. Then plan
-   N814SX KSFO → KSLC, generate on SimBrief and import the plan.
-2. **Load in.** Start SayIntentions, then MSFS, and load the BBJ2 at KSFO. Expected:
+   The old plan XLY8 KSFO–KLAS (from the discarded leg) is still waiting: **cancel it on Live** first. Then select
+   N916SX on Fleet, New Flight to KSLC, generate on SimBrief and import the plan.
+2. **Load in.** Start SayIntentions, then MSFS, and load the PMDG 777-300ER at KSAN. Expected:
+   - no "Not recording" banner (the type is matched by its folder, `PMDG 777-300ER`, D-112);
    - telemetry flowing (the live values move): this proves `PLANE HEADING DEGREES TRUE` was accepted;
    - no `simconnect_exception` naming `G FORCE`, `KOHLSMAN` or `runways request` in the log.
-3. **Altimeter at the gate.** Set a different baro on the captain's and first officer's side once, then press STD on
-   each and back. Expected: `probe_altimeter` lines following each knob and STD button.
-4. **Fuel check (from milestone 6).** With less than 6,134 lb on board, release the brake. Expected: "Not recording:
-   load at least … lb", and a `NOT RECORDING fuel_below_record` line. Refuel, then set the brake.
-5. **Push and taxi with GSX.** Expected:
+3. **At the gate.**
+   - **Altimeter:** set a different baro on the captain's and first officer's side once, then press STD on each and
+     back. Expected: `probe_altimeter` lines following each knob and STD button.
+   - **Switches:** work the lights, seatbelt signs and APU. Expected: `probe_pmdg_777` values moving with each.
+   - **GSX turnaround** (catering, refuelling, boarding). Expected: `DOOR_state` values in `probe_pmdg_777`.
+4. **Push and taxi with GSX.** Expected:
+   - block out after the push release, which also shows how `BRAKES_ParkingBrakeLeverOn` and the plain
+     `BRAKE PARKING POSITION` behave on a 777 release;
    - in Flight progress, Departure shows "Pushback" from the brake release, then "Taxiing to runway" from when you
      start moving after the push;
    - the Flight card shows "Pushback", then "Taxi out";
    - feed lines PUSHBACK and TAXI OUT.
-6. **Takeoff.** Expected:
+5. **Takeoff.** Expected:
    - "Takeoff roll" starting when you added power, not when you passed 40 kt;
-   - "Takeoff" and, in Climb, "Departed runway 28R" (or whichever runway you used);
-   - the feed: TAKEOFF, LIFTOFF 28R, CLIMB.
-7. **Climb.** Expected:
+   - "Takeoff" and, in Climb, "Departed runway 27" (or whichever runway you used);
+   - the feed: TAKEOFF, LIFTOFF 27, CLIMB.
+6. **Climb.** Expected:
    - "Above 10,000 ft" and "Passed transition altitude";
    - for any ATC level-off, "Level at …" with the phase reading "Climb — level at …";
    - **pause test:** pause for 2 minutes mid-climb (Escape or active pause), then carry on. Expected: no "Level at"
      line from the pause.
-8. **Cruise.** Expected: "Cruising at FL3xx" when you level at the planned altitude, and "200 nm from destination".
+7. **Cruise.** Expected: "Cruising at FL3xx" when you level at the planned altitude, and "200 nm from destination".
    A step climb, if ATC gives one, shows "Step climb to …".
-9. **Descent and landing.** Expected, in order:
+8. **Descent and landing.** Expected, in order:
    - "Top of descent";
    - "Passed transition level" (set the QNH there, so the `altimeter` lines show it);
    - "Below 10,000 ft", "Approach", "Final approach";
    - "Landed on 34R, −NNN fpm" (or the runway you used) with a believable rate (compare with what you felt);
    - "Taxiing to gate";
    - a TOUCHDOWN feed line with the rate and g.
-10. **Gate.** Note the gate SayIntentions gives you, and whether it writes "D14" or "D 14". Park, set the brake and
-    shut down. Expected:
-    - the summary as in milestone 6;
-    - Arrival shows "Parked" in Flight progress until the summary replaces it.
+9. **Gate.** Note the gate SayIntentions gives you and exactly how it writes its name ("B14" or "B 14"). Park, set
+   the brake and shut down. Expected:
+   - the summary as in milestone 6;
+   - Arrival shows "Parked" in Flight progress until the summary replaces it.
 
-    Then **deboard with GSX** (probe: the deboarding states and counts).
-11. **No sim.** Send the day's log files (`events-YYYY-MM-DD.jsonl`). I'll check:
-    - `atis` lines for KSFO before takeoff and KSLC after top of descent;
+   Then **deboard with GSX** (probe: the deboarding states and counts, and `DOOR_state`).
+10. **No sim.** Send the day's log files (`events-YYYY-MM-DD.jsonl`). I'll check:
+    - `atis` lines for KSAN before takeoff and KSLC after top of descent;
     - `atc_exchange` lines matching SayIntentions' own history;
     - `altimeter` lines against the knobs;
     - `heading_true_deg` in telemetry;
     - the FMC figures (`FMC_DistanceToTOD_nm` counting down to 0, D-120);
-    - the touchdown.
-12. **Optional, a second session: a recorded 777 flight.** Plan N916SX from KSAN (only one flight can be planned at a
-    time, so after the BBJ2 leg), for example KSAN → KSFO. Load the 777-300ER at KSAN with `--probe` and repeat steps
-    2–10. Expected also:
-    - the release matched by folder `PMDG 777-300ER` (D-112);
-    - `probe_pmdg_777` values moving with each switch;
-    - `BRAKES_ParkingBrakeLeverOn` against `BRAKE PARKING POSITION` on a release (block out must still be detected);
-    - the `DOOR_state` values through a GSX turnaround.
+    - the touchdown, and the 777's switches, doors and parking brake.
 
 **Next step:**
 - Dave's checks above and his answers on D-124..D-130. Then close milestone 7: push `main` (D-121). Milestone 8 (GSX)
