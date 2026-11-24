@@ -100,4 +100,18 @@ std::string AirlineSession::airlineName() const { return config_ ? config_->iden
 std::string AirlineSession::airlineIcao() const { return config_ ? config_->identity.icaoCode : std::string(); }
 
 
+std::optional<GateContext> AirlineSession::gateContext(const std::string& typeCode, FlightKind kind,
+                                                       const std::string& destinationIcao) const {
+    if (!catalog_) return std::nullopt;
+    const CatalogType* type = catalog_->type(typeCode);
+    if (!type) return std::nullopt;
+    GateContext c{type->wingspanM, spotUseFor(kindCode(kind)), {}};
+    // Preferred gates are for gate flights only (D-147).
+    if (config_ && c.use == SpotUse::Gate) {
+        const auto it = config_->preferredGates.find(destinationIcao);
+        if (it != config_->preferredGates.end()) c.preferred = it->second;
+    }
+    return c;
+}
+
 }  // namespace blocktime

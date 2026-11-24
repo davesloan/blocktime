@@ -1,0 +1,109 @@
+// BlockTime
+// Copyright (C) 2026 Dave Sloan
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// planGate / finishSend: whether to ask SayIntentions for BlockTime's gate, and the arrival_gate event (D-141, D-147).
+
+#include <optional>
+#include <string>
+
+#include <gtest/gtest.h>
+
+#include "gate_assigner.h"
+
+using namespace blocktime;
+
+namespace {
+
+constexpr double kLat = 36.0, kLon = -115.0, kMPerDeg = 111320.0;
+
+ParkingSpot spot(int name, int number, double northM, double radiusM = 20) {
+    ParkingSpot s;
+    s.name = name;
+    s.number = number;
+    s.type = 9;
+    s.radiusM = radiusM;
+    placeSpot(s, kLat, kLon, 0, northM);
+    return s;
+}
+
+// Runway 09/27 through the reference point; E7 is 200 m north of it, E9 600 m north.
+AirportFacilities klas(std::vector<ParkingSpot> spots = {spot(16, 7, 200), spot(16, 9, 600)}) {
+    AirportFacilities a;
+    a.icao = "KLAS";
+    a.lat = kLat;
+    a.lon = kLon;
+    a.runways = {Runway{kLat, kLon, 90.0, 3000.0, 45.0, 9, 0, 27, 0}};
+    a.spots = std::move(spots);
+    return a;
+}
+
+SiFlight si(double gateNorthM, std::string gate = "Terminal 3 Gate E9A") {
+    SiFlight f;
+    f.destination = "KLAS";
+    f.assignedGate = std::move(gate);
+    f.arrivingRunway = "27";
+    f.gateLat = kLat + gateNorthM / kMPerDeg;
+    f.gateLon = kLon;
+    return f;
+}
+
+const GateContext kBbj{35.8, SpotUse::Gate, {}};
+
+}  // namespace
+
+TEST(GateAssigner, OtherSpotSent) {
+    const auto p = planGate(si(610), "KLAS", klas(), kBbj);
+    ASSERT_TRUE(p.has_value());
+    EXPECT_TRUE(p->send);
+    EXPECT_EQ(p->shortName, "E7");
+    EXPECT_EQ(p->event["gate"], "Gate E7");
+    EXPECT_EQ(p->event["si_gate"], "Terminal 3 Gate E9A");
+    EXPECT_EQ(p->event["reason"], "closest");
+    EXPECT_EQ(p->event["icao"], "KLAS");
+    EXPECT_EQ(p->event["runway"], "27");
+}
+
+TEST(GateAssigner, SameSpotNotSent) {
+    const auto p = planGate(si(210, "Terminal 3 Gate E7A"), "KLAS", klas(), kBbj);
+    ASSERT_TRUE(p.has_value());
+    EXPECT_FALSE(p->send);
+    EXPECT_EQ(p->event["result"], "same_as_si");
+    EXPECT_EQ(p->event["sent"], false);
+    EXPECT_EQ(p->event["gate"], "Gate E7");
+}
+
+TEST(GateAssigner, WaitsWithoutGate) { EXPECT_FALSE(planGate(si(610, ""), "KLAS", klas(), kBbj).has_value()); }
+
+TEST(GateAssigner, OtherDestinationIgnored) {
+    EXPECT_FALSE(planGate(si(610), "KSAN", klas(), kBbj).has_value());
+}
+
+TEST(GateAssigner, NoneFits) {
+    const auto p = planGate(si(610), "KLAS", klas({spot(16, 7, 200, 15)}), kBbj);
+    ASSERT_TRUE(p.has_value());
+    EXPECT_FALSE(p->send);
+    EXPECT_EQ(p->event["result"], "none_fits");
+    EXPECT_EQ(p->event["reason"], "none_fits");
+    EXPECT_EQ(p->event["gate"], "");
+}
+
+TEST(GateAssigner, AssignedWithReadBack) {
+    const auto p = planGate(si(610), "KLAS", klas(), kBbj);
+    ASSERT_TRUE(p.has_value());
+    const auto e = finishSend(p->event, "", SiParking{"Gate E7", kLat, kLon});
+    EXPECT_EQ(e["result"], "assigned");
+    EXPECT_EQ(e["sent"], true);
+    EXPECT_EQ(e["si_parking"], "Gate E7");
+    EXPECT_EQ(e["error"], "");
+}
+
+TEST(GateAssigner, UnknownGateResult) {
+    const auto p = planGate(si(610), "KLAS", klas(), kBbj);
+    ASSERT_TRUE(p.has_value());
+    const auto e = finishSend(p->event, "SayIntentions: Unknown gate: E7", std::nullopt);
+    EXPECT_EQ(e["result"], "unknown_gate");
+    EXPECT_EQ(e["sent"], true);
+    EXPECT_EQ(e["error"], "SayIntentions: Unknown gate: E7");
+    EXPECT_EQ(finishSend(p->event, "SayIntentions didn't answer", std::nullopt)["result"], "error");
+}

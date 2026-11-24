@@ -10,6 +10,8 @@
 #pragma once
 
 #include <chrono>
+#include <functional>
+#include <optional>
 
 #include <QObject>
 #include <QString>
@@ -18,6 +20,7 @@
 
 #include "app_event_queue.h"
 #include "atc_log.h"
+#include "gate_assigner.h"
 #include "flight_match.h"
 #include "planner.h"
 #include "recorder_bridge.h"
@@ -31,18 +34,33 @@ public:
 
     // 60 s and 10 min in the app; tests use a few milliseconds.
     void setIntervals(std::chrono::milliseconds atc, std::chrono::milliseconds atis);
+    // The arrival gate (milestone 9, D-141): SayIntentions' flightJSON is polled this often (30 s in the app) from
+    // block out until the gate is settled or block in.
+    void setGateInterval(std::chrono::milliseconds gate);
+    // What the airline knows for the destination (the type's wingspan, gate or ramp, preferred gates); nullopt = don't
+    // pick a gate. Without it, no gate work is done.
+    using GateContextFor = std::function<std::optional<blocktime::GateContext>(const QString& destinationIcao)>;
+    void setGateContext(GateContextFor gateContext);
+    // --probe: after the arrival gate, log getAirport's answer once (probe_si_airport, without any api_key).
+    void setProbe(bool probe);
 
 private:
     void onBlockEvent(const QString& type, const QString& flightId);
     void onFlightEvent(const QString& type, const QVariantMap& data);
     void fetchAtc();
     void fetchAtis(const QString& icao, const QString& role);
+    void pollGate();
+    void logGate(nlohmann::json event);
     void stopAll();
 
     Planner& planner_;
+    RecorderBridge& bridge_;
     const blocktime::FlightTargetSlot& target_;
     blocktime::AppEventQueue& queue_;
-    QTimer atcTimer_, originTimer_, destinationTimer_;
+    QTimer atcTimer_, originTimer_, destinationTimer_, gateTimer_;
+    GateContextFor gateContext_;
+    bool gateDone_ = false;  // one try per flight
+    bool probe_ = false;
     QString flightId_, origin_, destination_;
     bool destinationDone_ = false;  // touched down: no more destination ATIS this flight
     blocktime::CommsDedupe comms_;

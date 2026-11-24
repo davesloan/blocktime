@@ -1,0 +1,21 @@
+{
+  "flight_details": {
+    "api_key": "PILOT-KEY-DO-NOT-KEEP",
+    "email": "pilot@example.com",
+    "current_flight": {
+      "flight_origin": "KSLC",
+      "flight_destination": "KLAS",
+      "assigned_gate": "Terminal 3 Gate E7A",
+      "assigned_gate_lat": "36.0853653715",
+      "assigned_gate_lon": "-115.136728607269",
+      "flight_plan_star": "CHOWW4",
+      "flight_plan_arriving_runway": "26L",
+      "destination_arriving_runways": "26L,19L,19R"
+    },
+    "atc": {
+      "route": { "star": "CHOWW4", "runway_transition": "PRINO" },
+      "approach": { "type": "ILS", "variation": "Z", "runway": "26R" },
+      "ground": { "on_runway": "34R" }
+    }
+  }
+}

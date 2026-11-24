@@ -76,6 +76,21 @@ Sources:
   hasn't been broadcast yet; he checks SayIntentions' status screen).
 - **For milestone 9:** the gate's position should map it onto an MSFS parking spot (nearest `probe_facility` parking),
   which avoids parsing "Terminal 3 Gate E7A". Still open: whether `assignGate` takes "E7A" or needs the terminal.
+- **SayIntentions' names aren't always MSFS's (checked 2026-11-24).** KLAS "Terminal 3 Gate E7A" at its
+  `assigned_gate_lat/lon` is 16.6 m from MSFS's Gate E7 (name 16, number 7, suffix 0); the next spot is a plain
+  "Gate 46" 20 m away. Every KLAS spot has suffix 0, so the "A" is SayIntentions' own. BlockTime sends MSFS's short
+  form ("E7") and, if `assignGate` answers "Unknown gate", keeps SayIntentions' own gate (D-147). Milestone 9's sim
+  test shows which happens.
+- **The SAPI reference, read 2026-11-24:** `assignGate`'s gate is "max 30 characters, alphanumeric only" (no spaces);
+  errors `{"error": "Invalid airport code: ..."}`, `{"error": "Unknown gate: Z99"}`, `{"error": "No active flight
+  could be found."}`, `{"status": "UNKNOWN ERROR"}`. `getParking` answers `{"parking": {"id", "name": "Gate A21",
+  "lat", "lon", "heading"}}` or `{"error": "No parking found"}`: its name has "Gate " in front, `assignGate`'s answer
+  (`assigned_gate_name`) doesn't. **`getAirport`'s answer isn't documented** ("comprehensive airport information
+  including weather and communication frequencies", for the airports of the current flight plan): with `--probe`,
+  BlockTime logs it once per flight as `probe_si_airport` (every `api_key` removed) to see whether it lists gates.
+- **How BlockTime uses it (0.10.0, `FlightWatcher`):** polls flightJSON every 30 s from block out; once
+  `assigned_gate` is set for the planned destination and the destination's spots are loaded, it picks (D-147) and
+  logs one `arrival_gate` event per flight. Failures before the send are quiet (SayIntentions may not be running).
 - **getCommsHistory** (milestone 10, the ATC log for D-040): `GET .../sapi/getCommsHistory?api_key=&since_id=`.
   Returns `flight_id` and `comm_history[]` (`stamp_zulu`, `frequency`, `station_name`, `incoming_message` from the
   pilot, `outgoing_message` from ATC, English versions, audio URLs). **Current flight only**: it can't be fetched

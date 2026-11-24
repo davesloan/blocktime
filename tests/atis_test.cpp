@@ -100,3 +100,55 @@ TEST(Atis, OneAirportUrl) {
     EXPECT_EQ(getWxUrl("k e y", "KBFI"), "https://apipri.sayintentions.ai/sapi/getWX?api_key=k%20e%20y&icao=KBFI");
     EXPECT_EQ(commsHistoryUrl("abc"), "https://apipri.sayintentions.ai/sapi/getCommsHistory?api_key=abc");
 }
+
+// ---- Milestone 9: SayIntentions' gate (D-141, D-147) -----------------------------------------------------------
+
+TEST(SayIntentions, SiFlightPicksFieldsOnly) {
+    std::ifstream in(BLOCKTIME_SOURCE_DIR "/tests/data/si_flight.json");
+    const std::string body{std::istreambuf_iterator<char>(in), {}};
+    const auto f = parseSiFlight(body);
+    ASSERT_TRUE(f.has_value());
+    EXPECT_EQ(f->destination, "KLAS");
+    EXPECT_EQ(f->assignedGate, "Terminal 3 Gate E7A");
+    EXPECT_EQ(f->arrivingRunway, "26L");
+    ASSERT_TRUE(f->gateLat && f->gateLon);
+    EXPECT_NEAR(*f->gateLat, 36.0853653715, 1e-9);
+    EXPECT_NEAR(*f->gateLon, -115.136728607269, 1e-9);
+}
+
+TEST(SayIntentions, SiFlightRunwayFromTheApproach) {
+    const auto f = parseSiFlight(
+        R"({"flight_details":{"current_flight":{"flight_destination":"KSAN","assigned_gate":"","flight_plan_arriving_runway":""},"atc":{"approach":{"runway":"9"}}}})");
+    ASSERT_TRUE(f.has_value());
+    EXPECT_EQ(f->arrivingRunway, "09");
+    EXPECT_EQ(f->assignedGate, "");
+    EXPECT_FALSE(f->gateLat.has_value());
+}
+
+TEST(SayIntentions, SiFlightNotJson) {
+    EXPECT_FALSE(parseSiFlight("<html>").has_value());
+    EXPECT_FALSE(parseSiFlight("{}").has_value());
+}
+
+TEST(SayIntentions, GateUrls) {
+    EXPECT_EQ(assignGateUrl("k&y", "E7", "KLAS"),
+              "https://apipri.sayintentions.ai/sapi/assignGate?api_key=k%26y&gate=E7&airport=KLAS");
+    EXPECT_EQ(getParkingUrl("key"), "https://apipri.sayintentions.ai/sapi/getParking?api_key=key");
+    EXPECT_EQ(getAirportUrl("key"), "https://apipri.sayintentions.ai/sapi/getAirport?api_key=key");
+}
+
+TEST(SayIntentions, ParsesAssignedGateAndParking) {
+    EXPECT_EQ(parseAssignedGate(R"({"assigned_gate_name":"A21"})"), std::optional<std::string>("A21"));
+    EXPECT_FALSE(parseAssignedGate(R"({"error":"Unknown gate: Z99"})").has_value());
+    const auto p = parseParking(R"({"parking":{"id":"12345","name":"Gate A21","lat":33.6407,"lon":-84.4277,"heading":180}})");
+    ASSERT_TRUE(p.has_value());
+    EXPECT_EQ(p->name, "Gate A21");
+    EXPECT_NEAR(p->lat, 33.6407, 1e-9);
+    EXPECT_FALSE(parseParking(R"({"error":"No parking found"})").has_value());
+}
+
+TEST(SayIntentions, WithoutApiKeysAtEveryDepth) {
+    const auto j = withoutApiKeys(
+        nlohmann::json::parse(R"({"api_key":"a","x":{"api_key":"b","y":[{"api_key":"c","z":1}]},"w":2})"));
+    EXPECT_EQ(j.dump(), R"({"w":2,"x":{"y":[{"z":1}]}})");
+}

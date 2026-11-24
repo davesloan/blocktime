@@ -280,6 +280,14 @@ int main(int argc, char* argv[]) {
     QtPlanner planner(settings);
     // SayIntentions' ATIS and ATC log while a flight is open, into the event log (D-123, D-127).
     FlightWatcher flightWatcher(planner, bridge, flightTarget, appEvents);
+    // The arrival gate (D-141, D-147): from the planned flight's type and kind, read when SayIntentions has picked.
+    flightWatcher.setGateContext([&airline, &planningDb](const QString& destination)
+                                     -> std::optional<blocktime::GateContext> {
+        const auto planned = blocktime::currentPlannedFlight(planningDb);
+        if (!planned) return std::nullopt;
+        return airline.gateContext(planned->typeCode, planned->kind, destination.toStdString());
+    });
+    flightWatcher.setProbe(recorderOptions.probe);
     const QString airlineIcao = QString::fromStdString(airline.airlineIcao());
     // Settled flights from the database, tracks from the log (D-111); refreshed when a flight is settled.
     FlightListModel flights(planningDb, logDir, airlineIcao);

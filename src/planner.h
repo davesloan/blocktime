@@ -29,4 +29,10 @@ public:
     // own {"error": ...}.
     virtual void fetchWx(QString icao, std::function<void(QByteArray body, QString error)> done) = 0;
     virtual void fetchCommsHistory(std::function<void(QByteArray body, QString error)> done) = 0;
+    // The arrival gate (milestone 9, D-141): SayIntentions' local flightJSON (no key), assignGate, getParking, and
+    // getAirport (--probe only). Same `done` rules as above.
+    virtual void fetchSiFlight(std::function<void(QByteArray body, QString error)> done) = 0;
+    virtual void assignGate(QString gate, QString icao, std::function<void(QByteArray body, QString error)> done) = 0;
+    virtual void fetchParking(std::function<void(QByteArray body, QString error)> done) = 0;
+    virtual void fetchSiAirport(std::function<void(QByteArray body, QString error)> done) = 0;
 };

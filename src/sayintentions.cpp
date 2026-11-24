@@ -104,4 +104,89 @@ std::string normalizeRunway(std::string_view runway) {
     return (digits == 1 ? "0" : "") + std::string(runway);
 }
 
+namespace {
+
+std::optional<double> number(const json& j, const char* name) {
+    const auto f = j.find(name);
+    if (f == j.end()) return std::nullopt;
+    if (f->is_number()) return f->get<double>();
+    if (!f->is_string()) return std::nullopt;
+    try {
+        return std::stod(f->get<std::string>());
+    } catch (const std::exception&) {
+        return std::nullopt;
+    }
+}
+
+const json* child(const json& j, const char* name) {
+    const auto f = j.find(name);
+    return f != j.end() && f->is_object() ? &*f : nullptr;
+}
+
+}  // namespace
+
+std::optional<SiFlight> parseSiFlight(std::string_view body) {
+    const json root = json::parse(body, nullptr, false);
+    if (root.is_discarded() || !root.is_object()) return std::nullopt;
+    const json* details = child(root, "flight_details");
+    const json* current = details ? child(*details, "current_flight") : nullptr;
+    if (!current) return std::nullopt;
+    SiFlight f;
+    f.destination = field(*current, "flight_destination");
+    f.assignedGate = field(*current, "assigned_gate");
+    f.gateLat = number(*current, "assigned_gate_lat");
+    f.gateLon = number(*current, "assigned_gate_lon");
+    f.arrivingRunway = normalizeRunway(field(*current, "flight_plan_arriving_runway"));
+    if (f.arrivingRunway.empty()) {
+        const json* atc = child(*details, "atc");
+        const json* approach = atc ? child(*atc, "approach") : nullptr;
+        if (approach) f.arrivingRunway = normalizeRunway(field(*approach, "runway"));
+    }
+    return f;
+}
+
+std::string assignGateUrl(std::string_view apiKey, std::string_view gate, std::string_view icao) {
+    return "https://apipri.sayintentions.ai/sapi/assignGate?api_key=" + percentEncode(apiKey) + "&gate=" +
+           percentEncode(gate) + "&airport=" + percentEncode(icao);
+}
+
+std::string getParkingUrl(std::string_view apiKey) {
+    return "https://apipri.sayintentions.ai/sapi/getParking?api_key=" + percentEncode(apiKey);
+}
+
+std::string getAirportUrl(std::string_view apiKey) {
+    return "https://apipri.sayintentions.ai/sapi/getAirport?api_key=" + percentEncode(apiKey);
+}
+
+std::optional<std::string> parseAssignedGate(std::string_view body) {
+    const json root = json::parse(body, nullptr, false);
+    if (root.is_discarded() || !root.is_object()) return std::nullopt;
+    const std::string name = field(root, "assigned_gate_name");
+    if (name.empty()) return std::nullopt;
+    return name;
+}
+
+std::optional<SiParking> parseParking(std::string_view body) {
+    const json root = json::parse(body, nullptr, false);
+    if (root.is_discarded() || !root.is_object()) return std::nullopt;
+    const json* parking = child(root, "parking");
+    if (!parking) return std::nullopt;
+    SiParking p;
+    p.name = field(*parking, "name");
+    p.lat = number(*parking, "lat").value_or(0);
+    p.lon = number(*parking, "lon").value_or(0);
+    if (p.name.empty()) return std::nullopt;
+    return p;
+}
+
+json withoutApiKeys(json j) {
+    if (j.is_object()) {
+        j.erase("api_key");
+        for (auto& [key, value] : j.items()) value = withoutApiKeys(std::move(value));
+    } else if (j.is_array()) {
+        for (auto& value : j) value = withoutApiKeys(std::move(value));
+    }
+    return j;
+}
+
 }  // namespace blocktime

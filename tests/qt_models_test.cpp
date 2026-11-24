@@ -555,6 +555,34 @@ public:
         ++commsCalls;
         done(commsBody, commsError);
     }
+
+    // The arrival gate's calls (milestone 9, D-141).
+    QByteArray siFlightBody;
+    QString siFlightError = QStringLiteral("SayIntentions isn't running");
+    int siFlightCalls = 0;
+    QStringList assignCalls;
+    QByteArray assignBody = R"({"assigned_gate_name":"E7"})";
+    QString assignError;
+    QByteArray parkingBody = R"({"parking":{"id":"1","name":"Gate E7","lat":36.0,"lon":-115.0,"heading":0}})";
+    int parkingCalls = 0;
+    QByteArray siAirportBody = R"({"api_key":"secret","airport":{"icao":"KPDX","api_key":"secret","gates":[]}})";
+    int siAirportCalls = 0;
+    void fetchSiFlight(std::function<void(QByteArray, QString)> done) override {
+        ++siFlightCalls;
+        done(siFlightBody, siFlightError);
+    }
+    void assignGate(QString gate, QString icao, std::function<void(QByteArray, QString)> done) override {
+        assignCalls << gate + "@" + icao;
+        done(assignError.isEmpty() ? assignBody : QByteArray(), assignError);
+    }
+    void fetchParking(std::function<void(QByteArray, QString)> done) override {
+        ++parkingCalls;
+        done(parkingBody, {});
+    }
+    void fetchSiAirport(std::function<void(QByteArray, QString)> done) override {
+        ++siAirportCalls;
+        done(siAirportBody, {});
+    }
 };
 
 db::Database deliveredAirline() {
@@ -1233,6 +1261,36 @@ struct WatcherRig {
         target.set(t);
         watcher = std::make_unique<FlightWatcher>(planner, bridge, target, queue);
         watcher->setIntervals(std::chrono::milliseconds(30), std::chrono::milliseconds(30));
+        watcher->setGateInterval(std::chrono::milliseconds(30));
+        watcher->setGateContext([](const QString& icao) -> std::optional<blocktime::GateContext> {
+            if (icao != "KPDX") return std::nullopt;
+            return blocktime::GateContext{35.8, blocktime::SpotUse::Gate, {}};
+        });
+    }
+    // KPDX with Gate E7 200 m north of the runway and Gate E9 600 m north.
+    void loadDestination() {
+        blocktime::AirportFacilities a;
+        a.icao = "KPDX";
+        a.lat = 36.0;
+        a.lon = -115.0;
+        a.runways = {blocktime::Runway{36.0, -115.0, 90.0, 3000.0, 45.0, 9, 0, 27, 0}};
+        for (const auto& [number, north] : {std::pair{7, 200.0}, std::pair{9, 600.0}}) {
+            blocktime::ParkingSpot s;
+            s.name = 16;
+            s.number = number;
+            s.type = 9;
+            s.radiusM = 20;
+            blocktime::placeSpot(s, a.lat, a.lon, 0, north);
+            a.spots.push_back(s);
+        }
+        bridge.applyAirport(a);
+    }
+    // SayIntentions has picked Gate E9 (600 m north).
+    void sayIntentionsPicksE9() {
+        planner.siFlightError.clear();
+        planner.siFlightBody =
+            R"({"flight_details":{"api_key":"x","current_flight":{"flight_destination":"KPDX","assigned_gate":"Gate E9",)"
+            R"("assigned_gate_lat":"36.0053899","assigned_gate_lon":"-115.0","flight_plan_arriving_runway":"27"}}})";
     }
     void blockOut() {
         blocktime::BlockOut out;
@@ -1480,4 +1538,86 @@ TEST(FlightWatcher, DestinationStartsAtApproachWithoutADescent) {
     r.planner.wxCalls.clear();
     r.flight("phase_changed", {{"phase", "approach"}});  // after a go-around: already polling, no extra call
     EXPECT_TRUE(r.planner.wxCalls.isEmpty());
+}
+
+TEST(FlightWatcher, SendsTheGateAndLogsOnce) {
+    WatcherRig r;
+    r.loadDestination();
+    r.sayIntentionsPicksE9();
+    r.blockOut();
+    r.wait(100);
+    EXPECT_EQ(r.planner.assignCalls, QStringList{"E7@KPDX"});
+    EXPECT_EQ(r.planner.parkingCalls, 1);
+    const auto gates = r.pushed("arrival_gate");
+    ASSERT_EQ(gates.size(), 1u);
+    EXPECT_EQ(gates[0].data["result"], "assigned");
+    EXPECT_EQ(gates[0].data["gate"], "Gate E7");
+    EXPECT_EQ(gates[0].data["si_gate"], "Gate E9");
+    EXPECT_EQ(gates[0].data["si_parking"], "Gate E7");
+    EXPECT_EQ(gates[0].data["flight_id"], "2026-11-23T22:51:08.969Z");
+    EXPECT_TRUE(gates[0].data.contains("time"));
+    EXPECT_EQ(r.planner.siAirportCalls, 0);  // only with --probe
+}
+
+TEST(FlightWatcher, NoSayIntentionsNoGate) {
+    WatcherRig r;
+    r.loadDestination();
+    r.blockOut();
+    r.wait(100);
+    EXPECT_GT(r.planner.siFlightCalls, 1);  // keeps asking quietly
+    EXPECT_TRUE(r.planner.assignCalls.isEmpty());
+    EXPECT_TRUE(r.pushed("arrival_gate").empty());
+}
+
+TEST(FlightWatcher, GateWaitsForTheAirport) {
+    WatcherRig r;
+    r.sayIntentionsPicksE9();
+    r.blockOut();
+    r.wait(80);
+    EXPECT_TRUE(r.planner.assignCalls.isEmpty());
+    r.loadDestination();
+    r.wait(80);
+    EXPECT_EQ(r.planner.assignCalls, QStringList{"E7@KPDX"});
+}
+
+TEST(FlightWatcher, UnknownGateLogged) {
+    WatcherRig r;
+    r.loadDestination();
+    r.sayIntentionsPicksE9();
+    r.planner.assignError = QStringLiteral("SayIntentions: Unknown gate: E7");
+    r.blockOut();
+    r.wait(100);
+    EXPECT_EQ(r.planner.assignCalls.size(), 1);
+    EXPECT_EQ(r.planner.parkingCalls, 0);
+    const auto gates = r.pushed("arrival_gate");
+    ASSERT_EQ(gates.size(), 1u);
+    EXPECT_EQ(gates[0].data["result"], "unknown_gate");
+}
+
+TEST(FlightWatcher, GateStopsAtBlockIn) {
+    WatcherRig r;
+    r.loadDestination();
+    r.blockOut();
+    blocktime::BlockIn in;
+    in.flightId = "2026-11-23T22:51:08.969Z";
+    r.bridge.applyBlockEvent(in);
+    const int calls = r.planner.siFlightCalls;
+    r.sayIntentionsPicksE9();
+    r.wait(100);
+    EXPECT_EQ(r.planner.siFlightCalls, calls);
+    EXPECT_TRUE(r.planner.assignCalls.isEmpty());
+}
+
+TEST(FlightWatcher, ProbeLogsSayIntentionsAirportWithoutKeys) {
+    WatcherRig r;
+    r.watcher->setProbe(true);
+    r.loadDestination();
+    r.sayIntentionsPicksE9();
+    r.blockOut();
+    r.wait(100);
+    EXPECT_EQ(r.planner.siAirportCalls, 1);
+    const auto probes = r.pushed("probe_si_airport");
+    ASSERT_EQ(probes.size(), 1u);
+    EXPECT_EQ(probes[0].data["answer"].dump().find("api_key"), std::string::npos);
+    EXPECT_EQ(probes[0].data["answer"]["airport"]["icao"], "KPDX");
 }

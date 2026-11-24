@@ -149,3 +149,19 @@ TEST_F(AirlineSessionTest, TickReportsWhetherAnythingChanged) {
     EXPECT_TRUE(session.tick(d(2026, 12, 22)));
     EXPECT_FALSE(session.tick(d(2026, 12, 22)));
 }
+
+TEST_F(AirlineSessionTest, GateContextFromCatalogAndConfig) {
+    copyConfig();
+    importKbfi();
+    AirlineSession session = AirlineSession::start(paths_, d(2026, 11, 22), warnings_);
+    const auto vip = session.gateContext("737-800 BBJ2", FlightKind::Vip, "KPDX");
+    ASSERT_TRUE(vip.has_value());
+    EXPECT_DOUBLE_EQ(vip->wingspanM, 35.8);
+    EXPECT_EQ(vip->use, SpotUse::Gate);
+    EXPECT_EQ(vip->preferred, (std::vector<std::string>{"D14"}));  // airline.example.yaml
+    const auto charter = session.gateContext("737-800 BBJ2", FlightKind::Charter, "KSAN");
+    ASSERT_TRUE(charter.has_value());
+    EXPECT_EQ(charter->use, SpotUse::Ramp);
+    EXPECT_TRUE(charter->preferred.empty());
+    EXPECT_FALSE(session.gateContext("A320", FlightKind::Passenger, "KPDX").has_value());
+}

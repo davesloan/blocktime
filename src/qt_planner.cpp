@@ -89,6 +89,33 @@ void QtPlanner::fetchCommsHistory(std::function<void(QByteArray, QString)> done)
     getSayIntentions(blocktime::commsHistoryUrl(settings_.sayIntentionsApiKey), std::move(done));
 }
 
+void QtPlanner::fetchSiFlight(std::function<void(QByteArray, QString)> done) {
+    // The SayIntentions client on this PC; it answers only while it runs. The body holds the pilot's key: it's
+    // parsed for a few fields and never logged.
+    QNetworkReply* reply = network_.get(request(blocktime::kSiFlightJsonUrl, kRunwayTimeoutMs));
+    connect(reply, &QNetworkReply::finished, this, [reply, done = std::move(done)] {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            done({}, QStringLiteral("SayIntentions isn't running"));
+            return;
+        }
+        done(reply->readAll(), {});
+    });
+}
+
+void QtPlanner::assignGate(QString gate, QString icao, std::function<void(QByteArray, QString)> done) {
+    getSayIntentions(blocktime::assignGateUrl(settings_.sayIntentionsApiKey, gate.toStdString(), icao.toStdString()),
+                     std::move(done));
+}
+
+void QtPlanner::fetchParking(std::function<void(QByteArray, QString)> done) {
+    getSayIntentions(blocktime::getParkingUrl(settings_.sayIntentionsApiKey), std::move(done));
+}
+
+void QtPlanner::fetchSiAirport(std::function<void(QByteArray, QString)> done) {
+    getSayIntentions(blocktime::getAirportUrl(settings_.sayIntentionsApiKey), std::move(done));
+}
+
 void QtPlanner::getSayIntentions(const std::string& url, std::function<void(QByteArray, QString)> done) {
     if (settings_.sayIntentionsApiKey.empty() || settings_.sayIntentionsDeveloperKey.empty()) {
         done({}, QStringLiteral("No SayIntentions keys in settings.json"));

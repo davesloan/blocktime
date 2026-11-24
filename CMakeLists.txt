@@ -89,6 +89,7 @@ add_library(blocktime-core STATIC
   src/parking.cpp
   src/lined_up.cpp
   src/gate_picker.cpp
+  src/gate_assigner.cpp
   src/sayintentions.cpp
   src/simbrief.cpp
   src/money.cpp
@@ -176,6 +177,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/parking_test.cpp
     tests/lined_up_test.cpp
     tests/gate_picker_test.cpp
+    tests/gate_assigner_test.cpp
     tests/touchdown_capture_test.cpp
     tests/flight_tracker_test.cpp
     tests/app_event_queue_test.cpp

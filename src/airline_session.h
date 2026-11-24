@@ -17,6 +17,8 @@
 #include "airline_config.h"
 #include "airline_queries.h"
 #include "catalog.h"
+#include "gate_picker.h"
+#include "loads.h"
 #include "dates.h"
 #include "money.h"
 #include "sqlite_db.h"
@@ -48,6 +50,11 @@ public:
     double hoursFlown();  // Dave's, from the settled flights (D-114)
     std::string airlineName() const;  // "" without a valid airline.yaml
     std::string airlineIcao() const;  // "" without a valid airline.yaml
+
+    // What the arrival gate needs to know (D-147): the type's wingspan from the catalog, gate or ramp from the kind,
+    // and the airline's preferred gates at the airport. nullopt for a type the catalog doesn't have.
+    std::optional<GateContext> gateContext(const std::string& typeCode, FlightKind kind,
+                                           const std::string& destinationIcao) const;
 
     // The open database for the planning code (planned_flight.h), or nullptr if it didn't open.
     db::Database* database() { return db_ ? &*db_ : nullptr; }

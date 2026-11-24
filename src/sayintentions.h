@@ -53,4 +53,32 @@ struct CommsHistory {
 };
 std::optional<CommsHistory> parseCommsHistory(std::string_view json);
 
+// ---- The arrival gate (milestone 9, D-141, D-147) ----
+
+// The SayIntentions client's own status data on this PC; no key needed. It holds the pilot's api_key and email, so
+// only the fields below are ever kept.
+inline constexpr const char* kSiFlightJsonUrl = "http://localhost:43117/flightJSON";
+
+struct SiFlight {
+    std::string destination, assignedGate, arrivingRunway;  // runway normalized ("09"), "" if none
+    std::optional<double> gateLat, gateLon;
+};
+// flight_details.current_flight's flight_destination, assigned_gate, assigned_gate_lat/lon (strings), and
+// flight_plan_arriving_runway, else flight_details.atc.approach.runway. nullopt without current_flight.
+std::optional<SiFlight> parseSiFlight(std::string_view json);
+
+std::string assignGateUrl(std::string_view apiKey, std::string_view gate, std::string_view icao);
+std::string getParkingUrl(std::string_view apiKey);
+std::string getAirportUrl(std::string_view apiKey);
+std::optional<std::string> parseAssignedGate(std::string_view json);  // assigned_gate_name
+
+struct SiParking {
+    std::string name;
+    double lat = 0, lon = 0;
+};
+std::optional<SiParking> parseParking(std::string_view json);  // getParking's "parking"
+
+// A copy with every "api_key" member removed, at any depth: for logging an answer whole (the probe).
+nlohmann::json withoutApiKeys(nlohmann::json j);
+
 }  // namespace blocktime

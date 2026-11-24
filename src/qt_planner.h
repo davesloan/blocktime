@@ -25,6 +25,10 @@ public:
     void openUrl(const QString& url) override;
     void fetchWx(QString icao, std::function<void(QByteArray, QString)> done) override;
     void fetchCommsHistory(std::function<void(QByteArray, QString)> done) override;
+    void fetchSiFlight(std::function<void(QByteArray, QString)> done) override;
+    void assignGate(QString gate, QString icao, std::function<void(QByteArray, QString)> done) override;
+    void fetchParking(std::function<void(QByteArray, QString)> done) override;
+    void fetchSiAirport(std::function<void(QByteArray, QString)> done) override;
 
 private:
     // GET with the developer key in its header; the same failure rules as fetchRunways.
