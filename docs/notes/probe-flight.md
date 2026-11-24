@@ -202,8 +202,8 @@ The analysis scripts weren't kept. Rerun from the events: the GSX and switch tim
 
 - **Altimeter:** the millibars follow the knob; `STD:1/2` never moved, and STD reads as 1013.2
   (`msfs-observed-behaviour.md`). Captain and first officer were always equal.
-- **The gate name:** SayIntentions' ground controller spelled it out in the comms text: "Gate Bravo Two via
-  Alpha-Five". `assignGate` takes the short form (`A21`), so milestone 9 maps one to the other.
+- **The gate name:** SayIntentions' screen shows a letter and a number with no space ("B2", Dave). Its comms text
+  spells it out: "Gate Bravo Two via Alpha-Five". `assignGate` takes the same short form (`A21`).
 - **GSX deboarding:** `FSDT_GSX_DEBOARDING_STATE` went 4 (requested), 5 (in progress), 6 (completed), then 1, as D-073
   expects. The count reached 2 before the session ended, so the passenger total isn't checked yet.
 - **Not answered (no 777 broadcast):** the 777's switches, `BRAKES_ParkingBrakeLeverOn`, `DOOR_state`, and the FMC's
