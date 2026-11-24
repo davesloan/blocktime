@@ -10,7 +10,8 @@ observations at the top.
   above indicated at FL370 and about 170 ft below it at 8,000 ft at KSLC.
 - **Altimeter (D-123), 777 side:**
   - `KOHLSMAN SETTING MB:1` and `:2` followed the baro knob: 1021.7 at KSAN (A30.17), 1028.1 at KSLC (A30.36).
-  - `:1` and `:2` were always equal.
+  - `:1` and `:2` were always equal. The 777 has one setting: only the captain's display shows it, and the first
+    officer's knob changes the captain's number (Dave).
   - **`KOHLSMAN SETTING STD:1/2` stayed 0 all flight.** At the transition altitude the millibars went to 1013.2
     instead. On the 777, "STD" shows as 1013.2 with the STD flag off.
 - **The touchdown names were all accepted:** `G FORCE` gave 1.14 g at −172 fpm. `PLANE HEADING DEGREES TRUE` is in

@@ -19,7 +19,7 @@ Nothing extra is requested without the flag. Results go in this note once a prob
 - **The PMDG data broadcast** must be on in each aircraft's options file, under `[SDK]`: `EnableDataBroadcast=1`. The
   files are in `%APPDATA%\Microsoft Flight Simulator\Packages\pmdg-aircraft-<type>\work\`: `737_Options.ini` (736, 738)
   and `777_Options.ini` (77er, 77w, 77f). On 2026-11-24 the 737 files had it and the 777 files had no `[SDK]` section
-  at all, so the 777 flight logged no `probe_pmdg_777` lines.
+  at all, so the 777 flight logged no `probe_pmdg_777` lines. It was added to all three the same day.
 
 ## What's logged
 
@@ -201,13 +201,15 @@ The analysis scripts weren't kept. Rerun from the events: the GSX and switch tim
 ## Results: the 777 flight, 2026-11-24 (N916SX KSAN → KSLC, recorder 0.8.0)
 
 - **Altimeter:** the millibars follow the knob; `STD:1/2` never moved, and STD reads as 1013.2
-  (`msfs-observed-behaviour.md`). Captain and first officer were always equal.
+  (`msfs-observed-behaviour.md`). Captain and first officer were always equal: the 777 has one baro setting, which
+  both knobs change (Dave).
 - **The gate name:** SayIntentions' screen shows a letter and a number with no space ("B2", Dave). Its comms text
   spells it out: "Gate Bravo Two via Alpha-Five". `assignGate` takes the same short form (`A21`).
 - **GSX deboarding:** `FSDT_GSX_DEBOARDING_STATE` went 4 (requested), 5 (in progress), 6 (completed), then 1, as D-073
   expects. The count reached 2 before the session ended, so the passenger total isn't checked yet.
 - **Not answered (no 777 broadcast):** the 777's switches, `BRAKES_ParkingBrakeLeverOn`, `DOOR_state`, and the FMC's
-  figures. They wait for a 777 flight with `[SDK] EnableDataBroadcast=1` in `777_Options.ini`.
+  figures. They wait for the next 777 flight with `--probe`: `[SDK] EnableDataBroadcast=1` was added to the three
+  `777_Options.ini` files on 2026-11-24.
 
 ## Questions for the next probe flight
 

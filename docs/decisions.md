@@ -1783,7 +1783,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-124 — The phase rules' numbers, tuned on two real flights
 - Date: 2026-11-23
-- Status: Proposed
+- Status: Accepted (Dave, 2026-11-24)
 - Decided by: Claude
 - Area: recorder
 - Decision: recorder.md's phase rules get these starting values (constants in `phase_detector.h`):
@@ -1815,7 +1815,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-125 — Touchdown from sim-frame samples near the ground
 - Date: 2026-11-23
-- Status: Proposed
+- Status: Accepted (Dave, 2026-11-24)
 - Decided by: Claude
 - Area: recorder
 - Decision: A second small data definition (vertical speed, on ground, AGL, G force, IAS, position) is requested
@@ -1830,7 +1830,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-126 — The recorder names the runways, from the sim's facility data
 - Date: 2026-11-23
-- Status: Proposed
+- Status: Accepted (Dave, 2026-11-24)
 - Decided by: Claude
 - Area: recorder
 - Decision:
@@ -1852,7 +1852,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-127 — The app's web results reach the log through the recorder thread
 - Date: 2026-11-23
-- Status: Proposed
+- Status: Accepted (Dave, 2026-11-24)
 - Decided by: Claude
 - Area: app, recorder
 - Decision:
@@ -1871,7 +1871,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-128 — The six stages are built from the log's events
 - Date: 2026-11-23
-- Status: Proposed
+- Status: Accepted (Dave, 2026-11-24)
 - Decided by: Claude
 - Area: app
 - Decision: `FlightStages` (plain C++) builds design.md §13.5's six stages from the recorder's events. Live shows them
@@ -1887,7 +1887,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-129 — Telemetry logs the true heading, for later milestones
 - Date: 2026-11-23
-- Status: Accepted (Dave). True rather than magnetic is Claude's call, Proposed.
+- Status: Accepted (Dave; true rather than magnetic confirmed 2026-11-24)
 - Decided by: Dave + Claude
 - Area: recorder
 - Decision: From milestone 7, the `telemetry` event includes `heading_true_deg`, the sim's `PLANE HEADING DEGREES TRUE`,
@@ -1903,7 +1903,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-130 — Milestone 7's execution calls
 - Date: 2026-11-23
-- Status: Proposed
+- Status: Accepted (Dave, 2026-11-24)
 - Decided by: Claude
 - Area: recorder, app
 - Decision: Calls made while building milestone 7 that change what Dave sees or what's logged:
@@ -1940,7 +1940,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-132 — Lease rates cut to about a sixth
 - Date: 2026-11-23
-- Status: Accepted (the new values are Claude's, Proposed)
+- Status: Accepted (the values are Claude's, confirmed by Dave 2026-11-24)
 - Decided by: Dave (lower the leases), Claude (the values)
 - Area: design
 - Decision: Every type's monthly lease is cut to about a sixth (design.md §5): 737-600 $125k, BBJ2 $150k, 737-800
@@ -1959,15 +1959,17 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-133 — A level close to a thousand is that thousand
 - Date: 2026-11-24
-- Status: Accepted (the 150 ft is Claude's)
-- Decided by: Dave (round it when it's really close), Claude (the rule)
+- Status: Accepted
+- Decided by: Dave (round it when it's really close; within 90 ft), Claude (the rule)
 - Area: recorder
 - Decision: A level-off's altitude, the cruise level included, is its samples' mean snapped to the nearest 1,000 ft
-  when within 150 ft of it (`kLevelSnapFt`), else rounded to the nearest 100 ft as before (refines D-124). The snapped
+  when within 90 ft of it (`kLevelSnapFt`), else rounded to the nearest 100 ft as before (refines D-124). The snapped
   value is also the reference the level is left from (200 ft away).
 - Why: N916SX's cruise read "Cruising at FL369" while the altimeter showed 36,994 and then 37,001. The 777 crept up
   the last 100 ft at about 150 fpm, and the 20 s window's mean (36,926) held that creep. The same rule makes the KSFO
-  replay's approach level 3,000 (it read 3,100 while ending at 3,000), and the missed approach at KSLC 8,000 (its mean
-  was 8,095).
-- Alternatives considered: the window's last sample instead of its mean (fixed FL369 but read the 4,500 ft level as
-  4,600); snapping to 500s within 100 ft; the plan's cruise altitude when near it (cruise only, not ATC levels).
+  replay's approach level 3,000 (it read 3,100 while ending at 3,000).
+  - **Why 90 ft, not 150:** Claude first proposed 150 ft. On the same flight ATC assigned 8,100 ft for KSLC's missed
+    approach, and Dave held it; the window's mean was 8,095. At 150 ft that would have read 8,000.
+- Alternatives considered: 150 ft (turns real 100-ft levels into thousands); the window's last sample instead of its
+  mean (fixed FL369 but read the 4,500 ft level as 4,600); snapping to 500s; the plan's cruise altitude when near it
+  (cruise only, not ATC levels).

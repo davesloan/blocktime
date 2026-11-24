@@ -153,7 +153,7 @@ TEST(PhaseDetector, ReplaysKpdxKsfo) {
                         {"ended:approach:6000", "01:22:00"},
                         {"level:approach:4000", "01:23:15"},
                         {"ended:approach:4000", "01:24:25"},
-                        // the window's mean (3,100 to the nearest 100) was within 150 ft of 3,000 (D-133)
+                        // the window's mean (3,100 to the nearest 100) was within 90 ft of 3,000 (D-133)
                         {"level:approach:3000", "01:25:02"},
                         {"ended:approach:3000", "01:26:33"},
                         {"landing", "01:30:29"},
@@ -282,12 +282,19 @@ TEST(PhaseDetector, LevelBelowCruiseStaysClimb) {
 }
 
 // A slow capture (the 777 creeps up the last 100 ft) drags the window's mean below the level actually flown: the
-// mean here is about 8,910 ft. Within 150 ft of a thousand, the level is that thousand (Dave's FL369 finding).
+// mean here is about 8,945 ft. Within 90 ft of a thousand, the level is that thousand (Dave's FL369 finding, D-133).
 TEST(PhaseDetector, LevelSnapsToTheThousandWhenClose) {
     Flight f;
-    f.toClimb().air(60, 2000, 3000).air(78, 5000, 3000).air(30, 8880, 200);
+    f.toClimb().air(60, 2000, 3000).air(77, 5000, 3000).air(30, 8920, 150);
     EXPECT_TRUE(f.saw("level:climb:9000"));
     EXPECT_EQ(f.detector().levelFt(), 9000);
+}
+
+// ATC gives levels like 8,100 (KSLC's missed approach, 2026-11-24): a mean of 8,095 is 8,100, not 8,000.
+TEST(PhaseDetector, LevelJustOutsideTheSnapRoundsToTheHundred) {
+    Flight f;
+    f.toClimb().air(30, 8095, 0);
+    EXPECT_TRUE(f.saw("level:climb:8100"));
 }
 
 TEST(PhaseDetector, LevelFarFromAThousandRoundsToTheHundred) {
