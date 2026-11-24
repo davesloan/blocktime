@@ -4,8 +4,12 @@
 //
 // design.md §13.5's six stages, built from the recorder's flight events (D-128): phase_changed, level_off(_ended),
 // step_climb(_ended), flight_marker, liftoff, touchdown and landing_runway, with the fields FlightTracker logs. Each
-// stage lists its sub-events with their start and end times. Pre-Departure fills in with milestone 8's GSX services,
-// and Arrival's gate comes with milestone 9.
+// stage lists its sub-events with their start and end times. Arrival's gate comes with milestone 9.
+//
+// Milestone 8 (D-134..D-136, D-138): GSX's services, through a GsxTimeline fed gsx_service, block and sim session
+// events. Until block out the view is the next leg: Pre-Departure with the services so far. From block out (or the
+// first phase) until showNextLeg() the view is the flight: the services it took at block out, then its deboarding
+// and "Ready for shutdown or turnaround" with the shutdown checklist.
 
 #pragma once
 
@@ -16,16 +20,30 @@
 
 #include <nlohmann/json.hpp>
 
+#include "gsx_timeline.h"
+
 namespace blocktime {
 
 enum class Stage { PreDeparture, Departure, Climb, Cruise, Descent, Arrival };
 enum class StageState { Upcoming, Current, Done };
+
+struct ChecklistItem {
+    std::string text;
+    bool done = false;
+};
 
 struct StageLine {
     std::string text;
     std::string start;  // "HH:MMZ"
     std::string end;    // "HH:MMZ"; "" for an instant or a line still running
     bool running = false;
+    std::vector<ChecklistItem> checks;  // only the Ready line has any (D-135)
+};
+
+// What the shutdown checklist reads, from telemetry (D-135).
+struct ShutdownChecks {
+    bool enginesOff = false, parkingBrakeSet = false, beaconOff = false, strobeOff = false;
+    bool operator==(const ShutdownChecks&) const = default;
 };
 
 struct StageView {
@@ -37,8 +55,14 @@ struct StageView {
 
 class FlightStages {
 public:
+    // Also block_out, block_in, flight_interrupted, sim_stopped, sim_disconnected and gsx_service.
     void onEvent(std::string_view type, const nlohmann::json& data);
-    void reset();
+    // The latest checklist values. Count only after block in while the flight shows; true if the view changed.
+    bool onShutdownChecks(const ShutdownChecks& c, const std::string& iso);
+    // The summary was dismissed: drop the last flight and show the next leg (D-134).
+    void showNextLeg();
+    bool showingFlight() const { return showingFlight_; }
+    bool hasNextLegServices() const { return !gsx_.nextLeg().empty(); }
 
     std::vector<StageView> view() const;  // always six; before any event, Pre-Departure is Current
     // The phase with its sub-state: "Climb — level at 11,000 ft", "Cruise — step climb"; "" before block out.
@@ -55,6 +79,9 @@ private:
     void close(std::optional<std::size_t>& line, const std::string& iso);
     void onPhase(const std::string& phase, const std::string& iso, int altFt, bool flightLevel);
     std::string landedText() const;
+    void clearFlight();  // everything but the GSX timeline
+    void updateReady(const std::string& iso);
+    StageLine readyLine() const;
 
     std::vector<Line> lines_;
     std::string phase_;
@@ -64,6 +91,11 @@ private:
     int stepFromFt_ = 0;
     std::optional<double> touchdownVsFpm_;
     std::string landingRunway_;
+
+    GsxTimeline gsx_;
+    bool showingFlight_ = false;
+    std::optional<ShutdownChecks> checks_;
+    std::string readyIso_;  // when "Ready for shutdown or turnaround" appeared; "" until then
 };
 
 }  // namespace blocktime

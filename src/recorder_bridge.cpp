@@ -104,17 +104,20 @@ void RecorderBridge::applySample(const TelemetrySample& s) {
 }
 
 void RecorderBridge::applyBlockEvent(const BlockEvent& event) {
+    const nlohmann::json data = toJson(event);
     std::visit(
-        [this](const auto& e) {
+        [this, &data](const auto& e) {
             using T = std::decay_t<decltype(e)>;
             if constexpr (std::is_same_v<T, BlockOut>) {
-                stages_.reset();  // the new flight's pushback follows (D-128)
+                stages_.onEvent("block_out", data);  // a fresh flight; its pushback follows (D-128)
                 emit stagesChanged();
                 setReleaseRefused(false);
                 flightOpen_ = true;
                 blockOutTime_ = toQDateTime(e.time);
                 blockOutFuelLb_ = e.fuelLb;
             } else if constexpr (std::is_same_v<T, BlockIn>) {
+                stages_.onEvent("block_in", data);  // the flight stays on Live until the summary goes (D-134)
+                emit stagesChanged();
                 flightOpen_ = false;
                 lastFlightSummary_ = QString("Block in %1:%2 · %3 → %4 lb")
                                          .arg(e.blockTimeS / 3600)
@@ -125,7 +128,7 @@ void RecorderBridge::applyBlockEvent(const BlockEvent& event) {
                 setReleaseRefused(true);
             } else {
                 // A recorder_crash at startup closes a flight this app never saw open; the summary still applies.
-                stages_.reset();
+                stages_.onEvent("flight_interrupted", data);
                 emit stagesChanged();
                 flightOpen_ = false;
                 lastFlightSummary_ = QString("Interrupted (%1)").arg(QString::fromStdString(e.reason));

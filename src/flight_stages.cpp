@@ -48,6 +48,21 @@ std::string altitude(int ft, bool flightLevel) {
     return (ft < 0 ? "-" : "") + digits + " ft";
 }
 
+std::string serviceName(const std::string& service) {
+    if (service == "catering") return "Catering";
+    if (service == "refuelling") return "Refuelling";
+    if (service == "boarding") return "Boarding";
+    if (service == "deboarding") return "Deboarding";
+    return service;
+}
+
+bool anyRunning(const std::vector<ServiceSpan>& spans) {
+    return std::any_of(spans.begin(), spans.end(), [](const ServiceSpan& s) { return s.running; });
+}
+bool anyCompleted(const std::vector<ServiceSpan>& spans) {
+    return std::any_of(spans.begin(), spans.end(), [](const ServiceSpan& s) { return !s.running; });
+}
+
 std::string hhmmZ(const std::string& iso) { return iso.size() >= 16 ? iso.substr(11, 5) + "Z" : iso; }
 
 std::string str(const nlohmann::json& d, const char* key) {
@@ -100,7 +115,7 @@ void FlightStages::onPhase(const std::string& phase, const std::string& iso, int
     phase_ = phase;
 
     if (phase == "pushback") {
-        phaseLine_ = add(Stage::Departure, "Pushback", iso, true);
+        phaseLine_ = add(Stage::Departure, gsx_.pushbackByGsx() ? "Pushback (GSX)" : "Pushback", iso, true);
     } else if (phase == "taxi_out") {
         phaseLine_ = add(Stage::Departure, "Taxiing to runway", iso, true);
     } else if (phase == "takeoff") {
@@ -119,12 +134,68 @@ void FlightStages::onPhase(const std::string& phase, const std::string& iso, int
         phaseLine_ = add(Stage::Descent, "Taxiing to gate", iso, true);
     } else if (phase == "arrived") {
         add(Stage::Arrival, "Parked", iso, false);
+        updateReady(iso);
     }
 }
 
+void FlightStages::clearFlight() {
+    GsxTimeline gsx = std::move(gsx_);
+    *this = FlightStages{};
+    gsx_ = std::move(gsx);
+}
+
+void FlightStages::updateReady(const std::string& iso) {
+    if (!showingFlight_ || phase_ != "arrived" || !readyIso_.empty()) return;
+    const auto& deboarding = gsx_.arrival();
+    if (anyRunning(deboarding)) return;  // wait for GSX to finish
+    const bool checksPass =
+        checks_ && checks_->enginesOff && checks_->parkingBrakeSet && checks_->beaconOff && checks_->strobeOff;
+    if (anyCompleted(deboarding) || checksPass) readyIso_ = iso;
+}
+
+StageLine FlightStages::readyLine() const {
+    const ShutdownChecks c = checks_.value_or(ShutdownChecks{});
+    StageLine l{"Ready for shutdown or turnaround", hhmmZ(readyIso_), "", false, {}};
+    l.checks.push_back({"Engines off", c.enginesOff});
+    l.checks.push_back({"Parking brake set", c.parkingBrakeSet});
+    if (!gsx_.arrival().empty()) l.checks.push_back({"Deboarding complete", anyCompleted(gsx_.arrival())});
+    l.checks.push_back({"Beacon off", c.beaconOff});
+    l.checks.push_back({"Strobes off", c.strobeOff});
+    return l;
+}
+
+bool FlightStages::onShutdownChecks(const ShutdownChecks& c, const std::string& iso) {
+    if (!showingFlight_ || phase_ != "arrived") return false;
+    const bool changed = !checks_ || *checks_ != c;
+    checks_ = c;
+    const bool wasReady = !readyIso_.empty();
+    updateReady(iso);
+    if (readyIso_.empty()) return false;  // nothing shows the checks yet
+    return !wasReady || changed;
+}
+
+void FlightStages::showNextLeg() { clearFlight(); }
+
 void FlightStages::onEvent(std::string_view type, const nlohmann::json& d) {
     const std::string iso = str(d, "time");
+    if (type == "block_out") {
+        clearFlight();
+        gsx_.onEvent(type, d);
+        showingFlight_ = true;
+        return;
+    }
+    if (type == "flight_interrupted") {  // discarded with its services (D-072); the next leg shows
+        gsx_.onEvent(type, d);
+        clearFlight();
+        return;
+    }
+    if (type == "gsx_service" || type == "block_in" || type == "sim_stopped" || type == "sim_disconnected") {
+        gsx_.onEvent(type, d);
+        if (type == "gsx_service") updateReady(iso);
+        return;
+    }
     if (type == "phase_changed") {
+        showingFlight_ = true;
         onPhase(str(d, "phase"), iso, integer(d, "alt_ft"), flag(d, "flight_level"));
     } else if (type == "level_off") {
         close(levelLine_, iso);
@@ -172,9 +243,19 @@ void FlightStages::onEvent(std::string_view type, const nlohmann::json& d) {
     }
 }
 
-void FlightStages::reset() { *this = FlightStages{}; }
-
 std::vector<StageView> FlightStages::view() const {
+    // The flight's lines plus its GSX services: those it took at block out, and its deboarding. The next leg (before
+    // block out, or after showNextLeg) has only the services so far.
+    std::vector<Line> all = lines_;
+    const auto addSpans = [&](Stage stage, const std::vector<ServiceSpan>& spans) {
+        for (const ServiceSpan& sp : spans) all.push_back(Line{stage, serviceName(sp.service), sp.startIso, sp.endIso, sp.running});
+    };
+    if (showingFlight_) {
+        addSpans(Stage::PreDeparture, gsx_.departed());
+        addSpans(Stage::Arrival, gsx_.arrival());
+    } else {
+        addSpans(Stage::PreDeparture, gsx_.nextLeg());
+    }
     const int current = static_cast<int>(stageOf(phase_));
     std::vector<StageView> out;
     for (int i = 0; i < 6; ++i) {
@@ -182,11 +263,12 @@ std::vector<StageView> FlightStages::view() const {
                     i < current ? StageState::Done : i == current ? StageState::Current : StageState::Upcoming,
                     {}};
         std::vector<const Line*> mine;
-        for (const Line& l : lines_)
+        for (const Line& l : all)
             if (static_cast<int>(l.stage) == i) mine.push_back(&l);
         std::stable_sort(mine.begin(), mine.end(), [](const Line* a, const Line* b) { return a->startIso < b->startIso; });
         for (const Line* l : mine)
-            v.lines.push_back({l->text, hhmmZ(l->startIso), l->endIso.empty() ? "" : hhmmZ(l->endIso), l->running});
+            v.lines.push_back({l->text, hhmmZ(l->startIso), l->endIso.empty() ? "" : hhmmZ(l->endIso), l->running, {}});
+        if (i == static_cast<int>(Stage::Arrival) && !readyIso_.empty()) v.lines.push_back(readyLine());
         out.push_back(std::move(v));
     }
     return out;

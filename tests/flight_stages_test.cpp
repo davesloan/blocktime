@@ -176,10 +176,189 @@ TEST(FlightStages, RunningLinesHaveNoEnd) {
     EXPECT_EQ(line.end, "");
 }
 
-TEST(FlightStages, ResetStartsOver) {
+TEST(FlightStages, ShowNextLegStartsOver) {
     FlightStages s;
     phase(s, "pushback", "22:51:08", 25);
-    s.reset();
+    s.showNextLeg();
     EXPECT_TRUE(s.view()[1].lines.empty());
     EXPECT_EQ(s.view()[0].state, StageState::Current);
+    EXPECT_FALSE(s.showingFlight());
+}
+
+// --- GSX services and the shutdown checklist (milestone 8, D-134..D-136, D-138) ---------------------------------
+
+namespace {
+
+void gsx(FlightStages& s, const std::string& service, const std::string& state, const std::string& hms) {
+    s.onEvent("gsx_service", {{"service", service}, {"state", state}, {"time", at(hms)}});
+}
+void block(FlightStages& s, const std::string& type, const std::string& hms) {
+    s.onEvent(type, {{"flight_id", "F1"}, {"time", at(hms)}});
+}
+// Block out to arrived, with no GSX.
+void flyTo(FlightStages& s, const std::string& inHms) {
+    block(s, "block_out", "10:00:00");
+    phase(s, "pushback", "10:00:00", 25);
+    phase(s, "taxi_out", "10:03:00", 25);
+    block(s, "block_in", inHms);
+    phase(s, "arrived", inHms, 25);
+}
+std::vector<std::string> checkTexts(const StageLine& l) {
+    std::vector<std::string> out;
+    for (const auto& c : l.checks) out.push_back(c.text);
+    return out;
+}
+
+}  // namespace
+
+TEST(FlightStages, NextLegServicesShowBeforeBlockOut) {
+    FlightStages s;
+    gsx(s, "refuelling", "performing", "09:30:00");
+    const auto v = s.view();
+    EXPECT_EQ(v[0].state, StageState::Current);
+    ASSERT_EQ(v[0].lines.size(), 1u);
+    EXPECT_EQ(v[0].lines[0].text, "Refuelling");
+    EXPECT_TRUE(v[0].lines[0].running);
+    EXPECT_EQ(v[0].lines[0].start, "09:30Z");
+    EXPECT_TRUE(s.hasNextLegServices());
+    EXPECT_FALSE(s.showingFlight());
+}
+
+TEST(FlightStages, DepartedServicesKeptAfterBlockOut) {
+    FlightStages s;
+    gsx(s, "refuelling", "performing", "09:30:00");
+    gsx(s, "refuelling", "completed", "09:40:00");
+    block(s, "block_out", "10:00:00");
+    phase(s, "pushback", "10:00:00", 25);
+    const auto v = s.view();
+    EXPECT_EQ(v[0].state, StageState::Done);
+    ASSERT_EQ(v[0].lines.size(), 1u);
+    EXPECT_EQ(v[0].lines[0].text, "Refuelling");
+    EXPECT_EQ(v[0].lines[0].start, "09:30Z");
+    EXPECT_EQ(v[0].lines[0].end, "09:40Z");
+    EXPECT_EQ(texts(v[1]), std::vector<std::string>{"Pushback"});
+    EXPECT_TRUE(s.showingFlight());
+    EXPECT_FALSE(s.hasNextLegServices());
+}
+
+TEST(FlightStages, NoServicesPreDepartureEmptyAndDone) {
+    FlightStages s;
+    block(s, "block_out", "10:00:00");
+    phase(s, "pushback", "10:00:00", 25);
+    const auto v = s.view();
+    EXPECT_EQ(v[0].state, StageState::Done);
+    EXPECT_TRUE(v[0].lines.empty());
+}
+
+TEST(FlightStages, PushbackByGsxLabel) {
+    FlightStages s;
+    gsx(s, "pushback", "performing", "09:59:50");
+    block(s, "block_out", "10:00:00");
+    phase(s, "pushback", "10:00:00", 25);
+    EXPECT_EQ(texts(s.view()[1]), std::vector<std::string>{"Pushback (GSX)"});
+}
+
+TEST(FlightStages, DeboardingAndReadyOnCompletion) {
+    FlightStages s;
+    flyTo(s, "12:00:00");
+    gsx(s, "deboarding", "performing", "12:02:00");
+    gsx(s, "deboarding", "completed", "12:08:00");
+    const auto v = s.view();
+    EXPECT_EQ(texts(v[5]),
+              (std::vector<std::string>{"Parked", "Deboarding", "Ready for shutdown or turnaround"}));
+    const StageLine& ready = v[5].lines[2];
+    EXPECT_EQ(ready.start, "12:08Z");
+    EXPECT_EQ(checkTexts(ready), (std::vector<std::string>{"Engines off", "Parking brake set", "Deboarding complete",
+                                                            "Beacon off", "Strobes off"}));
+    EXPECT_TRUE(ready.checks[2].done);
+    EXPECT_EQ(v[5].lines[1].end, "12:08Z");
+}
+
+TEST(FlightStages, ReadyOnChecksWithoutGsx) {
+    FlightStages s;
+    flyTo(s, "12:00:00");
+    EXPECT_TRUE(s.onShutdownChecks({true, true, true, true}, at("12:03:00")));
+    const auto v = s.view();
+    ASSERT_EQ(texts(v[5]), (std::vector<std::string>{"Parked", "Ready for shutdown or turnaround"}));
+    EXPECT_EQ(v[5].lines[1].start, "12:03Z");
+    EXPECT_EQ(checkTexts(v[5].lines[1]),
+              (std::vector<std::string>{"Engines off", "Parking brake set", "Beacon off", "Strobes off"}));
+    for (const auto& c : v[5].lines[1].checks) EXPECT_TRUE(c.done);
+}
+
+TEST(FlightStages, ChecksNotAllPassedNoReady) {
+    FlightStages s;
+    flyTo(s, "12:00:00");
+    s.onShutdownChecks({true, true, false, true}, at("12:03:00"));
+    EXPECT_EQ(texts(s.view()[5]), std::vector<std::string>{"Parked"});
+}
+
+TEST(FlightStages, ReadyWaitsForRunningDeboarding) {
+    FlightStages s;
+    flyTo(s, "12:00:00");
+    gsx(s, "deboarding", "performing", "12:02:00");
+    s.onShutdownChecks({true, true, true, true}, at("12:03:00"));
+    EXPECT_EQ(texts(s.view()[5]), (std::vector<std::string>{"Parked", "Deboarding"}));
+    gsx(s, "deboarding", "completed", "12:08:00");
+    EXPECT_EQ(texts(s.view()[5]),
+              (std::vector<std::string>{"Parked", "Deboarding", "Ready for shutdown or turnaround"}));
+}
+
+TEST(FlightStages, ChecksUpdateLive) {
+    FlightStages s;
+    flyTo(s, "12:00:00");
+    gsx(s, "deboarding", "performing", "12:02:00");
+    s.onShutdownChecks({true, true, false, true}, at("12:03:00"));
+    gsx(s, "deboarding", "completed", "12:08:00");
+    EXPECT_FALSE(s.view()[5].lines[2].checks[3].done);  // beacon still on
+    EXPECT_TRUE(s.onShutdownChecks({true, true, true, true}, at("12:09:00")));
+    EXPECT_TRUE(s.view()[5].lines[2].checks[3].done);
+    EXPECT_FALSE(s.onShutdownChecks({true, true, true, true}, at("12:10:00")));
+}
+
+TEST(FlightStages, ChecksBeforeBlockInChangeNothing) {
+    FlightStages s;
+    block(s, "block_out", "10:00:00");
+    phase(s, "pushback", "10:00:00", 25);
+    EXPECT_FALSE(s.onShutdownChecks({true, true, true, true}, at("10:01:00")));
+    EXPECT_TRUE(s.view()[5].lines.empty());
+}
+
+TEST(FlightStages, ShowNextLegDropsTheFlight) {
+    FlightStages s;
+    flyTo(s, "12:00:00");
+    gsx(s, "catering", "performing", "12:05:00");
+    gsx(s, "catering", "completed", "12:15:00");
+    EXPECT_TRUE(s.view()[0].lines.empty());  // still the last flight's view: it had no pre-departure services
+    s.showNextLeg();
+    const auto v = s.view();
+    for (int i = 1; i < 6; ++i) EXPECT_TRUE(v[static_cast<std::size_t>(i)].lines.empty());
+    EXPECT_EQ(v[0].state, StageState::Current);
+    EXPECT_EQ(texts(v[0]), std::vector<std::string>{"Catering"});
+    EXPECT_EQ(s.phaseLabel(), "");
+    EXPECT_FALSE(s.onShutdownChecks({true, true, true, true}, at("12:20:00")));
+}
+
+TEST(FlightStages, AbandonedLineDisappears) {
+    FlightStages s;
+    gsx(s, "catering", "performing", "09:30:00");
+    gsx(s, "catering", "bypassed", "09:31:00");
+    EXPECT_TRUE(s.view()[0].lines.empty());
+}
+
+TEST(FlightStages, InterruptedShowsTheNextLeg) {
+    FlightStages s;
+    block(s, "block_out", "10:00:00");
+    phase(s, "pushback", "10:00:00", 25);
+    block(s, "flight_interrupted", "10:05:00");
+    EXPECT_FALSE(s.showingFlight());
+    EXPECT_TRUE(s.view()[1].lines.empty());
+}
+
+TEST(FlightStages, BlockOutStartsAFreshFlight) {
+    FlightStages s;
+    flyTo(s, "12:00:00");
+    block(s, "block_out", "13:00:00");
+    EXPECT_TRUE(s.view()[5].lines.empty());
+    EXPECT_TRUE(s.view()[1].lines.empty());
 }
