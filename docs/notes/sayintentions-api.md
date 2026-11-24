@@ -62,6 +62,16 @@ Sources:
   - `flight_details.arrival_wx`: the destination's ATIS, METAR, TAF and active runways, like getWX.
   - Stale values: `atc.ground.on_runway` still said "34R" in cruise.
   - **The same JSON holds the pilot's `api_key` and email**: never log or store the whole thing, only pick fields.
+- **No TaxiTuner access (checked 2026-11-24).** TaxiTuner is SayIntentions' airport-layout editor (taxiways, gates,
+  stands, with terminal, size and assigned airline per spot since v3). Dave cloned KPDX there so XLY always gets
+  D14. SAPI has no endpoint that lists an airport's gates or reads or writes airline assignments. The only gate calls
+  are `assignGate` (above) and **`getParking`**: the active flight's own parking, `{"parking": {"id", "name": "Gate
+  A21", "lat", "lon", "heading"}}`. `importVAData` (POST) only takes free-text prompt data for crew and dispatch. So
+  BlockTime picks from MSFS's parking data and asks with `assignGate` (D-074), which is what Dave wants: no per-airport
+  TaxiTuner editing.
+- **Timing (for milestone 9):** SayIntentions had already chosen E7A in cruise, well before D-074's "around top of
+  descent". Still to test: whether `assignGate` replaces a gate SayIntentions already chose, and whether to ask
+  earlier (at cruise). Read the result back from `getParking` or the flightJSON `assigned_gate`.
 - **For milestone 9:** the gate's position should map it onto an MSFS parking spot (nearest `probe_facility` parking),
   which avoids parsing "Terminal 3 Gate E7A". Still open: whether `assignGate` takes "E7A" or needs the terminal.
 - **getCommsHistory** (milestone 10, the ATC log for D-040): `GET .../sapi/getCommsHistory?api_key=&since_id=`.
