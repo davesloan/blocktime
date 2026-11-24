@@ -1924,3 +1924,16 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: each came up while building or in the whole-milestone review. They're recorded so Dave can confirm or change
   them, and so nobody undoes them by accident.
 - Alternatives considered: following the plan to the letter on each point, with the gaps described above.
+
+## D-131 — Start with two fleet slots
+- Date: 2026-11-23
+- Status: Accepted
+- Decided by: Dave
+- Area: design
+- Decision: The airline starts with two aircraft slots instead of one. The first earned slot still comes at 10 hours
+  flown, and each one after costs 10 more hours than the last: slot 3 at 10 h, slot 4 at 30 h, slot 5 at 60 h, and so
+  on (design.md §6). Supersedes the "start with 1 slot" part of D-083's slot rule; the rest stands.
+- Why: Dave wants a second airplane, a 777-300ER, for test flights now, at about 2.6 hours flown. The game shouldn't
+  make him fly 10 hours in one airplane before he can try the other family.
+- Alternatives considered: an `extra_slots` line in airline.yaml (a config exception rather than a rule change);
+  waiting until 10 hours.

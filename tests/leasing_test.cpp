@@ -299,31 +299,34 @@ TEST_F(Leasing, TypeSyncWritesSimFolders) {
 }
 
 TEST(Slots, FromHours) {
-    EXPECT_EQ(slotsEarned(0), 1);
-    EXPECT_EQ(slotsEarned(9.9), 1);
-    EXPECT_EQ(slotsEarned(10), 2);
-    EXPECT_EQ(slotsEarned(29.9), 2);
-    EXPECT_EQ(slotsEarned(30), 3);
-    EXPECT_EQ(slotsEarned(150), 6);
-    EXPECT_EQ(slotsEarned(279.9), 7);
-    EXPECT_EQ(slotsEarned(280), 8);
-    EXPECT_EQ(slotsEarned(450), 10);
-    EXPECT_DOUBLE_EQ(hoursForSlot(2), 10);
-    EXPECT_DOUBLE_EQ(hoursForSlot(10), 450);
+    // Two slots to start; the first earned one still comes at 10 h (D-131).
+    EXPECT_EQ(slotsEarned(0), 2);
+    EXPECT_EQ(slotsEarned(9.9), 2);
+    EXPECT_EQ(slotsEarned(10), 3);
+    EXPECT_EQ(slotsEarned(29.9), 3);
+    EXPECT_EQ(slotsEarned(30), 4);
+    EXPECT_EQ(slotsEarned(150), 7);
+    EXPECT_EQ(slotsEarned(279.9), 8);
+    EXPECT_EQ(slotsEarned(280), 9);
+    EXPECT_EQ(slotsEarned(450), 11);
+    EXPECT_DOUBLE_EQ(hoursForSlot(2), 0);
+    EXPECT_DOUBLE_EQ(hoursForSlot(3), 10);
+    EXPECT_DOUBLE_EQ(hoursForSlot(11), 450);
 }
 
 TEST_F(Leasing, NoFreeSlotMeansNoLeaseAndANotice) {
     slots_.reset();  // earned from hours, as in the app
-    config_.airplanes = {airplane("N738BT", d(2026, 11, 22), "1_1"), airplane("N738CC", d(2026, 11, 22), "1_2")};
+    config_.airplanes = {airplane("N738BT", d(2026, 11, 22), "1_1"), airplane("N738CC", d(2026, 11, 22), "1_2"),
+                         airplane("N738DD", d(2026, 11, 22), "1_3")};
     LeaseOutcome outcome = settle(d(2026, 11, 22));
-    EXPECT_EQ(outcome.leased, 1);
+    EXPECT_EQ(outcome.leased, 2);
     ASSERT_EQ(outcome.notices.size(), 1u);
     EXPECT_EQ(outcome.notices[0],
-              "Can't lease N738CC yet: 1 of 1 slots in use. Slot 2 comes at 10 hours flown (you have 0.0).");
-    EXPECT_EQ(count("SELECT COUNT(*) FROM airplane"), 1);
-    EXPECT_EQ(count("SELECT COUNT(*) FROM ledger_line WHERE category = 'lease'"), 1);
+              "Can't lease N738DD yet: 2 of 2 slots in use. Slot 3 comes at 10 hours flown (you have 0.0).");
+    EXPECT_EQ(count("SELECT COUNT(*) FROM airplane"), 2);
+    EXPECT_EQ(count("SELECT COUNT(*) FROM ledger_line WHERE category = 'lease'"), 2);
 
-    // Ten hours of flights in N738BT earn slot 2.
+    // Ten hours of flights in N738BT earn slot 3.
     ASSERT_TRUE(db_.exec(
         "INSERT INTO flight (log_flight_id, airplane_id, flight_number, kind, origin_airport_id,"
         " planned_destination_airport_id, arrival_airport_id, cargo_lb, fuel_price_cents_per_100lb, planned_at,"
@@ -338,14 +341,16 @@ TEST_F(Leasing, NoFreeSlotMeansNoLeaseAndANotice) {
     outcome = settle(d(2026, 11, 23));
     EXPECT_EQ(outcome.leased, 1);
     EXPECT_TRUE(outcome.notices.empty());
-    EXPECT_EQ(count("SELECT COUNT(*) FROM airplane"), 2);
+    EXPECT_EQ(count("SELECT COUNT(*) FROM airplane"), 3);
 }
 
 TEST_F(Leasing, ReturnedAirplanesDontTakeASlot) {
     slots_.reset();
-    settle(d(2026, 11, 22));
-    ASSERT_TRUE(db_.exec("UPDATE airplane SET returned_on = '2026-11-22', return_reason = 'unpaid'"));
     config_.airplanes.push_back(airplane("N738CC", d(2026, 11, 22), "1_2"));
+    settle(d(2026, 11, 22));  // both starting slots in use
+    ASSERT_TRUE(db_.exec("UPDATE airplane SET returned_on = '2026-11-22', return_reason = 'unpaid'"
+                         " WHERE registration = 'N738CC'"));
+    config_.airplanes.push_back(airplane("N738DD", d(2026, 11, 22), "1_3"));
     const LeaseOutcome outcome = settle(d(2026, 11, 22));
     EXPECT_EQ(outcome.leased, 1);
 }
