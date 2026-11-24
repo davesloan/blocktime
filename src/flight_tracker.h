@@ -18,16 +18,12 @@
 
 #include "block_detector.h"
 #include "flight_match.h"
+#include "log_event.h"
 #include "phase_detector.h"
 #include "runway_match.h"
 #include "touchdown_capture.h"
 
 namespace blocktime {
-
-struct LogEvent {
-    std::string type;
-    nlohmann::json data;
-};
 
 // KOHLSMAN SETTING MB:1/2 and KOHLSMAN SETTING STD:1/2 (D-123).
 struct AltimeterSample {

@@ -26,6 +26,7 @@
 #include "active_clock.h"
 #include "event_log.h"
 #include "flight_tracker.h"
+#include "gsx_watcher.h"
 #include "runway_match.h"
 #include "sim_probe.h"
 #include "sim_vars.h"
@@ -43,6 +44,7 @@ public:
     using FastSampleCallback = std::function<void(const FastSample&)>;
     using AltimeterCallback = std::function<void(const AltimeterSample&)>;
     using RunwaysCallback = std::function<void(AirportRunways)>;
+    using GsxCallback = std::function<void(const GsxValues&)>;  // milestone 8 (D-138)
 
     // `probe`: also run the --probe data requests (D-116, sim_probe.h).
     SimConnection(EventLog& log, SampleCallback onSample, SimStateCallback onSimState = {}, bool probe = false);
@@ -70,7 +72,8 @@ public:
     // With --probe: logs these airports' runways and parking spots from the sim's facility data.
     void requestProbeFacilities(const std::vector<std::string>& icaos);
 
-    void setFlightCallbacks(FastSampleCallback onFast, AltimeterCallback onAltimeter, RunwaysCallback onRunways);
+    void setFlightCallbacks(FastSampleCallback onFast, AltimeterCallback onAltimeter, RunwaysCallback onRunways,
+                            GsxCallback onGsx);
     // Asks for each airport's runways; each list goes to the runways callback when it's complete. False (nothing
     // sent) before the handshake.
     bool requestRunways(const std::vector<std::string>& icaos);
@@ -101,6 +104,7 @@ private:
     FastSampleCallback onFast_;
     AltimeterCallback onAltimeter_;
     RunwaysCallback onRunways_;
+    GsxCallback onGsx_;
     ActiveClock clock_;
     bool fastOn_ = false;
     double baroMb_[2] = {0, 0};

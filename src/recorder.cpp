@@ -20,6 +20,7 @@
 #include "event_outbox.h"
 #include "flight_tracker.h"
 #include "geo.h"
+#include "gsx_watcher.h"
 #include "open_flight.h"
 #include "sim_connection.h"
 #include "telemetry_filter.h"
@@ -190,6 +191,11 @@ std::string flightLine(const LogEvent& e) {
         return now + "  " + phase;
     }
     if (e.type == "liftoff") return now + "  LIFTOFF  " + e.data.value("runway", "");
+    if (e.type == "gsx_service") {
+        const std::string state = e.data.value("state", "");
+        if (state != "requested" && state != "performing" && state != "completed") return "";
+        return now + "  GSX " + e.data.value("service", "") + " " + state;
+    }
     if (e.type == "touchdown") {
         return std::format("{}  TOUCHDOWN  {:.0f} fpm  {:.2f} g", now, e.data.value("vs_fpm", 0.0),
                            e.data.value("g", 0.0));
@@ -271,8 +277,17 @@ int Recorder::run(const std::atomic<bool>& stop) {
         }
         if (simPtr) simPtr->setFastSampling(tracker.wantsFastSampling());
     };
+    // GSX's services, read whether or not a flight is open (D-073, D-138). A new sim session starts them afresh.
+    GsxWatcher gsx;
+    // The app's GsxTimeline drops the next leg's services when the sim session ends (D-138). These are logged by
+    // SimConnection already; the observer is only told.
+    const auto sessionEvent = [&](bool running) {
+        gsx.reset();
+        observer.onFlightEvent(running ? "sim_running" : "sim_stopped", {{"time", utcTimestamp()}});
+    };
     const auto endSession = [&](std::string_view reason) {
         if (auto e = detector.onSessionEnded(reason)) blockEvent(*e, nullptr);
+        sessionEvent(false);
     };
     // The airports whose runways were last asked for, so a new planned flight asks again (D-126).
     std::vector<std::string> runwaysAsked;
@@ -318,6 +333,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
         if (!running) {
             if (auto e = detector.onSimStopped()) blockEvent(*e, nullptr);
         }
+        sessionEvent(running);
     }, options_.probe);
 
     simPtr = &sim;
@@ -330,7 +346,8 @@ int Recorder::run(const std::atomic<bool>& stop) {
         [&](AirportRunways a) {
             log.write("airport_runways", toJson(a));
             tracker.setRunways(std::move(a));
-        });
+        },
+        [&](const GsxValues& v) { writeFlightEvents(gsx.onValues(v, std::chrono::system_clock::now())); });
     if (options_.probe) observer.onLine("Probe on: logging GSX, PMDG and airport data (D-116).", false);
     auto waitingSince = std::chrono::steady_clock::now();
     bool announcedWaiting = false;

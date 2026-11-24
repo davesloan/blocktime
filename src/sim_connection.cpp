@@ -44,7 +44,8 @@ enum DefinitionId : SIMCONNECT_DATA_DEFINITION_ID {
     DEF_TOUCHDOWN = 2,  // milestone 7's: each its own definition, so a name the sim refuses drops only that one
     DEF_BARO_MB = 3,
     DEF_BARO_STD = 4,
-    DEF_RUNWAYS = 5
+    DEF_RUNWAYS = 5,
+    DEF_GSX_SERVICE = 6  // milestone 8's GSX states (D-138)
 };
 
 enum RequestId : SIMCONNECT_DATA_REQUEST_ID {
@@ -53,6 +54,7 @@ enum RequestId : SIMCONNECT_DATA_REQUEST_ID {
     REQ_TOUCHDOWN = 3,         // every sim frame, only while fast sampling is on (D-125)
     REQ_BARO_MB = 4,           // the altimeter settings, once a second on change (D-123)
     REQ_BARO_STD = 5,
+    REQ_GSX_SERVICE = 6,       // GSX's service states, once a second on change (D-138)
     REQ_SIM_STATE = 10,        // RequestSystemState("Sim")
     REQ_AIRCRAFT_LOADED = 11,  // RequestSystemState("AircraftLoaded")
     REQ_RUNWAYS_FIRST = 20,    // facility data, one per airport asked for (D-126)
@@ -98,6 +100,17 @@ constexpr FlightVar kBaroMbVars[] = {{"KOHLSMAN SETTING MB:1", "millibars", SIMC
                                      {"KOHLSMAN SETTING MB:2", "millibars", SIMCONNECT_DATATYPE_FLOAT64}};
 constexpr FlightVar kBaroStdVars[] = {{"KOHLSMAN SETTING STD:1", "bool", SIMCONNECT_DATATYPE_INT32},
                                       {"KOHLSMAN SETTING STD:2", "bool", SIMCONNECT_DATATYPE_INT32}};
+// GSX Pro's L:vars, in GsxValues' order (gsx_watcher.h). All zeros when GSX isn't running.
+constexpr FlightVar kGsxServiceVars[] = {
+    {"L:FSDT_GSX_CATERING_STATE", "number", SIMCONNECT_DATATYPE_FLOAT64},
+    {"L:FSDT_GSX_REFUELING_STATE", "number", SIMCONNECT_DATATYPE_FLOAT64},
+    {"L:FSDT_GSX_BOARDING_STATE", "number", SIMCONNECT_DATATYPE_FLOAT64},
+    {"L:FSDT_GSX_DEBOARDING_STATE", "number", SIMCONNECT_DATATYPE_FLOAT64},
+    {"L:FSDT_GSX_DEPARTURE_STATE", "number", SIMCONNECT_DATATYPE_FLOAT64},
+    {"L:FSDT_GSX_NUMPASSENGERS_BOARDING_TOTAL", "number", SIMCONNECT_DATATYPE_FLOAT64},
+    {"L:FSDT_GSX_NUMPASSENGERS_DEBOARDING_TOTAL", "number", SIMCONNECT_DATATYPE_FLOAT64},
+};
+static_assert(sizeof(GsxValues) == std::size(kGsxServiceVars) * sizeof(double));
 constexpr const char* kRunwayFields[] = {
     "OPEN AIRPORT", "LATITUDE", "LONGITUDE", "ALTITUDE",
     "OPEN RUNWAY", "LATITUDE", "LONGITUDE", "ALTITUDE", "HEADING", "LENGTH", "WIDTH", "PRIMARY_NUMBER",
@@ -203,10 +216,11 @@ void SimConnection::requestProbeFacilities(const std::vector<std::string>& icaos
 }
 
 void SimConnection::setFlightCallbacks(FastSampleCallback onFast, AltimeterCallback onAltimeter,
-                                       RunwaysCallback onRunways) {
+                                       RunwaysCallback onRunways, GsxCallback onGsx) {
     onFast_ = std::move(onFast);
     onAltimeter_ = std::move(onAltimeter);
     onRunways_ = std::move(onRunways);
+    onGsx_ = std::move(onGsx);
 }
 
 bool SimConnection::requestRunways(const std::vector<std::string>& icaos) {
@@ -322,6 +336,10 @@ bool SimConnection::setup() {
     check(SimConnect_RequestDataOnSimObject(h(handle_), REQ_BARO_STD, DEF_BARO_STD, SIMCONNECT_OBJECT_ID_USER,
                                             SIMCONNECT_PERIOD_SECOND, SIMCONNECT_DATA_REQUEST_FLAG_CHANGED),
           "altimeter STD request");
+    define(DEF_GSX_SERVICE, kGsxServiceVars);
+    check(SimConnect_RequestDataOnSimObject(h(handle_), REQ_GSX_SERVICE, DEF_GSX_SERVICE, SIMCONNECT_OBJECT_ID_USER,
+                                            SIMCONNECT_PERIOD_SECOND, SIMCONNECT_DATA_REQUEST_FLAG_CHANGED),
+          "GSX request");
     for (const char* f : kRunwayFields) check(SimConnect_AddToFacilityDefinition(h(handle_), DEF_RUNWAYS, f), f);
     // The probe's requests don't decide whether the session works: a failure is logged, not fatal (D-116).
     if (probe_ && !probe_->setup(handle_)) log_.write("warning", {{"message", "probe setup failed in part"}});
@@ -480,6 +498,13 @@ void SimConnection::handleMessage(const void* raw, unsigned long size) {
                 baroStd_[0] = r.capt != 0;
                 baroStd_[1] = r.fo != 0;
                 if (onAltimeter_) onAltimeter_(AltimeterSample{baroMb_[0], baroMb_[1], baroStd_[0], baroStd_[1]});
+                break;
+            }
+            if (d->dwRequestID == REQ_GSX_SERVICE) {
+                GsxValues v{};
+                if (dataSize < sizeof(v) || !onGsx_) break;
+                std::memcpy(&v, data, sizeof(v));
+                onGsx_(v);
                 break;
             }
             if (d->dwRequestID != REQ_TELEMETRY && d->dwRequestID != REQ_SNAPSHOT) break;
