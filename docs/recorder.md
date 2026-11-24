@@ -219,6 +219,19 @@ GSX Pro reports each ground service's state as an L:var, which SimConnect can re
 - The app decides which leg each service belongs to: deboarding goes with the leg that just ended; catering,
   fuel and boarding with the next leg.
 
+## ATC log, ATIS and altimeter (milestone 7, D-123)
+
+For the flight analysis (D-040). None of it can be fetched after the flight, so it's logged while the flight is open.
+- **ATC log:** SayIntentions' `getCommsHistory`, polled about once a minute and at block in. It logs each exchange
+  once: the whole current flight is fetched each time, and exchanges already logged are skipped.
+- **ATIS:** SayIntentions' `getWX`, logged whenever it changes:
+  - the origin's every 10 minutes from block out to takeoff;
+  - the destination's every 10 minutes from top of descent to landing.
+- **Altimeter:** `KOHLSMAN SETTING MB:1/2` and `KOHLSMAN SETTING STD:1/2`, change-based. PMDG's SDK has no baro value.
+  Whether PMDG drives these SimVars is checked first (`docs/notes/probe-flight.md`).
+- **Ownership:** the web calls are the app's (the recorder reports sim facts), but the results go into the same event
+  log, so the analysis reads one file.
+
 ## Parking spots and runways (D-074)
 
 The app needs an airport's parking spots (name, position, radius, type) and runways for the departure runway, the

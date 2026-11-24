@@ -1751,3 +1751,32 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   - scoring centreline and touchdown-zone accuracy, as FlyHub does: rejected, because it penalises flying that looks
     right in the sim;
   - a 5–10 m gate tolerance, which a scenery offset would break.
+
+## D-123 — Milestone 7 starts logging the ATC log, the ATIS and the altimeter settings
+- Date: 2026-11-23
+- Status: Accepted (what to log: Dave). The fetch timing and the dedupe method are Proposed (Claude), to be settled in
+  milestone 7's plan.
+- Decided by: Dave + Claude
+- Area: recorder, design
+- Decision: From milestone 7 on, every recorded flight collects what milestone 10's analysis (D-040) needs, so real
+  flights build up material for it.
+  - **The ATC log.** SayIntentions' `getCommsHistory` serves only the current flight, so it's polled while the
+    flight is open: about once a minute, and once more at block in.
+    - Each call fetches the whole current flight and logs only exchanges not logged yet, because a reply can be
+      written a few seconds late (`docs/notes/sayintentions-api.md`).
+    - A failed call is retried at the next poll and never blocks the flight.
+  - **The ATIS for the origin and the destination,** from `getWX`, during the phases where a pilot uses it, logged
+    whenever it changes:
+    - the origin's every 10 minutes from block out to takeoff;
+    - the destination's every 10 minutes from top of descent to landing.
+  - **The altimeter settings,** change-based: the captain's and first officer's setting and whether each is on STD.
+    - PMDG's SDK has no baro value (only the hPa/inHg selector, and the 777's STD button), so they come from the
+      sim's `KOHLSMAN SETTING MB:n` and `KOHLSMAN SETTING STD:n`.
+    - Whether PMDG drives those isn't known yet. The probe logs them (`probe_altimeter`) from 2026-11-23, and
+      milestone 7's first sim check confirms they follow the knob and the STD button.
+  - **Scoring:** a wrong altimeter setting in the wrong phase counts in the score (design.md §14). Unlike runway
+    geometry (D-122), the setting is read from the cockpit itself, not compared against the scenery.
+- Why: the analysis checks the altimeter against the ATIS and the transition altitude and level, and reads the
+  ATC exchanges. None of it can be fetched after the flight, so it has to be logged from the start.
+- Alternatives considered: waiting for milestone 10, which would leave its analysis with no real flights to build
+  and test on.

@@ -52,7 +52,7 @@ private:
     void offer(Pending& p, nlohmann::json values);
 
     EventLog& log_;
-    nlohmann::json lastGsx_, lastSimVars_;
+    nlohmann::json lastGsx_, lastSimVars_, lastBaro_;
     Pending pmdg737_{"probe_pmdg_737", nullptr, nullptr, {}};
     Pending pmdg777_{"probe_pmdg_777", nullptr, nullptr, {}};
     std::map<unsigned long, nlohmann::json> facilities_;  // by request id, until the data ends

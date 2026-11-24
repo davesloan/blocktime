@@ -8,6 +8,7 @@
 
 #include <SimConnect.h>
 
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <format>
@@ -19,12 +20,20 @@ namespace blocktime {
 namespace {
 
 // Ids of their own, well clear of SimConnection's (definitions 1, requests 1-11).
-enum : SIMCONNECT_DATA_DEFINITION_ID { DEF_GSX = 101, DEF_SIMVARS = 102, DEF_FACILITY = 103 };
+enum : SIMCONNECT_DATA_DEFINITION_ID {
+    DEF_GSX = 101,
+    DEF_SIMVARS = 102,
+    DEF_FACILITY = 103,
+    DEF_BARO_MB = 104,
+    DEF_BARO_STD = 105
+};
 enum : SIMCONNECT_DATA_REQUEST_ID {
     REQ_GSX = 101,
     REQ_SIMVARS = 102,
     REQ_PMDG_737 = 103,
     REQ_PMDG_777 = 104,
+    REQ_BARO_MB = 105,
+    REQ_BARO_STD = 106,
     REQ_FACILITY_FIRST = 110,  // one per airport asked for, up to 189
     REQ_LAST = 189
 };
@@ -54,6 +63,12 @@ constexpr SimVar kSimVars[] = {
     {"LIGHT TAXI", "bool"},    {"LIGHT NAV", "bool"},              {"CABIN SEATBELTS ALERT SWITCH", "bool"},
     {"APU SWITCH", "bool"},    {"GEAR HANDLE POSITION", "bool"},  {"GEAR TOTAL PCT EXTENDED", "percent"},
 };
+
+// The altimeter settings (D-123): PMDG's SDK has no baro value, so the question is whether PMDG drives the sim's
+// own. Each list is its own request, so a name the sim doesn't know can't take the other values (or kSimVars) down
+// with it.
+constexpr SimVar kBaroMb[] = {{"KOHLSMAN SETTING MB:1", "millibars"}, {"KOHLSMAN SETTING MB:2", "millibars"}};
+constexpr SimVar kBaroStd[] = {{"KOHLSMAN SETTING STD:1", "bool"}, {"KOHLSMAN SETTING STD:2", "bool"}};
 
 // Facility fields, in the order the data comes back. Types from the SimConnect_AddToFacilityDefinition docs; each
 // record's raw bytes are logged too, in case one of them is wrong.
@@ -111,6 +126,13 @@ bool SimProbe::setup(void* handle) {
     for (const SimVar& v : kSimVars) ok &= SUCCEEDED(SimConnect_AddToDataDefinition(h, DEF_SIMVARS, v.name, v.units));
     ok &= SUCCEEDED(SimConnect_RequestDataOnSimObject(h, REQ_SIMVARS, DEF_SIMVARS, SIMCONNECT_OBJECT_ID_USER,
                                                       SIMCONNECT_PERIOD_SECOND, SIMCONNECT_DATA_REQUEST_FLAG_CHANGED));
+    const auto requestBaro = [&](const auto& vars, SIMCONNECT_DATA_DEFINITION_ID def, SIMCONNECT_DATA_REQUEST_ID req) {
+        for (const SimVar& v : vars) ok &= SUCCEEDED(SimConnect_AddToDataDefinition(h, def, v.name, v.units));
+        ok &= SUCCEEDED(SimConnect_RequestDataOnSimObject(h, req, def, SIMCONNECT_OBJECT_ID_USER,
+                                                          SIMCONNECT_PERIOD_SECOND, SIMCONNECT_DATA_REQUEST_FLAG_CHANGED));
+    };
+    requestBaro(kBaroMb, DEF_BARO_MB, REQ_BARO_MB);
+    requestBaro(kBaroStd, DEF_BARO_STD, REQ_BARO_STD);
     for (const char* f : kFacilityFields) ok &= SUCCEEDED(SimConnect_AddToFacilityDefinition(h, DEF_FACILITY, f));
     const bool pmdg737 = probe::registerPmdg737(handle, REQ_PMDG_737);
     const bool pmdg777 = probe::registerPmdg777(handle, REQ_PMDG_777);
@@ -142,6 +164,20 @@ void SimProbe::onSimObjectData(unsigned long requestId, const void* data, std::s
         if (values == lastSimVars_) return;
         lastSimVars_ = values;
         log_.write("probe_simvars", values);
+    } else if (requestId == REQ_BARO_MB || requestId == REQ_BARO_STD) {
+        const auto& vars = requestId == REQ_BARO_MB ? kBaroMb : kBaroStd;
+        constexpr std::size_t n = std::size(kBaroMb);
+        static_assert(std::size(kBaroStd) == n);
+        if (size < n * sizeof(double)) return;
+        nlohmann::json merged = lastBaro_.is_null() ? nlohmann::json::object() : lastBaro_;
+        for (std::size_t i = 0; i < n; ++i) {
+            double v = 0;
+            std::memcpy(&v, static_cast<const char*>(data) + i * sizeof(double), sizeof v);
+            merged[vars[i].name] = std::round(v * 10) / 10;  // 0.1 hPa is finer than any altimeter's steps
+        }
+        if (merged == lastBaro_) return;
+        lastBaro_ = merged;
+        log_.write("probe_altimeter", merged);
     }
 }
 

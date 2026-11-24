@@ -28,6 +28,7 @@ Nothing extra is requested without the flag. Results go in this note once a prob
 | `probe_gsx` | Any GSX value changes (checked once a second) | GSX's state values through a turnaround: 1 available … 6 completed (unverified, D-073), passenger counts, cargo percent, fuel hose. The L:var names come from community tools; all zeros means they're wrong or GSX isn't running |
 | `probe_simvars` | Any changes (once a second) | `LIGHT BEACON`, `LIGHT STROBE`, `LIGHT LANDING`, `LIGHT TAXI`, `LIGHT NAV`, `CABIN SEATBELTS ALERT SWITCH`, `APU SWITCH`, `GEAR HANDLE POSITION`, `GEAR TOTAL PCT EXTENDED`: whether the plain SimVars follow PMDG's switches |
 | `probe_pmdg_737` / `probe_pmdg_777` | Any listed value changes, at most once a second | The switches in `pmdg-variables-from-spad.md`, by SDK name: battery, seatbelt sign, APU, every light, anti-ice, window and probe heat, doors, CMD/AP and A/T, LNAV/VNAV, gear lights, parking brake. Also the aircraft model and the FMC's figures (distance to top of descent and to destination in whole nm, cruise altitude, V-speeds, transition altitude and level, flight number). The 777 adds `APURunning`, `WheelChocksSet` and the APP light. The 737's APU EGT is rounded to 10° |
+| `probe_altimeter` | Any change (once a second), from 2026-11-23 | `KOHLSMAN SETTING MB:1/2` (hPa, to 0.1) and `KOHLSMAN SETTING STD:1/2`: whether PMDG drives the sim's altimeter settings (D-123). Each list is its own request, so an unknown name drops only that list |
 | `probe_facility` | When the sim connects with a flight planned, and after each block in, for its origin and destination | Each runway (position, heading, length, width, number and designator) and parking spot (type, name, suffix, number, heading, radius, offset from the airport). Every record also has `raw` (its bytes in hex), in case a field type in the request is wrong |
 
 ## Questions for the first probe flight
@@ -210,3 +211,10 @@ Flown during milestone 7's sim checks, with `--probe`:
    descent, and whether `FMC_DistanceToDest_nm` tracks the distance flown.
 3. **GSX deboarding:** its states and passenger counts.
 4. **The gate name:** whether SayIntentions writes "D14" or "D 14".
+5. **The altimeter (D-123), on both families:**
+   - whether `probe_altimeter`'s `KOHLSMAN SETTING MB:1/2` follow the captain's and first officer's baro knobs;
+   - whether `KOHLSMAN SETTING STD:1/2` follow the STD button;
+   - whether `EFIS_BaroSelHPA` shows the units.
+
+   Set a different value on each side once to tell them apart. If `probe_altimeter` never appears, the sim refused
+   the names; look for a `simconnect_exception` near `probe_started`.

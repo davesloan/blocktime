@@ -67,6 +67,7 @@ nlohmann::json decodePmdg737(const void* data, std::size_t size) {
         {"MAIN_annunGEAR_transit", list(d.MAIN_annunGEAR_transit)},
         {"MAIN_annunGEAR_locked", list(d.MAIN_annunGEAR_locked)},
         {"PED_annunParkingBrake", d.PED_annunParkingBrake},
+        {"EFIS_BaroSelHPA", list(d.EFIS_BaroSelHPA)},
     };
     out.update(fmcFields(d));
     return out;

@@ -108,6 +108,11 @@ The phase rules in `recorder.md` (old milestone 4, with D-058), touchdown captur
 dashboard's six stages and sub-events (section 13.5): altitude markers, transition altitude and level and
 "200 nm from destination" from the plan, the departure runway from the sim's runway data.
 
+It also starts logging what milestone 10's analysis needs (D-123). These can't be fetched after a flight:
+- the SayIntentions ATC log, polled during the flight;
+- the origin and destination ATIS, in the phases that use them;
+- the altimeter settings.
+
 ### Milestone 8 — GSX
 
 `gsx_service` events (D-073), each service on the dashboard with start and end, the "Turnaround and Boarding"

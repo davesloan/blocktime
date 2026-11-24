@@ -56,6 +56,15 @@ Newest entries at the top. Add an entry at the end of every working session.
   under `docs/plans/`.
 - **Runways:** the sim's runways can name the departure and arrival runway from the ground roll. The method and its
   margins are in `docs/notes/probe-flight.md`, results item 4.
+- **Also in milestone 7 (D-123):** start logging what milestone 10's analysis needs:
+  - the SayIntentions ATC log;
+  - the origin and destination ATIS, in the phases that use them;
+  - the altimeter settings.
+
+  The fetch timing and the dedupe method are proposals to settle in the plan.
+- **The probe now logs the altimeter settings** (`probe_altimeter`) and PMDG's hPa selector. Any flight with
+  `--probe` before milestone 7 is planned would show whether PMDG drives the sim's altimeter SimVars. Otherwise
+  milestone 7's first sim check does.
 - **Its sim checks** should take in the next probe flight (the list at the end of `probe-flight.md`) and the
   deferred fuel check.
 

@@ -55,6 +55,8 @@ nlohmann::json decodePmdg777(const void* data, std::size_t size) {
         {"MCP_annunVNAV", d.MCP_annunVNAV},
         {"MCP_annunAPP", d.MCP_annunAPP},
         {"BRAKES_ParkingBrakeLeverOn", d.BRAKES_ParkingBrakeLeverOn},
+        {"EFIS_BaroSelHPA", list(d.EFIS_BaroSelHPA)},
+        {"EFIS_BaroSTD_Sw_Pushed", list(d.EFIS_BaroSTD_Sw_Pushed)},
         {"DOOR_state", list(d.DOOR_state)},
         {"APURunning", d.APURunning},
         {"WheelChocksSet", d.WheelChocksSet},
