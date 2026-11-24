@@ -100,6 +100,8 @@ N916SX starts with 0 lb on record, so its first flight is charged for all the fu
 
    The old plan XLY8 KSFO–KLAS (from the discarded leg) is still waiting: **cancel it on Live** first. Then select
    N916SX on Fleet, New Flight to KSLC, generate on SimBrief and import the plan.
+
+   While BlockTime is open, make the window as small as it goes and look at Live: nothing should be cut off.
 2. **Load in.** Start SayIntentions, then MSFS, and load the PMDG 777-300ER at KSAN. Expected:
    - no "Not recording" banner (the type is matched by its folder, `PMDG 777-300ER`, D-112);
    - telemetry flowing (the live values move): this proves `PLANE HEADING DEGREES TRUE` was accepted;
@@ -127,26 +129,36 @@ N916SX starts with 0 lb on record, so its first flight is charged for all the fu
      line from the pause.
 7. **Cruise.** Expected: "Cruising at FL3xx" when you level at the planned altitude, and "200 nm from destination".
    A step climb, if ATC gives one, shows "Step climb to …".
-8. **Descent and landing.** Expected, in order:
+8. **Descent and the first approach.** Expected, in order:
    - "Top of descent";
    - "Passed transition level" (set the QNH there, so the `altimeter` lines show it);
-   - "Below 10,000 ft", "Approach", "Final approach";
-   - "Landed on 34R, −NNN fpm" (or the runway you used) with a believable rate (compare with what you felt);
-   - "Taxiing to gate";
-   - a TOUCHDOWN feed line with the rate and g.
-9. **Gate.** Note the gate SayIntentions gives you and exactly how it writes its name ("B14" or "B 14"). Park, set
+   - "Below 10,000 ft", "Approach", "Final approach" (at 1,000 ft above the ground; it shows once per flight).
+9. **Go-around (Dave wants the practice).** Go around from short final, ideally below 300 ft, fly the missed
+   approach and level at its altitude. Expected:
+   - about 10 s into the climb, a "Go-around" line, and the Flight card reads "Go-around";
+   - the first "Approach" line ends where the go-around began;
+   - about 20 s after you level off, a new "Approach" line and "Level at …" (the missed approach altitude), with the
+     Flight card reading "Approach — level at …";
+   - no touchdown and no "Landed" yet.
+10. **Second approach and landing.** Expected:
+    - "Landed on 34R, −NNN fpm" (or the runway you used) with a believable rate (compare with what you felt);
+    - a TOUCHDOWN feed line with the rate and g (one only, from this landing);
+    - "Taxiing to gate".
+11. **Gate.** Note the gate SayIntentions gives you and exactly how it writes its name ("B14" or "B 14"). Park, set
    the brake and shut down. Expected:
    - the summary as in milestone 6;
    - Arrival shows "Parked" in Flight progress until the summary replaces it.
 
    Then **deboard with GSX** (probe: the deboarding states and counts, and `DOOR_state`).
-10. **No sim.** Send the day's log files (`events-YYYY-MM-DD.jsonl`). I'll check:
+12. **No sim.** Send the day's log files (`events-YYYY-MM-DD.jsonl`). I'll check:
     - `atis` lines for KSAN before takeoff and KSLC after top of descent;
     - `atc_exchange` lines matching SayIntentions' own history;
     - `altimeter` lines against the knobs;
     - `heading_true_deg` in telemetry;
     - the FMC figures (`FMC_DistanceToTOD_nm` counting down to 0, D-120);
-    - the touchdown, and the 777's switches, doors and parking brake.
+    - the touchdown, and the 777's switches, doors and parking brake;
+    - the go-around: `phase_changed` to `go_around` and back to `approach`, and the touchdown samples turning off when
+      you climbed through 500 ft and back on below 300 ft.
 
 **Next step:**
 - Dave's checks above and his answers on D-124..D-130. Then close milestone 7: push `main` (D-121). Milestone 8 (GSX)
