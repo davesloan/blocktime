@@ -118,6 +118,9 @@ It also starts logging what milestone 10's analysis needs (D-123). These can't b
 
 ### Milestone 8 — GSX
 
+**Built in 0.9.0** (`docs/plans/2026-11-24-milestone-8-gsx.md`, D-134..D-138); Dave's sim checks are in
+`docs/progress.md`. Each flight also stores its phase and GSX service times for the leg templates (D-137).
+
 `gsx_service` events (D-073), each service on the dashboard with start and end, the "Turnaround and Boarding"
 line, and "Ready for Shutdown or Turnaround" with its checklist (the items the probe found readable).
 

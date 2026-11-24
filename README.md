@@ -6,14 +6,16 @@ built around the parts that make flying feel meaningful and none of the busywork
 You lease aircraft, build rotations, and fly legs yourself while the rest of your fleet keeps flying in the background.
 Every flight you fly is recorded automatically, from parking brake release to parking brake set.
 
-> **Status:** early development, version 0.8.0. The app records flights (block out / block in), shows live flight
+> **Status:** early development, version 0.9.0. The app records flights (block out / block in), shows live flight
 > data and past flights with the route flown on a dark map, and runs the airline's foundation: your airline and
 > leased airplanes from config files, the monthly lease charges, and the money ledger. New Flight sets up a leg with
 > its loads and money preview, opens a pre-filled SimBrief dispatch page with SayIntentions' runways, and imports
 > the plan. Only that planned flight is recorded, and at block in it's settled: money, the airplane's new airport,
 > fuel and hours, with a summary. During the flight, Live shows its phases in six stages (pushback to parked, with
 > level-offs, markers, the runways and the touchdown rate), and the log collects the ATC exchanges, the ATIS and the
-> altimeter settings for the debrief to come. GSX services come next (`docs/roadmap.md`).
+> altimeter settings for the debrief to come. GSX's services (catering, refuelling, boarding, pushback, deboarding)
+> show with their times from the gate to the gate, with a shutdown checklist after arrival, and each flight keeps its
+> phase and service times. Gates come next (`docs/roadmap.md`).
 
 This project is built for one pilot's own use and shared in case others want to tinker. It isn't designed to be easy to
 set up, and there's no support — but you're welcome to clone it and play.

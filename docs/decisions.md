@@ -987,7 +987,8 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-073 — GSX service events
 - Date: 2026-11-22
-- Status: Accepted (state values unverified)
+- Status: Accepted; the "Turnaround and Boarding" line superseded by D-136, the checklist refined by D-135. State
+  values confirmed by the probe flights
 - Decided by: Dave + Claude
 - Area: recorder, app
 - Decision: The recorder reads GSX Pro's service states (catering, refuelling, boarding, deboarding, departure /

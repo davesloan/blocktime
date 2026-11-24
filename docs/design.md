@@ -422,19 +422,24 @@ as they happen, each with its start and end time. The same records go into the f
 | Descent | Descent, Approach, Landing, Taxi in | Top of descent, Passed transition level, Level-offs, Below 10,000 ft, Final approach, Landed, Taxiing to gate |
 | Arrival | Arrived | Parked at gate, Deboarding (GSX), Ready for shutdown or turnaround |
 
-- **Built in milestone 7** (D-128): Live's Flight progress card, from the recorder's events. Pre-Departure stays empty
-  until milestone 8's GSX services; Arrival shows "Parked" until milestone 9's gate. "Landed" carries the landing
-  runway and the touchdown rate.
+- **Built in milestone 7** (D-128): Live's Flight progress card, from the recorder's events. Arrival shows "Parked"
+  until milestone 9's gate. "Landed" carries the landing runway and the touchdown rate.
+- **The card spans the gate (milestone 8, D-134).** Before block out it shows the next leg: Pre-Departure with the GSX
+  services so far, whenever a flight is planned or a service has run. After block in it stays under the summary with
+  the flight's Arrival stage. It switches to the next leg at At Gate Turnaround, Done for now, or a new plan.
 - **Departure runway:** from the takeoff position and heading, matched against the sim's runways.
 - **Transition altitude and level, and "200 nm from destination":** from the SimBrief plan.
-- **GSX services (D-073):** each service shows as its own line with start and end. Services Dave used appear;
-  ones he skipped are left out. If **no** pre-departure service was completed before pushback, a single
-  **"Turnaround and Boarding"** line appears just before "Pushback initiated". "Cleaning" isn't a GSX service, so
-  it isn't shown.
-- **Ready for Shutdown or Turnaround:** shown when GSX deboarding completes. If deboarding wasn't done through GSX,
-  it shows once the checks below pass. Under it, an informational checklist (never a requirement or penalty):
-  engines off, parking brake set, deboarding complete, beacon, strobe and seatbelt signs off, APU off. Which of
-  these PMDG exposes is found in the procedure-capture probe flight; items that can't be read are dropped.
+- **GSX services (D-073, D-138):** each service shows as its own line with start and end: "Catering",
+  "Refuelling", "Boarding" under Pre-Departure, "Deboarding" under Arrival. Services Dave used appear; ones he skipped
+  or abandoned are left out. A GSX push reads "Pushback (GSX)". If no GSX service was completed before pushback,
+  Pre-Departure simply shows as done with no lines (D-136, which drops D-073's "Turnaround and Boarding" line).
+  "Cleaning" isn't a GSX service, so it isn't shown.
+- **Ready for shutdown or turnaround (D-135):** shown when GSX deboarding completes. If deboarding wasn't done through
+  GSX, it shows once the checks below all pass. Under it, an informational checklist that stays live (never a
+  requirement or penalty): engines off, parking brake set, deboarding complete (only when GSX deboarding was used),
+  beacon off, strobes off. All from plain SimVars; no seat belts or APU, which the 737 only shows in PMDG's SDK data.
+- **Stored (D-137):** each settled flight keeps its phase start times and its completed GSX services in the database
+  (`docs/database.md`), for the leg templates (section 7).
 
 ### 13.6 Arrival gate (D-074)
 

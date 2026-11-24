@@ -207,6 +207,13 @@ The analysis scripts weren't kept. Rerun from the events: the GSX and switch tim
   spells it out: "Gate Bravo Two via Alpha-Five". `assignGate` takes the same short form (`A21`).
 - **GSX deboarding:** `FSDT_GSX_DEBOARDING_STATE` went 4 (requested), 5 (in progress), 6 (completed), then 1, as D-073
   expects. The count reached 2 before the session ended, so the passenger total isn't checked yet.
+- **GSX boarding on the 777** went 5 → 6 → 1 (performing, completed, available). On the 737 it went 5 → 1 with no 6.
+  The count jumped from 160 to 180 at the 6; GSX's planned total was 285 while SimBrief loaded 370, so GSX's counts
+  are its own.
+- **The plain SimVars on the 777:** `LIGHT BEACON` and `LIGHT STROBE` followed the switches (strobe off after
+  landing, beacon off after block in), and so did `CABIN SEATBELTS ALERT SWITCH`, unlike on the 737. `APU SWITCH`
+  stayed 0 the whole flight; whether the APU was used isn't known. Milestone 8's checklist reads beacon and strobe
+  only (D-135).
 - **Not answered (no 777 broadcast):** the 777's switches, `BRAKES_ParkingBrakeLeverOn`, `DOOR_state`, and the FMC's
   figures. They wait for the next 777 flight with `--probe`: `[SDK] EnableDataBroadcast=1` was added to the three
   `777_Options.ini` files on 2026-11-24.

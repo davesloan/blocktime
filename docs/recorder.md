@@ -245,12 +245,21 @@ GSX Pro reports each ground service's state as an L:var, which SimConnect can re
   - Pushback (`DEPARTURE_STATE`) goes 4 → 5 → 1 with no 6, and boarding did too.
   - Requesting pushback sets the other services to 3.
   - Deboarding hasn't been seen yet.
-- **When:** from the first valid telemetry sample in a flight (the same point at which block-out detection starts),
-  whether or not a flight is open. Change-based, at most once a second.
-- **Event:** `gsx_service` with `service`, `state`, `time` (and counts where they apply). Read only: the recorder
-  never writes to GSX.
-- The app decides which leg each service belongs to: deboarding goes with the leg that just ended; catering,
-  fuel and boarding with the next leg.
+  - The 777 flight (2026-11-24) saw boarding go 5 → 6 → 1, and deboarding 4 → 5 → 6 → 1.
+- **Built in 0.9.0 (D-138):** `GsxWatcher` (`src/gsx_watcher.h`). SimConnection reads the five states and the boarding
+  and deboarding passenger totals in their own definition, on every session (not only with `--probe`), once a second
+  on change. Whether or not a flight is open.
+  - Each change of a service's state is logged as `gsx_service`. A 0 (GSX not running, or the flicker around a load)
+    is ignored, and so is a service's first state when it's "available". A new sim session starts afresh.
+  - Read only: the recorder never writes to GSX.
+- **The app's reading (D-138), in `GsxTimeline` (`src/gsx_timeline.h`), used by Live and by settling:**
+  - a service starts when it's performing and is complete when it then shows completed or goes back to available;
+    bypassed while performing abandons it;
+  - catering, refuelling and boarding belong to the next block out, counted from the later of the last block in and
+    the last `sim_stopped` / `sim_disconnected`;
+  - deboarding belongs to the last block in, until the next block out;
+  - an interrupted flight drops its services (D-072);
+  - pushback is never a service; Live's pushback line says "(GSX)" when GSX was pushing at block out.
 
 ## ATC log, ATIS and altimeter (milestone 7, D-123)
 
@@ -331,7 +340,7 @@ with none the runway is `""`. The offsets are logged as information only.
 | `sim_running` / `sim_stopped` | The sim enters / leaves a flight (MSFS "Sim" state). Flips several times while loading |
 | `paused` / `unpaused` | The pause state changes. `flags` is the raw `Pause_EX1` value. `kinds` names its bits: `full` (main menu, loading screens), `active` (active pause), `sim` (Escape menu), `legacy` (unused), or `bit_<n>` for an unknown bit |
 | `aircraft_loaded` | Path of the loaded `aircraft.cfg`; logged only when the aircraft changes |
-| `telemetry` | A valid sample: on change, at most once a second; identical repeats are skipped. Includes `engines`, `eng_running` (per engine), `fuel_flow_pph` (total) and, from 0.8.0, `heading_true_deg` (logged only, D-129) |
+| `telemetry` | A valid sample: on change, at most once a second; identical repeats are skipped. Includes `engines`, `eng_running` (per engine), `fuel_flow_pph` (total), from 0.8.0 `heading_true_deg` (logged only, D-129), and from 0.9.0 `beacon` and `strobe` (`LIGHT BEACON`, `LIGHT STROBE`: the shutdown checklist, D-135) |
 | `telemetry_invalid` | Samples start being rejected as junk; `reason` says why |
 | `block_out` | The flight started: a matching parking brake release that was followed by 10 m of movement. `time`, `lat`, `lon`, `fuel_lb`, `fuel_gal` are from the release; also `flight_id` (= that time), `moved_m`, `atc_id`, `title`, `planned_flight_id`, `aircraft_folder` |
 | `block_out_refused` | A release didn't match the planned flight, so no flight opened (D-088). `reason` is `no_planned_flight`, `wrong_aircraft_type`, `wrong_airport` or `fuel_below_record`; the rest is what the check saw |
@@ -346,6 +355,7 @@ with none the runway is `""`. The offsets are logged as information only.
 | `landing_runway` | At Taxi in: `flight_id`, `airport`, `runway`, `off_centreline_m`, `off_heading_deg` |
 | `altimeter` | At block out, then on any change while a flight is open: `flight_id`, `capt_mb`, `fo_mb` (to 0.1 hPa), `capt_std`, `fo_std` (D-123) |
 | `airport_runways` | An airport's runways from the sim's facility data: `icao`, `runways` (`lat`, `lon`, `heading`, `length_m`, `width_m`, `primary_number`, `primary_designator`, `secondary_number`, `secondary_designator`) |
+| `gsx_service` | A GSX service's state changed (D-138), flight or not: `service` (`catering`, `refuelling`, `boarding`, `deboarding`, `pushback`), `state` (`available`, `not_available`, `bypassed`, `requested`, `performing`, `completed`), `time`; boarding and deboarding add `passengers` (GSX's own count so far) |
 | `atis` | Written for the app (D-127): `flight_id`, `icao`, `role` (`origin` / `destination`), `letter`, `text`, `metar`, `altimeter`, `departing`, `arriving` |
 | `atc_exchange` | Written for the app (D-127): `flight_id`, `si_flight_id`, `entry` (SayIntentions' exchange, verbatim) |
 | `simconnect_exception` | SimConnect reported an exception; `call` names the request that caused it |
