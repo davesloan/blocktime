@@ -109,8 +109,9 @@ Newest entries at the top. Add an entry at the end of every working session.
 - **Still unseen from milestone 8:** the banner fix (step 11), Ready with four items without GSX deboarding (step
   15), and Done for now (step 16).
 
-**Dave's checks.** Two legs in N814SX (the BBJ2) in one sim session: **KSFO → KLAS as VIP airliner, then KLAS → KSAN
-as Charter.** N814SX is at KSFO with 6,434 lb on record, so load at least 6,134 lb.
+**Dave's checks** are also loaded, as 19 steps with Pass/Fail, time buttons and notes, in the sim checks form
+(https://claude.ai/artifact/1F8FD6v2mPrwNF2C8ai5vY, run `m9-gates`); Claude reads the results back from its database.
+Two legs in N814SX (the BBJ2) in one sim session: **KSFO → KLAS as VIP airliner, then KLAS → KSAN as Charter.** N814SX is at KSFO with 6,434 lb on record, so load at least 6,134 lb.
 
 1. **No sim.** Start `build\x64-release\BlockTime.exe --probe`. Expected:
    - v0.10.0 in the sidebar;
