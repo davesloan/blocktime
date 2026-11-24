@@ -131,6 +131,20 @@ instant delivery, boards, the pre-departure view on Live (D-118, design section 
 previews (D-119, design section 3), predictions on Live such as top of descent and gate arrival (D-120, design
 section 16), and whatever the deepening turns up.
 
+### Live ideas (for the brainstorm after milestone 10)
+
+Deepening the live flight comes first after the MVP. Ideas collected while testing, one line each; the brainstorm
+after milestone 10 sorts and designs them.
+
+- **Pre-departure view** (D-118): everything needed to set up the FMC before pushback; Live switches to the in-flight
+  view at block out.
+- **Predictions** (D-120): top of climb and descent, landing and gate arrival, shifted by ahead/behind plan.
+- **Developer mode:** Live's normal view designed for flying, with today's debugging data (raw sim values, events,
+  phase-rule state) behind a flag or a setting.
+- **Altitude-coloured track:** the flight's line on the map coloured by altitude, red near the ground through yellow
+  and green to blue at cruise, then back through green and yellow to red on the way down, fading smoothly between
+  colours rather than in bands.
+
 ## Before starting, Dave needs to
 
 - **Milestone 5:** request a **SayIntentions developer key** (`getWX` needs it alongside his pilot API key), and
