@@ -153,7 +153,10 @@ spots closely. These enum readings come from the values seen, not from documenta
   KPDX and KSFO really are two different spots with the same name: their headings (86° and 140°) and types differ.
 - **`suffix`** is 0 on almost every spot. A few at KPDX (12, 13) and KSFO (12, 22–33) aren't 0. Their meaning isn't
   known yet; check one against the scenery before building gate names with suffixes.
-- **Still to confirm:** that SayIntentions called these gates D14 (question to Dave, 2026-11-23).
+- **Compared with SayIntentions:**
+  - At KPDX, Dave parked at the gate SayIntentions assigned.
+  - At KSFO he parked at the nearest gate instead, so KSFO doesn't test the match.
+  - Whether SayIntentions' name for the KPDX gate was "D14" is still to be confirmed on a later flight.
 
 **4. Runways.** Each record has the runway's centre, its true heading, its length and width, and both ends'
 numbers and designators (0 none, 1 L, 2 R, 3 C). KBFI 14L/32R comes out as 1,131 m (3,709 ft), which is right.
@@ -171,6 +174,16 @@ numbers and designators (0 none, 1 L, 2 R, 3 C). KBFI 14L/32R comes out as 1,131
 - In every case the next-best runway was at least 115 m off the centreline, including the close parallels at KSFO
   (28L, 235 m) and KBFI (14L).
 - The threshold positions come from centre ± half the length along the heading. That was good enough here.
+
+**5. The FMC's predictions (D-120), from the SDK headers.** No flight has read these yet.
+
+- Both headers have `FMC_DistanceToTOD` (nm; 0.0 once passed, negative if not available) and `FMC_DistanceToDest`
+  (nm). They also have the FMC's cruise altitude, V-speeds, transition altitude and level, and flight number.
+- The 777 header also has `APURunning`, `WheelChocksSet` and `DOOR_state[16]`:
+  - `DOOR_state` values: 0 open, 1 closed, 2 closed and armed, 3 closing, 4 opening;
+  - the doors: 0–9 entry 1L to 5R, 10 forward cargo, 11 aft cargo, 12 main cargo (freighter), 13 bulk cargo,
+    14 avionics, 15 EE access.
+- The probe reads neither header's FMC fields yet.
 
 The analysis scripts weren't kept. Rerun from the events: the GSX and switch timelines are the changes in each
 `probe_*` event. The runway match is the telemetry's ground roll against each runway's centreline.
