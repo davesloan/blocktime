@@ -63,12 +63,12 @@ protected:
 
 }  // namespace
 
-TEST(AirlineDb, EmptyDatabaseMigratesToVersion4) {
+TEST(AirlineDb, EmptyDatabaseMigratesToVersion5) {
     db::Database d = db::Database::openInMemory();
     std::string error;
     EXPECT_TRUE(migrateAirlineDatabase(d, &error)) << error;
-    EXPECT_EQ(d.userVersion(), 4);
-    EXPECT_EQ(kAirlineSchemaVersion, 4);
+    EXPECT_EQ(d.userVersion(), 5);
+    EXPECT_EQ(kAirlineSchemaVersion, 5);
 }
 
 TEST(AirlineDb, ForeignKeysAreOn) {
@@ -82,7 +82,7 @@ TEST(AirlineDb, MigratingTwiceIsANoOp) {
     db::Database d = migrated();
     std::string error;
     EXPECT_TRUE(migrateAirlineDatabase(d, &error)) << error;
-    EXPECT_EQ(d.userVersion(), 4);
+    EXPECT_EQ(d.userVersion(), kAirlineSchemaVersion);
 }
 
 TEST(AirlineDb, NewerSchemaIsRefused) {  // one above kAirlineSchemaVersion
@@ -104,7 +104,7 @@ TEST_F(AirlineDbFiles, TestSchemaIsSetAside) {
     AirlineDbOpen opened = openAirlineDatabase(file);
     ASSERT_TRUE(opened.db.has_value()) << opened.error;
     EXPECT_TRUE(opened.testSchemaSetAside);
-    EXPECT_EQ(opened.db->userVersion(), 4);
+    EXPECT_EQ(opened.db->userVersion(), kAirlineSchemaVersion);
 
     const fs::path aside = dir_ / "blocktime.test-schema.db";
     ASSERT_TRUE(fs::exists(aside));
@@ -120,7 +120,7 @@ TEST_F(AirlineDbFiles, NewFileIsNotSetAside) {
     AirlineDbOpen opened = openAirlineDatabase(dir_ / "blocktime.db");
     ASSERT_TRUE(opened.db.has_value()) << opened.error;
     EXPECT_FALSE(opened.testSchemaSetAside);
-    EXPECT_EQ(opened.db->userVersion(), 4);
+    EXPECT_EQ(opened.db->userVersion(), kAirlineSchemaVersion);
 }
 
 TEST(AirlineDb, ChecksRejectBadRows) {
@@ -170,6 +170,8 @@ TEST(AirlineDb, QueryPlansUseIndexes) {
              "SELECT flight_id FROM flight ORDER BY block_in_at DESC",
              "SELECT ledger_line_id FROM flight_money_line WHERE flight_id = 1",
              "SELECT passengers FROM flight_cabin WHERE flight_id = 1",
+             "SELECT phase, started_at FROM flight_phase WHERE flight_id = 1 ORDER BY seq",
+             "SELECT service FROM flight_service WHERE flight_id = 1",
          }) {
         const std::string plan = queryPlan(d, sql);
         EXPECT_NE(plan.find("USING"), std::string::npos) << sql << "\n" << plan;
@@ -204,7 +206,7 @@ TEST_F(AirlineDbFiles, ClobberedVersionOfARealAirlineIsRestored) {
     ASSERT_TRUE(again.db.has_value()) << again.error;
     EXPECT_FALSE(again.testSchemaSetAside);
     EXPECT_TRUE(again.versionRestored);
-    EXPECT_EQ(again.db->userVersion(), 4);
+    EXPECT_EQ(again.db->userVersion(), kAirlineSchemaVersion);
     EXPECT_FALSE(fs::exists(dir_ / "blocktime.test-schema.db"));
     db::Statement q(*again.db, "SELECT COUNT(*) FROM fleet");
     ASSERT_TRUE(q.next());
@@ -235,7 +237,7 @@ TEST_F(AirlineDbFiles, RestoredVersionStillGetsMigrations3And4) {
     AirlineDbOpen opened = openAirlineDatabase(file);
     ASSERT_TRUE(opened.db.has_value()) << opened.error;
     EXPECT_TRUE(opened.versionRestored);
-    EXPECT_EQ(opened.db->userVersion(), 4);
+    EXPECT_EQ(opened.db->userVersion(), kAirlineSchemaVersion);
     EXPECT_TRUE(hasTable(*opened.db, "planned_flight"));
     EXPECT_TRUE(hasTable(*opened.db, "flight"));
 }
@@ -280,7 +282,7 @@ TEST(AirlineDb, Version3DatabaseMigratesTo4) {
     ASSERT_TRUE(migrateAirlineDatabaseTo(d, 3, &error)) << error;
     ASSERT_EQ(d.userVersion(), 3);
     EXPECT_FALSE(hasTable(d, "flight"));
-    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 4, &error)) << error;
     EXPECT_EQ(d.userVersion(), 4);
     for (const char* table : {"flight", "flight_cabin", "flight_plan", "flight_money_line"}) {
         EXPECT_TRUE(hasTable(d, table)) << table;
@@ -328,6 +330,43 @@ TEST(AirlineDb, FlightChecks) {
     EXPECT_FALSE(d.exec("INSERT INTO flight_money_line (ledger_line_id, flight_id) VALUES (1, 99)"));
     EXPECT_TRUE(d.exec("INSERT INTO flight_money_line (ledger_line_id, flight_id) VALUES (1, 1)"));
     EXPECT_FALSE(d.exec("DELETE FROM flight WHERE flight_id = 1"));  // its money points at it
+}
+
+TEST(AirlineDb, Migration5Tables) {
+    db::Database d = db::Database::openInMemory();
+    std::string error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 4, &error)) << error;
+    EXPECT_FALSE(hasTable(d, "flight_phase"));
+    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    EXPECT_EQ(d.userVersion(), 5);
+    EXPECT_TRUE(hasTable(d, "flight_phase"));
+    EXPECT_TRUE(hasTable(d, "flight_service"));
+
+    addFlightParents(d);
+    ASSERT_TRUE(insertFlight(d, "2026-11-23T10:30:05.120Z", "delivery", "2026-11-23T10:30:05Z", "2026-11-23T13:20:41Z",
+                             20000));
+    const auto phase = [&](int seq, const std::string& p, const std::string& at) {
+        return d.exec("INSERT INTO flight_phase (flight_id, seq, phase, started_at) VALUES (1, " +
+                      std::to_string(seq) + ", '" + p + "', '" + at + "')");
+    };
+    EXPECT_TRUE(phase(0, "pushback", "2026-11-23T10:30:05Z"));
+    EXPECT_FALSE(phase(0, "taxi_out", "2026-11-23T10:33:00Z"));  // the same seq
+    EXPECT_FALSE(phase(1, "boarding", "2026-11-23T10:33:00Z"));  // not a phase
+    EXPECT_FALSE(phase(1, "taxi_out", "2026-11-23 10:33"));       // not an instant
+    EXPECT_FALSE(phase(-1, "taxi_out", "2026-11-23T10:33:00Z"));
+    EXPECT_FALSE(d.exec("INSERT INTO flight_phase (flight_id, seq, phase, started_at)"
+                        " VALUES (99, 0, 'pushback', '2026-11-23T10:30:05Z')"));  // no such flight
+
+    const auto service = [&](const std::string& s, const std::string& from, const std::string& to) {
+        return d.exec("INSERT INTO flight_service (flight_id, service, started_at, ended_at) VALUES (1, '" + s +
+                      "', '" + from + "', '" + to + "')");
+    };
+    EXPECT_TRUE(service("refuelling", "2026-11-23T10:00:00Z", "2026-11-23T10:05:00Z"));
+    EXPECT_TRUE(service("refuelling", "2026-11-23T10:10:00Z", "2026-11-23T10:12:00Z"));   // a second refuel
+    EXPECT_FALSE(service("refuelling", "2026-11-23T10:10:00Z", "2026-11-23T10:13:00Z"));  // the same start
+    EXPECT_FALSE(service("boarding", "2026-11-23T10:05:00Z", "2026-11-23T10:04:00Z"));    // ends before it starts
+    EXPECT_FALSE(service("pushback", "2026-11-23T10:05:00Z", "2026-11-23T10:06:00Z"));    // not a stored service
+    EXPECT_FALSE(service("boarding", "2026-11-23T10:05", "2026-11-23T10:06:00Z"));        // not an instant
 }
 
 TEST(AirlineDb, FlightLedgerCategoriesExist) {

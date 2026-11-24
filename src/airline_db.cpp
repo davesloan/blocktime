@@ -245,6 +245,30 @@ INSERT INTO ledger_category (code, label) VALUES
   ('maintenance', 'Maintenance');
 )sql";
 
+// Milestone 8 (D-137): each settled flight's phase starts and its completed GSX services, for the leg templates
+// (D-075). Written once each; deboarding comes after block in, so its row is added when it ends. CASCADE as on
+// flight_cabin: only tests delete flights. Both keys lead with flight_id, so the foreign key is indexed.
+constexpr const char* kMigration5 = R"sql(
+CREATE TABLE flight_phase (
+  flight_id INTEGER NOT NULL REFERENCES flight ON DELETE CASCADE,
+  seq INTEGER NOT NULL CHECK (seq >= 0),
+  phase TEXT NOT NULL CHECK (phase IN ('pushback', 'taxi_out', 'takeoff', 'climb', 'cruise', 'descent', 'approach',
+                                       'go_around', 'landing', 'taxi_in', 'arrived')),
+  started_at TEXT NOT NULL CHECK (started_at GLOB )sql" BT_INSTANT R"sql(),
+  PRIMARY KEY (flight_id, seq)
+) STRICT;
+
+CREATE TABLE flight_service (
+  flight_service_id INTEGER PRIMARY KEY,
+  flight_id INTEGER NOT NULL REFERENCES flight ON DELETE CASCADE,
+  service TEXT NOT NULL CHECK (service IN ('catering', 'refuelling', 'boarding', 'deboarding')),
+  started_at TEXT NOT NULL CHECK (started_at GLOB )sql" BT_INSTANT R"sql(),
+  ended_at TEXT NOT NULL CHECK (ended_at GLOB )sql" BT_INSTANT R"sql(),
+  CHECK (ended_at >= started_at),
+  UNIQUE (flight_id, service, started_at)
+) STRICT;
+)sql";
+
 #undef BT_INSTANT
 #undef BT_DATE
 
@@ -253,7 +277,8 @@ struct Migration {
     const char* sql;
 };
 
-constexpr std::array kMigrations{Migration{2, kMigration2}, Migration{3, kMigration3}, Migration{4, kMigration4}};
+constexpr std::array kMigrations{Migration{2, kMigration2}, Migration{3, kMigration3}, Migration{4, kMigration4},
+                                 Migration{5, kMigration5}};
 
 constexpr int kFirstRealSchemaVersion = 2;  // what a clobbered milestone 4 airline really is (D-098)
 

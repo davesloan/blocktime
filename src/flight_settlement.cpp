@@ -14,6 +14,7 @@
 
 #include "airline_queries.h"
 #include "event_log.h"
+#include "gsx_timeline.h"
 
 namespace blocktime {
 
@@ -23,6 +24,14 @@ bool isFlightLine(const std::string& line) {
     return line.find(R"("type":"block_out")") != std::string::npos ||
            line.find(R"("type":"block_in")") != std::string::npos ||
            line.find(R"("type":"flight_interrupted")") != std::string::npos;
+}
+
+// What the timeline and the phases need besides the block events (D-137, D-138).
+bool isTimingLine(const std::string& line) {
+    return line.find(R"("type":"phase_changed")") != std::string::npos ||
+           line.find(R"("type":"gsx_service")") != std::string::npos ||
+           line.find(R"("type":"sim_stopped")") != std::string::npos ||
+           line.find(R"("type":"sim_disconnected")") != std::string::npos;
 }
 
 // "2026-11-23T10:30:05.120Z" -> "2026-11-23T10:30:05Z" (D-081: the database keeps whole seconds).
@@ -46,19 +55,37 @@ std::optional<FlownFlight> findFlownFlight(const std::filesystem::path& logDir, 
     if (files.size() > maxFiles) files.erase(files.begin(), files.end() - static_cast<std::ptrdiff_t>(maxFiles));
 
     std::map<std::string, FlownFlight> attempts;  // this planned flight's open block_outs, by flight_id
+    GsxTimeline gsx;
     for (const auto& file : files) {
         std::ifstream in(file, std::ios::binary);
         std::string line;
         while (std::getline(in, line)) {
-            if (!isFlightLine(line)) continue;  // most lines are telemetry
-            const auto j = nlohmann::json::parse(line, nullptr, false);
-            if (j.is_discarded() || !j.is_object() || !j.contains("data") || !j["data"].is_object()) continue;
-            const auto& data = j["data"];
-            if (!j.value("type", std::string()).size() || !data.contains("flight_id") || !data["flight_id"].is_string()) {
+            const bool timing = isTimingLine(line);
+            if (!timing && !isFlightLine(line)) continue;  // most lines are telemetry
+            auto j = nlohmann::json::parse(line, nullptr, false);
+            if (j.is_discarded() || !j.is_object()) continue;
+            if (!j.contains("data") || !j["data"].is_object()) j["data"] = nlohmann::json::object();
+            auto& data = j["data"];
+            const std::string type = j.value("type", std::string());
+            if (type == "sim_stopped" || type == "sim_disconnected") {
+                data["time"] = j.value("ts", std::string());  // these lines carry no data time
+                gsx.onEvent(type, data);
                 continue;
             }
-            const std::string type = j["type"].get<std::string>();
+            if (type == "gsx_service") {
+                gsx.onEvent(type, data);
+                continue;
+            }
+            if (!data.contains("flight_id") || !data["flight_id"].is_string()) continue;
             const std::string id = data["flight_id"].get<std::string>();
+            if (type == "phase_changed") {
+                if (const auto it = attempts.find(id); it != attempts.end()) {
+                    it->second.phases.push_back({data.value("phase", std::string()),
+                                                 wholeSeconds(data.value("time", std::string()))});
+                }
+                continue;
+            }
+            gsx.onEvent(type, data);  // block_out, block_in, flight_interrupted
             if (type == "block_out") {
                 const auto planned = data.find("planned_flight_id");
                 if (planned == data.end() || !planned->is_number_integer() ||
@@ -69,6 +96,9 @@ std::optional<FlownFlight> findFlownFlight(const std::filesystem::path& logDir, 
                 f.logFlightId = id;
                 f.blockOutAt = wholeSeconds(data.value("time", id));
                 f.fuelOutLb = pounds(number(data, "fuel_lb"));
+                for (const ServiceSpan& s : gsx.departed()) {
+                    f.services.push_back({s.service, wholeSeconds(s.startIso), wholeSeconds(s.endIso)});
+                }
                 if (f.blockOutAt > plannedAt && !alreadySettled.contains(id)) attempts[id] = f;
             } else if (type == "flight_interrupted") {
                 attempts.erase(id);
@@ -148,6 +178,27 @@ std::optional<SettledFlight> settleFlight(db::Database& db, const PlannedFlightV
                      " WHERE planned_flight_id = " + std::to_string(planned.id),
                  &message)) {
         return fail(message);
+    }
+
+    // Its phase and GSX service times, for the leg templates (D-137).
+    db::Statement phase(db, "INSERT INTO flight_phase (flight_id, seq, phase, started_at) VALUES (?, ?, ?, ?)");
+    for (std::size_t i = 0; i < flown.phases.size(); ++i) {
+        phase.reset();
+        phase.bind(1, flightId);
+        phase.bind(2, static_cast<std::int64_t>(i));
+        phase.bind(3, flown.phases[i].phase);
+        phase.bind(4, flown.phases[i].at);
+        if (!phase.run()) return fail("phase " + flown.phases[i].phase + ": " + phase.error());
+    }
+    db::Statement service(db, "INSERT INTO flight_service (flight_id, service, started_at, ended_at)"
+                              " VALUES (?, ?, ?, ?)");
+    for (const ServiceTime& s : flown.services) {
+        service.reset();
+        service.bind(1, flightId);
+        service.bind(2, s.service);
+        service.bind(3, s.startedAt);
+        service.bind(4, s.endedAt);
+        if (!service.run()) return fail(s.service + ": " + service.error());
     }
 
     db::Statement ledger(db, "INSERT INTO ledger_line (category, posted_at, amount_cents) VALUES (?, ?, ?)");

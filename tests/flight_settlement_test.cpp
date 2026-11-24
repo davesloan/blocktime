@@ -42,6 +42,21 @@ std::string blockIn(const std::string& id, const std::string& time, double lat, 
                                 std::to_string(shutdownFuel) + R"(,"block_time_s":10236})");
 }
 
+// A line with its own ts: the sim_* lines carry no data time.
+std::string lineAt(const std::string& ts, const std::string& type, const std::string& data) {
+    return R"({"ts":")" + ts + R"(","type":")" + type + R"(","data":)" + data + "}";
+}
+
+std::string gsxLine(const std::string& service, const std::string& state, const std::string& time) {
+    return line("gsx_service", R"({"service":")" + service + R"(","state":")" + state + R"(","time":")" + time +
+                                   R"("})");
+}
+
+std::string phaseLine(const std::string& id, const std::string& phase, const std::string& time) {
+    return line("phase_changed", R"({"flight_id":")" + id + R"(","phase":")" + phase + R"(","time":")" + time +
+                                     R"(","alt_ft":25,"flight_level":false})");
+}
+
 std::string interrupted(const std::string& id) {
     return line("flight_interrupted", R"({"flight_id":")" + id + R"(","reason":"sim_stopped"})");
 }
@@ -263,6 +278,99 @@ TEST_F(Settlement, RunsOnceFromTheLog) {
     const auto again = planDelivery();
     EXPECT_FALSE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << "planned id " << again;
     EXPECT_EQ(count("flight"), flights);
+}
+
+// --- Phase and GSX service times (milestone 8, D-137) ---------------------------------------------------------
+
+TEST_F(Settlement, SettlingStoresPhases) {
+    const auto id = planDelivery();
+    const char* phases[] = {"pushback", "taxi_out", "takeoff", "climb",   "cruise",  "descent",
+                            "approach", "go_around", "approach", "landing", "taxi_in", "arrived"};
+    std::vector<std::string> log{blockOut(kOut, id, 20000)};
+    for (int i = 0; i < 12; ++i) {
+        const std::string t = "2026-11-23T1" + std::to_string(i / 6) + ":" + std::to_string(i % 6) + "0:05.500Z";
+        log.push_back(phaseLine(kOut, phases[i], t));
+    }
+    log.push_back(phaseLine("2026-11-22T09:00:00.000Z", "climb", "2026-11-23T11:00:00.000Z"));  // another flight's
+    log.push_back(blockIn(kOut, kIn, kSanLat, kSanLon, 9400));
+    writeLog(log);
+    std::string error;
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    EXPECT_EQ(count("flight_phase"), 12);
+    db::Statement q(db_, "SELECT seq, phase, started_at FROM flight_phase ORDER BY seq");
+    for (int i = 0; i < 12; ++i) {
+        ASSERT_TRUE(q.next());
+        EXPECT_EQ(q.integer(0), i);
+        EXPECT_EQ(q.text(1), phases[i]);
+        EXPECT_EQ(q.text(2), "2026-11-23T1" + std::to_string(i / 6) + ":" + std::to_string(i % 6) + "0:05Z");
+    }
+}
+
+TEST_F(Settlement, SettlingStoresPreDepartureServices) {
+    const auto id = planDelivery();
+    writeLog({gsxLine("refuelling", "performing", "2026-11-23T10:01:00.300Z"),
+              gsxLine("refuelling", "completed", "2026-11-23T10:06:00.300Z"),
+              gsxLine("boarding", "performing", "2026-11-23T10:05:00.000Z"),
+              gsxLine("boarding", "available", "2026-11-23T10:25:00.000Z"),
+              blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    std::string error;
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    EXPECT_EQ(count("flight_service"), 2);
+    EXPECT_EQ(text("SELECT started_at || ' ' || ended_at FROM flight_service WHERE service = 'refuelling'"),
+              "2026-11-23T10:01:00Z 2026-11-23T10:06:00Z");
+    EXPECT_EQ(text("SELECT started_at || ' ' || ended_at FROM flight_service WHERE service = 'boarding'"),
+              "2026-11-23T10:05:00Z 2026-11-23T10:25:00Z");
+}
+
+TEST_F(Settlement, AbandonedServiceNotStored) {
+    const auto id = planDelivery();
+    writeLog({gsxLine("catering", "performing", "2026-11-23T10:01:00.000Z"),
+              gsxLine("catering", "bypassed", "2026-11-23T10:02:00.000Z"),
+              blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    std::string error;
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    EXPECT_EQ(count("flight_service"), 0);
+}
+
+TEST_F(Settlement, EarlierLegServicesNotStored) {
+    const auto id = planDelivery();
+    const std::string earlier = "2026-11-23T06:00:00.000Z";
+    writeLog({gsxLine("refuelling", "performing", "2026-11-23T05:30:00.000Z"),
+              gsxLine("refuelling", "completed", "2026-11-23T05:35:00.000Z"),
+              line("block_out", R"({"flight_id":")" + earlier + R"(","time":")" + earlier + R"("})"),
+              blockIn(earlier, "2026-11-23T08:00:00.000Z", kSanLat, kSanLon, 9000),
+              gsxLine("boarding", "performing", "2026-11-23T10:05:00.000Z"),
+              gsxLine("boarding", "available", "2026-11-23T10:25:00.000Z"),
+              blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    std::string error;
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    EXPECT_EQ(count("flight_service"), 1);
+    EXPECT_EQ(text("SELECT service FROM flight_service"), "boarding");
+}
+
+TEST_F(Settlement, ServicesBeforeSimStoppedNotStored) {
+    const auto id = planDelivery();
+    writeLog({gsxLine("refuelling", "performing", "2026-11-23T10:01:00.000Z"),
+              gsxLine("refuelling", "completed", "2026-11-23T10:06:00.000Z"),
+              lineAt("2026-11-23T10:10:00.000Z", "sim_stopped", "{}"),
+              lineAt("2026-11-23T10:12:00.000Z", "sim_running", "{}"),
+              blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    std::string error;
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    EXPECT_EQ(count("flight_service"), 0);
+}
+
+TEST_F(Settlement, TwoRefuelsBothStored) {
+    const auto id = planDelivery();
+    writeLog({gsxLine("refuelling", "performing", "2026-11-23T10:01:00.000Z"),
+              gsxLine("refuelling", "completed", "2026-11-23T10:06:00.000Z"),
+              gsxLine("refuelling", "available", "2026-11-23T10:06:10.000Z"),
+              gsxLine("refuelling", "performing", "2026-11-23T10:15:00.000Z"),
+              gsxLine("refuelling", "completed", "2026-11-23T10:18:00.000Z"),
+              blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    std::string error;
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    EXPECT_EQ(count("flight_service"), 2);
 }
 
 TEST_F(Settlement, KeepsThePlanAndCabins) {

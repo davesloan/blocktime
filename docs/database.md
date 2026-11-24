@@ -4,7 +4,7 @@ The schema of `%LOCALAPPDATA%\BlockTime\blocktime.db`, the one SQLite file that 
 It follows the database rules in `CLAUDE.md` (D-078), applied for what they protect (D-090). Keep this file true: a
 schema change updates it in the same commit.
 
-**Status:** built through milestone 6 (schema version 4, `src/airline_db.cpp`).
+**Status:** built through milestone 8 (schema version 5, `src/airline_db.cpp`).
 
 ## Conventions
 
@@ -59,6 +59,8 @@ erDiagram
     flight ||--o| flight_plan : "the plan it flew"
     flight ||--o{ flight_money_line : "its money"
     ledger_line ||--o| flight_money_line : "money for"
+    flight ||--o{ flight_phase : "phase starts (m8)"
+    flight ||--o{ flight_service : "GSX services (m8)"
 ```
 
 ## Tables
@@ -418,3 +420,48 @@ between block in and settling only delays it. Settling is one transaction:
 reused.
 
 **Hours (D-114).** Dave's hours are `SUM(block_in_at − block_out_at)` over `flight`; nothing stores a total.
+
+## Milestone 8's tables (schema version 5)
+
+Each settled flight's timings, for the leg templates (D-075, D-137): the event log is deleted after 30 days, so they
+are kept here. Flights settled before 0.9.0 have none.
+
+### `flight_phase`
+
+Each phase the flight entered, in order: the log's `phase_changed` events between block out and block in. A phase can
+repeat (approach, go-around, approach). Taxi out is `taxi_out` to `takeoff`; taxi in is `taxi_in` to `arrived` (block
+in). Primary key `(flight_id, seq)`.
+
+| Column | Type | Rules |
+|---|---|---|
+| `flight_id` | INTEGER | FK → `flight`, `ON DELETE CASCADE` (only tests delete flights) |
+| `seq` | INTEGER | ≥ 0; the order in the log |
+| `phase` | TEXT | `CHECK` in the recorder's phases: `pushback`, `taxi_out`, `takeoff`, `climb`, `cruise`, `descent`, `approach`, `go_around`, `landing`, `taxi_in`, `arrived` |
+| `started_at` | TEXT | UTC instant |
+
+### `flight_service`
+
+Each GSX service the flight completed (D-138): catering, refuelling and boarding before block out, and deboarding
+after block in. An abandoned service (bypassed while performing) isn't stored. GSX's pushback isn't a service here:
+the phases time it.
+
+| Column | Type | Rules |
+|---|---|---|
+| `flight_service_id` | INTEGER PK | |
+| `flight_id` | INTEGER | FK → `flight`, `ON DELETE CASCADE`; indexed by the `UNIQUE` |
+| `service` | TEXT | `CHECK (service IN ('catering', 'refuelling', 'boarding', 'deboarding'))` |
+| `started_at`, `ended_at` | TEXT | UTC instants; `CHECK (ended_at >= started_at)`. Started when GSX showed it performing, ended when it showed completed (or went back to available) |
+
+`UNIQUE (flight_id, service, started_at)`: a service can run twice in one turnaround (two refuels), but the same one
+is never stored twice.
+
+## Milestone 8's processes
+
+**Settling (D-137).** The scan that finds the flown flight (milestone 6's processes) also reads the `phase_changed`,
+`gsx_service`, `sim_stopped` and `sim_disconnected` lines. It feeds them, with the block events, to a `GsxTimeline`
+(`src/gsx_timeline.h`), the same code Live uses. The flight's `flight_phase` rows and its pre-departure
+`flight_service` rows are written in the settling transaction.
+
+**Deboarding.** It happens after block in, when the flight is already settled. `recordDeboardings` scans the log
+the same way and adds each completed deboarding to the settled flight whose block in came before it, with
+`INSERT OR IGNORE` on the `UNIQUE`. The app runs it at startup and whenever GSX deboarding ends.
