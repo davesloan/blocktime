@@ -69,6 +69,12 @@ Newest entries at the top. Add an entry at the end of every working session.
   Flight progress card as designed.
 
 **Unverified or broken:**
+- **Sim check findings (N916SX KSAN → KSLC, 2026-11-24, in progress):**
+  - The Flight progress card appeared at block out and tracked every phase and marker correctly so far.
+  - **To fix after the flight:** the cruise read "Cruising at FL369" while Dave held FL370 (36,994, then 37,001). The
+    level is the mean of its 20 s window, which still held the end of the climb (logged `alt_ft` 36,900). Fix: snap a
+    level to the nearest 1,000 ft within 150 ft of it, else round to 100 as now. It also turns the KSFO replay's
+    3,100 ft approach level into 3,000.
 - Everything that needs the sim: Dave's checks below.
 - **SimVar names not seen working yet:** `G FORCE` (touchdown), `KOHLSMAN SETTING MB/STD` driven by PMDG, and `PLANE
   HEADING DEGREES TRUE`. Heading is the only addition to the main telemetry: if the sim refused it, telemetry would
