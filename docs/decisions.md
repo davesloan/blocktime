@@ -2135,3 +2135,29 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: Dave wants Live to show when he's on final, which is well before 1,000 ft (about 3,000 ft AGL at 10 nm).
 - Alternatives considered: keeping only the 1,000 ft line; the localizer capture (PMDG's annunciators, and RNAV
   approaches have none).
+
+## D-144 — Flight Board and Journeys, after the MVP
+- Date: 2026-11-24
+- Status: Accepted (marked parts Proposed)
+- Decided by: Dave + Claude
+- Area: design
+- Decision:
+  - A split-flap style **Flight Board** lists background flights in the air, planes in a turnaround and each
+    journey's next leg; greyed out when there's nothing. It replaces section 8's two boards.
+  - Clicking a flight takes it over: a parked plane's next leg; in the air, **reset** (back to origin, Dave flies that
+    leg) only more than 40 nm from the destination, or **claim**. After an At Gate Turnaround the rotation's next leg
+    is queued for Dave.
+  - **Journeys:** a one-way sequence of legs only Dave flies. An inactive airplane at the first origin starts it and is
+    locked to it. **Pausing** keeps the journey's place and returns the airplane to Inactive; **any** airplane parked
+    at that airport, of any type, resumes it. As many journeys as there are airplanes for them.
+  - A planning form (Origin, Destination, Direct distance; five rows, "Add more legs..."), and a journey page with a
+    map: actual tracks for flown legs, dotted great-circle lines for the rest.
+  - Proposed (Claude): the airplane's state is "On journey"; each row's origin is the previous destination; airport
+    names, a total, row removal and range/runway warnings on the form; rows flip only on change and never while
+    recording; journey legs count toward leg templates and rotation unlocks; the unlock rule and curfew don't apply.
+- Why: Dave wants to see the airline at work and step into any flight, and to fly long multi-leg trips that need
+  aircraft positioned along the way (a 737 across America, a 777 over the Atlantic). Planning leg lengths in
+  Navigraph is slow; the airport import already has the coordinates.
+- Alternatives considered: reset only, without claim; a journey tied to one airplane or one type (any airplane makes
+  positioning part of the trip); leaving the journey airplane Inactive between legs (could be put on a rotation and
+  lose its place).

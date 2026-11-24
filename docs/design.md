@@ -207,7 +207,8 @@ screen for all of this comes after the MVP.
 
 - Fly a parked plane's **next leg** yourself; when you close the flight, the plane continues its loop from there.
 - If the plane is in the air: **claim** it (it waits at the gate after landing) or **cancel** the leg (it returns to
-  its origin, no penalty, leg earns nothing).
+  its origin, no penalty, leg earns nothing). D-144 renames cancel to **reset**, lets Dave fly that leg, and allows
+  it only more than 40 nm from the destination; taking over happens from the Flight Board (section 16).
 
 ### One-off background flights
 
@@ -238,7 +239,7 @@ One 737 on KSAN–KSLC (2h10) – KPDX (1h50) – KOAK (2h00) – KLAS (1h20) �
 - Completed legs are stored once and never recalculated; history doesn't change.
 - While the app is open it catches up every minute, which keeps live boards current.
 - **Boards:** a current-flights board (every plane, where it is in its rotation) and a departures board per airport,
-  both computed from the same schedule logic.
+  both computed from the same schedule logic. Replaced by the Flight Board (section 16, D-144).
 
 ## 9. Loads
 
@@ -552,6 +553,42 @@ when the recorder's procedure-capture milestone starts.
   flight is back on the plan. Whether the PMDG's own FMC predictions can be read is an open item (section 17).
 - Optional flavour ideas: special cargo jobs with supernumeraries on the 777F; display-only "published schedule"
   labels.
+
+### Flight Board and Journeys (D-144)
+
+**Flight Board.** One screen styled like an old split-flap airport board, replacing section 8's two boards. It lists
+every background flight in the air and every plane at a gate in a turnaround before its next leg, plus the next leg
+of each journey. With no background flights and no journeys it's greyed out. Rows flip only when they change, and
+not at all while a flight is being recorded (no continuous animations).
+
+Clicking a flight takes it over (section 7, "Taking over legs"):
+- **Parked:** fly its next leg.
+- **In the air, more than 40 nm from its destination:** **reset** (it goes back to its origin, the leg earns nothing,
+  and Dave flies that leg) or **claim** (it lands, then waits at the gate for Dave to fly its next leg).
+- **Within 40 nm:** claim only.
+BlockTime knows the flight belongs to a rotation: after an At Gate Turnaround it queues the rotation's next leg for
+Dave. "Done for now" hands the plane back to its rotation from where it's parked.
+
+**Journeys.** A one-way sequence of legs that only Dave flies (an around-the-world trip in a BBJ2, say), with an end.
+Unlike a rotation it isn't flown in the background, so the unlock rule (D-075) and the curfew don't apply. Its legs
+are real flying: they count toward leg templates and rotation unlocks like any other completed flight.
+- **Starting:** attach an inactive airplane parked at the journey's first origin. The airplane is then **On journey**
+  and locked to it: no rotation, no free flights. The journey's next leg shows on the Flight Board. There can be as
+  many journeys running as Dave has airplanes to put on them.
+- **Pausing:** the journey keeps its place (next leg, at the airport where it stopped). The airplane leaves it and
+  goes back to Inactive where it's parked, free to fly or to join a rotation. A paused journey resumes when **any**
+  airplane parked at that airport is attached, of any type: a 737-800 across North America, a 777-300ER for the
+  Atlantic, another 737 from Alaska. Getting the right airplane there (a delivery or a free flight) is part of the
+  fun. "Journey paused" isn't "airplane paused" (section 7's state).
+- **Planning form:** columns Origin, Destination, Direct distance (NM); five rows to start and an "Add more legs..."
+  link that adds one. Each row's origin is the row above's destination, so only the first origin and then one code
+  per leg are typed. The distance is the great-circle distance from the airport import, shown as soon as both
+  codes are known, with each airport's name to catch typos. Rows can be removed. A total (legs, distance) sits
+  underneath. Once an airplane is attached, legs beyond its range or with a runway shorter than its airframe's
+  minimum (D-100) get a warning, not a block.
+- **Journey page:** a map of the whole journey. Flown legs show the actual track, coloured like a flight summary;
+  legs still to fly show a dotted great-circle line to each next destination. When the journey ends, the map is the
+  record of the trip, to view, screenshot or share.
 
 ## 17. Open items
 
