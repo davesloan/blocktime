@@ -7,7 +7,9 @@
 
 #pragma once
 
+#include <map>
 #include <optional>
+#include <string>
 
 #include <QDateTime>
 #include <QObject>
@@ -99,6 +101,9 @@ public:
     void applyMatch(const blocktime::MatchResult& m);
     // A flight event the recorder logged (phase_changed, level_off, liftoff, ...); data is its log "data" object.
     void applyFlightEvent(const QString& type, const QVariantMap& data);
+    // An airport's runways and parking spots from the recorder (D-147); the latest per ICAO is kept.
+    void applyAirport(blocktime::AirportFacilities airport);
+    const blocktime::AirportFacilities* airport(const QString& icao) const;
     // The matching check's latest answer (D-088); empty until the first one and after the connection is lost.
     const std::optional<blocktime::MatchResult>& match() const { return match_; }
     // A brake release was refused and the brake hasn't been set since, so no flight can open until it's set and
@@ -122,8 +127,10 @@ signals:
     void blockEvent(const QString& type, const QString& flightId);
     // Every flight event, after it's applied.
     void flightEvent(const QString& type, const QVariantMap& data);
+    void airportLoaded(const QString& icao);
 
 private:
+    std::map<std::string, blocktime::AirportFacilities> airports_;
     void setConnection(const QString& c);
 
     QString connection_ = "waiting";
@@ -155,6 +162,7 @@ public:
     void onBlockEvent(const blocktime::BlockEvent& e) override;
     void onMatch(const blocktime::MatchResult& m) override;
     void onFlightEvent(const std::string& type, const nlohmann::json& data) override;
+    void onAirport(const blocktime::AirportFacilities& airport) override;
 
 private:
     RecorderBridge& bridge_;  // only used as the target of queued calls

@@ -27,6 +27,7 @@
 #include "event_log.h"
 #include "flight_tracker.h"
 #include "gsx_watcher.h"
+#include "parking.h"
 #include "runway_match.h"
 #include "sim_probe.h"
 #include "sim_vars.h"
@@ -43,7 +44,7 @@ public:
     // runways.
     using FastSampleCallback = std::function<void(const FastSample&)>;
     using AltimeterCallback = std::function<void(const AltimeterSample&)>;
-    using RunwaysCallback = std::function<void(AirportRunways)>;
+    using AirportCallback = std::function<void(AirportFacilities)>;
     using GsxCallback = std::function<void(const GsxValues&)>;  // milestone 8 (D-138)
 
     // `probe`: also run the --probe data requests (D-116, sim_probe.h).
@@ -72,11 +73,11 @@ public:
     // With --probe: logs these airports' runways and parking spots from the sim's facility data.
     void requestProbeFacilities(const std::vector<std::string>& icaos);
 
-    void setFlightCallbacks(FastSampleCallback onFast, AltimeterCallback onAltimeter, RunwaysCallback onRunways,
+    void setFlightCallbacks(FastSampleCallback onFast, AltimeterCallback onAltimeter, AirportCallback onAirport,
                             GsxCallback onGsx);
-    // Asks for each airport's runways; each list goes to the runways callback when it's complete. False (nothing
-    // sent) before the handshake.
-    bool requestRunways(const std::vector<std::string>& icaos);
+    // Asks for each airport's reference point, runways and parking spots; each goes to the airport callback when it's
+    // complete. False (nothing sent) before the handshake.
+    bool requestAirports(const std::vector<std::string>& icaos);
     // Sim-frame touchdown samples on or off. Only calls SimConnect when the state changes.
     void setFastSampling(bool on);
     // Seconds that count toward phase holds: every message received adds at most 2 s (D-058).
@@ -103,13 +104,13 @@ private:
     std::optional<SimProbe> probe_;
     FastSampleCallback onFast_;
     AltimeterCallback onAltimeter_;
-    RunwaysCallback onRunways_;
+    AirportCallback onAirport_;
     GsxCallback onGsx_;
     ActiveClock clock_;
     bool fastOn_ = false;
     double baroMb_[2] = {0, 0};
     bool baroStd_[2] = {false, false};
-    std::map<unsigned long, AirportRunways> runwayRequests_;  // by request id, until the data ends
+    std::map<unsigned long, AirportFacilities> airportRequests_;  // by request id, until the data ends
     unsigned long nextRunwayRequest_ = 0;
 
     bool handshake_ = false;         // SIMCONNECT_RECV_ID_OPEN received

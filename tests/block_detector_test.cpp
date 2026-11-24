@@ -398,7 +398,7 @@ TEST(Json, BlockOutFields) {
 
     EXPECT_EQ(eventType(e), "block_out");
     EXPECT_EQ(keys(j), (std::vector<std::string>{"aircraft_folder", "atc_id", "flight_id", "fuel_gal", "fuel_lb", "lat",
-                                                 "lon", "moved_m", "planned_flight_id", "time", "title"}));
+                                                 "lon", "moved_m", "parking", "planned_flight_id", "time", "title"}));
     EXPECT_EQ(j["flight_id"], "2026-11-22T14:00:05.000Z");
     EXPECT_EQ(j["time"], "2026-11-22T14:00:05.000Z");
     EXPECT_EQ(j["fuel_lb"], 9000.0);
@@ -415,7 +415,7 @@ TEST(Json, BlockInFields) {
 
     EXPECT_EQ(eventType(e), "block_in");
     EXPECT_EQ(keys(j), (std::vector<std::string>{"block_time_s", "flight_id", "fuel_gal", "fuel_lb", "lat", "lon",
-                                                 "shutdown_fuel_lb", "shutdown_time", "time"}));
+                                                 "parking", "shutdown_fuel_lb", "shutdown_time", "time"}));
     EXPECT_EQ(j["time"], "2026-11-22T15:06:40.000Z");
     EXPECT_EQ(j["shutdown_time"], "2026-11-22T15:08:10.000Z");
     EXPECT_TRUE(j["block_time_s"].is_number_integer());
@@ -637,4 +637,13 @@ TEST(Detector, ToJsonOfRefusedAndBlockOut) {
     const nlohmann::json out = toJson(f.events.at(1));
     EXPECT_EQ(out["planned_flight_id"], 42);
     EXPECT_EQ(out["aircraft_folder"], "pmdg 737-800bbj2");
+}
+
+TEST(BlockDetector, JsonCarriesParking) {
+    BlockOut out;
+    out.parking = "Gate D14";
+    EXPECT_EQ(toJson(BlockEvent{out})["parking"], "Gate D14");
+    BlockIn in;
+    in.parking = "";
+    EXPECT_EQ(toJson(BlockEvent{in})["parking"], "");
 }

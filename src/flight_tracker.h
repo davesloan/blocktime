@@ -20,6 +20,7 @@
 #include "flight_match.h"
 #include "log_event.h"
 #include "phase_detector.h"
+#include "parking.h"
 #include "runway_match.h"
 #include "touchdown_capture.h"
 
@@ -37,8 +38,10 @@ inline constexpr double kRunwayRollKt = 40;           // the roll's samples, for
 
 class FlightTracker {
 public:
-    // Kept across flights; a newer list for the same airport replaces the old one.
-    void setRunways(AirportRunways airport);
+    // Kept across flights; newer data for the same airport replaces the old (D-126, D-147).
+    void setAirport(AirportFacilities airport);
+    // The name of the nearest parking spot of any airport set, within kParkedSpotMaxM; "" if none (D-148).
+    std::string parkingAt(double lat, double lon) const;
 
     // Starts the flight: phase_changed (pushback) and the current altimeter settings.
     std::vector<LogEvent> onBlockOut(const BlockOut& out, const std::optional<FlightTarget>& target, double altFt);
@@ -60,7 +63,7 @@ private:
     std::vector<AirportRunways> runwayList() const;
     void updateFastSampling(const PhaseSample& s);
 
-    std::map<std::string, AirportRunways> runways_;
+    std::map<std::string, AirportFacilities> airports_;
     std::optional<AltimeterSample> altimeter_;  // the latest, flight or not
     std::optional<AltimeterSample> logged_;     // the last one logged in this flight (rounded)
 

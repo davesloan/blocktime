@@ -174,6 +174,17 @@ void RecorderBridge::setBlocked() {
                         "one, then restart this one.");
 }
 
+void RecorderBridge::applyAirport(blocktime::AirportFacilities airport) {
+    const QString icao = QString::fromStdString(airport.icao);
+    airports_[airport.icao] = std::move(airport);
+    emit airportLoaded(icao);
+}
+
+const blocktime::AirportFacilities* RecorderBridge::airport(const QString& icao) const {
+    const auto it = airports_.find(icao.toStdString());
+    return it == airports_.end() ? nullptr : &it->second;
+}
+
 void RecorderBridge::applyFlightEvent(const QString& type, const QVariantMap& data) {
     const QByteArray json = QJsonDocument(QJsonObject::fromVariantMap(data)).toJson(QJsonDocument::Compact);
     stages_.onEvent(type.toStdString(), nlohmann::json::parse(json.toStdString(), nullptr, false));
@@ -236,6 +247,10 @@ void BridgeObserver::onBlockEvent(const BlockEvent& e) {
 
 void BridgeObserver::onMatch(const MatchResult& m) {
     QMetaObject::invokeMethod(&bridge_, [b = &bridge_, m] { b->applyMatch(m); }, Qt::QueuedConnection);
+}
+
+void BridgeObserver::onAirport(const blocktime::AirportFacilities& airport) {
+    QMetaObject::invokeMethod(&bridge_, [b = &bridge_, airport] { b->applyAirport(airport); }, Qt::QueuedConnection);
 }
 
 void BridgeObserver::onFlightEvent(const std::string& type, const nlohmann::json& data) {

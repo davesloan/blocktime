@@ -47,6 +47,7 @@ struct BlockOut {
     std::string atcId, title;
     std::int64_t plannedFlightId = 0;  // the planned flight the release matched (D-113); 0 without a check
     std::string aircraftFolder;
+    std::string parking;  // the spot's name ("Gate D14"), filled by the recorder; "" if none within 40 m (D-148)
 };
 
 struct BlockIn {
@@ -56,6 +57,7 @@ struct BlockIn {
     TimePoint shutdownTime{};  // when the last engine stopped (== time if they were already off)
     double shutdownFuelLb = 0;
     long long blockTimeS = 0;  // block in - block out, whole seconds
+    std::string parking;       // as BlockOut's
 };
 
 struct FlightInterrupted {

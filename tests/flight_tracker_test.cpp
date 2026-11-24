@@ -22,9 +22,10 @@ namespace {
 
 const TimePoint kT0 = sys_days{2026y / 11 / 23} + 12h;
 
-AirportRunways airport(const std::string& icao) {
+AirportFacilities airport(const std::string& icao) {
     std::ifstream in(std::string(BLOCKTIME_SOURCE_DIR "/tests/data/runways-") + icao + ".json");
-    return airportRunwaysFromJson(nlohmann::json::parse(in));
+    AirportRunways r = airportRunwaysFromJson(nlohmann::json::parse(in));
+    return AirportFacilities{r.icao, 0, 0, std::move(r.runways), {}};
 }
 
 FlightTarget target() {
@@ -58,8 +59,8 @@ void append(std::vector<LogEvent>& to, const std::vector<LogEvent>& from) { to.i
 // Runs the KBFI→KPDX replay through a tracker with both airports' runways.
 std::vector<LogEvent> replayKbfiKpdx(FlightTracker& t) {
     const auto r = replay::loadReplay("replay-kbfi-kpdx.csv");
-    t.setRunways(airport("KBFI"));
-    t.setRunways(airport("KPDX"));
+    t.setAirport(airport("KBFI"));
+    t.setAirport(airport("KPDX"));
     std::vector<LogEvent> all = t.onBlockOut(blockOut(r.blockOut), target(), 25);
     for (const auto& s : r.samples) append(all, t.onSample(s));
     return all;
@@ -220,4 +221,19 @@ TEST(FlightTracker, EveryEventCarriesTheFlightId) {
     ASSERT_GT(events.size(), 20u);
     const auto r = replay::loadReplay("replay-kbfi-kpdx.csv");
     for (const auto& e : events) EXPECT_EQ(e.data["flight_id"], formatUtc(r.blockOut)) << e.type;
+}
+
+TEST(FlightTracker, ParkingAtNamesNearestSpot) {
+    FlightTracker t;
+    AirportFacilities ksfo = airport("KSFO");
+    ParkingSpot d14;
+    d14.name = 15;
+    d14.number = 14;
+    d14.type = 8;
+    d14.radiusM = 18;
+    placeSpot(d14, 37.6188, -122.3750, 0, 0);
+    ksfo.spots.push_back(d14);
+    t.setAirport(std::move(ksfo));
+    EXPECT_EQ(t.parkingAt(37.6188 + 5 / 111320.0, -122.3750), "Gate D14");
+    EXPECT_EQ(t.parkingAt(37.6188 + 100 / 111320.0, -122.3750), "");
 }

@@ -137,7 +137,7 @@ nlohmann::json toJsonOf(const BlockOut& e) {
     return {{"flight_id", e.flightId}, {"time", formatUtc(e.time)}, {"lat", e.latDeg},     {"lon", e.lonDeg},
             {"fuel_lb", e.fuelLb},     {"fuel_gal", e.fuelGal},     {"moved_m", e.movedM}, {"atc_id", e.atcId},
             {"title", e.title},        {"planned_flight_id", e.plannedFlightId},
-            {"aircraft_folder", e.aircraftFolder}};
+            {"aircraft_folder", e.aircraftFolder}, {"parking", e.parking}};
 }
 
 nlohmann::json toJsonOf(const BlockOutRefused& e) {
@@ -161,7 +161,8 @@ nlohmann::json toJsonOf(const BlockIn& e) {
             {"fuel_gal", e.fuelGal},
             {"shutdown_time", formatUtc(e.shutdownTime)},
             {"shutdown_fuel_lb", e.shutdownFuelLb},
-            {"block_time_s", e.blockTimeS}};
+            {"block_time_s", e.blockTimeS},
+            {"parking", e.parking}};
 }
 
 nlohmann::json toJsonOf(const FlightInterrupted& e) { return {{"flight_id", e.flightId}, {"reason", e.reason}}; }

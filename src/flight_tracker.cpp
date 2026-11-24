@@ -27,14 +27,21 @@ bool same(const AltimeterSample& a, const AltimeterSample& b) {
 
 }  // namespace
 
-void FlightTracker::setRunways(AirportRunways airport) {
+void FlightTracker::setAirport(AirportFacilities airport) {
     const std::string icao = airport.icao;
-    runways_[icao] = std::move(airport);
+    airports_[icao] = std::move(airport);
+}
+
+std::string FlightTracker::parkingAt(double lat, double lon) const {
+    std::vector<ParkingSpot> spots;
+    for (const auto& [icao, a] : airports_) spots.insert(spots.end(), a.spots.begin(), a.spots.end());
+    const auto s = nearestSpot(spots, lat, lon);
+    return s ? spotName(*s) : "";
 }
 
 std::vector<AirportRunways> FlightTracker::runwayList() const {
     std::vector<AirportRunways> out;
-    for (const auto& [icao, a] : runways_) out.push_back(a);
+    for (const auto& [icao, a] : airports_) out.push_back(AirportRunways{a.icao, a.runways});
     return out;
 }
 

@@ -15,6 +15,7 @@
 #include "app_event_queue.h"
 #include "block_detector.h"
 #include "flight_match.h"
+#include "parking.h"
 #include "sim_vars.h"
 
 namespace blocktime {
@@ -41,6 +42,9 @@ public:
     // A flight event after it was logged: phase_changed, level_off, flight_marker, liftoff, touchdown, ... (milestone
     // 7, FlightTracker). The app builds the six stages from these.
     virtual void onFlightEvent(const std::string& /*type*/, const nlohmann::json& /*data*/) {}
+    // An airport's runways and parking spots from the sim, each time they're read (the planned flight's origin and
+    // destination). The app picks the arrival gate from them (D-147).
+    virtual void onAirport(const AirportFacilities& /*airport*/) {}
 };
 
 struct RecorderOptions {

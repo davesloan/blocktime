@@ -74,10 +74,18 @@ struct BaroStdRecord {
     std::int32_t capt, fo;
 };
 // The probe's facility layout (sim_probe.cpp), confirmed on the first probe flights.
+struct AirportFacilityRecord {
+    double lat, lon, alt;
+};
 struct RunwayFacilityRecord {
     double lat, lon, alt;
     float heading, length, width;
     std::int32_t primaryNumber, primaryDesignator, secondaryNumber, secondaryDesignator;
+};
+struct ParkingFacilityRecord {
+    std::int32_t type, name, suffix;
+    std::uint32_t number;
+    float heading, radius, biasX, biasZ;
 };
 #pragma pack(pop)
 
@@ -115,7 +123,8 @@ constexpr const char* kRunwayFields[] = {
     "OPEN AIRPORT", "LATITUDE", "LONGITUDE", "ALTITUDE",
     "OPEN RUNWAY", "LATITUDE", "LONGITUDE", "ALTITUDE", "HEADING", "LENGTH", "WIDTH", "PRIMARY_NUMBER",
     "PRIMARY_DESIGNATOR", "SECONDARY_NUMBER", "SECONDARY_DESIGNATOR", "CLOSE RUNWAY",
-    "CLOSE AIRPORT",
+    "OPEN TAXI_PARKING", "TYPE", "NAME", "SUFFIX", "NUMBER", "HEADING", "RADIUS", "BIAS_X", "BIAS_Z",
+    "CLOSE TAXI_PARKING", "CLOSE AIRPORT",
 };
 
 enum EventId : SIMCONNECT_CLIENT_EVENT_ID { EVT_SIM = 1, EVT_PAUSE = 2, EVT_AIRCRAFT_LOADED = 3 };
@@ -216,20 +225,20 @@ void SimConnection::requestProbeFacilities(const std::vector<std::string>& icaos
 }
 
 void SimConnection::setFlightCallbacks(FastSampleCallback onFast, AltimeterCallback onAltimeter,
-                                       RunwaysCallback onRunways, GsxCallback onGsx) {
+                                       AirportCallback onAirport, GsxCallback onGsx) {
     onFast_ = std::move(onFast);
     onAltimeter_ = std::move(onAltimeter);
-    onRunways_ = std::move(onRunways);
+    onAirport_ = std::move(onAirport);
     onGsx_ = std::move(onGsx);
 }
 
-bool SimConnection::requestRunways(const std::vector<std::string>& icaos) {
+bool SimConnection::requestAirports(const std::vector<std::string>& icaos) {
     if (handle_ == nullptr || !handshake_) return false;
     for (const std::string& icao : icaos) {
         if (icao.empty()) continue;
         const unsigned long id = REQ_RUNWAYS_FIRST + nextRunwayRequest_++ % REQ_RUNWAYS_COUNT;
-        runwayRequests_[id] = AirportRunways{icao, {}};
-        check(SimConnect_RequestFacilityData(h(handle_), DEF_RUNWAYS, id, icao.c_str()), "runways request");
+        airportRequests_[id] = AirportFacilities{icao, 0, 0, {}, {}};
+        check(SimConnect_RequestFacilityData(h(handle_), DEF_RUNWAYS, id, icao.c_str()), "airport request");
     }
     return true;
 }
@@ -293,7 +302,7 @@ bool SimConnection::open() {
     sent_ = {};
     sentNext_ = 0;
     fastOn_ = false;
-    runwayRequests_.clear();
+    airportRequests_.clear();
     lastMessage_ = lastHeartbeat_ = Clock::now();
 
     if (!setup()) {
@@ -527,29 +536,54 @@ void SimConnection::handleMessage(const void* raw, unsigned long size) {
         }
         case SIMCONNECT_RECV_ID_FACILITY_DATA: {
             const auto* r = static_cast<const SIMCONNECT_RECV_FACILITY_DATA*>(msg);
-            const auto it = runwayRequests_.find(r->UserRequestId);
-            if (it == runwayRequests_.end()) {
+            const auto it = airportRequests_.find(r->UserRequestId);
+            if (it == airportRequests_.end()) {
                 if (probe_) probe_->onFacilityData(msg);
                 break;
             }
             const std::size_t offset = offsetof(SIMCONNECT_RECV_FACILITY_DATA, Data);
-            RunwayFacilityRecord w{};
-            if (r->Type == SIMCONNECT_FACILITY_DATA_RUNWAY && r->dwSize >= offset + sizeof(w)) {
-                std::memcpy(&w, &r->Data, sizeof(w));
-                it->second.runways.push_back(Runway{w.lat, w.lon, w.heading, w.length, w.width, w.primaryNumber,
-                                                    w.primaryDesignator, w.secondaryNumber, w.secondaryDesignator});
+            AirportFacilities& a = it->second;
+            if (r->Type == SIMCONNECT_FACILITY_DATA_AIRPORT) {
+                AirportFacilityRecord ap{};
+                if (r->dwSize >= offset + sizeof(ap)) {
+                    std::memcpy(&ap, &r->Data, sizeof(ap));
+                    a.lat = ap.lat;
+                    a.lon = ap.lon;
+                }
+            } else if (r->Type == SIMCONNECT_FACILITY_DATA_RUNWAY) {
+                RunwayFacilityRecord w{};
+                if (r->dwSize >= offset + sizeof(w)) {
+                    std::memcpy(&w, &r->Data, sizeof(w));
+                    a.runways.push_back(Runway{w.lat, w.lon, w.heading, w.length, w.width, w.primaryNumber,
+                                               w.primaryDesignator, w.secondaryNumber, w.secondaryDesignator});
+                }
+            } else if (r->Type == SIMCONNECT_FACILITY_DATA_TAXI_PARKING) {
+                ParkingFacilityRecord p{};
+                if (r->dwSize >= offset + sizeof(p)) {
+                    std::memcpy(&p, &r->Data, sizeof(p));
+                    ParkingSpot spot;
+                    spot.type = p.type;
+                    spot.name = p.name;
+                    spot.suffix = p.suffix;
+                    spot.number = static_cast<int>(p.number);
+                    spot.headingDeg = p.heading;
+                    spot.radiusM = p.radius;
+                    // The airport record comes first, so its reference point is known here.
+                    placeSpot(spot, a.lat, a.lon, p.biasX, p.biasZ);
+                    a.spots.push_back(spot);
+                }
             }
             break;
         }
         case SIMCONNECT_RECV_ID_FACILITY_DATA_END: {
             const DWORD id = static_cast<const SIMCONNECT_RECV_FACILITY_DATA_END*>(msg)->RequestId;
-            const auto it = runwayRequests_.find(id);
-            if (it == runwayRequests_.end()) {
+            const auto it = airportRequests_.find(id);
+            if (it == airportRequests_.end()) {
                 if (probe_) probe_->onFacilityDataEnd(id);
                 break;
             }
-            if (onRunways_) onRunways_(std::move(it->second));
-            runwayRequests_.erase(it);
+            if (onAirport_) onAirport_(std::move(it->second));
+            airportRequests_.erase(it);
             break;
         }
         default:

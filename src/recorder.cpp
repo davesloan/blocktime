@@ -268,7 +268,10 @@ int Recorder::run(const std::atomic<bool>& stop) {
         }
     };
     // Every block event goes through here, so the tracker opens and closes with the flight.
-    const auto blockEvent = [&](const BlockEvent& e, const TelemetrySample* s) {
+    const auto blockEvent = [&](BlockEvent e, const TelemetrySample* s) {
+        // The spot it happened at, from the loaded airports' parking (D-148).
+        if (auto* out = std::get_if<BlockOut>(&e)) out->parking = tracker.parkingAt(out->latDeg, out->lonDeg);
+        if (auto* in = std::get_if<BlockIn>(&e)) in->parking = tracker.parkingAt(in->latDeg, in->lonDeg);
         logBlockEvent(outbox, observer, e);
         if (const auto* out = std::get_if<BlockOut>(&e)) {
             writeFlightEvents(tracker.onBlockOut(*out, target.get(), s ? s->indicatedAltitudeFt : 0));
@@ -291,13 +294,13 @@ int Recorder::run(const std::atomic<bool>& stop) {
         if (auto e = detector.onSessionEnded(reason)) blockEvent(*e, nullptr);
         sessionEvent(false);
     };
-    // The airports whose runways were last asked for, so a new planned flight asks again (D-126).
-    std::vector<std::string> runwaysAsked;
-    const auto askRunways = [&](SimConnection& sim) {
+    // The airports last asked for, so a new planned flight asks again (D-126, D-147).
+    std::vector<std::string> airportsAsked;
+    const auto askAirports = [&](SimConnection& sim) {
         const auto t = target.get();
         if (!t) return;
         std::vector<std::string> want{t->originIcao, t->destinationIcao};
-        if (want != runwaysAsked && sim.requestRunways(want)) runwaysAsked = std::move(want);
+        if (want != airportsAsked && sim.requestAirports(want)) airportsAsked = std::move(want);
     };
     SimConnection sim(log, [&](const TelemetrySample& s, bool running) {
         // Only samples that pass the junk filter may start or end a flight (D-025).
@@ -337,9 +340,11 @@ int Recorder::run(const std::atomic<bool>& stop) {
             sim.setFastSampling(tracker.wantsFastSampling());
         },
         [&](const AltimeterSample& a) { writeFlightEvents(tracker.onAltimeter(a)); },
-        [&](AirportRunways a) {
-            log.write("airport_runways", toJson(a));
-            tracker.setRunways(std::move(a));
+        [&](AirportFacilities a) {
+            // The runways are logged (D-126); the spot list is the scenery's static data and isn't (D-147).
+            log.write("airport_runways", toJson(AirportRunways{a.icao, a.runways}));
+            observer.onAirport(a);
+            tracker.setAirport(std::move(a));
         },
         [&](const GsxValues& v) { writeFlightEvents(gsx.onValues(v, std::chrono::system_clock::now())); });
     if (options_.probe) observer.onLine("Probe on: logging GSX, PMDG and airport data (D-116).", false);
@@ -371,7 +376,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
         const bool alive = sim.pump();
         if (sim.handshakeComplete() && !announcedConnected) {
             matches.reset();  // report afresh in this session
-            runwaysAsked.clear();
+            airportsAsked.clear();
             observer.onLine("Connected to sim.", false);
             if (options_.probe) {
                 if (const auto t = target.get()) sim.requestProbeFacilities({t->originIcao, t->destinationIcao});
@@ -379,7 +384,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
             observer.onConnection(ConnectionState::Connected);
             announcedConnected = true;
         }
-        if (announcedConnected) askRunways(sim);
+        if (announcedConnected) askAirports(sim);
         // A plan made or cancelled while the airplane sits still: no sample comes, so check the last one again.
         if (announcedConnected && !detector.flightOpen()) {
             if (auto m = matches.recheck(target.get())) observer.onMatch(*m);
