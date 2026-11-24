@@ -2028,8 +2028,8 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-138 — Milestone 8's GSX rules
 - Date: 2026-11-24
-- Status: Proposed
-- Decided by: Claude
+- Status: Accepted (Dave, 2026-11-24)
+- Decided by: Claude, confirmed by Dave
 - Area: recorder, app
 - Decision:
   - **The recorder** reads the five GSX states and the boarding and deboarding passenger totals always (not only with

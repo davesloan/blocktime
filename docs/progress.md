@@ -26,7 +26,7 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 **Done:**
 - Plan `docs/plans/2026-11-24-milestone-8-gsx.md`, all 7 tasks, executed inline (D-033). Dave's calls are D-134..D-137;
-  Claude's GSX rules are D-138 (Proposed).
+  Claude's GSX rules are D-138 (accepted by Dave).
   - **Recorder:** `GsxWatcher` reads GSX's five service states and the passenger totals on every flight (not only with
     `--probe`) and logs `gsx_service` on each state change. Telemetry gains `beacon` and `strobe`.
   - **`GsxTimeline`:** turns the log's GSX, block and sim session events into services with start and end, and gives
@@ -63,7 +63,7 @@ Newest entries at the top. Add an entry at the end of every working session.
   - a timing row that fails its CHECK (a clock step) would block settling;
   - a new plan during the summary switching the card to the next leg has no test;
   - `INSERT OR IGNORE` also hides a CHECK failure on a deboarding row.
-- **Proposed decision for Dave:** D-138 (the GSX rules).
+- **D-138 (the GSX rules):** accepted by Dave.
 
 **Dave's checks.** Two legs in N916SX (777-300ER) in one sim session, with a GSX turnaround at KLAS: **KSLC → KLAS →
 KSAN**. `--probe` also collects the 777's PMDG data, which the last flight missed (the broadcast is on now).
