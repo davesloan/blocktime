@@ -42,6 +42,14 @@ Sources:
 - **assignGate** (milestone 9): `GET .../sapi/assignGate?api_key=&gate=A21&airport=KSAN`. Gate is letters and digits,
   up to 30. Needs an active SayIntentions flight. Returns `{"assigned_gate_name":"A21"}`; errors "Unknown gate: Z99",
   "No active flight could be found."
+- **Gate names SayIntentions uses (seen, for milestone 9):**
+  - 2026-11-24, KLAS, 777-300ER from KSLC, in cruise: Dave saw the arrival gate shown as **"Terminal 3 Gate E7A"**.
+    It wasn't in BlockTime's log (no `atc_exchange` had it yet), so it came from SayIntentions' own screen before
+    any ATC call. The gate itself, "E7A", has a letter suffix; the terminal comes as a separate prefix.
+  - 2026-11-24, KSLC arrival: ground said "Gate Bravo Two via Alpha-Five" (`atc_exchange` `incoming_message`), so
+    spoken gates are in the phonetic alphabet ("Bravo Two" for B2), not the short form.
+  - Open for milestone 9: whether `assignGate` takes "E7A" or needs the terminal, and how MSFS's parking names
+    (`probe_facility`: a name code, a number and a suffix) map onto these.
 - **getCommsHistory** (milestone 10, the ATC log for D-040): `GET .../sapi/getCommsHistory?api_key=&since_id=`.
   Returns `flight_id` and `comm_history[]` (`stamp_zulu`, `frequency`, `station_name`, `incoming_message` from the
   pilot, `outgoing_message` from ATC, English versions, audio URLs). **Current flight only**: it can't be fetched
