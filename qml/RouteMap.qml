@@ -99,7 +99,7 @@ Rectangle {
                 id: line
 
                 visible: root.trackPoints.length > 1
-                line.width: 3
+                line.width: Theme.routeLineWidth
                 line.color: Theme.accent
                 path: root.trackPoints
             }
@@ -166,7 +166,7 @@ Rectangle {
 
             ShapePath {
                 strokeColor: Theme.accent
-                strokeWidth: 3
+                strokeWidth: Theme.routeLineWidth
                 fillColor: "transparent"
                 capStyle: ShapePath.RoundCap
                 joinStyle: ShapePath.RoundJoin

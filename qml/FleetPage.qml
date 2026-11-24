@@ -46,7 +46,7 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 12
+            spacing: Theme.gap12
 
             Text {
                 Layout.fillWidth: true
@@ -105,7 +105,7 @@ Item {
             id: header
 
             Layout.fillWidth: true
-            Layout.preferredHeight: 36
+            Layout.preferredHeight: Theme.tableHeaderHeight
             syncView: table
             clip: true
             boundsBehavior: Flickable.StopAtBounds
@@ -118,21 +118,21 @@ Item {
 
                 readonly property bool sorted: page.fleet.sortColumn === column
 
-                implicitHeight: 36
+                implicitHeight: Theme.tableHeaderHeight
                 color: "transparent"
 
                 Rectangle {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
-                    height: 1
+                    height: Theme.hairline
                     color: Theme.border
                 }
 
                 Text {
                     anchors.fill: parent
-                    anchors.leftMargin: 12
-                    anchors.rightMargin: 12
+                    anchors.leftMargin: Theme.gap12
+                    anchors.rightMargin: Theme.gap12
                     verticalAlignment: Text.AlignVCenter
                     horizontalAlignment: page.numberColumns.includes(headerCell.column) ? Text.AlignRight : Text.AlignLeft
                     text: headerCell.display.toUpperCase()
@@ -186,7 +186,7 @@ Item {
                 readonly property color tone: display === "Parked" ? Theme.good
                                             : display.startsWith("Returned") ? Theme.bad : Theme.accent
 
-                implicitHeight: 44
+                implicitHeight: Theme.tableRowHeight
                 color: selected ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.14)
                      : row === page.hoveredRow ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.07)
                      : row % 2 === 0 ? Theme.surface : Theme.surfaceRaised
@@ -196,7 +196,7 @@ Item {
                     anchors.left: parent.left
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
-                    width: 3
+                    width: Theme.accentBarWidth
                     color: Theme.accent
                 }
 
@@ -206,8 +206,8 @@ Item {
 
                 Text {
                     anchors.fill: parent
-                    anchors.leftMargin: 12
-                    anchors.rightMargin: 12
+                    anchors.leftMargin: Theme.gap12
+                    anchors.rightMargin: Theme.gap12
                     visible: !cell.isStatus
                     verticalAlignment: Text.AlignVCenter
                     horizontalAlignment: cell.isNumber ? Text.AlignRight : Text.AlignLeft
@@ -223,15 +223,15 @@ Item {
                 // Status as a small pill: Parked, Awaiting delivery, or Returned (the lease ended).
                 Rectangle {
                     anchors.left: parent.left
-                    anchors.leftMargin: 12
+                    anchors.leftMargin: Theme.gap12
                     anchors.verticalCenter: parent.verticalCenter
                     visible: cell.isStatus
-                    width: statusText.implicitWidth + 16
-                    height: 22
-                    radius: 11
+                    width: statusText.implicitWidth + 2 * Theme.gap8
+                    height: Theme.badgeHeight
+                    radius: Theme.badgeHeight / 2
                     color: Qt.rgba(cell.tone.r, cell.tone.g, cell.tone.b, 0.12)
                     border.color: Qt.rgba(cell.tone.r, cell.tone.g, cell.tone.b, 0.35)
-                    border.width: 1
+                    border.width: Theme.borderWidth
 
                     Text {
                         id: statusText

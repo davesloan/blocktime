@@ -26,19 +26,19 @@ AbstractButton {
         Rectangle {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            width: 3
-            height: parent.height - 16
-            radius: 1.5
+            width: Theme.accentBarWidth
+            height: parent.height - Theme.spacing
+            radius: Theme.accentBarWidth / 2
             color: Theme.accent
             visible: button.selected
         }
     }
 
     contentItem: RowLayout {
-        spacing: 12
+        spacing: Theme.gap12
 
         Text {
-            Layout.leftMargin: 14
+            Layout.leftMargin: Theme.gap14
             text: button.glyph
             color: button.selected ? Theme.accent : Theme.textSecondary
             font.family: Theme.iconFontFamily

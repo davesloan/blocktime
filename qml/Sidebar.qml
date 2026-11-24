@@ -35,25 +35,25 @@ Rectangle {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.right: parent.right
-        width: 1
+        width: Theme.hairline
         color: Theme.border
     }
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 12
-        spacing: 4
+        anchors.margins: Theme.gap12
+        spacing: Theme.gap4
 
         // Brand
         RowLayout {
             Layout.preferredHeight: Theme.headerHeight - 12
-            Layout.leftMargin: 8
-            Layout.bottomMargin: 8
-            spacing: 12
+            Layout.leftMargin: Theme.gap8
+            Layout.bottomMargin: Theme.gap8
+            spacing: Theme.gap12
 
             Rectangle {
-                Layout.preferredWidth: 30
-                Layout.preferredHeight: 30
+                Layout.preferredWidth: Theme.logoSize
+                Layout.preferredHeight: Theme.logoSize
                 radius: Theme.radiusSmall
                 color: Theme.accent
 

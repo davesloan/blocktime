@@ -50,10 +50,10 @@ Item {
         ListView {
             id: list
 
-            Layout.preferredWidth: 340
+            Layout.preferredWidth: Theme.sideColumnWidth
             Layout.fillHeight: true
             clip: true
-            spacing: 8
+            spacing: Theme.gap8
             model: page.flights
             currentIndex: page.flights.count > 0 ? 0 : -1
             onCurrentIndexChanged: page.showCurrent()
@@ -61,7 +61,7 @@ Item {
             ScrollBar.vertical: ScrollBar {}
 
             delegate: FlightCard {
-                width: ListView.view.width - 10
+                width: ListView.view.width - Theme.gap10
                 selected: ListView.isCurrentItem
                 onClicked: list.currentIndex = index
             }

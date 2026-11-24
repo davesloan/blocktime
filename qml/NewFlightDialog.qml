@@ -23,8 +23,8 @@ Dialog {
     // While the runways are on their way, only Cancel closes it, so a plan can't land after the dialog is gone.
     closePolicy: flight.busy ? Popup.NoAutoClose : Popup.CloseOnEscape | Popup.CloseOnPressOutside
     anchors.centerIn: Overlay.overlay
-    width: Math.min(600, parent ? parent.width - 40 : 600)
-    height: Math.min(implicitHeight, parent ? parent.height - 40 : implicitHeight)
+    width: Math.min(Theme.dialogWidth, parent ? parent.width - 2 * Theme.pagePadding : Theme.dialogWidth)
+    height: Math.min(implicitHeight, parent ? parent.height - 2 * Theme.pagePadding : implicitHeight)
     padding: Theme.pagePadding
 
     onOpened: {
@@ -46,7 +46,7 @@ Dialog {
         color: Theme.surface
         radius: Theme.radius
         border.color: Theme.border
-        border.width: 1
+        border.width: Theme.borderWidth
     }
 
     Overlay.modal: Rectangle {
@@ -64,7 +64,7 @@ Dialog {
             id: content
 
             width: scroll.availableWidth
-            spacing: 12
+            spacing: Theme.gap12
 
             Text {
                 text: "New Flight"
@@ -84,8 +84,8 @@ Dialog {
             GridLayout {
                 Layout.fillWidth: true
                 columns: 2
-                columnSpacing: 12
-                rowSpacing: 4
+                columnSpacing: Theme.gap12
+                rowSpacing: Theme.gap4
 
                 Text {
                     text: "DESTINATION"
@@ -117,7 +117,7 @@ Dialog {
                 TextInputField {
                     id: numberField
 
-                    Layout.preferredWidth: 160
+                    Layout.preferredWidth: Theme.shortFieldWidth
                     placeholderText: "1-4 digits"
                     maximumLength: 4
                     validator: RegularExpressionValidator { regularExpression: /[0-9]{0,4}/ }
@@ -138,7 +138,7 @@ Dialog {
             // The kind of flight: a choice only when there's more than one (the BBJ2: VIP airliner or charter).
             RowLayout {
                 visible: dialog.flight.kinds.length > 1
-                spacing: 8
+                spacing: Theme.gap8
 
                 Repeater {
                     model: dialog.flight.kinds
@@ -151,12 +151,12 @@ Dialog {
 
                         readonly property bool chosen: dialog.flight.kind === modelData
 
-                        implicitWidth: kindText.implicitWidth + 28
-                        implicitHeight: 32
+                        implicitWidth: kindText.implicitWidth + 2 * Theme.gap14
+                        implicitHeight: Theme.chipHeight
                         radius: height / 2
                         color: chosen ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18) : "transparent"
                         border.color: chosen ? Theme.accent : Theme.border
-                        border.width: 1
+                        border.width: Theme.borderWidth
 
                         Text {
                             id: kindText
@@ -248,8 +248,8 @@ Dialog {
 
             RowLayout {
                 Layout.fillWidth: true
-                Layout.topMargin: 4
-                spacing: 8
+                Layout.topMargin: Theme.gap4
+                spacing: Theme.gap8
 
                 Item {
                     Layout.fillWidth: true

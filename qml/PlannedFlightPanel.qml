@@ -36,7 +36,7 @@ Card {
 
     RowLayout {
         Layout.fillWidth: true
-        spacing: 12
+        spacing: Theme.gap12
 
         Text {
             text: panel.flight.title
@@ -47,12 +47,12 @@ Card {
         }
 
         Rectangle {
-            implicitWidth: stateText.implicitWidth + 20
-            implicitHeight: 24
+            implicitWidth: stateText.implicitWidth + 2 * Theme.gap10
+            implicitHeight: Theme.badgeHeight + Theme.gap2
             radius: height / 2
             color: Qt.rgba(panel.stateTone.r, panel.stateTone.g, panel.stateTone.b, 0.12)
             border.color: Qt.rgba(panel.stateTone.r, panel.stateTone.g, panel.stateTone.b, 0.35)
-            border.width: 1
+            border.width: Theme.borderWidth
 
             Text {
                 id: stateText
@@ -72,12 +72,12 @@ Card {
 
         // Collapse or expand: a chevron from the system icon font (D-062).
         Rectangle {
-            implicitWidth: 32
-            implicitHeight: 32
+            implicitWidth: Theme.chipHeight
+            implicitHeight: Theme.chipHeight
             radius: height / 2
             color: chevronHover.hovered ? Theme.surfaceRaised : "transparent"
             border.color: chevronHover.hovered ? Theme.textPrimary : Theme.textSecondary
-            border.width: 1
+            border.width: Theme.borderWidth
 
             Text {
                 anchors.centerIn: parent
@@ -107,7 +107,7 @@ Card {
         ColumnLayout {
             Layout.fillWidth: true
             Layout.alignment: Qt.AlignTop
-            spacing: 6
+            spacing: Theme.gap6
 
             Line {
                 text: panel.flight.airplaneText + "  ·  " + panel.flight.kindText
@@ -126,7 +126,7 @@ Card {
             RowLayout {
                 Layout.fillWidth: true
                 visible: panel.flight.route !== ""
-                spacing: 8
+                spacing: Theme.gap8
 
                 Rectangle {
                     Layout.fillWidth: true
@@ -134,13 +134,13 @@ Card {
                     radius: Theme.radiusSmall
                     color: Theme.bg
                     border.color: Theme.border
-                    border.width: 1
+                    border.width: Theme.borderWidth
 
                     Text {
                         id: routeText
 
                         anchors.fill: parent
-                        anchors.margins: 8
+                        anchors.margins: Theme.gap8
                         text: panel.flight.route
                         color: Theme.textPrimary
                         wrapMode: Text.WrapAnywhere
@@ -173,8 +173,8 @@ Card {
             }
 
             RowLayout {
-                Layout.topMargin: 4
-                spacing: 8
+                Layout.topMargin: Theme.gap4
+                spacing: Theme.gap8
 
                 PrimaryButton {
                     text: panel.flight.busy ? "Importing…" : "Import Active SimBrief Plan"
@@ -197,9 +197,9 @@ Card {
         }
 
         ColumnLayout {
-            Layout.preferredWidth: 300
+            Layout.preferredWidth: Theme.liveFeedWidth
             Layout.alignment: Qt.AlignTop
-            spacing: 6
+            spacing: Theme.gap6
 
             Text {
                 text: "ESTIMATE"
@@ -231,11 +231,11 @@ Card {
             color: Theme.surface
             radius: Theme.radius
             border.color: Theme.border
-            border.width: 1
+            border.width: Theme.borderWidth
         }
 
         contentItem: ColumnLayout {
-            spacing: 16
+            spacing: Theme.spacing
 
             Text {
                 text: "Cancel " + panel.flight.title.replace(" · ", " ").replace(" → ", "–") + "? It's free."
@@ -246,7 +246,7 @@ Card {
 
             RowLayout {
                 Layout.alignment: Qt.AlignRight
-                spacing: 8
+                spacing: Theme.gap8
 
                 SecondaryButton {
                     text: "Keep it"

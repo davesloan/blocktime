@@ -43,10 +43,60 @@ QtObject {
     readonly property int stageDotSize: 8      // Flight progress: the marker before each stage
     readonly property int stageTimeWidth: 104  // Flight progress: "22:51Z – 22:54Z"
 
+    // Spacing scale: every gap, margin and padding below Theme.spacing (16) comes from here
+    readonly property int gap2: 2
+    readonly property int gap4: 4
+    readonly property int gap6: 6
+    readonly property int gap8: 8
+    readonly property int gap10: 10
+    readonly property int gap12: 12
+    readonly property int gap14: 14
+
+    // Lines
+    readonly property int borderWidth: 1
+    readonly property int hairline: 1          // separators
+    readonly property int accentBarWidth: 3    // the selected nav item's and fleet row's bar
+    readonly property int routeLineWidth: 3    // the flight's track on the map
+
+    // Controls
+    readonly property int controlHeight: 36    // buttons and text fields
+    readonly property int chipHeight: 32       // New Flight's kind chips, the collapse button
+    readonly property int pillHeight: 28       // the connection pill
+    readonly property int badgeHeight: 22      // the fleet's status badges
+    readonly property int logoSize: 30         // the sidebar's logo
+    readonly property int shortFieldWidth: 160 // New Flight's flight number
+    readonly property int dialogWidth: 600     // New Flight
+
+    // Dots
+    readonly property int feedDotSize: 7       // the event log's markers
+    readonly property int feedDotOffset: 5     // lines them up with the first text line
+    readonly property int trackDotSize: 14     // the aircraft on the map
+    readonly property int trackDotBorder: 3
+
+    // Tiles, tables and columns
+    readonly property int tileWidth: 150       // StatTile, StatusTile
+    readonly property int tileHeight: 92
+    readonly property int tableHeaderHeight: 36
+    readonly property int tableRowHeight: 44
+    readonly property int ledgerRowHeight: 40
+    readonly property int ledgerDateWidth: 110
+    readonly property int cashTileWidth: 360
+    readonly property int sideColumnWidth: 340 // Live's Flight progress, the Flights list, the summary's money (D-139)
+    readonly property int liveFeedWidth: 300   // Live's event log; the planned flight's side column
+    readonly property int summaryHeight: 520
+    readonly property int summaryMapMinHeight: 240
+
+    // Window
+    readonly property int windowWidth: 1300
+    readonly property int windowHeight: 760
+    readonly property int windowMinWidth: 1100
+    readonly property int windowMinHeight: 600
+
     // Type
     readonly property string fontFamily: "Segoe UI Variable"
     readonly property int fontSizeLabel: 11  // small caps labels above values
     readonly property int fontSizeSmall: 12
+    readonly property int fontSizeFeed: 13   // the event log
     readonly property int fontSizeBody: 14
     readonly property int fontSizeTitle: 18
     readonly property int fontSizeValue: 28

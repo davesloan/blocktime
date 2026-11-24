@@ -10,10 +10,10 @@ import BlockTime  // explicit, so hot reload from the source folder still sees t
 Rectangle {
     property color tone: Theme.accent
 
-    width: 14
-    height: 14
-    radius: 7
+    width: Theme.trackDotSize
+    height: Theme.trackDotSize
+    radius: Theme.trackDotSize / 2
     color: tone
     border.color: Theme.bg
-    border.width: 3
+    border.width: Theme.trackDotBorder
 }

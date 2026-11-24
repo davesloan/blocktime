@@ -24,7 +24,7 @@ Card {
         Layout.fillWidth: true
         Layout.fillHeight: true
         clip: true
-        spacing: 2
+        spacing: Theme.gap2
         boundsBehavior: Flickable.StopAtBounds
         model: feed.recorder.events
 
@@ -40,16 +40,16 @@ Card {
             required property string text
 
             width: list.width
-            implicitHeight: line.implicitHeight + 10
+            implicitHeight: line.implicitHeight + Theme.gap10
 
             RowLayout {
                 id: line
 
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.rightMargin: 10
+                anchors.rightMargin: Theme.gap10
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 10
+                spacing: Theme.gap10
 
                 Text {
                     Layout.alignment: Qt.AlignTop
@@ -62,10 +62,10 @@ Card {
 
                 Rectangle {
                     Layout.alignment: Qt.AlignTop
-                    Layout.topMargin: 5
-                    Layout.preferredWidth: 7
-                    Layout.preferredHeight: 7
-                    radius: 3.5
+                    Layout.topMargin: Theme.feedDotOffset
+                    Layout.preferredWidth: Theme.feedDotSize
+                    Layout.preferredHeight: Theme.feedDotSize
+                    radius: Theme.feedDotSize / 2
                     color: row.kind === "block" ? Theme.accent : row.kind === "warn" ? Theme.warn : Theme.border
                 }
 
@@ -75,7 +75,7 @@ Card {
                     color: row.kind === "info" ? Theme.textSecondary : Theme.textPrimary
                     wrapMode: Text.Wrap
                     font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSmall + 1
+                    font.pixelSize: Theme.fontSizeFeed
                     font.weight: row.kind === "block" ? Font.DemiBold : Font.Normal
                 }
             }

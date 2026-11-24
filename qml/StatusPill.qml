@@ -24,23 +24,23 @@ Rectangle {
                                   : "Waiting for sim"
 
     implicitWidth: row.implicitWidth + 24
-    implicitHeight: 28
+    implicitHeight: Theme.pillHeight
     radius: height / 2
     color: Qt.rgba(tone.r, tone.g, tone.b, 0.12)
     border.color: Qt.rgba(tone.r, tone.g, tone.b, 0.35)
-    border.width: 1
+    border.width: Theme.borderWidth
 
     Row {
         id: row
 
         anchors.centerIn: parent
-        spacing: 8
+        spacing: Theme.gap8
 
         Rectangle {
             anchors.verticalCenter: parent.verticalCenter
-            width: 8
-            height: 8
-            radius: 4
+            width: Theme.stageDotSize
+            height: Theme.stageDotSize
+            radius: Theme.stageDotSize / 2
             color: pill.tone
         }
 

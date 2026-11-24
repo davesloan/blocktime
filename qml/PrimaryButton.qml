@@ -11,10 +11,10 @@ import QtQuick.Controls.Basic
 Button {
     id: control
 
-    leftPadding: 16
-    rightPadding: 16
-    topPadding: 8
-    bottomPadding: 8
+    leftPadding: Theme.spacing
+    rightPadding: Theme.spacing
+    topPadding: Theme.gap8
+    bottomPadding: Theme.gap8
     opacity: enabled ? 1 : 0.45
     font.family: Theme.fontFamily
     font.pixelSize: Theme.fontSizeBody
@@ -29,7 +29,7 @@ Button {
     }
 
     background: Rectangle {
-        implicitHeight: 36
+        implicitHeight: Theme.controlHeight
         radius: Theme.radiusSmall
         color: control.down ? Qt.darker(Theme.accent, 1.25)
              : control.hovered ? Qt.lighter(Theme.accent, 1.12)

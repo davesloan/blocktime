@@ -22,7 +22,7 @@ Item {
         spacing: Theme.spacing
 
         StatTile {
-            Layout.preferredWidth: 360
+            Layout.preferredWidth: Theme.cashTileWidth
             label: "Cash"
             value: page.ledger.cashShort
             unit: page.ledger.cashFull
@@ -61,17 +61,17 @@ Item {
                     required property int index
 
                     width: ListView.view.width
-                    implicitHeight: 40
+                    implicitHeight: Theme.ledgerRowHeight
                     color: index % 2 === 0 ? Theme.surface : Theme.surfaceRaised
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 12
-                        anchors.rightMargin: 12
-                        spacing: 16
+                        anchors.leftMargin: Theme.gap12
+                        anchors.rightMargin: Theme.gap12
+                        spacing: Theme.spacing
 
                         Text {
-                            Layout.preferredWidth: 110
+                            Layout.preferredWidth: Theme.ledgerDateWidth
                             text: line.date
                             color: Theme.textSecondary
                             font.family: Theme.fontFamily

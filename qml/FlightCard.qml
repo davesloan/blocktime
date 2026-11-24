@@ -31,27 +31,27 @@ AbstractButton {
 
     readonly property color tone: totalCents >= 0 ? Theme.good : Theme.bad
 
-    implicitHeight: column.implicitHeight + 24
+    implicitHeight: column.implicitHeight + 2 * Theme.gap12
     hoverEnabled: true
 
     background: Rectangle {
         radius: Theme.radiusSmall
         color: card.selected ? Theme.surfaceRaised : card.hovered ? Theme.surfaceHover : Theme.surface
-        border.width: 1
+        border.width: Theme.borderWidth
         border.color: card.selected ? Theme.accent : Theme.border
     }
 
     contentItem: ColumnLayout {
         id: column
 
-        spacing: 6
+        spacing: Theme.gap6
 
         // Date and times, the money
         RowLayout {
             Layout.fillWidth: true
-            Layout.leftMargin: 14
-            Layout.rightMargin: 14
-            Layout.topMargin: 12
+            Layout.leftMargin: Theme.gap14
+            Layout.rightMargin: Theme.gap14
+            Layout.topMargin: Theme.gap12
 
             Text {
                 Layout.fillWidth: true
@@ -76,9 +76,9 @@ AbstractButton {
         // Flight number and route
         RowLayout {
             Layout.fillWidth: true
-            Layout.leftMargin: 14
-            Layout.rightMargin: 14
-            spacing: 8
+            Layout.leftMargin: Theme.gap14
+            Layout.rightMargin: Theme.gap14
+            spacing: Theme.gap8
 
             Text {
                 text: card.flightNumber
@@ -101,9 +101,9 @@ AbstractButton {
         // Airplane and block time
         Text {
             Layout.fillWidth: true
-            Layout.leftMargin: 14
-            Layout.rightMargin: 14
-            Layout.bottomMargin: 12
+            Layout.leftMargin: Theme.gap14
+            Layout.rightMargin: Theme.gap14
+            Layout.bottomMargin: Theme.gap12
             text: card.registration + " · " + card.typeCode + " · " + card.blockText + " block"
             color: Theme.textSecondary
             elide: Text.ElideRight

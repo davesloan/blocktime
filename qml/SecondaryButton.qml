@@ -13,10 +13,10 @@ Button {
 
     property color tone: Theme.textPrimary
 
-    leftPadding: 14
-    rightPadding: 14
-    topPadding: 8
-    bottomPadding: 8
+    leftPadding: Theme.gap14
+    rightPadding: Theme.gap14
+    topPadding: Theme.gap8
+    bottomPadding: Theme.gap8
     opacity: enabled ? 1 : 0.45
     font.family: Theme.fontFamily
     font.pixelSize: Theme.fontSizeBody
@@ -31,10 +31,10 @@ Button {
     }
 
     background: Rectangle {
-        implicitHeight: 36
+        implicitHeight: Theme.controlHeight
         radius: Theme.radiusSmall
         color: control.down ? Theme.surfaceRaised : control.hovered ? Theme.surfaceHover : "transparent"
         border.color: Theme.border
-        border.width: 1
+        border.width: Theme.borderWidth
     }
 }

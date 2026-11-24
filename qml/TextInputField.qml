@@ -17,14 +17,14 @@ TextField {
     selectedTextColor: Theme.textOnAccent
     font.family: Theme.fontFamily
     font.pixelSize: Theme.fontSizeBody
-    leftPadding: 10
-    rightPadding: 10
+    leftPadding: Theme.gap10
+    rightPadding: Theme.gap10
 
     background: Rectangle {
-        implicitHeight: 36
+        implicitHeight: Theme.controlHeight
         radius: Theme.radiusSmall
         color: Theme.bg
         border.color: field.activeFocus ? Theme.accent : Theme.border
-        border.width: 1
+        border.width: Theme.borderWidth
     }
 }

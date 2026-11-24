@@ -71,6 +71,11 @@ Newest entries at the top. Add an entry at the end of every working session.
     - "Parked at Gate E7", the gate line, and "Final approach, runway 26L" turning into "Short final" at 1,000 ft;
     - the planned flight says where to load in, and the summary says where the flight parked.
   - **Config:** `wingspan_m` per type in catalog.yaml (required), and optional `preferred_gates` in airline.yaml.
+- **After the build (Dave's asks):**
+  - fixed the review's minor: a go-around now re-arms the 1,000 ft marker, so the next approach shows Short final
+    again (tests `PhaseDetector.FinalApproachMarkerAgainAfterGoAround`, `FlightStages.SecondApproachAfterGoAround`);
+  - every QML size now comes from Theme.qml (D-150), with no visible change; the Live, Fleet and Money grabs match;
+  - Dave approved every call from the build (D-150).
 - **Whole-milestone review** by a fresh reviewer: 0 Critical, 1 Important, 5 Minor.
   - Fixed, with a test that failed first: SayIntentions' gate was taken as its arrival pick as soon as it was set. At
     the gate it may be the departure gate, so it would have been answered at pushback. It now counts only within
@@ -83,7 +88,7 @@ Newest entries at the top. Add an entry at the end of every working session.
     dropped again, so it's a true schema 5 copy (4 flights, 44 ledger lines).
 
 **Working / verified (without the sim):**
-- Clean release and debug builds, no warnings. **563 tests pass.** qmllint reports nothing.
+- Clean release and debug builds, no warnings. **565 tests pass.** qmllint reports nothing.
 - `--demo --grab` shows the three columns, green engine tiles, the grey brake and "M.78" (at 150% scaling).
 
 **Unverified or broken:**
@@ -98,10 +103,8 @@ Newest entries at the top. Add an entry at the end of every working session.
 - **Deferred minors from the review:**
   - an `assignGate` answer arriving after an interrupt or a new block out is logged with the wrong or an empty
     `flight_id`;
-  - no "Short final" on the approach after a go-around (the 1,000 ft marker fires once per flight);
   - `lined_up` has no height limit and fires once. Overflying the field along a runway axis in Descent could name
     the reciprocal runway and miss the real final. A late sidestep keeps the first name;
-  - literal sizes in StatusTile.qml and LivePage.qml instead of Theme.qml (D-054);
   - parking spots are placed assuming the airport record comes first (true on every probe flight).
 - **Still unseen from milestone 8:** the banner fix (step 11), Ready with four items without GSX deboarding (step
   15), and Done for now (step 16).

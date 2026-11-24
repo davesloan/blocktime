@@ -29,10 +29,10 @@ Card {
             readonly property bool done: modelData.state === "done"
 
             Layout.fillWidth: true
-            spacing: 4
+            spacing: Theme.gap4
 
             RowLayout {
-                spacing: 8
+                spacing: Theme.gap8
 
                 Rectangle {
                     implicitWidth: Theme.stageDotSize
@@ -59,12 +59,12 @@ Card {
                     required property var modelData
 
                     Layout.fillWidth: true
-                    Layout.leftMargin: Theme.stageDotSize + 8
-                    spacing: 2
+                    Layout.leftMargin: Theme.stageDotSize + Theme.gap8
+                    spacing: Theme.gap2
 
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: 8
+                        spacing: Theme.gap8
 
                         Text {
                             Layout.preferredWidth: Theme.stageTimeWidth
@@ -95,7 +95,7 @@ Card {
 
                             required property var modelData
 
-                            Layout.leftMargin: Theme.stageTimeWidth + 8
+                            Layout.leftMargin: Theme.stageTimeWidth + Theme.gap8
                             text: (check.modelData.done ? "✓  " : "○  ") + check.modelData.text
                             color: check.modelData.done ? Theme.good : Theme.textPrimary
                             font.family: Theme.fontFamily

@@ -17,19 +17,19 @@ Rectangle {
     required property string text
 
     visible: text !== ""
-    implicitHeight: row.implicitHeight + 24
+    implicitHeight: row.implicitHeight + 2 * Theme.gap12
     radius: Theme.radiusSmall
     color: Theme.warnSurface
     border.color: Theme.warn
-    border.width: 1
+    border.width: Theme.borderWidth
 
     RowLayout {
         id: row
 
         anchors.fill: parent
-        anchors.leftMargin: 14
-        anchors.rightMargin: 14
-        spacing: 10
+        anchors.leftMargin: Theme.gap14
+        anchors.rightMargin: Theme.gap14
+        spacing: Theme.gap10
 
         Text {
             text: ""  // Warning

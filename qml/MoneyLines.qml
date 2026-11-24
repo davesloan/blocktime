@@ -20,7 +20,7 @@ ColumnLayout {
     property string totalText
     property string fuelNote  // "+ fuel" while the fuel cost isn't known
 
-    spacing: 4
+    spacing: Theme.gap4
 
     component Line: RowLayout {
         id: line
@@ -28,7 +28,7 @@ ColumnLayout {
         required property var modelData
 
         Layout.fillWidth: true
-        spacing: 12
+        spacing: Theme.gap12
 
         Text {
             Layout.fillWidth: true
@@ -62,15 +62,15 @@ ColumnLayout {
 
     Rectangle {
         Layout.fillWidth: true
-        Layout.topMargin: 4
-        Layout.bottomMargin: 2
-        implicitHeight: 1
+        Layout.topMargin: Theme.gap4
+        Layout.bottomMargin: Theme.gap2
+        implicitHeight: Theme.hairline
         color: Theme.border
     }
 
     RowLayout {
         Layout.fillWidth: true
-        spacing: 12
+        spacing: Theme.gap12
 
         Text {
             Layout.fillWidth: true

@@ -31,7 +31,7 @@ Card {
 
     RowLayout {
         Layout.fillWidth: true
-        spacing: 12
+        spacing: Theme.gap12
 
         Text {
             Layout.fillWidth: true
@@ -59,8 +59,8 @@ Card {
     GridLayout {
         Layout.fillWidth: true
         columns: 4
-        columnSpacing: 12
-        rowSpacing: 12
+        columnSpacing: Theme.gap12
+        rowSpacing: Theme.gap12
 
         StatTile {
             Layout.fillWidth: true
@@ -89,12 +89,12 @@ Card {
     RowLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
-        Layout.minimumHeight: 240
+        Layout.minimumHeight: Theme.summaryMapMinHeight
         spacing: Theme.spacing
 
         MoneyLines {
             Layout.fillWidth: false  // a layout fills by default, which would squeeze the map out
-            Layout.preferredWidth: 340
+            Layout.preferredWidth: Theme.sideColumnWidth
             Layout.alignment: Qt.AlignTop
             income: card.summary.income ?? []
             costs: card.summary.costs ?? []
@@ -106,7 +106,7 @@ Card {
             Layout.fillHeight: true
             radius: Theme.radius
             border.color: Theme.border
-            border.width: 1
+            border.width: Theme.borderWidth
             track: card.track
             tileUrl: card.mapTileUrl
             cacheDir: card.mapCacheDir

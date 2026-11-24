@@ -17,7 +17,7 @@ Rectangle {
     color: Theme.surface
     radius: Theme.radius
     border.color: Theme.border
-    border.width: 1
+    border.width: Theme.borderWidth
     implicitWidth: column.implicitWidth + 2 * Theme.spacing
     implicitHeight: column.implicitHeight + 2 * Theme.spacing
 
@@ -26,7 +26,7 @@ Rectangle {
 
         anchors.fill: parent
         anchors.margins: Theme.spacing
-        spacing: 12
+        spacing: Theme.gap12
 
         Text {
             visible: card.title !== ""
@@ -43,7 +43,7 @@ Rectangle {
 
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 8
+            spacing: Theme.gap8
         }
     }
 }

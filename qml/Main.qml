@@ -25,10 +25,10 @@ ApplicationWindow {
     required property string mapUserAgent
 
     // 200 px wider than test 1, so the Live page keeps test 1's width beside the side menu.
-    width: 1300
-    height: 760
-    minimumWidth: 1100
-    minimumHeight: 600
+    width: Theme.windowWidth
+    height: Theme.windowHeight
+    minimumWidth: Theme.windowMinWidth
+    minimumHeight: Theme.windowMinHeight
     visible: true
     title: "BlockTime"
     color: Theme.bg
@@ -79,7 +79,7 @@ ApplicationWindow {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
-                    height: 1
+                    height: Theme.hairline
                     color: Theme.border
                 }
 
@@ -87,7 +87,7 @@ ApplicationWindow {
                     anchors.fill: parent
                     anchors.leftMargin: Theme.pagePadding
                     anchors.rightMargin: Theme.pagePadding
-                    spacing: 14
+                    spacing: Theme.gap14
 
                     Text {
                         Layout.fillWidth: true

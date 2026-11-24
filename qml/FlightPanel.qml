@@ -59,9 +59,9 @@ ColumnLayout {
 
         Layout.fillWidth: true
         // As many columns of ~150 px tiles as fit, two to four: the middle of Live's three columns (D-139).
-        columns: Math.max(2, Math.min(4, Math.floor((width + columnSpacing) / 162)))
-        rowSpacing: 12
-        columnSpacing: 12
+        columns: Math.max(2, Math.min(4, Math.floor((width + columnSpacing) / (Theme.tileWidth + columnSpacing))))
+        rowSpacing: Theme.gap12
+        columnSpacing: Theme.gap12
 
         StatTile {
             Layout.fillWidth: true
@@ -130,7 +130,7 @@ ColumnLayout {
         ColumnLayout {
             visible: panel.recorder.flightOpen
             Layout.fillWidth: true
-            spacing: 4
+            spacing: Theme.gap4
 
             Text {
                 text: "Block out " + (panel.recorder.flightOpen ? panel.utcHhmm(panel.recorder.blockOutTime) : "")
@@ -170,7 +170,7 @@ ColumnLayout {
         ColumnLayout {
             visible: !panel.recorder.flightOpen
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Theme.gap6
 
             Text {
                 text: "No flight open"

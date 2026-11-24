@@ -2243,12 +2243,13 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-149 — "Final approach" becomes "Short final" at 1,000 ft
 - Date: 2026-11-24
-- Status: Accepted (the exact form is Proposed)
+- Status: Accepted (the form accepted by Dave, 2026-11-24)
 - Decided by: Dave (the idea), Claude (the form)
 - Area: app
 - Decision: Supersedes D-146's text. Under Descent, "Final approach, runway 26L" runs from the lined-up check (D-143,
   D-145) until the 1,000 ft AGL `final_approach` marker, which ends it and starts "Short final", ending at touchdown.
-  Without a lined-up check, "Short final" still starts at 1,000 ft. A go-around closes both.
+  Without a lined-up check, "Short final" still starts at 1,000 ft. A go-around closes both. Each approach gets its own
+  pair: a go-around re-arms the 1,000 ft marker and the lined-up check (fixed after the milestone 9 review).
 - Why: Dave: "the 1000 ft point could change it from Final Approach to Short Final". Start and end times show both
   stretches of the approach, as the other Live lines do.
 - Alternatives considered: D-146's separate "1,000 ft above ground" line.
@@ -2318,3 +2319,21 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: The flight's identity and timeline stay in view while the summary appears; deboarding is optional like the
   other GSX services.
 - Alternatives considered: today's switch of the whole page to the summary at block in (D-134, `design.md` 13.7).
+
+## D-150 — Milestone 9's smaller calls, and every QML size in Theme.qml
+- Date: 2026-11-24
+- Status: Accepted
+- Decided by: Claude (calls), accepted by Dave; Dave (all sizes in Theme), Claude (the tokens)
+- Area: app
+- Decision:
+  - Accepted as built in milestone 9: the load-in text keeps the airport name ("Load in at KLAS, Harry Reid
+    International Airport, Gate E7"); status tiles read SET/OFF and ON/OFF; Live's side columns are 340 and 300 px;
+    the app's events are told back to Live after they're logged; wingspans live only in catalog.yaml; an
+    `assignGate` success without `assigned_gate_name` counts as an error.
+  - Every size in the QML now comes from Theme.qml (D-054 applied fully): a spacing scale `gap2` to `gap14` below
+    `Theme.spacing` (16), and named sizes for lines, controls, dots, tiles, tables, columns and the window. Each token
+    has the value the literal had, so nothing moved. Only `spacing: 0` stays a literal.
+- Why: Dave approved the calls after milestone 9's build; he asked for the sizes in Theme.qml for consistency, after
+  the review found new literals.
+- Alternatives considered: semantic names only, no scale (dozens of one-off names for 4, 8 and 12); leaving the
+  older files' literals (inconsistent).

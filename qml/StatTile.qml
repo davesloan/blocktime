@@ -19,17 +19,17 @@ Rectangle {
     color: Theme.surfaceRaised
     radius: Theme.radiusSmall
     border.color: Theme.border
-    border.width: 1
-    implicitWidth: 150
-    implicitHeight: 92
+    border.width: Theme.borderWidth
+    implicitWidth: Theme.tileWidth
+    implicitHeight: Theme.tileHeight
 
     ColumnLayout {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        anchors.leftMargin: 14
-        anchors.rightMargin: 14
-        spacing: 4
+        anchors.leftMargin: Theme.gap14
+        anchors.rightMargin: Theme.gap14
+        spacing: Theme.gap4
 
         Text {
             Layout.fillWidth: true
@@ -44,7 +44,7 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Theme.gap6
 
             Text {
                 text: tile.value

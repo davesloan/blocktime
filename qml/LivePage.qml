@@ -84,7 +84,7 @@ Item {
             // Only built while it shows, so the map costs nothing the rest of the time.
             Loader {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 520
+                Layout.preferredHeight: Theme.summaryHeight
                 visible: active
                 active: page.showSummary
 
@@ -120,8 +120,8 @@ Item {
 
                     Layout.alignment: Qt.AlignTop
                     Layout.fillWidth: false
-                    Layout.preferredWidth: 340
-                    Layout.maximumWidth: 340
+                    Layout.preferredWidth: Theme.sideColumnWidth
+                    Layout.maximumWidth: Theme.sideColumnWidth
                     visible: page.recorder.showingFlight ? (page.recorder.flightOpen || page.showSummary)
                         : (page.plannedFlight.hasFlight || page.recorder.hasNextLegServices)
                     recorder: page.recorder
@@ -138,8 +138,8 @@ Item {
                 EventFeed {
                     Layout.fillHeight: true
                     Layout.fillWidth: false
-                    Layout.preferredWidth: 300
-                    Layout.maximumWidth: 300
+                    Layout.preferredWidth: Theme.liveFeedWidth
+                    Layout.maximumWidth: Theme.liveFeedWidth
                     recorder: page.recorder
                 }
             }
