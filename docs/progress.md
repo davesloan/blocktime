@@ -91,12 +91,15 @@ N916SX is at KSLC with 11,102 lb on record, so load at least 10,802 lb.
    - when it completes, the line gets its end time and Ready comes back at that time with five items, including
      "Deboarding complete ✓";
    - switching the beacon on and off flips its tick.
-9. **Still on the summary, request GSX refuelling for the next leg.** Expected: nothing new on the card; it still
-   shows the KLAS arrival.
-10. **At Gate Turnaround.** Expected: the card switches to the next leg, with "Refuelling" under Pre-Departure, and
-    New Flight opens for N916SX at KLAS.
-11. **Plan KLAS → KSAN,** Generate, and Import.
-12. **Board with GSX, skip catering, and push with GSX.** Expected: Pre-Departure keeps Refuelling and Boarding only.
+9. ~~Still on the summary, request GSX refuelling for the next leg.~~ Dropped during the test (Dave, 2026-11-24):
+   GSX refuels and boards from the SimBrief plan, so it can't refuel for the next leg until there's a new plan and
+   GSX has reloaded it. That's what At Gate Turnaround leads to anyway.
+10. **At Gate Turnaround** (after deboarding completes). Expected: the summary and the Flight progress card go away
+    (no plan and no next-leg services yet), and New Flight opens for N916SX at KLAS.
+11. **Plan KLAS → KSAN,** Generate in SimBrief, and Import. Expected: the card comes back with Pre-Departure current
+    and no lines.
+12. **Reload the plan in GSX, refuel and board with GSX, skip catering, and push with GSX.** Expected: Refuelling and
+    Boarding appear under Pre-Departure as each starts; no Catering line; "Pushback (GSX)" under Departure.
 13. **Fly to KSAN, and don't use GSX deboarding.** At the gate, set the brake and switch off the engines, beacon and
     strobes. Expected: Ready appears when the last of the four goes off, with four items, all ticked.
 14. **Done for now.** Expected: the card goes away (no plan, no services yet).
