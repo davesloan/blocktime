@@ -82,6 +82,7 @@ add_library(blocktime-core STATIC
   src/simbrief.cpp
   src/money.cpp
   src/open_flight.cpp
+  src/phase_detector.cpp
   src/sqlite_db.cpp
   src/telemetry_filter.cpp)
 target_include_directories(blocktime-core PUBLIC src)
@@ -157,7 +158,8 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/flight_draft_test.cpp
     tests/money_test.cpp
     tests/open_flight_test.cpp
-    tests/pmdg_probe_test.cpp)
+    tests/pmdg_probe_test.cpp
+    tests/phase_detector_test.cpp)
   target_link_libraries(blocktime-tests PRIVATE blocktime-core GTest::gtest_main)
   # Tests read the repo's config files (config/catalog.yaml, config/airline.example.yaml).
   target_compile_definitions(blocktime-tests PRIVATE BLOCKTIME_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
