@@ -73,10 +73,10 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 **Dave's checks.** The steps are ordered to need one sim session, plus an optional 777 session at the end. They
 combine the next probe flight (end of `docs/notes/probe-flight.md`) and the fuel check deferred from milestone 6.
-N814SX is at KSFO with 6,434 lb on record. A leg over 200 nm (KSFO → KSEA, about 590 nm) also tests the 200 nm marker.
+N814SX is at KSFO with 6,434 lb on record. A leg over 200 nm (KSFO → KSLC, about 520 nm, Dave's choice) also tests the 200 nm marker.
 
 1. **No sim.** Start `build\x64-release\BlockTime.exe --probe`. Expected: v0.8.0 in the sidebar, "Probe on" in the feed.
-   Plan N814SX KSFO → KSEA, generate on SimBrief and import the plan.
+   Plan N814SX KSFO → KSLC, generate on SimBrief and import the plan.
 2. **Load in.** Start SayIntentions, then MSFS, and load the BBJ2 at KSFO. Expected:
    - telemetry flowing (the live values move): this proves `PLANE HEADING DEGREES TRUE` was accepted;
    - no `simconnect_exception` naming `G FORCE`, `KOHLSMAN` or `runways request` in the log.
@@ -104,7 +104,7 @@ N814SX is at KSFO with 6,434 lb on record. A leg over 200 nm (KSFO → KSEA, abo
    - "Top of descent";
    - "Passed transition level" (set the QNH there, so the `altimeter` lines show it);
    - "Below 10,000 ft", "Approach", "Final approach";
-   - "Landed on 16L, −NNN fpm" with a believable rate (compare with what you felt);
+   - "Landed on 34R, −NNN fpm" (or the runway you used) with a believable rate (compare with what you felt);
    - "Taxiing to gate";
    - a TOUCHDOWN feed line with the rate and g.
 10. **Gate.** Note the gate SayIntentions gives you, and whether it writes "D14" or "D 14". Park, set the brake and
@@ -114,7 +114,7 @@ N814SX is at KSFO with 6,434 lb on record. A leg over 200 nm (KSFO → KSEA, abo
 
     Then **deboard with GSX** (probe: the deboarding states and counts).
 11. **No sim.** Send the day's log files (`events-YYYY-MM-DD.jsonl`). I'll check:
-    - `atis` lines for KSFO before takeoff and KSEA after top of descent;
+    - `atis` lines for KSFO before takeoff and KSLC after top of descent;
     - `atc_exchange` lines matching SayIntentions' own history;
     - `altimeter` lines against the knobs;
     - `heading_true_deg` in telemetry;
