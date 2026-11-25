@@ -22,6 +22,84 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-24 — Milestone 10 built: procedure checks, landing stars and Claude's debrief (version 0.11.0)
+
+**Done:**
+- **Brainstorm with Dave** (this session): `docs/debrief.md`, D-156 to D-161. A spike wrote two versions of a debrief
+  from the real KLAS → KSAN log. Dave chose approach A with Claude Opus 5.5: BlockTime's code measures and scores,
+  Claude explains. ATC compliance is information only. The landing gets 0–5 stars. PMDG's broadcast is read on every
+  flight. Dave's point: A also lets the scoring be tuned without paying for Claude calls.
+- **Plan** `docs/plans/2026-11-24-milestone-10-debrief.md`, all 11 tasks, executed inline (D-033), TDD throughout.
+  - **Recorder:**
+    - a change-based `cockpit` event (landing lights, seat belts, gear, PMDG's VREF, landing flaps and autopilot), with
+      PMDG's broadcast now subscribed in normal running and forwarded to `--probe`;
+    - a cockpit snapshot at block out;
+    - `touchdown` gains raw pitch, bank, heading and wind;
+    - a `bounces` event 15 s after touchdown.
+  - **Core:**
+    - `flight_events` reads one flight back;
+    - `debrief_measure` gives 17 measured parts or skip reasons, plus the landing;
+    - `debrief_score` turns them into 12 checks, stars, score and averages, computed when shown (D-160);
+    - `debrief_store` and migration 7 write them at settling, in the money's transaction;
+    - `debrief_review` builds the Messages API request and parses the answer.
+  - **App:**
+    - `ClaudeReviewer` (HTTPS from Qt) and `ReviewWriter` (one automatic try after settling, then only Retry);
+    - the summary's header shows the score and stars, with a Debrief / Flight toggle;
+    - Flights gets an averages strip;
+    - `claude_api_key` in settings.json is a secret.
+  - **Tool:** `blocktime-debrief.exe` replays a saved log: checks, score, `--prompt`, `--claude`.
+  - **Fixture:** `tests/data/flight-klas-ksan/` is the real leg in the 0.11.0 format (cabin messages removed).
+- **On the real KLAS → KSAN leg the debrief scores 62, landing ★3.** Missed:
+  - beacon on 2 min 43 s late;
+  - seat belt sign off from taxi to 10,000 ft;
+  - **17 s above 260 kt below 10,000 ft** in the descent (275 kt at 10,000 ft; the brainstorm's spike missed this);
+  - STD 1 min 51 s late;
+  - landing lights on 6 min after 10,000 ft.
+- **Whole-milestone review** by a fresh reviewer: 0 Critical, 5 Important, 9 Minor. Fixed, each with a test that
+  failed first:
+  - a debrief that can't be measured or written no longer rolls back the money (and crashes at every start);
+  - the 737's landing lights aren't judged without PMDG data;
+  - the descent's lights window restarts at a go-around;
+  - SayIntentions' nulls no longer throw while building the review;
+  - pitch is stored raw and flipped in the scoring;
+  - takeoff lights get 10 s of grace;
+  - the cockpit snapshot at block out;
+  - Retry reads 30 days of logs.
+  - The deferred minors are listed under "Unverified or broken".
+
+**Working / verified (without the sim):**
+- Clean release and debug builds, no warnings; **635 tests pass**; qmllint reports nothing.
+- The debug build's `--demo --grab` on a scratch copy of Dave's data shows the strip, the header and the Debrief view.
+  It ran with `LOCALAPPDATA` pointed at the copy; the real `blocktime.db` is still schema 6.
+
+**Unverified or broken:**
+- **Never called the real API.** The headers, body and answer parsing are tested only against the documented shapes.
+  The first real review is in the sim test, or earlier with `blocktime-debrief --claude` (about $0.15) if Dave agrees.
+  Token counts and cost go in a new `docs/notes/claude-debrief.md` then.
+- **Sim checks** (form run `m10-debrief`):
+  - the 737's retractable landing lights reach `landing_lights`;
+  - the seat belt selector on both families;
+  - the gear value while paused;
+  - **the sign of `PLANE PITCH DEGREES` at touchdown** (`kSimPitchNoseUp` in `debrief_score.cpp` assumes nose up is
+    negative);
+  - a real bounce counted;
+  - the 777's VREF and landing flaps in normal running;
+  - Retry with the network off, then on.
+- **Deferred minors:**
+  - the log is parsed twice on the UI thread at block in;
+  - the answer parser takes the first text block (a fallback response's layout is unconfirmed);
+  - some skip reasons are labelled loosely;
+  - the review's header lacks the planned cruise level;
+  - `flight_landing`'s `off_*` columns have no both-or-neither CHECK.
+- **For Dave to confirm:**
+  - D-160: the tolerances, the star bands and the points;
+  - D-161: the review's input, its JSON parts, one try then Retry;
+  - D-162: the build's calls, including the Debrief / Flight toggle.
+
+**Next step:**
+- Dave flies the `m10-debrief` run (steps in the form and below). Then Claude reads the results and the log, tunes
+  anything that's off, and the MVP is done. After that comes the Live brainstorm (`docs/roadmap.md`, "Live ideas").
+
 ## 2026-11-24 — Milestone 9 sim test: two BBJ2 legs, KSFO → KLAS → KSAN
 
 **Done:**
