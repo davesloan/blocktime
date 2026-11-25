@@ -116,7 +116,14 @@ public:
             else if (l.type == "block_out") {
                 blockOut_ = t;
                 if (l.data.value("aircraft_folder", "").find("777") != std::string::npos) m_.family = Family::B777;
-            } else if (l.type == "block_in") blockIn_ = t;
+            } else if (l.type == "block_in") {
+                blockIn_ = t;
+                // When the last engine stopped (the block_in line's own time when it doesn't say).
+                shutdown_ = l.ts;
+                if (l.data.contains("shutdown_time") && l.data["shutdown_time"].is_string()) {
+                    if (auto s = parseUtc(l.data["shutdown_time"].get<std::string>())) shutdown_ = *s;
+                }
+            }
         }
         auto byTime = [](const Point& a, const Point& b) { return a.t < b.t; };
         for (Series* s : {&telemetry_, &cockpit_, &altimeter_, &atis_}) std::stable_sort(s->begin(), s->end(), byTime);
@@ -350,9 +357,9 @@ private:
     }
 
     void apuGate() {
-        if (!hasApu()) return skip("apu_running_at_block_in", "no_pmdg_data");
-        if (!blockIn_) return skip("apu_running_at_block_in", "no_marker");
-        put("apu_running_at_block_in", flag(stateAt(cockpit_, *blockIn_), "apu_running") ? 1 : 0);
+        if (!hasApu()) return skip("apu_on_at_shutdown", "no_pmdg_data");
+        if (!shutdown_) return skip("apu_on_at_shutdown", "no_marker");
+        put("apu_on_at_shutdown", flag(stateAt(cockpit_, *shutdown_), "apu_switch") ? 1 : 0);
     }
 
     void landing() {
@@ -387,7 +394,7 @@ private:
     std::optional<Point> touchdown_;
     int bounces_ = 0;
     const nlohmann::json* runway_ = nullptr;
-    std::optional<Time> blockOut_, blockIn_;
+    std::optional<Time> blockOut_, blockIn_, shutdown_;
     bool pmdg_ = false;
     std::optional<Time> start_;
 };

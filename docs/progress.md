@@ -25,8 +25,9 @@ Newest entries at the top. Add an entry at the end of every working session.
 ## 2026-11-25 — Two APU checks (version 0.11.1)
 
 **Done:**
-- Dave asked for two APU checks (D-172): **APU off by the transition altitude** (−6 when missed) and **APU running at
-  the gate** when the parking brake is set (−2). Built with tests first:
+- Dave asked for two APU checks (D-172): **APU off by the transition altitude** (−6 when missed) and **APU on at the
+  gate** (−2): the selector on when the last engine stops at block in, since he may switch it on only once parked
+  (D-173). Built with tests first:
   - the `cockpit` event gains `apu_switch` and `apu_running` from PMDG's data (777 `APURunning`; 737 the selector on
     and EGT ≥ 300 °C: a running 737 APU sits at 390–470 °C, so 400 °C flickered on the fixture);
   - two measured parts, migration 8 for their lookup rows, two checks in the scoring, APU lines in Claude's timeline;
@@ -36,7 +37,7 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 **Unverified:**
 - In the sim: the APU lines on both families (the 777's `APURunning`, the 737's 300 °C), and the two checks on a real
-  flight. Check on the next flight: the debrief lists "APU off by the transition altitude" and "APU running at the
+  flight. Check on the next flight: the debrief lists "APU off by the transition altitude" and "APU on at the
   gate".
 
 **Next step:**

@@ -493,7 +493,7 @@ settled before 0.11.0 have no `flight_debrief` row and show no debrief. All tabl
 ### `check_part` and `check_skip_reason`
 
 Lookups, seeded by the migration: the 17 measured parts (`beacon_late_s` … `strobes_on_after_landing_s`; migration 8
-adds the two APU parts, `apu_on_after_transition_s` and `apu_running_at_block_in`, D-172; all listed in
+adds the two APU parts, `apu_on_after_transition_s` and `apu_on_at_shutdown`, D-172, D-173; all listed in
 `src/debrief_measure.h` with what each measures) and the 5 reasons a part couldn't be measured (`no_pmdg_data`,
 `no_vref`, `no_atis`, `no_marker`, `diverted`). `code TEXT PRIMARY KEY`: the codes are the stable natural keys the code
 uses. A new check is a new migration row.
@@ -547,6 +547,6 @@ fails if the flight already has one.
 
 ## Milestone 10's APU checks (migration 8)
 
-Migration 8 adds two `check_part` rows, `apu_on_after_transition_s` and `apu_running_at_block_in` (D-172). No table
+Migration 8 adds two `check_part` rows, `apu_on_after_transition_s` and `apu_on_at_shutdown` (D-172, D-173). No table
 changes. Flights measured before it have neither part, valued or skipped, and show both checks as "Not measured on
 this flight".

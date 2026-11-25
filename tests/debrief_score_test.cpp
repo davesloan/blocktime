@@ -27,7 +27,7 @@ FlightMeasurements clean() {
                 {"destination_baro_off_tenths", 0}, {"landing_lights_off_s", 0}, {"stable_gear_down", 1},
                 {"stable_landing_flaps", 1}, {"stable_sink_fpm", 750},       {"stable_vref_offset_kt", 5},
                 {"stable_lined_up", 1},      {"strobes_on_after_landing_s", 40},
-                {"apu_on_after_transition_s", 0}, {"apu_running_at_block_in", 1}};
+                {"apu_on_after_transition_s", 0}, {"apu_on_at_shutdown", 1}};
     LandingFacts f;
     f.vsFpm = 200;
     f.gHundredths = 120;
@@ -78,7 +78,7 @@ TEST(DebriefScore, CleanFlightScores100) {
     EXPECT_EQ(s.checks.front().label, "Beacon on before pushback");
     EXPECT_EQ(s.checks[11].label, "Strobes off after landing");
     EXPECT_EQ(s.checks[12].label, "APU off by the transition altitude");
-    EXPECT_EQ(s.checks.back().label, "APU running at the gate");
+    EXPECT_EQ(s.checks.back().label, "APU on at the gate");
 }
 
 TEST(DebriefScore, KlasKsanScores62) {
@@ -239,14 +239,14 @@ TEST(DebriefScore, ApuChecks) {
     EXPECT_EQ(check(s, "APU off by the transition altitude").points, -6);
     EXPECT_EQ(s.score, 94);
     m = clean();
-    set(m, "apu_running_at_block_in", 0);
+    set(m, "apu_on_at_shutdown", 0);
     s = scoreFlight(m);
-    EXPECT_EQ(check(s, "APU running at the gate").state, CheckState::Missed);
-    EXPECT_EQ(check(s, "APU running at the gate").detail, "Not running at block in");
-    EXPECT_EQ(check(s, "APU running at the gate").points, -2);  // Dave: only about 2 points (D-172)
+    EXPECT_EQ(check(s, "APU on at the gate").state, CheckState::Missed);
+    EXPECT_EQ(check(s, "APU on at the gate").detail, "Not switched on by engine shutdown");
+    EXPECT_EQ(check(s, "APU on at the gate").points, -2);  // Dave: only about 2 points (D-172)
     EXPECT_EQ(s.score, 98);
     EXPECT_EQ(check(scoreFlight(clean()), "APU off by the transition altitude").detail, "Off by the transition altitude");
-    EXPECT_EQ(check(scoreFlight(clean()), "APU running at the gate").detail, "Running at block in");
+    EXPECT_EQ(check(scoreFlight(clean()), "APU on at the gate").detail, "Switched on by engine shutdown");
 }
 
 TEST(DebriefScore, PartsAddedLaterAreNotChecked) {
@@ -254,7 +254,7 @@ TEST(DebriefScore, PartsAddedLaterAreNotChecked) {
     FlightMeasurements m = clean();
     std::erase_if(m.values, [](const CheckValue& v) { return v.part.starts_with("apu_"); });
     const ScoredFlight s = scoreFlight(m);
-    EXPECT_EQ(check(s, "APU running at the gate").state, CheckState::NotChecked);
-    EXPECT_EQ(check(s, "APU running at the gate").detail, "Not measured on this flight");
+    EXPECT_EQ(check(s, "APU on at the gate").state, CheckState::NotChecked);
+    EXPECT_EQ(check(s, "APU on at the gate").detail, "Not measured on this flight");
     EXPECT_EQ(s.score, 100);
 }

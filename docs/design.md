@@ -533,7 +533,7 @@ Full detail in `recorder.md`.
 **Built in milestone 10; the full design is `docs/debrief.md`.** BlockTime's own code measures fourteen procedure checks
 from the event log when the flight settles (beacon before pushback, seat belt sign, taxi speed, both altimeters, lights
 for takeoff, 250 kt below 10,000 ft, STD by the transition altitude, landing lights below 10,000 ft, stable at 1,000 ft,
-strobes after landing, the APU off by the transition altitude and running at the gate, D-172) and the landing (sink rate, G, bounces, pitch, bank, speed against VREF, wind). It stores the
+strobes after landing, the APU off by the transition altitude and switched on by engine shutdown at the gate, D-172, D-173) and the landing (sink rate, G, bounces, pitch, bank, speed against VREF, wind). It stores the
 measurements; the **0–100 score** and the **0–5 landing stars** are computed from them by fixed rules whenever they're
 shown, so the rules can be tuned and every flight re-scored at no cost. The Flights screen shows the running averages.
 

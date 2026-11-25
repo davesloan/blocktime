@@ -116,7 +116,7 @@ passes it are below. All tolerances are Claude's proposals (D-160) and are meant
 | 11 | Stable at 1,000 ft AGL | at the landing approach's `final_approach` marker: gear down; flaps at the FMC's landing setting; sink; IAS minus VREF; lined up | gear down, landing flaps, sink ≤ 1,000 fpm, VREF −5 to +20 kt, a `lined_up` before the marker |
 | 12 | Strobes off after landing | seconds after taxi in began until the strobes went off | ≤ 180 s |
 | 13 | APU off by the transition altitude (0.11.1, Dave) | seconds after the `transition_altitude` marker until the APU selector was off | 0 |
-| 14 | APU running at the gate (0.11.1, Dave) | whether the APU was running when the parking brake was set at block in | running; a miss costs 2 points, not 6 |
+| 14 | APU on at the gate (0.11.1, Dave) | whether the APU selector was on when the last engine stopped at block in (Dave may switch it on only once parked, D-173) | on; a miss costs 2 points, not 6 |
 
 Rules that apply to every check:
 

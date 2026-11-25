@@ -345,10 +345,10 @@ CREATE TABLE flight_review_item (
 ) STRICT;
 )sql";
 
-// Two APU checks (D-172): the APU off by the transition altitude, and running when the parking brake is set at block in.
+// Two APU checks (D-172, D-173): the APU off by the transition altitude, and switched on by engine shutdown at block in.
 // Flights measured before them have neither part and show both as not checked.
 constexpr const char* kMigration8 = R"sql(
-INSERT INTO check_part (code) VALUES ('apu_on_after_transition_s'), ('apu_running_at_block_in');
+INSERT INTO check_part (code) VALUES ('apu_on_after_transition_s'), ('apu_on_at_shutdown');
 )sql";
 
 #undef BT_INSTANT

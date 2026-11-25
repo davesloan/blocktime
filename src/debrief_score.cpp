@@ -25,7 +25,7 @@ constexpr int kStableSinkFpm = 1000;
 constexpr int kStableVrefBelowKt = -5, kStableVrefAboveKt = 20;
 constexpr int kStrobesOffS = 180;
 constexpr int kMissedPoints = -6;
-constexpr int kApuGatePoints = -2;  // Dave: the APU at the gate costs only about 2 points (D-172)
+constexpr int kApuGatePoints = -2;  // Dave: only about 2 points, since he may switch it on once parked (D-172, D-173)
 
 // The landing (D-158).
 constexpr int kStarBandsFpm[] = {240, 360, 600, 900, 1200};  // up to each: 5, 4, 3, 2, 1 stars; above: 0
@@ -113,9 +113,9 @@ public:
             return std::pair{v == 0, v == 0 ? std::string("Off by the transition altitude")
                                             : duration(v) + " after the transition altitude"};
         });
-        add(s, "APU running at the gate", {"apu_running_at_block_in"}, [&] {
-            const bool running = at("apu_running_at_block_in") == 1;
-            return std::pair{running, std::string(running ? "Running at block in" : "Not running at block in")};
+        add(s, "APU on at the gate", {"apu_on_at_shutdown"}, [&] {
+            const bool on = at("apu_on_at_shutdown") == 1;
+            return std::pair{on, std::string(on ? "Switched on by engine shutdown" : "Not switched on by engine shutdown")};
         }, kApuGatePoints);
         landing(s);
         int score = 100 + s.landingPoints;

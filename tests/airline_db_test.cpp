@@ -453,7 +453,7 @@ TEST(AirlineDb, Migration8AddsTheApuParts) {
     ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
     EXPECT_EQ(d.userVersion(), 8);
     db::Statement q(d, "SELECT COUNT(*) FROM check_part WHERE code IN ('apu_on_after_transition_s',"
-                       " 'apu_running_at_block_in')");
+                       " 'apu_on_at_shutdown')");
     ASSERT_TRUE(q.next());
     EXPECT_EQ(q.integer(0), 2);
     db::Statement all(d, "SELECT COUNT(*) FROM check_part");

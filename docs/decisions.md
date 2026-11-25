@@ -2639,7 +2639,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 ## D-172 — Two APU checks
 - Date: 2026-11-25
 - Status: Accepted (the checks and the 2 points: Dave); the 737's 300 °C running threshold is Claude's, from the probe
-  data
+  data. The gate check is refined by D-173 (switched on by engine shutdown, not running at the brake set)
 - Decided by: Dave + Claude
 - Area: app, recorder
 - Decision: Two more checks, both from PMDG's data (the plain `APU SWITCH` never moves on either family):
@@ -2653,3 +2653,18 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   after a ~750 °C start peak, so 400 °C flickered; 300 °C is passed about 25 s into the start.
 - Alternatives considered: the APU off before taxi or the takeoff roll; judging the 737 by the selector alone (it
   would count a start that never lit).
+
+## D-173 — The APU at the gate: switched on by engine shutdown
+- Date: 2026-11-25
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: app
+- Decision: The gate check (D-172) passes when the APU selector is on when the last engine stops at block in (the
+  block_in line's `shutdown_time`), not when it is running at the brake set. Its part is `apu_on_at_shutdown`
+  (migration 8 renamed before any database took it). Still 2 points.
+- Why: Dave: "There are many times when the gate is close enough that I might not switch the APU on till I'm
+  parked", hence the low points. He suggested checking the switch when the brake is set; Claude proposed the engine
+  shutdown instead, since switching it on after setting the brake but before shutting down is still on time, and a
+  just-started APU isn't running yet.
+- Alternatives considered: running at the brake set (D-172 as first built); switched on at the brake set (Dave's
+  suggestion).
