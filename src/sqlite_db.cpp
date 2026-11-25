@@ -25,6 +25,22 @@ std::optional<Database> Database::open(const std::filesystem::path& file, std::s
     return std::nullopt;
 }
 
+std::optional<Database> Database::openReadOnly(const std::filesystem::path& file, std::string* error) {
+    const std::u8string utf8 = file.u8string();
+    const std::string name(utf8.begin(), utf8.end());
+    sqlite3* db = nullptr;
+    const int rc = sqlite3_open_v2(name.c_str(), &db, SQLITE_OPEN_READONLY, nullptr);
+    if (rc == SQLITE_OK) {
+        sqlite3_busy_timeout(db, kBusyTimeoutMs);
+        Database d(db);
+        if (d.exec("PRAGMA foreign_keys = ON", error)) return d;
+        return std::nullopt;
+    }
+    if (error) *error = db ? sqlite3_errmsg(db) : sqlite3_errstr(rc);
+    sqlite3_close_v2(db);
+    return std::nullopt;
+}
+
 Database Database::openInMemory() {
     sqlite3* db = nullptr;
     sqlite3_open_v2(":memory:", &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr);

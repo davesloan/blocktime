@@ -181,18 +181,39 @@ std::optional<std::int64_t> createPlannedFlight(db::Database& db, const NewPlann
     return id;
 }
 
-std::optional<PlannedFlightView> currentPlannedFlight(db::Database& db) {
+namespace {
+
+// Where a flight view is read from: the planned flight, or a settled flight (D-175). The tables have the same columns
+// for what the view needs; a settled flight's destination is the planned one.
+struct ViewTables {
+    const char* flight;       // "planned_flight" or "flight"
+    const char* key;          // its key column
+    const char* destination;  // its destination column
+    const char* cabins;       // "planned_flight_cabin" or "flight_cabin"
+    const char* plan;         // "simbrief_plan" or "flight_plan"
+    const char* parking;      // the start's spot: "NULL" for a planned flight, origin_parking for a flown one
+};
+
+constexpr ViewTables kPlannedTables{"planned_flight", "planned_flight_id", "destination_airport_id",
+                                    "planned_flight_cabin", "simbrief_plan", "NULL"};
+constexpr ViewTables kFlownTables{"flight", "flight_id", "planned_destination_airport_id", "flight_cabin",
+                                  "flight_plan", "f.origin_parking"};
+
+// The first row of `t.flight` matching `where` (bound to `whereValue` if not empty), as a view.
+std::optional<PlannedFlightView> readFlightView(db::Database& db, const ViewTables& t, const std::string& where,
+                                                std::string_view whereValue) {
     db::Statement q(db,
-                    "SELECT f.planned_flight_id, a.registration, t.code, a.simbrief_airframe_id, o.icao_code, o.name,"
-                    " d.icao_code, d.name, f.flight_number, f.kind, t.family, t.role, t.cruise_speed_kt, f.cargo_lb,"
-                    " f.fuel_price_cents_per_100lb, f.planned_at, COALESCE(f.origin_runway, ''),"
+                    std::string("SELECT f.") + t.key + ", a.registration, t.code, a.simbrief_airframe_id, o.icao_code,"
+                    " o.name, d.icao_code, d.name, f.flight_number, f.kind, t.family, t.role, t.cruise_speed_kt,"
+                    " f.cargo_lb, f.fuel_price_cents_per_100lb, f.planned_at, COALESCE(f.origin_runway, ''),"
                     " COALESCE(f.destination_runway, ''), o.latitude, o.longitude, d.latitude, d.longitude,"
-                    " a.airplane_id"
-                    " FROM planned_flight f JOIN airplane a USING (airplane_id)"
+                    " a.airplane_id, COALESCE(" + t.parking + ", '')"
+                    " FROM " + t.flight + " f JOIN airplane a USING (airplane_id)"
                     " JOIN aircraft_type t USING (aircraft_type_id)"
                     " JOIN airport o ON o.airport_id = f.origin_airport_id"
-                    " JOIN airport d ON d.airport_id = f.destination_airport_id"
-                    " ORDER BY f.planned_flight_id LIMIT 1");
+                    " JOIN airport d ON d.airport_id = f." + t.destination + " " + where +
+                    " ORDER BY f." + t.key + " LIMIT 1");
+    if (!whereValue.empty()) q.bind(1, whereValue);
     if (!q.next()) return std::nullopt;
     PlannedFlightView v;
     v.id = q.integer(0);
@@ -214,28 +235,21 @@ std::optional<PlannedFlightView> currentPlannedFlight(db::Database& db) {
     v.originRunway = q.text(16);
     v.destinationRunway = q.text(17);
     v.distanceNm = distanceMeters(q.real(18), q.real(19), q.real(20), q.real(21)) / kMetresPerNm;
-    // The latest flight's spot, if it ended where this one starts (D-148).
-    db::Statement last(db,
-                       "SELECT COALESCE(l.arrival_parking, '') FROM flight l JOIN airport ap"
-                       " ON ap.airport_id = l.arrival_airport_id WHERE l.airplane_id = ? AND ap.icao_code = ?"
-                       " AND l.block_in_at = (SELECT max(block_in_at) FROM flight WHERE airplane_id = l.airplane_id)");
-    last.bind(1, q.integer(22));
-    last.bind(2, std::string_view(v.origin));
-    if (last.next()) v.loadInParking = last.text(0);
+    v.loadInParking = q.text(23);
     const std::int64_t airplaneId = q.integer(22);
     for (const Cabin& c : cabinsOf(db, airplaneId)) v.seatsInstalled += c.seats;
     v.limits = airplaneLimits(db, airplaneId).value_or(AirplaneLimits{});
 
-    db::Statement cabins(db, "SELECT cabin_class, passengers FROM planned_flight_cabin WHERE planned_flight_id = ?"
-                             " ORDER BY CASE cabin_class WHEN 'first' THEN 0 WHEN 'business' THEN 1 ELSE 2 END");
+    db::Statement cabins(db, std::string("SELECT cabin_class, passengers FROM ") + t.cabins + " WHERE " + t.key +
+                                 " = ? ORDER BY CASE cabin_class WHEN 'first' THEN 0 WHEN 'business' THEN 1 ELSE 2 END");
     cabins.bind(1, v.id);
     while (cabins.next()) v.cabins.push_back({cabins.text(0), static_cast<int>(cabins.integer(1))});
 
     db::Statement plan(db,
-                       "SELECT request_id, generated_at, route, origin_runway, destination_runway, cruise_altitude_ft,"
-                       " est_block_s, ramp_fuel_lb, enroute_burn_lb, est_landing_weight_lb,"
-                       " origin_transition_altitude_ft, destination_transition_level_ft"
-                       " FROM simbrief_plan WHERE planned_flight_id = ?");
+                       std::string("SELECT request_id, generated_at, route, origin_runway, destination_runway,"
+                                   " cruise_altitude_ft, est_block_s, ramp_fuel_lb, enroute_burn_lb,"
+                                   " est_landing_weight_lb, origin_transition_altitude_ft,"
+                                   " destination_transition_level_ft FROM ") + t.plan + " WHERE " + t.key + " = ?");
     plan.bind(1, v.id);
     if (plan.next()) {
         SimbriefPlan p;
@@ -258,6 +272,33 @@ std::optional<PlannedFlightView> currentPlannedFlight(db::Database& db) {
         v.plan = p;
     }
     return v;
+}
+
+}  // namespace
+
+std::optional<PlannedFlightView> currentPlannedFlight(db::Database& db) {
+    auto v = readFlightView(db, kPlannedTables, "", "");
+    if (!v) return v;
+    // The latest flight's spot, if it ended where this one starts (D-148).
+    db::Statement last(db,
+                       "SELECT COALESCE(l.arrival_parking, '') FROM flight l JOIN airport ap"
+                       " ON ap.airport_id = l.arrival_airport_id JOIN airplane a ON a.airplane_id = l.airplane_id"
+                       " WHERE a.registration = ? AND ap.icao_code = ?"
+                       " AND l.block_in_at = (SELECT max(block_in_at) FROM flight WHERE airplane_id = l.airplane_id)");
+    last.bind(1, std::string_view(v->registration));
+    last.bind(2, std::string_view(v->origin));
+    if (last.next()) v->loadInParking = last.text(0);
+    return v;
+}
+
+std::optional<PlannedFlightView> flownFlightView(db::Database& db, std::string_view logFlightId) {
+    return readFlightView(db, kFlownTables, "WHERE f.log_flight_id = ?", logFlightId);
+}
+
+std::optional<std::string> latestFlightId(db::Database& db) {
+    db::Statement q(db, "SELECT log_flight_id FROM flight ORDER BY block_in_at DESC LIMIT 1");
+    if (!q.next()) return std::nullopt;
+    return q.text(0);
 }
 
 bool cancelPlannedFlight(db::Database& db, std::string* error) { return db.exec("DELETE FROM planned_flight", error); }

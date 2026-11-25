@@ -89,6 +89,11 @@ struct PlannedFlightView {
 };
 
 std::optional<PlannedFlightView> currentPlannedFlight(db::Database& db);
+// A settled flight as it was planned: its row, cabins and plan, for the replay (D-175). `loadInParking` is where it
+// started. nullopt if no flight has that log id.
+std::optional<PlannedFlightView> flownFlightView(db::Database& db, std::string_view logFlightId);
+// The log id of the flight that blocked in last; nullopt with none settled.
+std::optional<std::string> latestFlightId(db::Database& db);
 bool cancelPlannedFlight(db::Database& db, std::string* error);  // deletes it with its cabins and plan
 
 // Writes the imported plan, replacing an earlier one (D-101).

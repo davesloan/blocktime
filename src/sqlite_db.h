@@ -27,6 +27,8 @@ public:
     // Opens `file` read/write, creating it if missing. On failure returns nullopt and sets *error.
     static std::optional<Database> open(const std::filesystem::path& file, std::string* error);
     static Database openInMemory();
+    // Opened with SQLITE_OPEN_READONLY, foreign keys on: every write fails (the replay, D-175).
+    static std::optional<Database> openReadOnly(const std::filesystem::path& file, std::string* error);
 
     Database(Database&& other) noexcept;
     Database& operator=(Database&& other) noexcept;

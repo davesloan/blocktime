@@ -195,6 +195,24 @@ TEST_F(AirlineDbFiles, BusyTimeoutIsSet) {
     EXPECT_EQ(q.integer(0), 5000);
 }
 
+// The replay opens the airline read-only (D-175): reads work, writes are refused by SQLite.
+TEST_F(AirlineDbFiles, ReadOnlyRefusesWrites) {
+    const fs::path file = dir_ / "blocktime.db";
+    {
+        AirlineDbOpen made = openAirlineDatabase(file);
+        ASSERT_TRUE(made.db.has_value()) << made.error;
+    }
+    std::string error;
+    auto ro = db::Database::openReadOnly(file, &error);
+    ASSERT_TRUE(ro.has_value()) << error;
+    db::Statement q(*ro, "SELECT COUNT(*) FROM airport");
+    EXPECT_TRUE(q.next()) << q.error();
+    EXPECT_FALSE(ro->exec("INSERT INTO fleet (name) VALUES ('Executive')"));
+    db::Statement fk(*ro, "PRAGMA foreign_keys");
+    ASSERT_TRUE(fk.next());
+    EXPECT_EQ(fk.integer(0), 1);
+}
+
 TEST_F(AirlineDbFiles, ClobberedVersionOfARealAirlineIsRestored) {
     const fs::path file = dir_ / "blocktime.db";
     {

@@ -473,6 +473,80 @@ TEST_F(Settlement, KeepsThePlanAndCabins) {
     EXPECT_EQ(count("simbrief_plan"), 0);
 }
 
+// The replay shows a settled flight as it was planned (D-175).
+TEST_F(Settlement, FlownFlightViewMatchesThePlan) {
+    NewPlannedFlight f;
+    f.airplaneId = loadFlightAirplane(db_, "N814SX")->airplaneId;
+    f.originIcao = "KBFI";
+    f.destinationIcao = "KSAN";
+    f.flightNumber = "8";
+    f.kind = FlightKind::Vip;
+    f.cabins = {{"economy", 40}};
+    f.fuelPriceCentsPer100Lb = 4100;
+    f.plannedAt = kPlannedAt;
+    f.originRunway = "14R";
+    std::string error;
+    const auto id = createPlannedFlight(db_, f, &error);
+    ASSERT_TRUE(id.has_value()) << error;
+    SimbriefPlan p;
+    p.requestId = "r1";
+    p.generatedAt = "2026-11-23T10:05:00Z";
+    p.route = "SEA J1 SAN";
+    p.originRunway = "14R";
+    p.destinationRunway = "27";
+    p.cruiseAltitudeFt = 41000;
+    p.estBlockS = 10320;
+    p.rampFuelLb = 21000;
+    p.enrouteBurnLb = 10493;
+    p.estLandingWeightLb = 120000;
+    p.originTransitionAltitudeFt = 18000;
+    p.destinationTransitionLevelFt = 18000;
+    ASSERT_TRUE(storeSimbriefPlan(db_, *id, p, R"({"ofp":1})", "2026-11-23T10:06:00Z", &error)) << error;
+    const PlannedFlightView planned = *currentPlannedFlight(db_);
+
+    writeLog({blockOut(kOut, *id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    EXPECT_FALSE(flownFlightView(db_, "no such flight"));
+    const auto flown = flownFlightView(db_, kOut);
+    ASSERT_TRUE(flown.has_value());
+    EXPECT_EQ(flown->registration, planned.registration);
+    EXPECT_EQ(flown->typeCode, planned.typeCode);
+    EXPECT_EQ(flown->airframeId, planned.airframeId);
+    EXPECT_EQ(flown->origin, "KBFI");
+    EXPECT_EQ(flown->originName, planned.originName);
+    EXPECT_EQ(flown->destination, "KSAN");
+    EXPECT_EQ(flown->destinationName, planned.destinationName);
+    EXPECT_EQ(flown->flightNumber, "8");
+    EXPECT_EQ(flown->kind, FlightKind::Vip);
+    EXPECT_EQ(flown->seatsInstalled, planned.seatsInstalled);
+    EXPECT_EQ(flown->cruiseSpeedKt, planned.cruiseSpeedKt);
+    EXPECT_EQ(flown->limits.mlwLb, planned.limits.mlwLb);
+    ASSERT_EQ(flown->cabins.size(), 1u);
+    EXPECT_EQ(flown->cabins[0].passengers, 40);
+    EXPECT_EQ(flown->cargoLb, 0);
+    EXPECT_DOUBLE_EQ(flown->distanceNm, planned.distanceNm);
+    EXPECT_EQ(flown->fuelPriceCentsPer100Lb, 4100);
+    EXPECT_EQ(flown->plannedAt, kPlannedAt);
+    EXPECT_EQ(flown->originRunway, "14R");
+    EXPECT_EQ(flown->destinationRunway, "");
+    ASSERT_TRUE(flown->plan.has_value());
+    EXPECT_EQ(flown->plan->route, "SEA J1 SAN");
+    EXPECT_EQ(flown->plan->cruiseAltitudeFt, 41000);
+    EXPECT_EQ(flown->plan->estBlockS, 10320);
+    EXPECT_EQ(flown->plan->enrouteBurnLb, 10493);
+    EXPECT_EQ(flown->plan->estLandingWeightLb, 120000);
+    EXPECT_EQ(flown->plan->destinationIcao, "KSAN");
+}
+
+TEST_F(Settlement, LatestFlightId) {
+    EXPECT_FALSE(latestFlightId(db_));
+    const auto id = planDelivery();
+    writeLog({blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    std::string error;
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    EXPECT_EQ(latestFlightId(db_), kOut);
+}
+
 TEST_F(Settlement, FailureWritesNothing) {
     const auto id = planDelivery();
     const auto planned = currentPlannedFlight(db_);
