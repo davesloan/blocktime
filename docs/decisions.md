@@ -2668,3 +2668,23 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   just-started APU isn't running yet.
 - Alternatives considered: running at the brake set (D-172 as first built); switched on at the brake set (Dave's
   suggestion).
+
+## D-174 — Testing after the MVP: few sim tests, high tolerance for bugs
+- Date: 2026-11-25
+- Status: Accepted
+- Decided by: Dave (with Claude's caveat on money and history)
+- Area: process
+- Decision:
+  - **In-sim tests only when there's no other way:** a SimVar or SDK field never read before (a probe), the first run
+    of an entirely new system that talks to the sim, or a bug that only shows up there. Everything else is tested
+    against recorded flights (fixtures in `tests/data/`, Dave's event logs); a flight that shows something new is
+    copied into `tests/data/` before its log expires (30 days). Claude checks app changes itself (`--demo`, `--grab`,
+    `blocktime-debrief`). Dave's normal flights are the in-sim check: the reply says what he should see.
+  - **High tolerance for bugs.** Dave reports oddities and Claude fixes them from the log. In the app or the sim, test
+    the normal flow and the happy path; edge cases go to unit tests, and only where they're worth it.
+  - **Except money and history:** settling, the ledger, stored measurements, migrations and the event log keep careful
+    tests, because a bug there leaves data that is never rewritten (as the sim test's gear-up measurement did).
+- Why: Dave: the MVP needed many probes and tweaks, so sim tests were crucial; there's now enough sample data from
+  real flights, and he knows bugs can be found and fixed quickly. Sim time is slow (about 20 minutes to load).
+  Extends D-099.
+- Alternatives considered: a sim test run per milestone, as through milestone 10.

@@ -83,8 +83,16 @@ checkout. Update it whenever the steps change.
 - **Small, verifiable steps.** Get something running end-to-end early, then grow it.
 - **Never invent sim behaviour.** If you aren't sure how a SimVar or SimConnect call behaves, say so, write a
   small probe or test, and record the result in `docs/notes/`.
-- **Dave tests in the sim.** You can't run MSFS. When a change needs in-sim verification, say exactly what
-  to check and what result to expect, and record unverified items in `docs/progress.md`.
+- **Avoid in-sim tests after the MVP (D-174).** You can't run MSFS, and Dave's time in the sim is expensive. Ask for a
+  sim test only for a SimVar or SDK field nobody has read yet (a probe), the first run of an entirely new system that
+  talks to the sim, or a bug that only shows up there. Otherwise test against recorded flights: the fixtures in
+  `tests/data/` and Dave's event logs (kept 30 days; copy a flight that shows something new into `tests/data/`).
+  Check app changes yourself first (`--demo`, `--grab`, `blocktime-debrief`). Instead of a test run, list "on your next
+  flight you should see …" in the reply, and record unverified items in `docs/progress.md`.
+- **High tolerance for bugs, except money and history (D-174).** Dave reports what looks odd and you fix it from the
+  event log. In the app or the sim, test the normal flow and the happy path; edge cases belong in unit tests, and
+  only where a bug would cost more than a quick fix. Keep careful tests for what can't be undone: settling, the
+  ledger, stored measurements, migrations and the event log's "nothing lost" rule.
 - **Print it, don't point to it.** When work is ready for Dave to test (in the sim or not), print the numbered test
   steps with expected results in the reply itself. When decisions or questions wait on him, list each one there
   with enough context to answer it, not just its D-number. They also go in `docs/progress.md`, but the reply must
