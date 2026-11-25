@@ -345,6 +345,12 @@ CREATE TABLE flight_review_item (
 ) STRICT;
 )sql";
 
+// Two APU checks (D-172): the APU off by the transition altitude, and running when the parking brake is set at block in.
+// Flights measured before them have neither part and show both as not checked.
+constexpr const char* kMigration8 = R"sql(
+INSERT INTO check_part (code) VALUES ('apu_on_after_transition_s'), ('apu_running_at_block_in');
+)sql";
+
 #undef BT_INSTANT
 #undef BT_DATE
 
@@ -354,7 +360,8 @@ struct Migration {
 };
 
 constexpr std::array kMigrations{Migration{2, kMigration2}, Migration{3, kMigration3}, Migration{4, kMigration4},
-                                 Migration{5, kMigration5}, Migration{6, kMigration6}, Migration{7, kMigration7}};
+                                 Migration{5, kMigration5}, Migration{6, kMigration6}, Migration{7, kMigration7},
+                                 Migration{8, kMigration8}};
 
 constexpr int kFirstRealSchemaVersion = 2;  // what a clobbered milestone 4 airline really is (D-098)
 

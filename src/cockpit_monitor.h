@@ -10,7 +10,8 @@
 // - landing lights and seat belts: PMDG's broadcast when it has arrived (the 737's seat belt SimVar never moves, and
 //   LIGHT LANDING misses its retractable lights); the plain SimVars otherwise;
 // - the gear: GEAR TOTAL PCT EXTENDED, ignored while paused (the sim's gear values read 0 then);
-// - VREF, landing flaps and the autopilot: PMDG only, so they're left out of the event without it.
+// - VREF, landing flaps, the autopilot and the APU: PMDG only, so they're left out of the event without it (the plain
+//   APU SWITCH never moved on either family).
 
 #pragma once
 
@@ -29,7 +30,14 @@ struct PmdgCockpit {             // one PMDG broadcast, decoded
     int vrefKt = 0;              // FMC_LandingVREF; 0 = not set
     int landingFlaps = 0;        // FMC_LandingFlaps, degrees; 0 = not set
     bool autopilot = false;      // 737: CMD A or B; 777: either AP engaged
+    bool apuSwitch = false;      // the APU selector away from OFF (737 APU_Selector, 777 ELEC_APU_Selector)
+    bool apuRunning = false;     // 777: APURunning; 737: selector on and EGT at least kApuRunningEgtC (D-172)
 };
+
+// The 737 has no APU-running flag in PMDG's data. On the probe flights a start peaked near 750 C about 30 s after the
+// switch and the running APU then settled at 390-470 C; 300 C is passed about 25 s into the start, and with the switch
+// off (cooling down) it never counts (docs/notes/probe-flight.md, D-172).
+inline constexpr double kApuRunningEgtC = 300;
 
 struct PlainCockpit {
     bool landingLight = false;  // LIGHT LANDING

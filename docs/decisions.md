@@ -2635,3 +2635,21 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   "point seven" an incomplete frequency, gave contradicting flare advice, and read "flaps handle 8" as short of
   flaps 40. A replay with the new instructions answered all four.
 - Alternatives considered: leaving ATC remarks in "work on"; judging touchdown speed against VREF.
+
+## D-172 — Two APU checks
+- Date: 2026-11-25
+- Status: Accepted (the checks and the 2 points: Dave); the 737's 300 °C running threshold is Claude's, from the probe
+  data
+- Decided by: Dave + Claude
+- Area: app, recorder
+- Decision: Two more checks, both from PMDG's data (the plain `APU SWITCH` never moves on either family):
+  - **APU off by the transition altitude**: the selector off at the `transition_altitude` marker; a miss costs the
+    usual 6 points;
+  - **APU running at the gate**: running when the parking brake is set at block in; a miss costs **2 points**.
+  The `cockpit` event gains `apu_switch` and `apu_running` (777: `APURunning`; 737: the selector on and EGT at 300 °C
+  or more). Migration 8 adds the two check parts; flights measured before them show both as not checked.
+- Why: Dave's SOP: "APU switched off by transition altitude and APU running before parking at the gate. That last one
+  should only take off like 2 points if it's not met." On the probe flights a running 737 APU settled at 390–470 °C
+  after a ~750 °C start peak, so 400 °C flickered; 300 °C is passed about 25 s into the start.
+- Alternatives considered: the APU off before taxi or the takeoff roll; judging the 737 by the selector alone (it
+  would count a start that never lit).

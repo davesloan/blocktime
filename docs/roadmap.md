@@ -145,7 +145,7 @@ landing runway within 10 nm, not at 1,000 ft (D-143).
 checks are in `docs/progress.md`. **The MVP is done here.**
 
 Old milestone 7 and D-040: cockpit state for the analysis, the SayIntentions ATC log (collected into the event log since 0.8.0, D-123), and
-the score and evaluation in the summary. As built: BlockTime's code measures twelve checks and the landing and computes
+the score and evaluation in the summary. As built: BlockTime's code measures fourteen checks (twelve, then two APU checks in 0.11.1) and the landing and computes
 the score and stars; Claude Opus 5.5 writes the review (D-156).
 
 ## After the MVP: the dashboard (D-163)

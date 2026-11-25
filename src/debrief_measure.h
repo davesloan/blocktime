@@ -23,6 +23,8 @@
 // - stable_*: at the last final_approach marker: gear down, flaps at the FMC's landing setting, sink in fpm, IAS minus
 //   VREF, and a lined_up since the last go-around.
 // - strobes_on_after_landing_s: seconds from the start of taxi in until the strobes are off.
+// - apu_on_after_transition_s: seconds from the transition_altitude marker until the APU selector is off (D-172).
+// - apu_running_at_block_in: 1 if the APU is running when the parking brake is set at block in (D-172).
 
 #pragma once
 
@@ -37,12 +39,12 @@ namespace blocktime {
 
 enum class Family { B737, B777 };
 
-inline constexpr std::array<const char*, 17> kCheckParts = {
+inline constexpr std::array<const char*, 19> kCheckParts = {
     "beacon_late_s",          "belts_off_departure_s",       "taxi_max_kt",          "origin_baro_off_tenths",
     "takeoff_strobes",        "takeoff_landing_lights",      "over_250_s",           "std_late_s",
     "belts_off_descent_s",    "destination_baro_off_tenths", "landing_lights_off_s", "stable_gear_down",
     "stable_landing_flaps",   "stable_sink_fpm",             "stable_vref_offset_kt", "stable_lined_up",
-    "strobes_on_after_landing_s"};
+    "strobes_on_after_landing_s", "apu_on_after_transition_s", "apu_running_at_block_in"};
 
 inline constexpr std::array<const char*, 5> kSkipReasons = {"no_pmdg_data", "no_vref", "no_atis", "no_marker",
                                                             "diverted"};

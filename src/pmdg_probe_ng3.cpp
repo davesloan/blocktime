@@ -85,6 +85,8 @@ std::optional<PmdgCockpit> decodeCockpit737(const void* data, std::size_t size) 
     c.vrefKt = d.FMC_LandingVREF;
     c.landingFlaps = d.FMC_LandingFlaps;
     c.autopilot = d.MCP_annunCMD_A || d.MCP_annunCMD_B;
+    c.apuSwitch = d.APU_Selector != 0;  // 0 off, 1 on, 2 start
+    c.apuRunning = c.apuSwitch && d.APU_EGTNeedle >= kApuRunningEgtC;
     return c;
 }
 

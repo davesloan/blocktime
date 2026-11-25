@@ -22,11 +22,11 @@ struct CheckOutcome {
     std::string label;   // "Beacon on before pushback"
     std::string detail;  // "2 min 43 s late"; a not-checked check's reason ("No PMDG data")
     CheckState state = CheckState::NotChecked;
-    int points = 0;      // 0, or -6 when missed
+    int points = 0;      // 0, or when missed -6 (-2 for the APU at the gate, D-172)
 };
 
 struct ScoredFlight {
-    std::vector<CheckOutcome> checks;  // the twelve, in docs/debrief.md's order
+    std::vector<CheckOutcome> checks;  // the fourteen, in docs/debrief.md's order
     std::optional<int> stars;          // 0-5; nullopt without a landing
     int landingPoints = 0;             // 0 to -30
     std::optional<int> crosswindKt;    // with a landing

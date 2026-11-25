@@ -173,3 +173,10 @@ TEST(DebriefReview, InstructionsCarryDavesCorrections) {
     EXPECT_NE(system.find("touching down up to about 10 kt below VREF is normal"), std::string::npos);
     EXPECT_NE(system.find("never call a passed check a fault"), std::string::npos);
 }
+
+TEST(DebriefReview, TimelineShowsTheApu) {
+    const std::string t = buildTimeline(fixture());
+    EXPECT_NE(t.find("23:58:23 APU switched off"), std::string::npos) << t.substr(0, 1500);
+    EXPECT_NE(t.find("00:46:41 APU switched on"), std::string::npos);
+    EXPECT_NE(t.find("00:47:07 APU running"), std::string::npos);
+}

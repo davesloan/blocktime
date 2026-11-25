@@ -133,6 +133,8 @@ std::vector<std::string> cockpitChanges(const nlohmann::json* before, const nloh
     if (changed("landing_lights")) out.push_back(now["landing_lights"].get<bool>() ? "landing lights on" : "landing lights off");
     if (changed("gear_down")) out.push_back(now["gear_down"].get<bool>() ? "gear down" : "gear up");
     if (changed("autopilot")) out.push_back(now["autopilot"].get<bool>() ? "autopilot on" : "autopilot off");
+    if (changed("apu_switch")) out.push_back(now["apu_switch"].get<bool>() ? "APU switched on" : "APU switched off");
+    if (changed("apu_running") && now["apu_running"].get<bool>()) out.push_back("APU running");
     if ((changed("vref_kt") || changed("landing_flaps")) && now.value("vref_kt", 0) > 0) {
         out.push_back(std::format("FMC: VREF {} kt, landing flaps {}", now.value("vref_kt", 0), now.value("landing_flaps", 0)));
     }

@@ -95,7 +95,10 @@ comments (`PMDG_NG3_SDK.h`).
   - Dave never uses AUTO on the 737's seat belt selector (most airlines don't), and on the 777 only in a freighter.
 - **Cabin and systems:**
   - `COMM_FastenBeltsSelector` is 0 off, 1 auto, 2 on.
-  - `APU_Selector` is 0 off, 1 on, 2 start, and springs back to 1. A value of 3 showed for one sample at two of the
+  - `APU_Selector` is 0 off, 1 on, 2 start, and springs back to 1. The 737's data has no APU-running flag; its EGT
+    (`APU_EGTNeedle`) shows it: a start lights at about 110 °C, peaks near 750 °C about 30 s after the switch, and the
+    running APU settles at 390–470 °C; switched off, it cools through 300–100 °C. The debrief counts it running from
+    300 °C with the selector on (D-172). A value of 3 showed for one sample at two of the
     starts. It isn't in the header, so it's probably the knob in motion.
   - `ICE_WindowHeatSw[4]` and `ICE_ProbeHeatSw[2]` showed each switch flipped in turn. Wing and engine anti-ice
     weren't used.

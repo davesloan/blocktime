@@ -1814,7 +1814,7 @@ TEST_F(Debrief, SummaryHasDebrief) {
     EXPECT_EQ(d["starsText"].toString(), QString::fromUtf8("★★★☆☆"));
     EXPECT_EQ(d["landingPointsText"].toString(), QString::fromUtf8("−8"));
     const QVariantList checks = d["checks"].toList();
-    ASSERT_EQ(checks.size(), 12);
+    ASSERT_EQ(checks.size(), 14);
     int missed = 0;
     for (const QVariant& c : checks) missed += c.toMap()["state"].toString() == "missed";
     EXPECT_EQ(missed, 5);

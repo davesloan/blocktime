@@ -76,6 +76,9 @@ All of it goes in the event log as facts; nothing is judged here.
   - `vref_kt` and `landing_flaps`: the FMC's `FMC_LandingVREF` and `FMC_LandingFlaps` on both families (0 when not set).
   - `autopilot` (bool): any autopilot engaged (the 737's `MCP_annunCMD_A`/`B`; the 777's AP engaged annunciator), so
     the review can tie a disconnect to what followed. Not checked or scored.
+  - `apu_switch` and `apu_running` (bool, 0.11.1, D-172): the APU selector away from OFF (737 `APU_Selector`, 777
+    `ELEC_APU_Selector`), and the APU running (777 `APURunning`; 737 the selector on and its EGT at 300 °C or more,
+    since PMDG's 737 data has no running flag). The plain `APU SWITCH` never moves on either family.
   - A field the build can't read (no PMDG headers) is left out of the event, never written as 0.
 - **Beacon, strobes, flaps, airspeed and altitudes** are already in `telemetry`; **the altimeters** in `altimeter`
   (D-123); the ATIS and the ATC log since 0.8.0.
@@ -112,6 +115,8 @@ passes it are below. All tolerances are Claude's proposals (D-160) and are meant
 | 10 | Landing lights below 10,000 ft | seconds off between `below_10000` + 60 s and touchdown | 0 |
 | 11 | Stable at 1,000 ft AGL | at the landing approach's `final_approach` marker: gear down; flaps at the FMC's landing setting; sink; IAS minus VREF; lined up | gear down, landing flaps, sink ≤ 1,000 fpm, VREF −5 to +20 kt, a `lined_up` before the marker |
 | 12 | Strobes off after landing | seconds after taxi in began until the strobes went off | ≤ 180 s |
+| 13 | APU off by the transition altitude (0.11.1, Dave) | seconds after the `transition_altitude` marker until the APU selector was off | 0 |
+| 14 | APU running at the gate (0.11.1, Dave) | whether the APU was running when the parking brake was set at block in | running; a miss costs 2 points, not 6 |
 
 Rules that apply to every check:
 
@@ -149,7 +154,8 @@ The spike's landing (591 fpm, 1.47 G, no bounce, 6 kt crosswind against the sim'
 
 ## 4. The score
 
-**0–100, from a formula, never stored (D-160):** 100, minus 6 for each missed check, minus the landing's share
+**0–100, from a formula, never stored (D-160):** 100, minus 6 for each missed check (2 for the APU at the gate,
+D-172), minus the landing's share
 (★5 0, ★4 4, ★3 8, ★2 14, ★1 20, ★0 30), never below 0. The spike's flight misses checks 1, 2, 6, 7 and 10 and
 lands ★3: 100 − 30 − 8 = **62**. (The spike itself missed check 6: measured properly, the descent passed 10,000 ft at
 275 kt and stayed above 260 kt for 17 s.)

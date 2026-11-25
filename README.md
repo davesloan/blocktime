@@ -172,9 +172,10 @@ while the app is open. A month you can't pay returns the airplane (design.md §5
   Gate Turnaround** opens New Flight for the same airplane; **Done for now** closes the summary. A flight that ended
   while BlockTime was closed is settled at the next start. A flight left for the main menu (or lost to a crash) is
   discarded with a notice, and the planned flight stays for another try (D-072, D-108).
-- **The debrief (milestone 10, `docs/debrief.md`):** each flight settled from 0.11.0 on is measured against twelve
+- **The debrief (milestone 10, `docs/debrief.md`):** each flight settled from 0.11.0 on is measured against
   procedure checks (beacon, seat belt sign, taxi speed, altimeters, lights, 250 kt below 10,000 ft, the stable approach,
-  strobes) and its landing gets 0–5 stars. The summary's header shows the score and the stars; **Debrief** shows each
+  strobes, and from 0.11.1 the APU off by the transition altitude and running at the gate) and its landing gets 0–5
+  stars. The summary's header shows the score and the stars; **Debrief** shows each
   check with what was measured, the landing, and Claude's written review, asked for once after the flight settles
   (Retry if it failed). The score never touches the money (D-157).
 - **Flights:** the settled flights, newest first, each with the same summary and its route on a dark map (D-111), and

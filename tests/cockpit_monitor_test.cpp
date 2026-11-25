@@ -32,6 +32,7 @@ TEST(CockpitMonitor, PlainOnlyHasNoPmdgFields) {
     EXPECT_EQ((*e)["gear_down"], true);
     EXPECT_EQ((*e)["pmdg"], false);
     EXPECT_FALSE(e->contains("vref_kt"));
+    EXPECT_FALSE(e->contains("apu_switch"));  // PMDG data only: the plain APU SWITCH never moves
 }
 
 TEST(CockpitMonitor, PmdgWinsForLightsAndBelts) {
@@ -43,9 +44,13 @@ TEST(CockpitMonitor, PmdgWinsForLightsAndBelts) {
     p.vrefKt = 125;
     p.landingFlaps = 40;
     p.autopilot = true;
+    p.apuSwitch = true;
+    p.apuRunning = false;
     m.onPmdg(p, t0);
     const auto e = m.due(t0);
     ASSERT_TRUE(e.has_value());
+    EXPECT_EQ((*e)["apu_switch"], true);
+    EXPECT_EQ((*e)["apu_running"], false);
     EXPECT_EQ((*e)["landing_lights"], true);
     EXPECT_EQ((*e)["seat_belts"], 1);
     EXPECT_EQ((*e)["pmdg"], true);

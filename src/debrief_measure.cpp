@@ -136,6 +136,8 @@ public:
         landingLights();
         stable();
         strobes();
+        apuTransition();
+        apuGate();
         landing();
         return std::move(m_);
     }
@@ -331,6 +333,26 @@ private:
         if (!in) return skip("strobes_on_after_landing_s", "no_marker");
         put("strobes_on_after_landing_s",
             secondsUntil(telemetry_, *in, end(), [](const nlohmann::json& d) { return !d.value("strobe", true); }));
+    }
+
+    // The APU is in PMDG's data only (D-172): a flight without it can't be judged on the APU.
+    bool hasApu() const {
+        return std::any_of(cockpit_.begin(), cockpit_.end(), [](const Point& p) { return p.d->contains("apu_switch"); });
+    }
+
+    void apuTransition() {
+        if (!hasApu()) return skip("apu_on_after_transition_s", "no_pmdg_data");
+        const auto ta = marker("transition_altitude");
+        if (!ta) return skip("apu_on_after_transition_s", "no_marker");
+        put("apu_on_after_transition_s", secondsUntil(cockpit_, *ta, end(), [](const nlohmann::json& d) {
+                return d.contains("apu_switch") && !d["apu_switch"].get<bool>();
+            }));
+    }
+
+    void apuGate() {
+        if (!hasApu()) return skip("apu_running_at_block_in", "no_pmdg_data");
+        if (!blockIn_) return skip("apu_running_at_block_in", "no_marker");
+        put("apu_running_at_block_in", flag(stateAt(cockpit_, *blockIn_), "apu_running") ? 1 : 0);
     }
 
     void landing() {

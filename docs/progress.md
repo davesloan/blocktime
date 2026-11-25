@@ -22,6 +22,26 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-25 — Two APU checks (version 0.11.1)
+
+**Done:**
+- Dave asked for two APU checks (D-172): **APU off by the transition altitude** (−6 when missed) and **APU running at
+  the gate** when the parking brake is set (−2). Built with tests first:
+  - the `cockpit` event gains `apu_switch` and `apu_running` from PMDG's data (777 `APURunning`; 737 the selector on
+    and EGT ≥ 300 °C: a running 737 APU sits at 390–470 °C, so 400 °C flickered on the fixture);
+  - two measured parts, migration 8 for their lookup rows, two checks in the scoring, APU lines in Claude's timeline;
+  - flights measured before 0.11.1 show the two checks as "Not measured on this flight";
+  - the fixture now carries the APU (off at 23:58 before takeoff, running at block in): still 62.
+- 645 tests pass; release and debug build clean; qmllint reports nothing.
+
+**Unverified:**
+- In the sim: the APU lines on both families (the 777's `APURunning`, the 737's 300 °C), and the two checks on a real
+  flight. Check on the next flight: the debrief lists "APU off by the transition altitude" and "APU running at the
+  gate".
+
+**Next step:**
+- Milestone 11 (flight replay, D-163..D-168) in a new session.
+
 ## 2026-11-25 — Milestone 10 sim test: one BBJ2 leg, KSAN → KSJC; the 777 checks at the gate
 
 **Done:**

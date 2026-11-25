@@ -226,7 +226,7 @@ At minimum (exact SimVar names to be confirmed against the MSFS 2020 SDK docs an
 - Procedure capture (0.11.0, D-159): the `cockpit` event, at most once a second when a value changes:
   `landing_lights` (bool), `seat_belts` (0 off, 1 auto, 2 on), `gear_down` (bool, `GEAR TOTAL PCT EXTENDED` ≥ 0.995: it reads 0 to 1 despite the "percent" unit,
   ignored while paused), `pmdg` (whether PMDG's broadcast has arrived this session) and, only with it, `vref_kt`,
-  `landing_flaps` and `autopilot`. With PMDG data the lights and seat belts come from it (the 737's seat belt SimVar
+  `landing_flaps`, `autopilot`, `apu_switch` and `apu_running` (D-172). With PMDG data the lights and seat belts come from it (the 737's seat belt SimVar
   never moves and `LIGHT LANDING` misses its retractable lights); without, from `LIGHT LANDING` and
   `CABIN SEATBELTS ALERT SWITCH`. It carries the `flight_id` while a flight is open, and one is written at block out
   whatever changed, so each flight's log holds the cockpit state at the push.

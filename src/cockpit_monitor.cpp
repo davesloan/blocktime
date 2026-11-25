@@ -24,6 +24,8 @@ nlohmann::json CockpitMonitor::current() const {
         e["vref_kt"] = pmdg_->vrefKt;
         e["landing_flaps"] = pmdg_->landingFlaps;
         e["autopilot"] = pmdg_->autopilot;
+        e["apu_switch"] = pmdg_->apuSwitch;
+        e["apu_running"] = pmdg_->apuRunning;
     }
     return e;
 }

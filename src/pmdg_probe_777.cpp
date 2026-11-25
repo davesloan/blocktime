@@ -75,6 +75,8 @@ std::optional<PmdgCockpit> decodeCockpit777(const void* data, std::size_t size) 
     c.vrefKt = d.FMC_LandingVREF;
     c.landingFlaps = d.FMC_LandingFlaps;
     for (const auto v : d.MCP_annunAP) c.autopilot |= v != 0;
+    c.apuSwitch = d.ELEC_APU_Selector != 0;  // 0 off, 1 on, 2 start
+    c.apuRunning = d.APURunning;
     return c;
 }
 

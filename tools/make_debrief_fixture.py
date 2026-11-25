@@ -5,7 +5,7 @@
 # Makes tests/data/flight-klas-ksan/events-2026-11-24.jsonl, the debrief's real-flight fixture (milestone 10), from
 # Dave's event log of 2026-11-24 (recorder 0.10.0, run with --probe). The flight is turned into 0.11.0's format:
 # - `cockpit` events are derived from the probe's PMDG 737 lines (seat belts, landing lights, gear, VREF, landing
-#   flaps, CMD A/B), on change, as the recorder writes them since D-159;
+#   flaps, CMD A/B, the APU with its EGT as running from 300 C), on change, as the recorder writes them since D-159;
 # - the touchdown gains the true heading (from the telemetry) and the wind (KSAN ATIS Q, 330 at 9; see README.md);
 #   pitch and bank weren't logged, so they stay out;
 # - a `bounces` event with 0 (the telemetry shows no bounce);
@@ -66,6 +66,8 @@ def main(log_dir, out_path):
                 "vref_kt": d["FMC_LandingVREF"],
                 "landing_flaps": d["FMC_LandingFlaps"],
                 "autopilot": bool(d["MCP_annunCMD_A"] or d["MCP_annunCMD_B"]),
+                "apu_switch": d["APU_Selector"] != 0,
+                "apu_running": d["APU_Selector"] != 0 and d["APU_EGTNeedle_10"] >= 300,
             }
             if c != last_cockpit:
                 last_cockpit = c

@@ -63,12 +63,12 @@ protected:
 
 }  // namespace
 
-TEST(AirlineDb, EmptyDatabaseMigratesToVersion7) {
+TEST(AirlineDb, EmptyDatabaseMigratesToVersion8) {
     db::Database d = db::Database::openInMemory();
     std::string error;
     EXPECT_TRUE(migrateAirlineDatabase(d, &error)) << error;
-    EXPECT_EQ(d.userVersion(), 7);
-    EXPECT_EQ(kAirlineSchemaVersion, 7);
+    EXPECT_EQ(d.userVersion(), 8);
+    EXPECT_EQ(kAirlineSchemaVersion, 8);
 }
 
 TEST(AirlineDb, ForeignKeysAreOn) {
@@ -410,7 +410,7 @@ TEST(AirlineDb, Migration7Tables) {
     addFlightParents(d);
     ASSERT_TRUE(insertFlight(d, "2026-11-23T10:30:05.120Z", "delivery", "2026-11-23T10:30:05Z", "2026-11-23T13:20:41Z",
                              20000));
-    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 7, &error)) << error;
     for (const char* t : {"check_part", "check_skip_reason", "flight_debrief", "flight_check_value", "flight_check_skip",
                           "flight_landing", "flight_review", "flight_review_item"}) {
         EXPECT_TRUE(hasTable(d, t)) << t;
@@ -444,4 +444,19 @@ TEST(AirlineDb, Migration7Tables) {
                        " VALUES (1, 'Good', '', '', 'claude-opus-5-5', '2026-11-24T00:55:00Z')"));
     EXPECT_FALSE(d.exec("INSERT INTO flight_review_item (flight_id, seq, text) VALUES (1, 0, '')"));
     EXPECT_TRUE(d.exec("INSERT INTO flight_review_item (flight_id, seq, text) VALUES (1, 0, 'Beacon first')"));
+}
+
+TEST(AirlineDb, Migration8AddsTheApuParts) {
+    db::Database d = db::Database::openInMemory();
+    std::string error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 7, &error)) << error;
+    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    EXPECT_EQ(d.userVersion(), 8);
+    db::Statement q(d, "SELECT COUNT(*) FROM check_part WHERE code IN ('apu_on_after_transition_s',"
+                       " 'apu_running_at_block_in')");
+    ASSERT_TRUE(q.next());
+    EXPECT_EQ(q.integer(0), 2);
+    db::Statement all(d, "SELECT COUNT(*) FROM check_part");
+    ASSERT_TRUE(all.next());
+    EXPECT_EQ(all.integer(0), 19);
 }

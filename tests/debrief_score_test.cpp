@@ -26,7 +26,8 @@ FlightMeasurements clean() {
                 {"over_250_s", 0},           {"std_late_s", 12},             {"belts_off_descent_s", 0},
                 {"destination_baro_off_tenths", 0}, {"landing_lights_off_s", 0}, {"stable_gear_down", 1},
                 {"stable_landing_flaps", 1}, {"stable_sink_fpm", 750},       {"stable_vref_offset_kt", 5},
-                {"stable_lined_up", 1},      {"strobes_on_after_landing_s", 40}};
+                {"stable_lined_up", 1},      {"strobes_on_after_landing_s", 40},
+                {"apu_on_after_transition_s", 0}, {"apu_running_at_block_in", 1}};
     LandingFacts f;
     f.vsFpm = 200;
     f.gHundredths = 120;
@@ -70,12 +71,14 @@ int starsFor(int vsFpm, int gHundredths = 120) {
 
 TEST(DebriefScore, CleanFlightScores100) {
     const ScoredFlight s = scoreFlight(clean());
-    ASSERT_EQ(s.checks.size(), 12u);
+    ASSERT_EQ(s.checks.size(), 14u);
     for (const auto& c : s.checks) EXPECT_EQ(c.state, CheckState::Passed) << c.label;
     EXPECT_EQ(*s.stars, 5);
     EXPECT_EQ(s.score, 100);
     EXPECT_EQ(s.checks.front().label, "Beacon on before pushback");
-    EXPECT_EQ(s.checks.back().label, "Strobes off after landing");
+    EXPECT_EQ(s.checks[11].label, "Strobes off after landing");
+    EXPECT_EQ(s.checks[12].label, "APU off by the transition altitude");
+    EXPECT_EQ(s.checks.back().label, "APU running at the gate");
 }
 
 TEST(DebriefScore, KlasKsanScores62) {
@@ -225,4 +228,33 @@ TEST(DebriefScore, PitchUpFromTheSimsSign) {
     EXPECT_EQ(pitchUpTenths(f), 51);
     f.simPitchTenths.reset();
     EXPECT_FALSE(pitchUpTenths(f));
+}
+
+TEST(DebriefScore, ApuChecks) {
+    FlightMeasurements m = clean();
+    set(m, "apu_on_after_transition_s", 115);
+    ScoredFlight s = scoreFlight(m);
+    EXPECT_EQ(check(s, "APU off by the transition altitude").state, CheckState::Missed);
+    EXPECT_EQ(check(s, "APU off by the transition altitude").detail, "1 min 55 s after the transition altitude");
+    EXPECT_EQ(check(s, "APU off by the transition altitude").points, -6);
+    EXPECT_EQ(s.score, 94);
+    m = clean();
+    set(m, "apu_running_at_block_in", 0);
+    s = scoreFlight(m);
+    EXPECT_EQ(check(s, "APU running at the gate").state, CheckState::Missed);
+    EXPECT_EQ(check(s, "APU running at the gate").detail, "Not running at block in");
+    EXPECT_EQ(check(s, "APU running at the gate").points, -2);  // Dave: only about 2 points (D-172)
+    EXPECT_EQ(s.score, 98);
+    EXPECT_EQ(check(scoreFlight(clean()), "APU off by the transition altitude").detail, "Off by the transition altitude");
+    EXPECT_EQ(check(scoreFlight(clean()), "APU running at the gate").detail, "Running at block in");
+}
+
+TEST(DebriefScore, PartsAddedLaterAreNotChecked) {
+    // A flight measured before the APU checks existed has neither part, valued or skipped.
+    FlightMeasurements m = clean();
+    std::erase_if(m.values, [](const CheckValue& v) { return v.part.starts_with("apu_"); });
+    const ScoredFlight s = scoreFlight(m);
+    EXPECT_EQ(check(s, "APU running at the gate").state, CheckState::NotChecked);
+    EXPECT_EQ(check(s, "APU running at the gate").detail, "Not measured on this flight");
+    EXPECT_EQ(s.score, 100);
 }

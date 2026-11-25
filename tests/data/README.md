@@ -9,7 +9,7 @@ The debrief's real-flight fixture (milestone 10): Dave's BBJ2 leg KLAS → KSAN 
 Added or changed by the script, not recorded as such:
 
 - **`cockpit` events** derived from the probe's PMDG 737 lines (seat belts, landing lights, gear lights, VREF,
-  landing flaps, CMD A/B), on change.
+  landing flaps, CMD A/B, and the APU: its selector, running from 300 °C EGT), on change.
 - **The touchdown's** `heading_true_deg` (the telemetry's at that moment) and `wind_dir_deg` 330 / `wind_kt` 9 (KSAN
   ATIS Quebec, which is magnetic; the recorder logs the sim's true wind). No `sim_pitch_deg` or `bank_deg`: they
   weren't logged.

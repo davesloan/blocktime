@@ -25,6 +25,7 @@ constexpr int kStableSinkFpm = 1000;
 constexpr int kStableVrefBelowKt = -5, kStableVrefAboveKt = 20;
 constexpr int kStrobesOffS = 180;
 constexpr int kMissedPoints = -6;
+constexpr int kApuGatePoints = -2;  // Dave: the APU at the gate costs only about 2 points (D-172)
 
 // The landing (D-158).
 constexpr int kStarBandsFpm[] = {240, 360, 600, 900, 1200};  // up to each: 5, 4, 3, 2, 1 stars; above: 0
@@ -107,6 +108,15 @@ public:
             return std::pair{v <= kStrobesOffS,
                              v == 0 ? std::string("Off before the taxi") : "Off " + duration(v) + " into the taxi"};
         });
+        add(s, "APU off by the transition altitude", {"apu_on_after_transition_s"}, [&] {
+            const int v = at("apu_on_after_transition_s");
+            return std::pair{v == 0, v == 0 ? std::string("Off by the transition altitude")
+                                            : duration(v) + " after the transition altitude"};
+        });
+        add(s, "APU running at the gate", {"apu_running_at_block_in"}, [&] {
+            const bool running = at("apu_running_at_block_in") == 1;
+            return std::pair{running, std::string(running ? "Running at block in" : "Not running at block in")};
+        }, kApuGatePoints);
         landing(s);
         int score = 100 + s.landingPoints;
         for (const auto& c : s.checks) score += c.points;
@@ -121,18 +131,21 @@ private:
     int at(const char* part) const { return values_.at(part); }
 
     // A check is not checked when none of its parts was measured; its detail is the first part's reason.
-    void add(ScoredFlight& s, const char* label, std::initializer_list<const char*> parts, const Judge& judge) {
+    // A check whose parts are neither measured nor skipped was added after the flight was measured (stored rows are
+    // never rewritten, D-160).
+    void add(ScoredFlight& s, const char* label, std::initializer_list<const char*> parts, const Judge& judge,
+             int missedPoints = kMissedPoints) {
         CheckOutcome c;
         c.label = label;
         const bool any = std::any_of(parts.begin(), parts.end(), [&](const char* p) { return has(p); });
         if (!any) {
             const auto it = skips_.find(*parts.begin());
-            c.detail = reasonText(it == skips_.end() ? "" : it->second);
+            c.detail = it == skips_.end() ? std::string("Not measured on this flight") : reasonText(it->second);
         } else {
             const auto [passed, detail] = judge();
             c.state = passed ? CheckState::Passed : CheckState::Missed;
             c.detail = detail;
-            c.points = passed ? 0 : kMissedPoints;
+            c.points = passed ? 0 : missedPoints;
         }
         s.checks.push_back(std::move(c));
     }

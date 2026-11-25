@@ -91,6 +91,8 @@ TEST(DebriefMeasure, KlasKsanFixture) {
     EXPECT_NEAR(*value(m, "stable_vref_offset_kt"), 0, 1);
     EXPECT_EQ(*value(m, "stable_lined_up"), 1);
     EXPECT_LE(*value(m, "strobes_on_after_landing_s"), 60);
+    EXPECT_EQ(*value(m, "apu_on_after_transition_s"), 0);  // off at 23:58, before takeoff
+    EXPECT_EQ(*value(m, "apu_running_at_block_in"), 1);    // started at 00:46 on the approach
     ASSERT_TRUE(m.landing);
     EXPECT_EQ(m.landing->vsFpm, 591);
     EXPECT_EQ(m.landing->gHundredths, 147);
@@ -112,6 +114,8 @@ TEST(DebriefMeasure, NoCockpitPmdgFieldsSkipsBeltsAndVref) {
         l.data.erase("vref_kt");
         l.data.erase("landing_flaps");
         l.data.erase("autopilot");
+        l.data.erase("apu_switch");
+        l.data.erase("apu_running");
     }
     const FlightMeasurements m = measureFlight(lines, false);
     expectEveryPartOnce(m);
@@ -119,6 +123,8 @@ TEST(DebriefMeasure, NoCockpitPmdgFieldsSkipsBeltsAndVref) {
     EXPECT_EQ(skipReason(m, "belts_off_descent_s"), "no_pmdg_data");
     EXPECT_EQ(skipReason(m, "stable_landing_flaps"), "no_pmdg_data");
     EXPECT_EQ(skipReason(m, "stable_vref_offset_kt"), "no_pmdg_data");
+    EXPECT_EQ(skipReason(m, "apu_on_after_transition_s"), "no_pmdg_data");
+    EXPECT_EQ(skipReason(m, "apu_running_at_block_in"), "no_pmdg_data");
     EXPECT_EQ(*value(m, "stable_gear_down"), 1);  // the plain gear SimVar
     // LIGHT LANDING misses the 737's retractable lights: without PMDG data they aren't judged.
     EXPECT_EQ(skipReason(m, "landing_lights_off_s"), "no_pmdg_data");
@@ -145,6 +151,8 @@ TEST(DebriefMeasure, LowFlightSkipsTenThousandChecks) {
     EXPECT_EQ(skipReason(m, "destination_baro_off_tenths"), "no_marker");
     EXPECT_EQ(skipReason(m, "landing_lights_off_s"), "no_marker");
     EXPECT_EQ(skipReason(m, "stable_sink_fpm"), "no_marker");  // final_approach is a marker too
+    EXPECT_EQ(skipReason(m, "apu_on_after_transition_s"), "no_marker");
+    EXPECT_EQ(*value(m, "apu_running_at_block_in"), 1);
 }
 
 TEST(DebriefMeasure, GoAroundJudgesTheLandingApproach) {
@@ -221,4 +229,31 @@ TEST(DebriefMeasure, PitchIsStoredAsTheSimGivesIt) {
     const auto m = measureFlight(lines, false);
     ASSERT_TRUE(m.landing);
     EXPECT_EQ(m.landing->simPitchTenths, -51);  // raw: the sign is the sim's (D-158, checked in the sim)
+}
+
+TEST(DebriefMeasure, ApuSwitchedOffLate) {
+    // The APU left on until 00:13:00, 1 min 55 s after the transition altitude (00:11:04.853).
+    auto lines = fixture();
+    for (auto& l : lines) {
+        if (l.type == "cockpit" && formatUtc(l.ts) >= "2026-11-24T23:58" && formatUtc(l.ts) < "2026-11-25T00:13") {
+            l.data["apu_switch"] = true;
+            l.data["apu_running"] = true;
+        }
+    }
+    nlohmann::json off;
+    for (const auto& l : lines)
+        if (l.type == "cockpit" && formatUtc(l.ts) < "2026-11-25T00:13") off = l.data;
+    off["apu_switch"] = false;
+    off["apu_running"] = false;
+    const auto at = *parseUtc("2026-11-25T00:13:00.000Z");
+    lines.insert(std::find_if(lines.begin(), lines.end(), [&](const LogLine& l) { return l.ts > at; }),
+                 LogLine{at, "cockpit", off});
+    EXPECT_NEAR(*value(measureFlight(lines, false), "apu_on_after_transition_s"), 115, 1);
+}
+
+TEST(DebriefMeasure, ApuNotRunningAtTheGate) {
+    auto lines = fixture();
+    for (auto& l : lines)
+        if (l.type == "cockpit" && formatUtc(l.ts) >= "2026-11-25T00:46") l.data["apu_running"] = false;
+    EXPECT_EQ(*value(measureFlight(lines, false), "apu_running_at_block_in"), 0);
 }
