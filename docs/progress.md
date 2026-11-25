@@ -22,6 +22,50 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-25 — Milestone 11 built: flight replay as its own process (version 0.12.0)
+
+**Done:**
+- **Gut check with Dave before starting:** replay is the right feature (since D-174 it's how dashboard work gets
+  checked), but D-165's in-app design spent most of its cost on sharing a window with the real recorder. Dave chose a
+  separate, read-only process (D-175); `docs/replay.md` rewritten, the roadmap updated.
+- **Plan** `docs/plans/2026-11-25-milestone-11-replay.md`, ten tasks, executed inline (D-033), tests first:
+  - core: the telemetry line and block events read back from JSON (`telemetry_json.h`, the recorder's `toJson` moved
+    there); the feed's lines (`feed_text.h`, shared with the recorder); the replayer (`flight_replay.h`: the day files
+    from the day before block out, which lines replay as what, offsets with the sim's pauses taken out, seeking, a
+    speed/pause clock); `Database::openReadOnly`, `flownFlightView`, `latestFlightId`;
+  - app: Live reads the time from its bridge (D-166: block clock, feed times, Ready time); `PlannedFlightDisplay`, a
+    base for `PlannedFlightModel` and the replay's read-only `ReplayPlannedFlight`; `ReplaySession`;
+    `BlockTime.exe --replay <id | last> [--speed] [--at] [--grab]` with `ReplayWindow.qml` and `ReplayBar.qml`; a
+    Replay button on every Flight Summary (Flights, and Live after block in), greyed once the log is gone.
+  - a full-format fixture, `tests/data/flight-ksan-ksjc/` (Dave's leg of today, PA messages and audio links removed).
+- Smaller calls in **D-176 (Proposed)**.
+
+**Working / verified:**
+- 680 tests pass; debug build with no warnings; qmllint reports nothing.
+- `--replay last --at cruise --grab` and `--at block_in` on Dave's real KSAN → KSJC leg: the day's times in the feed,
+  the stages, M.80 at FL400, the planned panel with only Copy route; at block in the summary with Replay again and no
+  turnaround buttons. `blocktime.db`'s hash was unchanged after the replay.
+- `--demo --page 1 --grab` (scratch data copy) shows the Replay button on Flights.
+
+**Unverified:**
+- Watching a replay play in a real window at each speed, Pause, Replay again and Close (the grabs hold the replay;
+  a test covers the timer).
+- The Replay button launching the second window from the main app (`QProcess::startDetached`).
+- The release build (only the debug build was built this session).
+
+**What Dave should see next time he looks (no sim needed):**
+1. Flights → pick a flight from the last 30 days → **Replay**: a second window opens on that flight's lead-in, pill
+   `Replay`, the bar at 1×.
+2. Press **10×**: the stages, tiles and feed move ten times faster, with that day's times.
+3. **Pause** stops it; **Resume** carries on.
+4. At block in: the summary, `■ REPLAY ENDED`, **Replay again** starts over from the lead-in; **Close** closes the
+   window. The main window kept recording throughout.
+5. A flight older than 30 days: Replay greyed with "The log for … is no longer on this PC".
+
+**Next step:**
+- Dave tries the steps above; then milestone 12 (the dashboard header and status lines) in a new session, checked
+  with `--replay … --at … --grab`.
+
 ## 2026-11-25 — Milestone 10 closed: the MVP is done
 
 **Done:**

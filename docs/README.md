@@ -7,7 +7,7 @@
 | [database.md](database.md) | The airline database: tables, keys, rules and the entity diagram (D-078) |
 | [debrief.md](debrief.md) | The debrief (milestone 10): procedure checks, landing stars, the score and Claude's review (D-156 to D-162) |
 | [dashboard.md](dashboard.md) | The dashboard (Live Flight Screen) redesign after the MVP, with sketches in `images/` (D-150 to D-154) |
-| [replay.md](replay.md) | Flight replay (milestone 11): play a recorded flight on Live at 1×–10× to check the dashboard (D-163 to D-168) |
+| [replay.md](replay.md) | Flight replay (milestone 11): a read-only window that plays a recorded flight on Live at 1×–10× to check the dashboard (D-163 to D-168, D-175, D-176) |
 | [roadmap.md](roadmap.md) | Milestones from here to the MVP (the complete flight flow) and after |
 | [decisions.md](decisions.md) | Append-only log of decisions and why they were made |
 | [progress.md](progress.md) | Session-by-session progress log (newest first) |

@@ -2708,3 +2708,24 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   writers are never built, and SQLite refuses a write anyway.
 - Alternatives considered: D-165 as designed (in-app); a command-line replay only, with no button or playback (D-164
   rejected it; playback is cheap once the log reader exists).
+
+## D-176 — Replay's smaller calls while building
+- Date: 2026-11-25
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision:
+  - The replay's QML-facing planned flight is a base class, `PlannedFlightDisplay`, holding the properties and their
+    formatting; `PlannedFlightModel` and `ReplayPlannedFlight` derive from it (docs/replay.md left base-or-not open).
+  - While a line is fed, the bridge's clock is that line's own time, so a seek doesn't stamp every feed line with the
+    seek's time.
+  - `--at` also takes `block_in` (to grab the summary). With `--grab` the replay holds at `--at`.
+  - Lines only the log gets are skipped by name (`sim_connected` added after the fixture showed it); anything else is
+    a flight event, so new flight events replay without changes to the replayer.
+  - The replay's fixture drops cabin and PA messages (they name the captain) and the ATC audio links, as the debrief
+    fixture did, and keeps one telemetry line in five away from block out, touchdown and block in.
+  - The Replay button's reason sits beside the button, not under it, so the summary header stays one row.
+  - The replay window has no Open log folder button and is the main window's width less the side menu.
+- Why: Each settles something the plan left open or that came up while building.
+- Alternatives considered: two unrelated classes matching property names (QML's typed properties would need two
+  panels); stamping seek-fed lines with the seek time.

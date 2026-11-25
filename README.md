@@ -213,6 +213,17 @@ while the app is open. A month you can't pay returns the airplane (design.md §5
 - `--demo` shows made-up live values and a made-up departure in Flight progress, and records nothing, to look at the
   UI without the sim. The Flights, Fleet and
   Money screens still show your real data, and leases are charged as usual.
+- **Replay** on a Flight Summary (Flights, or Live after block in) opens a second, read-only window that plays the
+  flight on Live at 1×, 2×, 3× or 10×, with Pause and Close (D-175, `docs/replay.md`). It works while the flight's
+  log is kept (30 days), and runs beside a recording copy. From the command line:
+
+  ```powershell
+  .\build\x64-release\BlockTime.exe --replay last --speed 10
+  ```
+
+  `--replay <log flight id | last>`, `--speed <n>`, `--at <phase | block_out | block_in | H:MM after block out>` (jumps
+  there at once), and `--grab <file.png>` (holds at `--at`, saves the window after 6 s and quits). A replay writes
+  nothing: the database is opened read-only, and nothing calls SayIntentions, SimBrief or Claude.
 - Use the **release** build for flights. The debug build is much heavier.
 
 ### The debrief replay tool

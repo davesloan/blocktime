@@ -94,6 +94,9 @@ $env:LOCALAPPDATA = "C:\path\to\scratch"; $env:QT_QPA_PLATFORM = "offscreen"; $e
 - windeployqt deploys only `qwindows.dll`, so the offscreen plugin comes from the Qt kit
   (`QT_QPA_PLATFORM_PLUGIN_PATH`). Without it the app dies before `errors.log` is opened (exit code 0xC0000409).
 - The offscreen platform has no fonts of its own: without `QT_QPA_FONTDIR` every glyph is a box.
+- The debug build has only `qwindowsd.dll` too: without the plugin path it stops in a "no Qt platform plugin" assert
+  dialog (idle, no window title), not with an exit code.
+- `--replay … --grab` needs no scratch folder: the replay opens the database read-only and writes no log (D-175).
 - Map tiles load as usual (from the scratch folder's `tiles\` and the CARTO key in its `settings.json`).
 - An event log written by hand must be compact JSON (`"type":"block_out"`, no spaces): the log readers find event
   lines with a plain substring before parsing them, as `EventLog` writes them.

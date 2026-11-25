@@ -1,8 +1,8 @@
 # Replaying a flight (milestone 11)
 
 The design for **flight replay**. Brainstormed with Dave on 2026-11-24 (D-163 to D-168). Revised on 2026-11-25 after a
-gut check: the replay is a separate, read-only process, not a mode of the live app (D-175). The approach table below
-keeps both versions.
+gut check: the replay is a separate, read-only process, not a mode of the live app (D-175). Built in 0.12.0; the
+smaller calls made while building are D-176. The approach table below keeps both versions.
 
 ## Intent
 
@@ -50,14 +50,17 @@ it is the main way dashboard work gets checked.
 
 **The Replay button.** On every Flight Summary of a settled flight, on Flights and on Live after block in. Pressing it
 opens a second BlockTime window playing that flight; the main window carries on as before, recording included.
-Greyed out, with the reason under it, when the flight's log is gone: `The log for 24 Nov is no longer on this PC`.
+Greyed out, with the reason beside it, when the flight's log is gone: `The log for 24 Nov is no longer on this PC`.
 
 **The replay window.** Live alone: no side menu, no Flights, Fleet or Money. Its header reads
 `Replay · XLY1231 KLAS → KSAN · 24 Nov` and the connection pill reads `Replay`. Under the header, a bar:
 
 ```
- ▶ REPLAY   [1×] [2×] [3×] [10×]   ❚❚ Pause   ■ Close
+ ▶ REPLAY   [1×] [2×] [3×] [10×]   [Pause]                                  [Close]
+ ■ REPLAY ENDED   [Replay again]                                            [Close]   (at block in)
 ```
+
+When the log is gone or the flight isn't in it, the window says so in place of Live.
 
 - **Speed** 1×, 2×, 3× or 10×, changeable at any time. Starts at 1× (Dave).
 - **Pause / Resume.**
@@ -113,7 +116,10 @@ day's.
 - **The timeline:** each line's offset from the replay's start, with paused stretches taken out.
 - **The clock:** the offset advances by the wall time since the last tick times the speed; speed changes and pauses
   take effect from the next tick. It returns the lines now due.
-- **Seeking** (`--at` only): the offset of a phase's `phase_changed`, of block out, or of a time after block out.
+- **Seeking** (`--at` only): the offset of a phase's `phase_changed`, of block out or block in, or of a time after
+  block out.
+- While a line is fed, the bridge's clock is that line's own time, so the feed shows when each line happened even
+  when `--at` feeds many at once.
 
 **`ReplaySession` (Qt).** Owns the replay bridge, the read-only planned flight and a timer about every 50 ms (enough
 for 10 samples a second at 10×; it stops when paused and at block in). Each tick it hands the due lines to the bridge.
@@ -128,12 +134,13 @@ shutdown checks stamped lines with the wall clock. They all read the bridge's cl
 bridge, the replay time on a replay bridge. **From here on, nothing on Live reads the wall clock directly** (a rule
 for the dashboard milestones).
 
-**For Claude Code:** `BlockTime.exe --replay <flight id | last> [--speed N] [--at <phase | block_out | H:MM>]
-[--grab <file>]`. `--at` feeds every line up to that point at once (the only place a replay jumps ahead); `H:MM` is
+**For Claude Code:** `BlockTime.exe --replay <flight id | last> [--speed N] [--at <phase | block_out | block_in |
+H:MM>] [--grab <file>]`. `--at` feeds every line up to that point at once (the only place a replay jumps ahead); `H:MM` is
 after block out. With `--grab` the replay holds there, saves a screenshot after 6 s and quits, like `--demo --grab`.
 
 **Test data.** The debrief fixture (`tests/data/flight-klas-ksan/`) strips position, fuel and the title from its
-telemetry. The replay's tests use a slice in the full format.
+telemetry. The replay's tests use `tests/data/flight-ksan-ksjc/`, Dave's KSAN → KSJC leg in the full format, made with
+`tools/make_replay_fixture.py` (`tests/data/README.md`).
 
 ## Later, not in this milestone
 
