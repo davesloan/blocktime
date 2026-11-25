@@ -36,6 +36,7 @@
 #include "planned_flight.h"
 #include "planned_flight_model.h"
 #include "replay_planned_flight.h"
+#include "replay_session.h"
 #include "review_writer.h"
 #include "debrief_store.h"
 #include "rates.h"
@@ -1973,4 +1974,125 @@ TEST(ReplayPlannedFlight, IsReadOnly) {
     EXPECT_TRUE(f.hasFlight());
     EXPECT_EQ(f.message(), "");
     EXPECT_FALSE(f.busy());
+}
+
+// ReplaySession (D-175): Dave's KSAN → KSJC leg of 2026-11-25 played into a fresh bridge.
+namespace {
+
+const fs::path kReplayFixtureDir = BLOCKTIME_SOURCE_DIR "/tests/data/flight-ksan-ksjc";
+const QString kReplayFlight = "2026-11-25T18:43:04.053Z";
+
+bool feedHas(RecorderBridge& b, const QString& start) {
+    for (int i = 0; i < b.events()->rowCount(); ++i) {
+        if (feedText(b, i).startsWith(start)) return true;
+    }
+    return false;
+}
+
+}  // namespace
+
+TEST(ReplaySession, PlaysToBlockIn) {
+    qtApp();
+    ReplaySession r(kReplayFixtureDir, kReplayFlight, std::nullopt, "XLY", Rates{});
+    ASSERT_EQ(r.error(), "");
+    EXPECT_EQ(r.title(), QString::fromUtf8("N814SX · 25 Nov"));
+    EXPECT_EQ(r.bridge()->connection(), "replay");
+    ASSERT_TRUE(r.seek("0:00"));
+    EXPECT_TRUE(r.bridge()->flightOpen());
+    r.setSpeed(10);
+    for (int i = 0; i < 100 && !r.finished(); ++i) r.tick(std::chrono::minutes(1));
+    ASSERT_TRUE(r.finished());
+    RecorderBridge& b = *r.bridge();
+    EXPECT_FALSE(b.flightOpen());
+    EXPECT_TRUE(b.lastFlightSummary().startsWith("Block in 1:18")) << b.lastFlightSummary().toStdString();
+    EXPECT_TRUE(feedHas(b, "BLOCK OUT"));
+    EXPECT_TRUE(feedHas(b, "TOUCHDOWN"));
+    EXPECT_TRUE(feedHas(b, "BLOCK IN"));
+    EXPECT_EQ(r.plannedFlight()->state(), "summary");
+    EXPECT_EQ(r.plannedFlight()->summaryFlightId(), kReplayFlight);
+}
+
+TEST(ReplaySession, FeedShowsTheFlightsOwnTimes) {
+    qtApp();
+    ReplaySession r(kReplayFixtureDir, kReplayFlight, std::nullopt, "XLY", Rates{});
+    ASSERT_TRUE(r.seek("block_out"));
+    RecorderBridge& b = *r.bridge();
+    int row = -1;
+    for (int i = 0; i < b.events()->rowCount(); ++i) {
+        if (feedText(b, i).startsWith("BLOCK OUT")) row = i;
+    }
+    ASSERT_GE(row, 0);
+    // The block-out line was logged 18:43:15, eleven seconds after the release it reports.
+    EXPECT_EQ(b.events()->data(b.events()->index(row), EventFeedModel::TimeRole).toString(), "18:43:15");
+    // A GSX line from the lead-in keeps its own time, though the seek fed it at once.
+    EXPECT_NE(b.events()->data(b.events()->index(b.events()->rowCount() - 1), EventFeedModel::TimeRole).toString(),
+              "18:43:15");
+}
+
+TEST(ReplaySession, SeekToCruise) {
+    qtApp();
+    ReplaySession r(kReplayFixtureDir, kReplayFlight, std::nullopt, "XLY", Rates{});
+    ASSERT_TRUE(r.seek("cruise"));
+    EXPECT_TRUE(r.bridge()->phase().startsWith("Cruise")) << r.bridge()->phase().toStdString();
+    EXPECT_TRUE(r.bridge()->flightOpen());
+    EXPECT_TRUE(r.bridge()->hasSample());
+    EXPECT_FALSE(r.seek("nonsense"));
+}
+
+TEST(ReplaySession, SpeedAndPause) {
+    qtApp();
+    ReplaySession r(kReplayFixtureDir, kReplayFlight, std::nullopt, "XLY", Rates{});
+    ASSERT_TRUE(r.seek("0:10"));
+    const auto before = r.bridge()->now();
+    r.setSpeed(10);
+    r.tick(std::chrono::seconds(1));
+    EXPECT_EQ(r.bridge()->now() - before, std::chrono::seconds(10));
+    r.setPaused(true);
+    EXPECT_TRUE(r.paused());
+    const auto paused = r.bridge()->now();
+    r.tick(std::chrono::seconds(1));
+    EXPECT_EQ(r.bridge()->now(), paused);
+}
+
+TEST(ReplaySession, RestartStartsClean) {
+    qtApp();
+    ReplaySession r(kReplayFixtureDir, kReplayFlight, std::nullopt, "XLY", Rates{});
+    ASSERT_TRUE(r.seek("block_in"));
+    ASSERT_TRUE(r.finished());
+    const RecorderBridge* old = r.bridge();
+    r.restart();
+    EXPECT_NE(r.bridge(), old);
+    EXPECT_FALSE(r.finished());
+    EXPECT_FALSE(r.bridge()->flightOpen());
+    EXPECT_FALSE(r.bridge()->hasSample());
+    EXPECT_EQ(r.bridge()->connection(), "replay");
+    EXPECT_EQ(r.plannedFlight()->state(), "replay");
+}
+
+TEST(ReplaySession, MissingLogGivesAnError) {
+    qtApp();
+    const fs::path dir = fs::temp_directory_path() / "blocktime-replay-missing";
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    ReplaySession r(dir, kReplayFlight, std::nullopt, "XLY", Rates{});
+    EXPECT_EQ(r.error(), "The log for 25 Nov is no longer on this PC");
+    EXPECT_FALSE(r.seek("block_out"));
+}
+
+TEST(ReplaySession, WritesNothing) {
+    qtApp();
+    const fs::path dir = fs::temp_directory_path() / "blocktime-replay-writes";
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    fs::copy(kReplayFixtureDir, dir, fs::copy_options::recursive);
+    const fs::path file = dir / "events-2026-11-25.jsonl";
+    const auto size = fs::file_size(file);
+    const auto written = fs::last_write_time(file);
+    {
+        ReplaySession r(dir, kReplayFlight, std::nullopt, "XLY", Rates{});
+        ASSERT_TRUE(r.seek("block_in"));
+    }
+    EXPECT_EQ(fs::file_size(file), size);
+    EXPECT_EQ(fs::last_write_time(file), written);
+    EXPECT_EQ(std::distance(fs::directory_iterator(dir), fs::directory_iterator()), 1);
 }

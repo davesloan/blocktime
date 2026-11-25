@@ -17,4 +17,16 @@ Added or changed by the script, not recorded as such:
 - **Dropped:** probe lines, cabin and PA messages (`INTERCOM` channels), audio links, and telemetry fields the
   debrief doesn't read.
 
+## `flight-ksan-ksjc/`
+
+The replay's fixture (milestone 11, D-175): Dave's BBJ2 leg KSAN → KSJC of 2026-11-25 (log flight id
+`2026-11-25T18:43:04.053Z`), from 30 minutes before block out to block in, in 0.11.1's full format: every field of
+every line kept, including position, fuel, the title, `cockpit` and `atc_exchange`. It has a short Escape-menu pause
+in flight. Made with `tools/make_replay_fixture.py`, which drops:
+
+- probe and `pmdg_data` lines;
+- cabin and PA messages (`INTERCOM` channels, which name the captain) and the ATC entries' audio links (`*_url`);
+- four telemetry lines in five, except within 2 minutes of block out, the touchdown and block in (1,448 of 4,876
+  lines kept, about 900 KB).
+
 The other files are described in the tests that read them.

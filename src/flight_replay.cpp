@@ -59,7 +59,7 @@ ReplayRoute replayRoute(std::string_view type) {
         "cockpit",          "telemetry_invalid", "paused",           "unpaused",
         "pmdg_data",        "recorder_started",  "recorder_stopped", "sim_disconnected",
         "sim_responsive",   "sim_unresponsive",  "simconnect_exception", "warning",
-        "aircraft_loaded",  "block_out_refused", "airport_runways",  "flight_interrupted"};
+        "aircraft_loaded",  "block_out_refused", "airport_runways",  "flight_interrupted", "sim_connected"};
     if (type == "telemetry") return ReplayRoute::Sample;
     if (type == "block_out" || type == "block_in") return ReplayRoute::Block;
     if (type.starts_with("probe_") || kLogOnly.contains(type)) return ReplayRoute::Skip;

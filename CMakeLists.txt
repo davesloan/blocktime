@@ -283,6 +283,7 @@ qt_add_qml_module(blocktime-app
     src/planned_flight_model.h src/planned_flight_model.cpp
     src/planned_flight_display.h src/planned_flight_display.cpp
     src/replay_planned_flight.h src/replay_planned_flight.cpp
+    src/replay_session.h src/replay_session.cpp
     src/flight_watcher.h src/flight_watcher.cpp
     src/review_client.h
     src/review_writer.h src/review_writer.cpp
@@ -333,6 +334,7 @@ if(BLOCKTIME_BUILD_TESTS)
     src/planned_flight_model.h src/planned_flight_model.cpp
     src/planned_flight_display.h src/planned_flight_display.cpp
     src/replay_planned_flight.h src/replay_planned_flight.cpp
+    src/replay_session.h src/replay_session.cpp
     src/flight_watcher.h src/flight_watcher.cpp
     src/review_client.h
     src/review_writer.h src/review_writer.cpp)

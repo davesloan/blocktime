@@ -73,7 +73,7 @@ TEST(FlightReplay, Routes) {
         EXPECT_EQ(replayRoute(t), ReplayRoute::Flight) << t;
     }
     for (const char* t : {"cockpit", "probe_gsx", "pmdg_data", "paused", "unpaused", "sim_disconnected",
-                          "airport_runways", "block_out_refused", "telemetry_invalid", "recorder_started"}) {
+                          "airport_runways", "block_out_refused", "telemetry_invalid", "recorder_started", "sim_connected"}) {
         EXPECT_EQ(replayRoute(t), ReplayRoute::Skip) << t;
     }
 }
