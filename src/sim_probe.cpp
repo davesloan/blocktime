@@ -30,8 +30,6 @@ enum : SIMCONNECT_DATA_DEFINITION_ID {
 enum : SIMCONNECT_DATA_REQUEST_ID {
     REQ_GSX = 101,
     REQ_SIMVARS = 102,
-    REQ_PMDG_737 = 103,
-    REQ_PMDG_777 = 104,
     REQ_BARO_MB = 105,
     REQ_BARO_STD = 106,
     REQ_FACILITY_FIRST = 110,  // one per airport asked for, up to 189
@@ -115,7 +113,7 @@ bool read(T& out, const void* data, std::size_t size) {
 
 bool SimProbe::owns(unsigned long requestId) { return requestId >= REQ_GSX && requestId <= REQ_LAST; }
 
-bool SimProbe::setup(void* handle) {
+bool SimProbe::setup(void* handle, bool pmdg737, bool pmdg777) {
     HANDLE h = static_cast<HANDLE>(handle);
     bool ok = true;
     for (const char* v : kGsxVars) {
@@ -134,8 +132,6 @@ bool SimProbe::setup(void* handle) {
     requestBaro(kBaroMb, DEF_BARO_MB, REQ_BARO_MB);
     requestBaro(kBaroStd, DEF_BARO_STD, REQ_BARO_STD);
     for (const char* f : kFacilityFields) ok &= SUCCEEDED(SimConnect_AddToFacilityDefinition(h, DEF_FACILITY, f));
-    const bool pmdg737 = probe::registerPmdg737(handle, REQ_PMDG_737);
-    const bool pmdg777 = probe::registerPmdg777(handle, REQ_PMDG_777);
     log_.write("probe_started", {{"ok", ok}, {"pmdg_737", pmdg737}, {"pmdg_777", pmdg777}});
     return ok;
 }
@@ -181,9 +177,12 @@ void SimProbe::onSimObjectData(unsigned long requestId, const void* data, std::s
     }
 }
 
-void SimProbe::onClientData(unsigned long requestId, const void* data, std::size_t size) {
-    if (requestId == REQ_PMDG_737) offer(pmdg737_, probe::decodePmdg737(data, size));
-    if (requestId == REQ_PMDG_777) offer(pmdg777_, probe::decodePmdg777(data, size));
+void SimProbe::onPmdg(bool is737, const void* data, std::size_t size) {
+    if (is737) {
+        offer(pmdg737_, probe::decodePmdg737(data, size));
+    } else {
+        offer(pmdg777_, probe::decodePmdg777(data, size));
+    }
 }
 
 void SimProbe::offer(Pending& p, nlohmann::json values) {

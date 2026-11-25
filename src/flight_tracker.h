@@ -56,6 +56,7 @@ public:
 
     bool wantsFastSampling() const { return fast_; }
     bool flightOpen() const { return detector_.has_value(); }
+    const std::string& flightId() const { return flightId_; }  // "" with no flight open
 
 private:
     LogEvent toLog(const PhaseEvent& e) const;

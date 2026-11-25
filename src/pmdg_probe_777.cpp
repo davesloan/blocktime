@@ -65,4 +65,17 @@ nlohmann::json decodePmdg777(const void* data, std::size_t size) {
     return out;
 }
 
+std::optional<PmdgCockpit> decodeCockpit777(const void* data, std::size_t size) {
+    if (size < sizeof(PMDG_777X_Data)) return std::nullopt;
+    PMDG_777X_Data d;
+    std::memcpy(&d, data, sizeof d);
+    PmdgCockpit c;
+    c.seatBelts = d.SIGNS_SeatBeltsSelector;  // 0 off, 1 auto, 2 on (seen on the 2026-11-24 777 probe flight)
+    for (const auto v : d.LTS_LandingLights_Sw_ON) c.landingLights |= v != 0;
+    c.vrefKt = d.FMC_LandingVREF;
+    c.landingFlaps = d.FMC_LandingFlaps;
+    for (const auto v : d.MCP_annunAP) c.autopilot |= v != 0;
+    return c;
+}
+
 }  // namespace blocktime::probe

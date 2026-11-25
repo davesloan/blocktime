@@ -12,11 +12,13 @@ namespace blocktime::probe {
 #ifdef BLOCKTIME_PMDG_NO_NG3
 bool registerPmdg737(void*, unsigned long) { return false; }
 nlohmann::json decodePmdg737(const void*, std::size_t) { return nullptr; }
+std::optional<PmdgCockpit> decodeCockpit737(const void*, std::size_t) { return std::nullopt; }
 #endif
 
 #ifdef BLOCKTIME_PMDG_NO_777X
 bool registerPmdg777(void*, unsigned long) { return false; }
 nlohmann::json decodePmdg777(const void*, std::size_t) { return nullptr; }
+std::optional<PmdgCockpit> decodeCockpit777(const void*, std::size_t) { return std::nullopt; }
 #endif
 
 }  // namespace blocktime::probe

@@ -24,6 +24,7 @@
 #include <string>
 
 #include "active_clock.h"
+#include "cockpit_monitor.h"
 #include "event_log.h"
 #include "flight_tracker.h"
 #include "gsx_watcher.h"
@@ -46,6 +47,7 @@ public:
     using AltimeterCallback = std::function<void(const AltimeterSample&)>;
     using AirportCallback = std::function<void(AirportFacilities)>;
     using GsxCallback = std::function<void(const GsxValues&)>;  // milestone 8 (D-138)
+    using CockpitCallback = std::function<void(const PmdgCockpit&)>;  // PMDG's broadcast, milestone 10 (D-159)
 
     // `probe`: also run the --probe data requests (D-116, sim_probe.h).
     SimConnection(EventLog& log, SampleCallback onSample, SimStateCallback onSimState = {}, bool probe = false);
@@ -75,6 +77,7 @@ public:
 
     void setFlightCallbacks(FastSampleCallback onFast, AltimeterCallback onAltimeter, AirportCallback onAirport,
                             GsxCallback onGsx);
+    void setCockpitCallback(CockpitCallback onCockpit) { onCockpit_ = std::move(onCockpit); }
     // Asks for each airport's reference point, runways and parking spots; each goes to the airport callback when it's
     // complete. False (nothing sent) before the handshake.
     bool requestAirports(const std::vector<std::string>& icaos);
@@ -106,6 +109,7 @@ private:
     AltimeterCallback onAltimeter_;
     AirportCallback onAirport_;
     GsxCallback onGsx_;
+    CockpitCallback onCockpit_;
     ActiveClock clock_;
     bool fastOn_ = false;
     double baroMb_[2] = {0, 0};

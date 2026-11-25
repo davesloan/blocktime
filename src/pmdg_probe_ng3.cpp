@@ -73,4 +73,19 @@ nlohmann::json decodePmdg737(const void* data, std::size_t size) {
     return out;
 }
 
+std::optional<PmdgCockpit> decodeCockpit737(const void* data, std::size_t size) {
+    if (size < sizeof(PMDG_NG3_Data)) return std::nullopt;
+    PMDG_NG3_Data d;
+    std::memcpy(&d, data, sizeof d);
+    PmdgCockpit c;
+    c.seatBelts = d.COMM_FastenBeltsSelector;  // 0 off, 1 auto, 2 on
+    // Fixed lights: 0 off, 1 on. Retractable: 0 retract, 1 extend, 2 on (PMDG_NG3_SDK.h).
+    for (const auto v : d.LTS_LandingLtFixedSw) c.landingLights |= v != 0;
+    for (const auto v : d.LTS_LandingLtRetractableSw) c.landingLights |= v == 2;
+    c.vrefKt = d.FMC_LandingVREF;
+    c.landingFlaps = d.FMC_LandingFlaps;
+    c.autopilot = d.MCP_annunCMD_A || d.MCP_annunCMD_B;
+    return c;
+}
+
 }  // namespace blocktime::probe

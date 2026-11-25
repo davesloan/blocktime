@@ -29,13 +29,14 @@ public:
     explicit SimProbe(EventLog& log) : log_(log) {}
 
     // Registers the probe's data definitions on a new SimConnect session (`handle` is the HANDLE). False if one of the
-    // SimConnect calls failed; the rest still go ahead.
-    bool setup(void* handle);
+    // SimConnect calls failed; the rest still go ahead. SimConnection subscribes to PMDG's broadcasts (D-159) and says
+    // which it got; their blocks come to onPmdg.
+    bool setup(void* handle, bool pmdg737, bool pmdg777);
     // True for request ids the probe owns; SimConnection hands their messages here.
     static bool owns(unsigned long requestId);
 
     void onSimObjectData(unsigned long requestId, const void* data, std::size_t size);
-    void onClientData(unsigned long requestId, const void* data, std::size_t size);
+    void onPmdg(bool is737, const void* data, std::size_t size);
     void onFacilityData(const void* recv);  // a SIMCONNECT_RECV_FACILITY_DATA
     void onFacilityDataEnd(unsigned long requestId);
     // Asks for each airport's facility data; each is logged when its data ends.

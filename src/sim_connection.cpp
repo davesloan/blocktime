@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "sim_connection.h"
+#include "pmdg_probe.h"
 
 #include <windows.h>
 
@@ -55,6 +56,8 @@ enum RequestId : SIMCONNECT_DATA_REQUEST_ID {
     REQ_BARO_MB = 4,           // the altimeter settings, once a second on change (D-123)
     REQ_BARO_STD = 5,
     REQ_GSX_SERVICE = 6,       // GSX's service states, once a second on change (D-138)
+    REQ_PMDG_737 = 7,          // PMDG's SDK broadcasts, on change (D-159)
+    REQ_PMDG_777 = 8,
     REQ_SIM_STATE = 10,        // RequestSystemState("Sim")
     REQ_AIRCRAFT_LOADED = 11,  // RequestSystemState("AircraftLoaded")
     REQ_RUNWAYS_FIRST = 20,    // facility data, one per airport asked for (D-126)
@@ -350,8 +353,15 @@ bool SimConnection::setup() {
                                             SIMCONNECT_PERIOD_SECOND, SIMCONNECT_DATA_REQUEST_FLAG_CHANGED),
           "GSX request");
     for (const char* f : kRunwayFields) check(SimConnect_AddToFacilityDefinition(h(handle_), DEF_RUNWAYS, f), f);
+    // PMDG's broadcasts (D-159): true only when the build has the SDK header. Whether one arrives depends on the
+    // aircraft loaded (and, on the 777, EnableDataBroadcast in its options file).
+    const bool pmdg737 = probe::registerPmdg737(handle_, REQ_PMDG_737);
+    const bool pmdg777 = probe::registerPmdg777(handle_, REQ_PMDG_777);
+    log_.write("pmdg_data", {{"737", pmdg737}, {"777", pmdg777}});
     // The probe's requests don't decide whether the session works: a failure is logged, not fatal (D-116).
-    if (probe_ && !probe_->setup(handle_)) log_.write("warning", {{"message", "probe setup failed in part"}});
+    if (probe_ && !probe_->setup(handle_, pmdg737, pmdg777)) {
+        log_.write("warning", {{"message", "probe setup failed in part"}});
+    }
     return ok;
 }
 
@@ -529,9 +539,14 @@ void SimConnection::handleMessage(const void* raw, unsigned long size) {
         case SIMCONNECT_RECV_ID_CLIENT_DATA: {
             const auto* d = static_cast<const SIMCONNECT_RECV_CLIENT_DATA*>(msg);
             const std::size_t offset = offsetof(SIMCONNECT_RECV_CLIENT_DATA, dwData);
-            if (probe_ && size > offset) {
-                probe_->onClientData(d->dwRequestID, reinterpret_cast<const char*>(d) + offset, size - offset);
-            }
+            if (size <= offset) break;
+            const bool is737 = d->dwRequestID == REQ_PMDG_737;
+            if (!is737 && d->dwRequestID != REQ_PMDG_777) break;
+            const char* data = reinterpret_cast<const char*>(d) + offset;
+            const auto cockpit = is737 ? probe::decodeCockpit737(data, size - offset)
+                                       : probe::decodeCockpit777(data, size - offset);
+            if (cockpit && onCockpit_) onCockpit_(*cockpit);
+            if (probe_) probe_->onPmdg(is737, data, size - offset);
             break;
         }
         case SIMCONNECT_RECV_ID_FACILITY_DATA: {

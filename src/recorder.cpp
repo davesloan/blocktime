@@ -16,6 +16,7 @@
 #include <type_traits>
 #include <variant>
 
+#include "cockpit_monitor.h"
 #include "event_log.h"
 #include "event_outbox.h"
 #include "flight_tracker.h"
@@ -290,6 +291,15 @@ int Recorder::run(const std::atomic<bool>& stop) {
         }
         if (simPtr) simPtr->setFastSampling(tracker.wantsFastSampling());
     };
+    // The cockpit state the debrief checks (D-159), written on change while connected; with the flight's id while one
+    // is open. A new sim session starts it afresh.
+    CockpitMonitor cockpit;
+    const auto writeCockpit = [&] {
+        auto data = cockpit.due(std::chrono::system_clock::now());
+        if (!data) return;
+        if (tracker.flightOpen()) (*data)["flight_id"] = tracker.flightId();
+        log.write("cockpit", *data);
+    };
     // GSX's services, read whether or not a flight is open (D-073, D-138). A new sim session starts them afresh.
     GsxWatcher gsx;
     // The app's GsxTimeline drops the next leg's services when the sim session ends (D-138). These are logged by
@@ -318,6 +328,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
         }
         BlockSample b = toBlockSample(s, std::chrono::system_clock::now());
         b.aircraftFolder = aircraftFolder(simPtr->aircraftPath());
+        cockpit.onPlain({s.lightLanding != 0, s.seatBeltSign != 0, s.gearPct, simPtr->paused()}, b.time);
         // The banner's answer: the same check a release would get, reported when it changes (D-088).
         if (!detector.flightOpen()) {
             if (auto m = matches.onSample(target.get(), b)) observer.onMatch(*m);
@@ -355,6 +366,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
             tracker.setAirport(std::move(a));
         },
         [&](const GsxValues& v) { writeFlightEvents(gsx.onValues(v, std::chrono::system_clock::now())); });
+    sim.setCockpitCallback([&](const PmdgCockpit& p) { cockpit.onPmdg(p, std::chrono::system_clock::now()); });
     if (options_.probe) observer.onLine("Probe on: logging GSX, PMDG and airport data (D-116).", false);
     auto waitingSince = std::chrono::steady_clock::now();
     bool announcedWaiting = false;
@@ -379,6 +391,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
                 announcedWaiting = false;
                 announcedConnected = false;
                 telemetry.reset();
+                cockpit.reset();
             } else {
                 if (!announcedWaiting) {
                     observer.onLine("Waiting for sim...", false);
@@ -391,6 +404,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
         }
 
         const bool alive = sim.pump();
+        writeCockpit();
         if (sim.handshakeComplete() && !announcedConnected) {
             matches.reset();  // report afresh in this session
             airportsAsked.clear();

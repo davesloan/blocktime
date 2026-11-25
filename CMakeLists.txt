@@ -97,7 +97,8 @@ add_library(blocktime-core STATIC
   src/phase_detector.cpp
   src/sqlite_db.cpp
   src/telemetry_filter.cpp
-  src/touchdown_capture.cpp)
+  src/touchdown_capture.cpp
+  src/cockpit_monitor.cpp)
 target_include_directories(blocktime-core PUBLIC src)
 find_package(yaml-cpp CONFIG REQUIRED)
 target_link_libraries(blocktime-core PUBLIC blocktime-options nlohmann_json::nlohmann_json unofficial::sqlite3::sqlite3
@@ -111,10 +112,11 @@ add_library(blocktime-sim STATIC
   src/single_instance.cpp)
 target_link_libraries(blocktime-sim PUBLIC blocktime-core SimConnect)
 
-# The --probe mode's PMDG part (D-116) reads the SDK headers that ship with each PMDG aircraft. They aren't committed;
-# point these at the folders holding them (in the PMDG package's Documentation\SDK). Without one, that half is a stub.
-set(BLOCKTIME_PMDG_NG3_SDK_DIR "" CACHE PATH "Folder holding PMDG_NG3_SDK.h (737), for --probe")
-set(BLOCKTIME_PMDG_777X_SDK_DIR "" CACHE PATH "Folder holding PMDG_777X_SDK.h (777), for --probe")
+# PMDG's SDK broadcasts (D-159: read on every flight for the debrief; D-116: everything with --probe) need the SDK
+# headers that ship with each PMDG aircraft. They aren't committed; point these at the folders holding them (in the
+# PMDG package's Documentation\SDK). Without one, that half is a stub and its debrief checks show as not checked.
+set(BLOCKTIME_PMDG_NG3_SDK_DIR "" CACHE PATH "Folder holding PMDG_NG3_SDK.h (737)")
+set(BLOCKTIME_PMDG_777X_SDK_DIR "" CACHE PATH "Folder holding PMDG_777X_SDK.h (777)")
 set(_pmdg_stub OFF)
 if(BLOCKTIME_PMDG_NG3_SDK_DIR AND EXISTS "${BLOCKTIME_PMDG_NG3_SDK_DIR}/PMDG_NG3_SDK.h")
   target_sources(blocktime-sim PRIVATE src/pmdg_probe_ng3.cpp)
@@ -186,7 +188,8 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/flight_stages_test.cpp
     tests/active_clock_test.cpp
     tests/gsx_watcher_test.cpp
-    tests/gsx_timeline_test.cpp)
+    tests/gsx_timeline_test.cpp
+    tests/cockpit_monitor_test.cpp)
   target_link_libraries(blocktime-tests PRIVATE blocktime-core GTest::gtest_main)
   # Tests read the repo's config files (config/catalog.yaml, config/airline.example.yaml).
   target_compile_definitions(blocktime-tests PRIVATE BLOCKTIME_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
