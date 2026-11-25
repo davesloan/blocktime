@@ -47,8 +47,9 @@ Sources:
     **"Terminal 3 Gate E7A"**. Its status window fills in the STAR, landing runway, runway transition and arrival gate
     as soon as its AI decides them, before top of descent; ATC only says the gate on the ground, when you're ready to
     taxi.
-  - 2026-11-24, KSLC arrival: ground said "Gate Bravo Two via Alpha-Five" (`atc_exchange` `incoming_message`), so
-    spoken gates are in the phonetic alphabet ("Bravo Two" for B2), not the short form.
+  - 2026-11-24, KSLC arrival: ground's "Gate Bravo Two via Alpha-Five" was in an `atc_exchange` `incoming_message`,
+    so spoken gates are in the phonetic alphabet ("Bravo Two" for B2), not the short form. (`incoming_message` is the
+    pilot's side, here the readback: see getCommsHistory below.)
 - **The local `flightJSON` has the status window's data** (`http://localhost:43117/flightJSON`, read 2026-11-24 in
   cruise to KLAS, no key needed). The fields that matter:
   - `flight_details.current_flight`: `assigned_gate` ("Terminal 3 Gate E7A"), **`assigned_gate_lat` /
@@ -110,6 +111,15 @@ Sources:
   pilot, `outgoing_message` from ATC, English versions, audio URLs). **Current flight only**: it can't be fetched
   after the flight ends, so it has to be collected during it. Unread report: a reply can be written a few seconds
   late, so `since_id` polling may skip it (https://github.com/psyraxaus/ProsimCompanion/issues/237).
+  - **Reading an entry** (checked on the 2026-11-24 KLAS → KSAN log, milestone 10's debrief):
+    - `incoming_message` is the pilot's side, spoken by Dave or by SayIntentions' AI co-pilot (`copilot: 1` marks
+      the co-pilot's readbacks); `outgoing_message` is the station's (`station_name`: "SoCal Approach"). One entry can
+      hold both: a call and its answer.
+    - Cabin crew and PA messages (`station_name` "Cabin Crew", "Co-Pilot PA", "Co-Pilot") are on `INTERCOM1`/`2`
+      channels; ATC is on `COM1`/`2`. The debrief keeps `COM` only.
+    - Dave's own speech arrives as recognised text and can be garbled ("Compare Reservoir Insights, StockSate").
+    - An instruction can come late: "maintain 5,300" arrived while Dave was already passing 5,262 ft on the
+      published descent, so a level below it isn't necessarily a bust (why ATC compliance isn't scored, D-157).
   - **No local copy.** Checked 2026-11-23: SayIntentions' folders on Dave's PC hold no ATC text:
     - `%LOCALAPPDATA%\SayIntentions\SI-Telemetry\logs\si_telemetry.log` is the telemetry bridge's own log;
     - the rest is the client's WebView cache and a Stream Deck log.

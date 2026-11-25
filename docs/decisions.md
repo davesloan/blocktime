@@ -2465,3 +2465,26 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: Each call costs money, so retries are Dave's choice. Four fixed parts let the summary lay them out. The habit
   memory is what code can't see across flights.
 - Alternatives considered: retrying at every startup; free text; regenerating a review.
+
+## D-162 — Milestone 10's build calls
+- Date: 2026-11-24
+- Status: Proposed
+- Decided by: Claude
+- Area: app, recorder, data
+- Decision:
+  - **The debrief is a second view of the Flight Summary**, behind a Debrief / Flight button in its header; the score
+    and stars are always in the header. The summary is about 520 px wide on Flights: too narrow for the debrief beside
+    the money and the map.
+  - **Bounces are their own event**, 15 s after touchdown, so the touchdown line on Live isn't delayed.
+  - **Claude's timeline opens at the engine start (if before block out) or block out**, with one line giving the
+    cockpit state then; the 30-minute lead-in only sets that state, because it can reach the previous leg's landing.
+    The same "flight start" is the beacon check's deadline.
+  - **The measurements are taken at settling, once the arrival is known**, so "diverted" is decided where the money is.
+  - **A pre-0.11.0 flight settled after the upgrade is still measured** from whatever its log holds; the missing feeds
+    show as not checked.
+  - **The real-flight fixture** (`tests/data/flight-klas-ksan/`) is Dave's KLAS → KSAN leg in the 0.11.0 format, with
+    cabin announcements and audio links removed; `tests/data/README.md` lists what the script added.
+- Why: Each settles something `docs/debrief.md` left to the builder.
+- Alternatives considered: the debrief beside the money on Live only (Flights would lack it); bounces inside the
+  touchdown event (a 15 s delay on Live); the timeline from 30 minutes before block out (the previous leg's events read
+  as this flight's).

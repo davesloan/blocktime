@@ -493,9 +493,10 @@ spot only for:
 ### 13.7 After the flight
 
 - At block in, the app switches by itself to the **flight summary**: score and Claude's evaluation (section 14),
-  each income and expense line, and the total gained or lost. Plus the route map. **Built in milestone 6** without
-  the score and evaluation (milestone 10): the flight number and route, the airplane, block out and in, block time,
-  fuel used, the money lines with their total, and the track. A flight settled at startup (BlockTime was closed or
+  each income and expense line, and the total gained or lost. Plus the route map. **Built in milestone 6** (the flight
+  number and route, the airplane, block out and in, block time, fuel used, the money lines with their total, and the
+  track) and **milestone 10** (the score and landing stars in its header, and a Debrief view with the checks, the
+  landing and Claude's review, `docs/debrief.md`). A flight settled at startup (BlockTime was closed or
   crashed at block in) shows its summary the same way.
 - **Flights (D-111)** lists the settled flights from the database, newest first, and shows the same summary for the
   one selected. The track comes from the event log; once the log is gone (30 days), the map shows a straight line.
@@ -527,28 +528,26 @@ Full detail in `recorder.md`.
   plane is flagged out of position until repositioned.
 - Phases are detected by the recorder (plan-aware, forward-only) and displayed in the app.
 
-### Flight analysis (D-040)
+### Flight analysis (D-040, D-156 to D-162)
 
-At the end of each of Dave's flights, the app sends Claude, through the Claude API:
-- the recorder's events for the flight,
-- the SayIntentions ATC log,
-- the ATIS for the origin and destination airports.
+**Built in milestone 10; the full design is `docs/debrief.md`.** BlockTime's own code measures twelve procedure checks
+from the event log when the flight settles (beacon before pushback, seat belt sign, taxi speed, both altimeters, lights
+for takeoff, 250 kt below 10,000 ft, STD by the transition altitude, landing lights below 10,000 ft, stable at 1,000 ft,
+strobes after landing) and the landing (sink rate, G, bounces, pitch, bank, speed against VREF, wind). It stores the
+measurements; the **0–100 score** and the **0–5 landing stars** are computed from them by fixed rules whenever they're
+shown, so the rules can be tuned and every flight re-scored at no cost. The Flights screen shows the running averages.
 
-Claude sends back a written analysis and a **0–100 score**. Examples of what it checks:
-- Fully configured and stable by 1,000 ft.
-- Beacon on before pushback.
-- Landing lights on below 10,000 ft.
-- Seatbelt signs on below 18,000 ft.
-- Altimeters set to the right pressure at the right time (standard above the transition altitude, local QNH from
-  the ATIS below the transition level).
+Claude (Opus 5.5, through the Claude API) gets the checks, a timeline of the flight, the SayIntentions ATC log and the
+ATIS for both airports, and writes the review: what went well, what to work on, the landing explained, and ATC
+compliance as information only (SayIntentions is sometimes wrong). Claude never sets the score (D-156). The score never
+touches the money or anything else in the airline (D-157).
 
 **Never scored (D-122):** how far a takeoff or landing was from the runway centreline or heading, or from the
 touchdown zone. The sim's runway positions often don't match the painted runway, so an autoland the sim calls perfect
 can look off and a landing on the painted centreline can read off. These figures may appear in the logs and the
 summary as information only.
 
-The full list of checks, how they're scored, and whether the score affects anything in the airline get brainstormed
-when the recorder's procedure-capture milestone starts.
+
 
 ## 15. Reference data
 

@@ -1,7 +1,8 @@
 # The debrief: procedure checks, the landing and Claude's review (milestone 10)
 
 Brainstormed with Dave on 2026-11-24 (Claude Code session), replacing the open parts of D-040. Decisions D-156 to
-D-161. **The MVP is done when this is built** (roadmap milestone 10).
+D-162. **Built in 0.11.0** (`docs/plans/2026-11-24-milestone-10-debrief.md`), which completes the MVP. Where the build
+settled something this design left open, it's marked here and in D-162.
 
 ## Intent
 
@@ -137,13 +138,14 @@ Shown in its own section: sink rate, G, bounces, pitch, bank, speed against VREF
 4. **G caps it:** 1.7 G or more at most ★2; 2.0 G or more at most ★1.
 5. Never below 0. Without VREF the speed rule is skipped; without pitch or bank, those rules.
 
-The spike's landing (591 fpm, 1.47 G, no bounce, 8 kt crosswind, at VREF) gets ★3.
+The spike's landing (591 fpm, 1.47 G, no bounce, 6 kt crosswind against the sim's heading, at VREF) gets ★3.
 
 ## 4. The score
 
 **0–100, from a formula, never stored (D-160):** 100, minus 6 for each missed check, minus the landing's share
-(★5 0, ★4 4, ★3 8, ★2 14, ★1 20, ★0 30), never below 0. The spike's flight misses checks 1, 2, 7 and 10 and lands ★3:
-100 − 24 − 8 = **68**.
+(★5 0, ★4 4, ★3 8, ★2 14, ★1 20, ★0 30), never below 0. The spike's flight misses checks 1, 2, 6, 7 and 10 and
+lands ★3: 100 − 30 − 8 = **62**. (The spike itself missed check 6: measured properly, the descent passed 10,000 ft at
+275 kt and stayed above 260 kt for 17 s.)
 
 - **Measurements are stored, not results.** A flight's rows hold what was measured (163 s, 591 fpm). The rules
   (tolerances, stars, points) live in one code file and run whenever a score is shown, so changing a rule re-scores
@@ -160,7 +162,8 @@ The spike's landing (591 fpm, 1.47 G, no bounce, 8 kt crosswind, at VREF) gets �
   - the flight in one line each: route, aircraft, block times, the planned cruise level;
   - a timeline of the flight's events: phases, markers, level-offs, `cockpit` changes, altimeter changes, liftoff,
     touchdown and the runways, plus derived lines (the state at 1,000 ft, the sink from 1,000 ft to touchdown, the
-    autopilot's disconnect when the PMDG data has it);
+    autopilot's disconnect when the PMDG data has it). As built, it opens at the engine start or block out with one
+    line giving the cockpit state then: the 30-minute lead-in can reach the previous leg's landing (D-162);
   - each check with its measurement and result, and the landing with its stars;
   - the ATIS texts, once per letter;
   - the ATC log: `COM` channels only (cabin crew and PA are on `INTERCOM`), each line labelled with the station and
@@ -204,7 +207,9 @@ Landing   591 fpm · 1.47 G · no bounce · pitch 5.1° · bank 0.8° · VREF +0
           2.7 m off the centreline, 0.6° off the heading (information)
 ```
 
-The money lines and the map stay as they are; the layout is the builder's within Theme.qml (D-150).
+The money lines and the map stay as they are; the layout is the builder's within Theme.qml (D-150). **As built
+(D-162):** the score and stars sit in the summary's header, and a **Debrief** button swaps the times, money and map for
+the debrief panel (review, checks, landing), since the summary is only about 520 px wide on Flights.
 
 **The Flights screen** gets a strip above the list:
 

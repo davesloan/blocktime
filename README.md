@@ -172,7 +172,13 @@ while the app is open. A month you can't pay returns the airplane (design.md §5
   Gate Turnaround** opens New Flight for the same airplane; **Done for now** closes the summary. A flight that ended
   while BlockTime was closed is settled at the next start. A flight left for the main menu (or lost to a crash) is
   discarded with a notice, and the planned flight stays for another try (D-072, D-108).
-- **Flights:** the settled flights, newest first, each with the same summary and its route on a dark map (D-111).
+- **The debrief (milestone 10, `docs/debrief.md`):** each flight settled from 0.11.0 on is measured against twelve
+  procedure checks (beacon, seat belt sign, taxi speed, altimeters, lights, 250 kt below 10,000 ft, the stable approach,
+  strobes) and its landing gets 0–5 stars. The summary's header shows the score and the stars; **Debrief** shows each
+  check with what was measured, the landing, and Claude's written review, asked for once after the flight settles
+  (Retry if it failed). The score never touches the money (D-157).
+- **Flights:** the settled flights, newest first, each with the same summary and its route on a dark map (D-111), and
+  above them the average score and landing stars, all-time and for the last 10 flights.
 - **Fleet:** your airplanes, with type, airframe, fleet, location, fuel on board, flights, hours and status (Parked,
   Awaiting delivery, Returned), your hours flown and fleet slots (a new airplane waits for a free slot, D-083), and any
   notices about the setup above them. Click a column header to sort by it, and click it
@@ -191,18 +197,36 @@ while the app is open. A month you can't pay returns the airplane (design.md §5
   `recorder_stopped`.
 - Only one copy records at a time (D-037). A second copy shows "Recorder already running" and records nothing.
 - `--log-dir <folder>` writes the event log somewhere else.
-- `--probe` also logs GSX's states, the PMDG switches and the airports' runways and parking spots, for milestones 7–10
-  (D-116, `docs/notes/probe-flight.md`). The PMDG part needs the SDK headers from the PMDG install at build time:
+- **PMDG's data:** the debrief reads the 737's seat belt sign and retractable landing lights and both families' VREF
+  and landing flaps from PMDG's SDK broadcast (D-159). That needs the SDK headers from the PMDG install at build time
+  (without them those checks show as not checked), and on the 777 `EnableDataBroadcast=1` in the `[SDK]` section of
+  its `777_Options.ini`:
 
   ```powershell
   cmake --preset x64-release "-DBLOCKTIME_PMDG_NG3_SDK_DIR=I:/flightsim/community/pmdg-aircraft-738/Documentation/SDK" "-DBLOCKTIME_PMDG_777X_SDK_DIR=I:/flightsim/community/pmdg-aircraft-77w/Documentation/SDK"
   ```
+- `--probe` also logs GSX's states, every PMDG switch and the airports' runways and parking spots (D-116,
+  `docs/notes/probe-flight.md`).
 - `--grab <file.png> [--page <n>]` is a developer check of the screens: it saves the window to a PNG after 6 s and
   quits (`docs/notes/qt-setup.md`).
 - `--demo` shows made-up live values and a made-up departure in Flight progress, and records nothing, to look at the
   UI without the sim. The Flights, Fleet and
   Money screens still show your real data, and leases are charged as usual.
 - Use the **release** build for flights. The debug build is much heavier.
+
+### The debrief replay tool
+
+`blocktime-debrief.exe` runs the debrief on a flight in a saved event log, with the app's own code, so the checks and
+the scoring can be tuned on real flights without flying (docs/debrief.md section 8). The flight id is the
+`flight_id` of its `block_out` line:
+
+```powershell
+.\build\x64-release\blocktime-debrief.exe --log-dir "$env:LOCALAPPDATA\BlockTime\events" --flight 2026-11-24T23:53:16.837Z
+```
+
+`--prompt` also prints the request Claude would get (no call, no cost); `--claude` sends it with your
+`claude_api_key` and prints the review and the tokens used (it costs money). `--diverted` measures it as a
+diversion. The tool reads no database, so the review doesn't see earlier flights' misses.
 
 ### Files it uses
 
@@ -231,7 +255,8 @@ New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\BlockTime" | Out-Null; no
   "carto_key": "...",
   "simbrief_user_id": "...",
   "sayintentions_api_key": "...",
-  "sayintentions_developer_key": "..."
+  "sayintentions_developer_key": "...",
+  "claude_api_key": "sk-ant-..."
 }
 ```
 
@@ -241,6 +266,7 @@ New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\BlockTime" | Out-Null; no
 | `simbrief_user_id` | Importing your latest SimBrief plan. Your Pilot ID, on SimBrief's Account Settings page. Not the first part of an airframe's Internal ID (`docs/notes/simbrief-api.md`) |
 | `sayintentions_api_key` | The active runways for planning. Your pilot API key, on your SayIntentions portal account page |
 | `sayintentions_developer_key` | The same. Request a personal developer key at https://p2.sayintentions.ai/p2/#developer-key (`docs/notes/sayintentions-api.md`) |
+| `claude_api_key` | Claude's written review in each flight's debrief (D-156). An API key from the Anthropic Console (https://console.anthropic.com), billed to that account: about $0.12–0.16 a flight on Claude Opus 5.5. Without it the checks, score and landing stars still show |
 
 Without the SayIntentions keys, planning still works and SimBrief chooses the runways. The keys are never logged.
 
@@ -294,6 +320,7 @@ Quirks found while setting this up are in [`docs/notes/qt-setup.md`](docs/notes/
 |---|---|
 | [`docs/design.md`](docs/design.md) | Full product design: rules, numbers and rationale |
 | [`docs/recorder.md`](docs/recorder.md) | Flight recorder spec, milestones and event log format |
+| [`docs/debrief.md`](docs/debrief.md) | The debrief: procedure checks, landing stars, the score and Claude's review |
 | [`docs/decisions.md`](docs/decisions.md) | Log of design and implementation decisions |
 | [`docs/progress.md`](docs/progress.md) | Development progress log |
 | [`docs/README.md`](docs/README.md) | Index of all docs, including the how-to notes |

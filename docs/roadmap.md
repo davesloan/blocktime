@@ -141,8 +141,12 @@ landing runway within 10 nm, not at 1,000 ft (D-143).
 
 ### Milestone 10 — Procedure capture and Claude's debrief
 
+**Built in 0.11.0** (`docs/debrief.md`, `docs/plans/2026-11-24-milestone-10-debrief.md`, D-156..D-162); Dave's sim
+checks are in `docs/progress.md`. **The MVP is done here.**
+
 Old milestone 7 and D-040: cockpit state for the analysis, the SayIntentions ATC log (collected into the event log since 0.8.0, D-123), and
-the Claude score and evaluation in the summary. **The MVP is done here.**
+the score and evaluation in the summary. As built: BlockTime's code measures twelve checks and the landing and computes
+the score and stars; Claude Opus 5.5 writes the review (D-156).
 
 ## After the MVP (not ordered)
 

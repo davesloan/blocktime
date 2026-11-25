@@ -42,11 +42,10 @@ It was built **first**, because everything else depends on reliable flight data.
    milestone 7, D-124).
 5. **Touchdown capture.** Fast sampling near the ground; record touchdown rate. **Built in 0.8.0** (D-125).
 6. **SimBrief plan.** Fetch the latest OFP to get planned cruise altitude, origin, destination (needed by phase rules).
-7. **Procedure capture.** Log the cockpit state the end-of-flight analysis needs (D-040). Examples: lights
-   (beacon, landing, seatbelt signs), gear and flaps, altimeter settings, and whether the aircraft is configured
-   and stable at 1,000 ft. The recorder only reports what changed and when; judging it is the app's job. What to
-   capture gets brainstormed at the start of this milestone. Many PMDG switches may not show up in standard
-   SimVars, so start with a probe flight on the 737 and the 777.
+7. **Procedure capture.** Log the cockpit state the end-of-flight analysis needs (D-040). **Built in 0.11.0** (roadmap
+   milestone 10, `docs/debrief.md` section 1, D-159): a change-based `cockpit` event (landing lights, seat belt sign,
+   gear, and from PMDG's SDK broadcast VREF, landing flaps and the autopilot), attitude and wind on `touchdown`, and a
+   `bounces` event. The recorder only reports what changed and when; judging it is the app's job.
 8. ~~Delivery to the app.~~ **Not needed (D-063):** the recorder runs inside the app. The app reads flights back
    from the event log (D-060), and live values reach the UI through `RecorderObserver`.
 
@@ -224,8 +223,17 @@ At minimum (exact SimVar names to be confirmed against the MSFS 2020 SDK docs an
 - Aircraft title (so the app can check the loaded aircraft matches the selected airplane)
 - Touchdown vertical speed (use a dedicated touchdown SimVar if MSFS 2020 provides a reliable one; otherwise sample
   vertical speed at high rate around the moment on-ground changes)
-- Later (milestone 7, procedure capture): cockpit state for the flight analysis, including the altimeter setting
-  to check against the SayIntentions ATIS (D-040)
+- Procedure capture (0.11.0, D-159): the `cockpit` event, at most once a second when a value changes:
+  `landing_lights` (bool), `seat_belts` (0 off, 1 auto, 2 on), `gear_down` (bool, `GEAR TOTAL PCT EXTENDED` ≥ 99.5 %,
+  ignored while paused), `pmdg` (whether PMDG's broadcast has arrived this session) and, only with it, `vref_kt`,
+  `landing_flaps` and `autopilot`. With PMDG data the lights and seat belts come from it (the 737's seat belt SimVar
+  never moves and `LIGHT LANDING` misses its retractable lights); without, from `LIGHT LANDING` and
+  `CABIN SEATBELTS ALERT SWITCH`. It carries the `flight_id` while a flight is open.
+- `touchdown` also carries `sim_pitch_deg` (raw `PLANE PITCH DEGREES`: the SDK documents nose up as negative, unverified),
+  `bank_deg`, `heading_true_deg`, `wind_dir_deg` and `wind_kt` (true, from `AMBIENT WIND DIRECTION` and `VELOCITY`) of
+  the first frame on the ground. Fast sampling stays on for 15 s after the first contact, then a `bounces` event counts
+  the airborne stretches of at least 0.5 s (a rollout slowed to taxi first logs the count so far).
+- The altimeter settings (D-123), checked against the SayIntentions ATIS by the debrief
 
 **Aircraft scope (D-039):** only the PMDG 737 and 777 families on MSFS 2020. Every 737 variant uses the same
 variables, and so does every 777 variant, so testing one of each is enough. Default and other add-on aircraft are
