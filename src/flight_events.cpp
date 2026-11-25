@@ -18,7 +18,8 @@ std::vector<LogLine> loadFlightEvents(const std::filesystem::path& logDir, std::
     return loadFlightEvents(files, logFlightId);
 }
 
-std::vector<LogLine> loadFlightEvents(const std::vector<std::filesystem::path>& files, std::string_view logFlightId) {
+std::vector<LogLine> loadFlightEvents(const std::vector<std::filesystem::path>& files, std::string_view logFlightId,
+                                      bool startAfterOtherFlights) {
     std::deque<LogLine> leadIn;  // the last kFlightLeadIn of lines before block out
     std::vector<LogLine> flight;
     bool open = false;
@@ -32,7 +33,12 @@ std::vector<LogLine> loadFlightEvents(const std::vector<std::filesystem::path>& 
             if (!ts) continue;
             LogLine line{*ts, j.value("type", ""), j.value("data", nlohmann::json::object())};
             const std::string id = line.data.is_object() ? line.data.value("flight_id", "") : "";
-            if (!id.empty() && id != logFlightId) continue;
+            if (!id.empty() && id != logFlightId) {
+                if (startAfterOtherFlights && !open && (line.type == "block_in" || line.type == "flight_interrupted")) {
+                    leadIn.clear();
+                }
+                continue;
+            }
             if (!open) {
                 while (!leadIn.empty() && leadIn.front().ts < line.ts - kFlightLeadIn) leadIn.pop_front();
                 if (line.type == "block_out" && id == logFlightId) {

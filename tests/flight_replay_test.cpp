@@ -86,6 +86,15 @@ TEST(FlightReplay, OffsetsFromTheFirstLine) {
     EXPECT_TRUE(t.items()[0].data.is_null());  // samples keep only the parsed sample
 }
 
+// The replay starts at the first line it plays, not at a skipped one (a probe or cockpit line), so it opens on
+// something.
+TEST(FlightReplay, OffsetsFromTheFirstPlayedLine) {
+    const ReplayTimeline t({line(0ms, "probe_facility"), line(900ms, "cockpit"), line(2s, "telemetry"),
+                            line(3s, "telemetry")});
+    EXPECT_EQ(offsets(t), (std::vector<std::int64_t>{0, 1000}));
+    EXPECT_EQ(t.timeAt(0), t0 + 2s);
+}
+
 TEST(FlightReplay, PausedStretchIsSkipped) {
     const ReplayTimeline t({line(0ms, "telemetry"), line(10s, "paused", {{"flags", 8}}),
                             line(12s, "telemetry"), line(20min, "unpaused"), line(20min + 5s, "telemetry")});
@@ -121,6 +130,32 @@ TEST(FlightReplay, OffsetOfPhaseAndTime) {
     EXPECT_EQ(t.offsetOf("0:30"), 40 * 60'000);
     EXPECT_FALSE(t.offsetOf("nonsense"));
     EXPECT_FALSE(t.offsetOf("cruise"));
+}
+
+// Dave's KLAS → KSAN leg began 23 minutes after the KSFO → KLAS leg blocked in: the replay starts after that block in,
+// not on the previous leg's final approach (its telemetry carries no flight id).
+TEST(FlightReplay, StartsAfterThePreviousFlightsBlockIn) {
+    const auto dir = tempLogDir("previous");
+    std::ofstream(dir / "events-2026-11-24.jsonl")
+        << R"({"ts":"2026-11-24T23:24:14.000Z","type":"telemetry","data":{"on_ground":true}})" << "\n"
+        << R"({"ts":"2026-11-24T23:30:25.944Z","type":"block_in","data":{"flight_id":"A"}})" << "\n"
+        << R"({"ts":"2026-11-24T23:31:00.000Z","type":"telemetry","data":{"on_ground":true}})" << "\n"
+        << R"({"ts":"2026-11-24T23:53:27.961Z","type":"block_out","data":{"flight_id":"2026-11-24T23:53:16.837Z","time":"2026-11-24T23:53:16.837Z"}})" << "\n"
+        << R"({"ts":"2026-11-25T00:52:00.000Z","type":"block_in","data":{"flight_id":"2026-11-24T23:53:16.837Z","time":"2026-11-25T00:52:00.000Z"}})" << "\n";
+    const ReplayTimeline t = loadReplay(dir, "2026-11-24T23:53:16.837Z");
+    ASSERT_EQ(t.items().size(), 3u);
+    EXPECT_EQ(t.items().front().ts, *parseUtc("2026-11-24T23:31:00.000Z"));
+}
+
+// Deboarding before block out is the previous flight's (D-137); on Live it showed on that flight's Arrival.
+TEST(FlightReplay, DeboardingBeforeBlockOutIsSkipped) {
+    const ReplayTimeline t({line(0ms, "gsx_service", {{"service", "deboarding"}, {"state", "performing"}}),
+                            line(1min, "gsx_service", {{"service", "boarding"}, {"state", "performing"}}),
+                            line(10min, "block_out", {{"flight_id", "F"}}),
+                            line(70min, "gsx_service", {{"service", "deboarding"}, {"state", "performing"}})});
+    ASSERT_EQ(t.items().size(), 3u);
+    EXPECT_EQ(t.items()[0].data.value("service", ""), "boarding");
+    EXPECT_EQ(t.items()[2].data.value("service", ""), "deboarding");
 }
 
 TEST(FlightReplay, StrippedFixtureBuildsATimeline) {

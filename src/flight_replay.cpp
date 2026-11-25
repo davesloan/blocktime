@@ -71,6 +71,7 @@ ReplayTimeline::ReplayTimeline(std::vector<LogLine> lines) {
     start_ = lines.front().ts;
     std::optional<TimePoint> pausedSince;
     std::chrono::system_clock::duration pausedTotal{};
+    bool blockedOut = false;
     for (LogLine& l : lines) {
         if (l.type == "paused") {
             if (!pausedSince) pausedSince = l.ts;
@@ -88,6 +89,11 @@ ReplayTimeline::ReplayTimeline(std::vector<LogLine> lines) {
         }
         const ReplayRoute route = replayRoute(l.type);
         if (route == ReplayRoute::Skip) continue;
+        if (l.type == "block_out") blockedOut = true;
+        // Deboarding before block out is the previous flight's (D-137): Live showed it on that flight's Arrival.
+        if (!blockedOut && l.type == "gsx_service" && l.data.is_object() && l.data.value("service", "") == "deboarding") {
+            continue;
+        }
         ReplayItem item;
         item.offsetMs = ms((pausedSince ? *pausedSince : l.ts) - start_ - pausedTotal);
         item.ts = l.ts;
@@ -100,6 +106,12 @@ ReplayTimeline::ReplayTimeline(std::vector<LogLine> lines) {
         }
         items_.push_back(std::move(item));
     }
+    // Start at the first line that plays, not at a skipped one before it.
+    if (items_.empty() || items_.front().offsetMs == 0) return;
+    const std::int64_t shift = items_.front().offsetMs;
+    start_ += std::chrono::milliseconds(shift);
+    for (ReplayItem& i : items_) i.offsetMs -= shift;
+    for (Pause& p : pauses_) p.offsetMs -= shift;
 }
 
 TimePoint ReplayTimeline::timeAt(std::int64_t offsetMs) const {
@@ -130,7 +142,8 @@ std::optional<std::int64_t> ReplayTimeline::offsetOf(std::string_view at) const 
 }
 
 ReplayTimeline loadReplay(const std::filesystem::path& dir, std::string_view flightId) {
-    return ReplayTimeline(loadFlightEvents(replayLogFiles(dir, flightId), flightId));
+    // Not from the previous leg's arrival, when it ended inside the 30 minutes before block out.
+    return ReplayTimeline(loadFlightEvents(replayLogFiles(dir, flightId), flightId, true));
 }
 
 std::int64_t ReplayClock::advance(std::chrono::milliseconds wall) {

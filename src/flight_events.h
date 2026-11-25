@@ -34,7 +34,9 @@ inline constexpr std::chrono::minutes kFlightLeadIn{30};
 // when the flight has no block_in (interrupted, or not in these files).
 std::vector<LogLine> loadFlightEvents(const std::filesystem::path& logDir, std::string_view logFlightId,
                                       std::size_t maxFiles = kOpenFlightLookbackFiles);
-// The same over the given day files, oldest first.
-std::vector<LogLine> loadFlightEvents(const std::vector<std::filesystem::path>& files, std::string_view logFlightId);
+// The same over the given day files, oldest first. With `startAfterOtherFlights` the lead-in starts no earlier than
+// another flight's block_in or flight_interrupted (the replay, which shouldn't open on the previous leg's arrival).
+std::vector<LogLine> loadFlightEvents(const std::vector<std::filesystem::path>& files, std::string_view logFlightId,
+                                      bool startAfterOtherFlights = false);
 
 }  // namespace blocktime

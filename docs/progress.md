@@ -55,14 +55,18 @@ Newest entries at the top. Add an entry at the end of every working session.
   a test covers the timer).
 - The Replay button launching the second window from the main app (`QProcess::startDetached`).
 
+**Fixed after Dave's first try (D-177):** the KLAS → KSAN replay opened on the previous leg's final approach and
+showed its deboarding under Pre-Departure; it now starts at the gate after that leg's block in. `--grab` without `--at`
+now shows the replay's opening instead of an empty Live.
+
 **Known minor issues from the code review (left for now, D-174):**
 - A lead-in that starts mid-pause plays the paused part (up to 30 min of a frozen gate; 3 min at 10×).
+- At 1× the first minutes at the gate can look still: the log has telemetry only when something changes.
 - A sim disconnect in the lead-in isn't replayed as `sim_stopped`, so GSX services Live dropped that day keep showing.
 - `--replay last` with no settled flight, or a mistyped id, says "The log for  is no longer on this PC".
 - `--at H:MM` counts time after block out without the pauses, so after a pause it lands later than the block clock
   says.
 - The Replay button doesn't pass the main app's `--log-dir` on.
-- `--grab` without `--at` grabs an empty Live (nothing is fed before the screenshot).
 
 **What Dave should see next time he looks (no sim needed):**
 1. Flights → pick a flight from the last 30 days → **Replay**: a second window opens on that flight's lead-in, pill

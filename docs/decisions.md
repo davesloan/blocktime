@@ -2729,3 +2729,17 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: Each settles something the plan left open or that came up while building.
 - Alternatives considered: two unrelated classes matching property names (QML's typed properties would need two
   panels); stamping seek-fed lines with the seek time.
+
+## D-177 — A replay starts after the previous leg's arrival
+- Date: 2026-11-25
+- Status: Accepted
+- Decided by: Claude (from Dave's report)
+- Area: app
+- Decision: When the previous flight blocked in within the 30 minutes before block out, the replay starts after that
+  block in, and `gsx_service` deboarding lines before block out are left out. The timeline counts from the first line
+  that plays. The debrief's lead-in (`loadFlightEvents` without the flag) is unchanged, so stored checks don't move.
+- Why: Dave's KLAS → KSAN replay opened on the KSFO → KLAS leg's final approach and showed its deboarding under
+  Pre-Departure: that leg's phases and block in carry its flight id and were dropped, but its telemetry and GSX lines
+  carry none. On the day, Live showed both on that leg's Arrival (D-134, D-137).
+- Alternatives considered: tagging telemetry and GSX lines with a flight id in the recorder (changes the log format
+  for every reader); starting every replay at block out (Pre-Departure wouldn't replay).

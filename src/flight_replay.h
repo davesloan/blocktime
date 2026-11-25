@@ -45,8 +45,9 @@ struct ReplayItem {
 class ReplayTimeline {
 public:
     ReplayTimeline() = default;
-    // The flight's lines in log order, as loadFlightEvents gives them. Skip lines are dropped; `paused` / `unpaused`
-    // shape the offsets first: a line inside a paused stretch gets the stretch's start.
+    // The flight's lines in log order, as loadFlightEvents gives them. Skip lines are dropped, and so is deboarding
+    // before block out (the previous flight's); `paused` / `unpaused` shape the offsets first: a line inside a paused
+    // stretch gets the stretch's start.
     explicit ReplayTimeline(std::vector<LogLine> lines);
 
     const std::vector<ReplayItem>& items() const { return items_; }
@@ -68,7 +69,8 @@ private:
     TimePoint start_{};
 };
 
-// The flight's timeline from the log in `dir`; empty when its lines aren't there (the log is gone).
+// The flight's timeline from the log in `dir`, from 30 minutes before block out, or the previous flight's block in if
+// that's later; empty when its lines aren't there (the log is gone).
 ReplayTimeline loadReplay(const std::filesystem::path& dir, std::string_view flightId);
 
 // The replay's position: advanced by the wall time since the last tick times the speed.

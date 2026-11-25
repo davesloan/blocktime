@@ -66,7 +66,9 @@ When the log is gone or the flight isn't in it, the window says so in place of L
 - **Pause / Resume.**
 - **Close** closes the replay window.
 - **Where it starts:** at the start of the lead-in (up to 30 minutes before block out), so the Pre-Flight stage and
-  its GSX services replay too. 10× gets through it in 3 minutes.
+  its GSX services replay too. 10× gets through it in 3 minutes. When the previous leg blocked in inside those 30
+  minutes, the replay starts after its block in, and deboarding before block out is left out: on the day Live showed
+  both on the previous leg's Arrival (D-177).
 - **Where it ends:** at block in Live shows that flight's Flight Summary, as a real flight does, with the bar's
   **Replay again** and **Close** in place of At Gate Turnaround and Done for now. The debrief's **Retry** is hidden:
   it calls Claude.
@@ -112,7 +114,9 @@ day's.
 **The replayer (`replay.h`, in `blocktime-core`, plain C++, tested).**
 
 - Reads the flight's lines with `loadFlightEvents`, from the day files starting the day before block out (the
-  lead-in can cross UTC midnight), not limited to the last 7 or 30 files.
+  lead-in can cross UTC midnight), not limited to the last 7 or 30 files. Its lead-in starts no earlier than another
+  flight's block in; the debrief's lead-in is unchanged (D-177).
+- Offsets count from the first line that plays, not from a skipped probe or cockpit line before it.
 - **The timeline:** each line's offset from the replay's start, with paused stretches taken out.
 - **The clock:** the offset advances by the wall time since the last tick times the speed; speed changes and pauses
   take effect from the next tick. It returns the lines now due.

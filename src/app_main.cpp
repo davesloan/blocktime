@@ -209,8 +209,9 @@ int runReplay(const ReplayOptions& options, const std::filesystem::path& logDir,
     if (!options.at.isEmpty() && !replay.seek(options.at)) {
         std::cerr << "Replay: the flight has no " << options.at.toStdString() << std::endl;
     }
-    // A screenshot holds where --at put it.
-    if (options.grabFile.isEmpty()) replay.start();
+    // A screenshot holds where --at put it (or at the start).
+    if (!options.grabFile.isEmpty()) replay.setPaused(true);
+    replay.start();
 
     QQmlApplicationEngine engine;
     const QVariantMap props{{"replay", QVariant::fromValue(&replay)},
