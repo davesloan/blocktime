@@ -17,7 +17,7 @@ nlohmann::json CockpitMonitor::current() const {
     nlohmann::json e = {
         {"landing_lights", pmdg_ ? pmdg_->landingLights : plain_->landingLight},
         {"seat_belts", pmdg_ ? pmdg_->seatBelts : (plain_->seatBeltSign ? 2 : 0)},
-        {"gear_down", plain_->gearPct >= kGearDownPct},
+        {"gear_down", plain_->gearExtended >= kGearDownFraction},
         {"pmdg", pmdg_.has_value()},
     };
     if (pmdg_) {

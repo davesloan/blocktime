@@ -156,3 +156,20 @@ TEST(DebriefReview, TimelineGivesHeightsAndSpeedSpells) {
     EXPECT_EQ(t.substr(spell - 9, 5), "00:39") << t.substr(spell - 9, 80);
     EXPECT_NE(t.substr(spell, 100).find("descending"), std::string::npos) << t.substr(spell, 100);
 }
+
+TEST(DebriefReview, TimelineGivesFlapsInDegrees) {
+    // The sim test's review read "flaps handle 8" as short of flaps 40: the handle's eighth detent is flaps 40.
+    const std::string t = buildTimeline(fixture());
+    EXPECT_NE(t.find("at the 1,000 ft marker: 125 kt, sinking 791 fpm, flaps 40"), std::string::npos) << t;
+    EXPECT_EQ(t.find("flaps handle"), std::string::npos);
+}
+
+TEST(DebriefReview, InstructionsCarryDavesCorrections) {
+    // From Dave's notes on the sim test's review (2026-11-25): these must stay in the instructions.
+    const auto system = nlohmann::json::parse(buildReviewRequest(input()))["system"].get<std::string>();
+    EXPECT_NE(system.find("ATC compliance never appears in summary or work_on"), std::string::npos);
+    EXPECT_NE(system.find("published altitude constraint"), std::string::npos);
+    EXPECT_NE(system.find("Don't comment on radio frequencies or phraseology"), std::string::npos);
+    EXPECT_NE(system.find("touching down up to about 10 kt below VREF is normal"), std::string::npos);
+    EXPECT_NE(system.find("never call a passed check a fault"), std::string::npos);
+}

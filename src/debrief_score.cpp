@@ -31,8 +31,9 @@ constexpr int kStarBandsFpm[] = {240, 360, 600, 900, 1200};  // up to each: 5, 4
 constexpr int kCrosswindKt = 15;
 constexpr int kBankTenths = 50;
 constexpr int kPitchMaxTenths737 = 80, kPitchMaxTenths777 = 75;
-// PLANE PITCH DEGREES' sign: the SDK documents nose up as negative. Unverified until the milestone 10 sim check; if
-// it's wrong, flip this and every stored flight re-scores (D-160).
+// PLANE PITCH DEGREES' sign: nose up is negative, as the SDK documents. Confirmed in the milestone 10 sim test
+// (2026-11-25): a 100 fpm, 1.11 G touchdown in the BBJ2 logged -1.9. If it ever proves wrong, flip this and every
+// stored flight re-scores (D-160).
 constexpr int kSimPitchNoseUp = -1;
 constexpr int kVrefSpreadKt = 10;
 constexpr int kGCapTwo = 170, kGCapOne = 200;  // hundredths of G

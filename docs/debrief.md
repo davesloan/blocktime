@@ -180,7 +180,9 @@ lands ★3: 100 − 30 − 8 = **62**. (The spike itself missed check 6: measure
   - the missed checks of the last five debriefed flights, so it can point out habits.
 - **The instructions** ask for: what went well, what to work on (most important first), the landing explained, and ATC
   compliance as information (clearances against what was flown, saying when an instruction looks wrong or late rather
-  than calling it a bust). No score numbers in the text, so it stays true after a re-score. A few hundred words.
+  than calling it a bust). No score numbers in the text, so it stays true after a re-score. A few hundred words. As
+  built, the instructions also carry Dave's corrections from the sim test (D-171): the checks are the verdict, ATC
+  only in its own part, approach level-offs can be FMC constraints, no remarks on frequencies, normal flare bleed-off.
 - **Output:** structured JSON (`output_config.format`): `summary`, `work_on` (a list), `landing`, `atc`. Stored once
   with the flight, plus the model id and the time.
 - **The call:** the Messages API over HTTPS from Qt (there's no official C++ SDK), `claude-opus-5-5`, adaptive thinking,

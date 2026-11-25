@@ -25,9 +25,11 @@ constexpr const char* kSystemPrompt = R"(You debrief airline flights flown by Da
 You get the flight's checks (already judged by fixed rules), the landing's facts and rating, a timeline of the flight, the ATC exchanges, the ATIS reports and the checks he missed on his last few flights. Write the review from those facts only; never invent a value that isn't there.
 
 - summary: two to four sentences on the flight as a whole: what went well, and the pattern behind what didn't.
-- work_on: the things to work on, most important first, each one short sentence with the practical fix. Leave it empty if there's nothing.
+- work_on: the things to work on, most important first, each one short sentence with the practical fix. Only for a check that was missed or a problem the landing's facts show. Leave it empty if there's nothing.
 - landing: explain the landing from the facts: the approach into it (the state at 1,000 ft, the autopilot disconnect, the sink on short final) and the touchdown itself.
 - atc: ATC compliance, for information only: compare clearances with what was flown. SayIntentions is sometimes wrong or late: when an instruction looks wrong or came late, say so instead of calling it a bust. Empty if there's nothing worth saying.
+
+The checks are the verdict: never call a passed check a fault, and don't second-guess a check's result. ATC compliance never appears in summary or work_on, only in atc. A level-off on the approach above a cleared altitude is often the FMC (VNAV) flying a published altitude constraint at the next waypoint; mention it in atc at most, never as a fault. Don't comment on radio frequencies or phraseology: controllers' shorthand such as "point seven" for 121.75 is normal. Speed falls in the flare, so touching down up to about 10 kt below VREF is normal; only comment on touchdown speed if the landing's rating says it was off. No technique preferences beyond the checks (for example when to disconnect the autopilot). Keep the advice consistent: never recommend one thing and criticise its result elsewhere.
 
 Connect cause and effect where the timeline shows it. A go-around is never a mistake. Runway centreline and touchdown-zone figures don't count. Point out a habit when a miss repeats on earlier flights. Don't repeat the score or the star rating, and no other numeric grades. Plain text, no markdown, about 300 words in all.)";
 
@@ -255,9 +257,16 @@ std::string buildTimeline(const std::vector<LogLine>& events) {
             }
         }
         if (at) {
-            lines.push_back({*finalApproach, std::format("at the 1,000 ft marker: {} kt, sinking {} fpm, flaps handle {}",
-                                                          whole(*at, "ias_kt"), group(-whole(*at, "vs_fpm")),
-                                                          whole(*at, "flaps_handle"))});
+            // Flaps in degrees: the handle's raw detent ("8") read as short of flaps 40 in the sim test's review.
+            Family family = Family::B737;
+            for (const LogLine& l : events) {
+                if (l.type == "block_out" && str(l.data, "aircraft_folder").find("777") != std::string::npos) {
+                    family = Family::B777;
+                }
+            }
+            const int flaps = flapDetentDegrees(family, static_cast<int>(whole(*at, "flaps_handle")));
+            lines.push_back({*finalApproach, std::format("at the 1,000 ft marker: {} kt, sinking {} fpm, flaps {}",
+                                                          whole(*at, "ias_kt"), group(-whole(*at, "vs_fpm")), flaps)});
         }
         if (touchdown && iasHi > 0) {
             lines.push_back({*touchdown - std::chrono::milliseconds(1),

@@ -3,6 +3,22 @@
 These facts come from BlockTime Recorder logs. Each entry says when and with what it was seen. Add new
 observations at the top.
 
+## 2026-11-25: PMDG 737-800 BBJ2 N814SX, KSAN → KSJC, milestone 10 sim test (recorder 0.11.0)
+
+- **`GEAR TOTAL PCT EXTENDED` with the "percent" unit reads 0 to 1** (1.0 = down and locked; the probe flights logged
+  0.36, 0.63, 0.90… in transit), not 0 to 100. BlockTime 0.11.0 wanted 99.5 or more, so `gear_down` was false the
+  whole flight and the stable approach was missed with the gear down. Fixed: down is ≥ 0.995, epsilon 0.01.
+- **`PLANE PITCH DEGREES` is negative nose up**, as the SDK documents: a 100 fpm, 1.11 G touchdown logged
+  `sim_pitch_deg` -1.9.
+- **PMDG's broadcast sends its first block only when a value changes.** On the 777, BlockTime started at 20:40:32 and
+  the first PMDG data came at 20:40:59 when Dave switched the landing lights; until then `cockpit` said `pmdg: false`.
+  In a normal flow the before-start switches send it long before pushback, and the block-out snapshot records the
+  state.
+- The cockpit lines followed every switch Dave tapped in the form, 3–4 s before each tap: the landing lights (on/off),
+  the seat belt selector (OFF, AUTO, ON) on both families, VREF and landing flaps when entered (129 kt, 40), the
+  autopilot. Dave's hardware switch moves the landing and turnoff lights together, so the "turnoff only" step read
+  landing lights on; with the switches moved separately the turnoff lights aren't part of `landing_lights`.
+
 ## 2026-11-25: PMDG 777-300ER N916SX at KLAS, loaded onto a runway (recorder 0.11.0)
 
 - **The sim put the 777 on a runway instead of the gate Dave chose**, with the engines already running and 179,270 lb of

@@ -15,8 +15,8 @@ namespace {
 
 const TimePoint t0 = std::chrono::sys_days{std::chrono::year{2026} / 11 / 24} + 23h;
 
-PlainCockpit plain(bool light = false, bool belts = false, double gearPct = 100, bool paused = false) {
-    return PlainCockpit{light, belts, gearPct, paused};
+PlainCockpit plain(bool light = false, bool belts = false, double gear = 1.0, bool paused = false) {
+    return PlainCockpit{light, belts, gear, paused};
 }
 
 }  // namespace
@@ -100,4 +100,16 @@ TEST(CockpitMonitor, SnapshotWritesTheCurrentStateEvenUnchanged) {
     EXPECT_EQ((*s)["landing_lights"], true);
     EXPECT_EQ((*s)["seat_belts"], 2);
     EXPECT_FALSE(m.due(t0 + 2s).has_value());  // nothing new after it
+}
+
+TEST(CockpitMonitor, GearIsAFractionOfOne) {
+    // GEAR TOTAL PCT EXTENDED in "percent" units reads 0 to 1 (probe flights and the milestone 10 sim test): 1.0 is
+    // down and locked, values between are the gear in transit.
+    CockpitMonitor m;
+    m.onPlain(plain(false, false, 1.0), t0);
+    EXPECT_EQ((*m.due(t0))["gear_down"], true);
+    m.onPlain(plain(false, false, 0.9035), t0 + 2s);
+    EXPECT_EQ((*m.due(t0 + 2s))["gear_down"], false);
+    m.onPlain(plain(false, false, 0.0), t0 + 4s);
+    EXPECT_FALSE(m.due(t0 + 4s).has_value());  // still not down: no change
 }

@@ -48,7 +48,7 @@ struct TelemetrySample {
     // The debrief's cockpit state (D-159), carried by the `cockpit` event, not the telemetry line (cockpit_monitor.h).
     std::int32_t lightLanding;       // LIGHT LANDING, bool: the 777's and the 737's fixed landing lights
     std::int32_t seatBeltSign;       // CABIN SEATBELTS ALERT SWITCH, bool: follows the 777's switch, not the 737's
-    double gearPct;                  // GEAR TOTAL PCT EXTENDED, percent
+    double gearExtended;             // GEAR TOTAL PCT EXTENDED, "percent" unit but reads 0 to 1 (1 = down)
     char title[256];            // TITLE, string256
     char atcId[64];              // ATC ID, string64 (tail number)
 };
@@ -85,7 +85,7 @@ inline constexpr SimVarSpec kTelemetryVars[] = {
     {"FLAPS HANDLE INDEX", "number", VarType::Int32, 0.0f},
     {"LIGHT LANDING", "bool", VarType::Int32, 0.0f},
     {"CABIN SEATBELTS ALERT SWITCH", "bool", VarType::Int32, 0.0f},
-    {"GEAR TOTAL PCT EXTENDED", "percent", VarType::Float64, 1.0f},
+    {"GEAR TOTAL PCT EXTENDED", "percent", VarType::Float64, 0.01f},  // 0 to 1, so a fine epsilon
     {"TITLE", nullptr, VarType::String256, 0.0f},
     {"ATC ID", nullptr, VarType::String64, 0.0f},
 };

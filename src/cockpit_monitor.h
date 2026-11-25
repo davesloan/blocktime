@@ -34,11 +34,13 @@ struct PmdgCockpit {             // one PMDG broadcast, decoded
 struct PlainCockpit {
     bool landingLight = false;  // LIGHT LANDING
     bool seatBeltSign = false;  // CABIN SEATBELTS ALERT SWITCH
-    double gearPct = 0;         // GEAR TOTAL PCT EXTENDED, 0-100
+    // GEAR TOTAL PCT EXTENDED: despite the name and the "percent" unit it reads 0 to 1 (1.0 = down), seen on the probe
+    // flights and the milestone 10 sim test (docs/notes/msfs-observed-behaviour.md).
+    double gearExtended = 0;
     bool paused = false;        // the sim is paused: the sample is ignored
 };
 
-inline constexpr double kGearDownPct = 99.5;
+inline constexpr double kGearDownFraction = 0.995;
 
 class CockpitMonitor {
 public:

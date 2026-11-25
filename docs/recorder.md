@@ -224,7 +224,7 @@ At minimum (exact SimVar names to be confirmed against the MSFS 2020 SDK docs an
 - Touchdown vertical speed (use a dedicated touchdown SimVar if MSFS 2020 provides a reliable one; otherwise sample
   vertical speed at high rate around the moment on-ground changes)
 - Procedure capture (0.11.0, D-159): the `cockpit` event, at most once a second when a value changes:
-  `landing_lights` (bool), `seat_belts` (0 off, 1 auto, 2 on), `gear_down` (bool, `GEAR TOTAL PCT EXTENDED` ≥ 99.5 %,
+  `landing_lights` (bool), `seat_belts` (0 off, 1 auto, 2 on), `gear_down` (bool, `GEAR TOTAL PCT EXTENDED` ≥ 0.995: it reads 0 to 1 despite the "percent" unit,
   ignored while paused), `pmdg` (whether PMDG's broadcast has arrived this session) and, only with it, `vref_kt`,
   `landing_flaps` and `autopilot`. With PMDG data the lights and seat belts come from it (the 737's seat belt SimVar
   never moves and `LIGHT LANDING` misses its retractable lights); without, from `LIGHT LANDING` and

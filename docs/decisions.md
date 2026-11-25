@@ -2619,3 +2619,19 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   scenery's parking data lacks.
 - Alternatives considered: refusing a block out with no parking spot within 40 m (a `block_out_refused` reason);
   refusing one after a position jump.
+
+## D-171 — The review's instructions follow Dave's corrections
+- Date: 2026-11-25
+- Status: Accepted
+- Decided by: Dave (the corrections), Claude (the wording)
+- Area: app
+- Decision: Claude's review instructions add: the checks are the verdict (a passed check is never a fault); ATC
+  compliance appears only in the ATC part, never in the summary or "work on" (D-157); a level-off on the approach is
+  often the FMC flying a published altitude constraint, not a fault; no remarks on radio frequencies or phraseology;
+  touching down up to about 10 kt below VREF is normal flare bleed-off; advice only for missed checks or the landing's
+  facts, with no technique preferences; consistent advice. The timeline gives the flaps in degrees, not the handle's
+  detent.
+- Why: Dave's notes on the first in-app review (`docs/notes/claude-debrief.md`): it blamed an FMC constraint, called
+  "point seven" an incomplete frequency, gave contradicting flare advice, and read "flaps handle 8" as short of
+  flaps 40. A replay with the new instructions answered all four.
+- Alternatives considered: leaving ATC remarks in "work on"; judging touchdown speed against VREF.

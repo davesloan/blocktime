@@ -22,6 +22,39 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-25 — Milestone 10 sim test: one BBJ2 leg, KSAN → KSJC; the 777 checks at the gate
+
+**Done:**
+- Dave flew the form run `m10-debrief`: leg 1 in N814SX (BBJ2) KSAN → KSJC, then the 777's cockpit checks at a KLAS
+  gate. He skipped flying the 777 leg and the network-off Retry ("an edge case: most of what I use needs a network
+  connection"). 12 steps passed, 3 skipped, 1 failed: the review (step 9).
+- **Found and fixed (each with a test that failed first):**
+  - **the gear always read up**: `GEAR TOTAL PCT EXTENDED` reads 0 to 1, not 0 to 100, so leg 1's stable approach was
+    stored as missed with the gear down (`CockpitMonitor.GearIsAFractionOfOne`);
+  - **the timeline said "flaps handle 8"**, which Claude read as short of flaps 40; it now says "flaps 40"
+    (`DebriefReview.TimelineGivesFlapsInDegrees`);
+  - **Dave's corrections to the review's instructions** (D-171): ATC never in "work on", FMC altitude constraints,
+    no frequency remarks, normal flare bleed-off, no technique preferences. A replay of leg 1 with the gear right
+    scores 100, ★5, and the review answers each point (`docs/notes/claude-debrief.md`, about $0.05).
+- The 777 loaded onto a KLAS runway once and opened a flight when it rolled; Dave chose no guard (D-170).
+
+**Working / verified:**
+- The cockpit lines follow the switches on both families (landing lights, seat belts OFF/AUTO/ON, VREF and flaps,
+  autopilot); PMDG data arrives on both; all 17 parts measured on leg 1 (no skips); the review written once after
+  settling; the averages strip; Flights keeps the selection.
+- **The pitch sign is confirmed**: nose up is negative (-1.9 on a 100 fpm landing).
+- 639 tests pass.
+
+**Unverified or broken:**
+- **Leg 1's stored debrief is wrong**: its gear was stored as up (−6 and a missed stable approach) and its review was
+  written from that. Dave decides whether to correct the row by hand and let Retry write a new review.
+- Not exercised: a real bounce, Retry with the network off (Dave: edge case), the 777's VREF in flight.
+- PMDG's broadcast sends nothing until a value changes (`docs/notes/msfs-observed-behaviour.md`); harmless in a
+  normal flow.
+
+**Next step:**
+- The MVP is done once leg 1's debrief is settled. Then milestone 11 (flight replay, D-163..D-168) in a new session.
+
 ## 2026-11-25 — The app icon
 
 **Done:**

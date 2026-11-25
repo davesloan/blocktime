@@ -123,7 +123,8 @@ int main(int argc, char* argv[]) {
         const ReviewAnswer a = status == 0 ? ReviewAnswer{std::nullopt, "Couldn't reach Claude"}
                                            : parseReviewResponse(status, answer.toStdString());
         if (a.review) {
-            std::cout << "\n--- review (" << a.review->model << ") ---\n" << a.review->summary << "\n\nTo work on:\n";
+            std::cout << "\n--- review (" << a.review->model << ") ---\n" << a.review->summary << "\n\nTo work on:"
+                      << (a.review->workOn.empty() ? " nothing\n" : "\n");
             for (const std::string& w : a.review->workOn) std::cout << "- " << w << "\n";
             std::cout << "\nLanding: " << a.review->landing << "\n\nATC: " << a.review->atc << "\n";
             exitCode = 0;

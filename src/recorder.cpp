@@ -333,7 +333,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
         }
         BlockSample b = toBlockSample(s, std::chrono::system_clock::now());
         b.aircraftFolder = aircraftFolder(simPtr->aircraftPath());
-        cockpit.onPlain({s.lightLanding != 0, s.seatBeltSign != 0, s.gearPct, simPtr->paused()}, b.time);
+        cockpit.onPlain({s.lightLanding != 0, s.seatBeltSign != 0, s.gearExtended, simPtr->paused()}, b.time);
         // The banner's answer: the same check a release would get, reported when it changes (D-088).
         if (!detector.flightOpen()) {
             if (auto m = matches.onSample(target.get(), b)) observer.onMatch(*m);

@@ -39,6 +39,32 @@ The second call used both correctly ("On descent, slow to 250 kt before reaching
 **The rule that follows:** when a review states a number the input doesn't have, add that number to the timeline;
 don't argue with the prompt.
 
+## Dave's notes on the first in-app review (milestone 10 sim test, 2026-11-25)
+
+The BBJ2 leg KSAN → KSJC. Dave disagreed with the review (form step 9, failed):
+
+- **"Unstable at 1,000 ft"**: BlockTime's gear bug (`docs/notes/msfs-observed-behaviour.md`) stored the gear as up, so
+  the stable check was missed and Claude explained the miss. The timeline also gave the raw "flaps handle 8", which
+  Claude read as short of flaps 40 (detent 8 is flaps 40). Both fixed in BlockTime: the gear threshold, and the
+  timeline now says "flaps 40".
+- **The 3,300 ft level-off** was the FMC (VNAV) holding the 3,200 ft constraint at the next waypoint; the aircraft
+  doesn't know it's been cleared lower. Claude called it a fault and put it in "work on", against D-157 (ATC is
+  information only).
+- **"Point seven"**: controllers say ".7" for 121.75 and expect ".75" read back; Claude called it an incomplete
+  frequency.
+- **Conflicting landing advice**: it recommended holding VREF to the flare, then criticised touching down 10 kt below
+  VREF, on a 100 fpm, 1.11 G landing.
+
+The instructions now say (D-171, guarded by `DebriefReview.InstructionsCarryDavesCorrections`): the checks are the
+verdict (never call a passed check a fault); ATC compliance never in summary or "work on"; a level-off on the approach
+is often a published constraint the FMC is flying; no remarks on frequencies or phraseology; up to about 10 kt below
+VREF at touchdown is normal flare bleed-off; advice only for missed checks or the landing's facts, no technique
+preferences; keep the advice consistent.
+
+**Call 3** (leg 1 replayed with the gear marked down from 19:50Z, a scratch copy): 5,831 tokens in, 1,190 out (515
+thinking), about $0.05. Score 100, ★5, nothing to work on; the level-off was "most likely the FMC holding a published
+altitude constraint", touchdown speed "a normal bleed-off through the flare", no frequency remark.
+
 ## Still to watch
 
 - It called the tower's "RNAV FLAAR" (the RNAV departure to its first fix) an oddity next to the RADYR2 clearance.
