@@ -276,6 +276,75 @@ ALTER TABLE flight ADD COLUMN origin_parking TEXT CHECK (origin_parking IS NULL 
 ALTER TABLE flight ADD COLUMN arrival_parking TEXT CHECK (arrival_parking IS NULL OR arrival_parking <> '');
 )sql";
 
+// Milestone 10 (D-160, docs/database.md): what each procedure check measured, or why it couldn't be, the landing's
+// facts and Claude's review. Written once each; the scores are computed from them when shown. CASCADE as on
+// flight_phase: only tests delete flights. The composite keys lead with flight_id, so those foreign keys are indexed.
+constexpr const char* kMigration7 = R"sql(
+CREATE TABLE check_part (code TEXT PRIMARY KEY CHECK (code <> '')) STRICT;
+INSERT INTO check_part (code) VALUES
+  ('beacon_late_s'), ('belts_off_departure_s'), ('taxi_max_kt'), ('origin_baro_off_tenths'), ('takeoff_strobes'),
+  ('takeoff_landing_lights'), ('over_250_s'), ('std_late_s'), ('belts_off_descent_s'), ('destination_baro_off_tenths'),
+  ('landing_lights_off_s'), ('stable_gear_down'), ('stable_landing_flaps'), ('stable_sink_fpm'),
+  ('stable_vref_offset_kt'), ('stable_lined_up'), ('strobes_on_after_landing_s');
+
+CREATE TABLE check_skip_reason (code TEXT PRIMARY KEY CHECK (code <> '')) STRICT;
+INSERT INTO check_skip_reason (code) VALUES ('no_pmdg_data'), ('no_vref'), ('no_atis'), ('no_marker'), ('diverted');
+
+CREATE TABLE flight_debrief (
+  flight_id INTEGER PRIMARY KEY REFERENCES flight ON DELETE CASCADE,
+  family TEXT NOT NULL CHECK (family IN ('737', '777'))
+) STRICT;
+
+CREATE TABLE flight_check_value (
+  flight_id INTEGER NOT NULL REFERENCES flight_debrief ON DELETE CASCADE,
+  part TEXT NOT NULL REFERENCES check_part ON DELETE RESTRICT,
+  value INTEGER NOT NULL,
+  PRIMARY KEY (flight_id, part)
+) STRICT;
+CREATE INDEX flight_check_value_part ON flight_check_value (part);
+
+CREATE TABLE flight_check_skip (
+  flight_id INTEGER NOT NULL REFERENCES flight_debrief ON DELETE CASCADE,
+  part TEXT NOT NULL REFERENCES check_part ON DELETE RESTRICT,
+  reason TEXT NOT NULL REFERENCES check_skip_reason ON DELETE RESTRICT,
+  PRIMARY KEY (flight_id, part)
+) STRICT;
+CREATE INDEX flight_check_skip_part ON flight_check_skip (part);
+CREATE INDEX flight_check_skip_reason ON flight_check_skip (reason);
+
+CREATE TABLE flight_landing (
+  flight_id INTEGER PRIMARY KEY REFERENCES flight_debrief ON DELETE CASCADE,
+  vs_fpm INTEGER NOT NULL CHECK (vs_fpm >= 0),
+  g_hundredths INTEGER NOT NULL CHECK (g_hundredths >= 0),
+  bounces INTEGER NOT NULL CHECK (bounces >= 0),
+  ias_kt INTEGER NOT NULL CHECK (ias_kt >= 0),
+  heading_true_deg INTEGER NOT NULL CHECK (heading_true_deg BETWEEN 0 AND 359),
+  wind_dir_deg INTEGER NOT NULL CHECK (wind_dir_deg BETWEEN 0 AND 359),
+  wind_kt INTEGER NOT NULL CHECK (wind_kt >= 0),
+  pitch_tenths INTEGER,
+  bank_tenths INTEGER,
+  vref_kt INTEGER CHECK (vref_kt IS NULL OR vref_kt > 0),
+  off_centreline_dm INTEGER,
+  off_heading_tenths INTEGER
+) STRICT;
+
+CREATE TABLE flight_review (
+  flight_id INTEGER PRIMARY KEY REFERENCES flight_debrief ON DELETE CASCADE,
+  summary TEXT NOT NULL,
+  landing TEXT NOT NULL,
+  atc TEXT NOT NULL,
+  model TEXT NOT NULL CHECK (model <> ''),
+  written_at TEXT NOT NULL CHECK (written_at GLOB )sql" BT_INSTANT R"sql()
+) STRICT;
+
+CREATE TABLE flight_review_item (
+  flight_id INTEGER NOT NULL REFERENCES flight_review ON DELETE CASCADE,
+  seq INTEGER NOT NULL CHECK (seq >= 0),
+  text TEXT NOT NULL CHECK (text <> ''),
+  PRIMARY KEY (flight_id, seq)
+) STRICT;
+)sql";
+
 #undef BT_INSTANT
 #undef BT_DATE
 
@@ -285,7 +354,7 @@ struct Migration {
 };
 
 constexpr std::array kMigrations{Migration{2, kMigration2}, Migration{3, kMigration3}, Migration{4, kMigration4},
-                                 Migration{5, kMigration5}, Migration{6, kMigration6}};
+                                 Migration{5, kMigration5}, Migration{6, kMigration6}, Migration{7, kMigration7}};
 
 constexpr int kFirstRealSchemaVersion = 2;  // what a clobbered milestone 4 airline really is (D-098)
 

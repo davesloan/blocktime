@@ -61,6 +61,15 @@ erDiagram
     ledger_line ||--o| flight_money_line : "money for"
     flight ||--o{ flight_phase : "phase starts (m8)"
     flight ||--o{ flight_service : "GSX services (m8)"
+    flight ||--o| flight_debrief : "measured (m10)"
+    flight_debrief ||--o{ flight_check_value : "what each check measured"
+    flight_debrief ||--o{ flight_check_skip : "why a check wasn't measured"
+    check_part ||--o{ flight_check_value : names
+    check_part ||--o{ flight_check_skip : names
+    check_skip_reason ||--o{ flight_check_skip : explains
+    flight_debrief ||--o| flight_landing : "the touchdown"
+    flight_debrief ||--o| flight_review : "Claude's review"
+    flight_review ||--o{ flight_review_item : "what to work on"
 ```
 
 ## Tables
@@ -472,3 +481,65 @@ the same way and adds each completed deboarding to the settled flight whose bloc
 Migration 6 adds two columns to `flight`, `origin_parking` and `arrival_parking` (in the `flight` table above). Settling
 copies them from the block events' `parking`. **The load-in spot** of a planned flight is the airplane's latest
 flight's `arrival_parking`, when that flight ended at the planned origin (`currentPlannedFlight`, D-148).
+
+## Milestone 10's tables (schema version 7)
+
+The debrief (`docs/debrief.md`, D-160): what each procedure check **measured** and the landing's facts, written once
+when the flight settles, and Claude's review, written once when it arrives. The scores aren't stored: they're computed
+from these rows whenever they're shown (`src/debrief_score.h`), so a changed rule re-scores every flight. Flights
+settled before 0.11.0 have no `flight_debrief` row and show no debrief. All tables `STRICT`, every relation
+`ON DELETE CASCADE` back to `flight` as on `flight_phase` (only tests delete flights), lookups `ON DELETE RESTRICT`.
+
+### `check_part` and `check_skip_reason`
+
+Lookups, seeded by the migration: the 17 measured parts (`beacon_late_s` … `strobes_on_after_landing_s`, listed in
+`src/debrief_measure.h` with what each measures) and the 5 reasons a part couldn't be measured (`no_pmdg_data`,
+`no_vref`, `no_atis`, `no_marker`, `diverted`). `code TEXT PRIMARY KEY`: the codes are the stable natural keys the code
+uses. A new check is a new migration row.
+
+### `flight_debrief`
+
+One row per measured flight: `flight_id` (PK, FK → `flight`) and `family` (`CHECK (family IN ('737', '777'))`, which
+the landing's pitch limit depends on). The other debrief rows reference it.
+
+### `flight_check_value` and `flight_check_skip`
+
+One row per check part: what it measured, or why it couldn't be. Primary key `(flight_id, part)` in each; `part` is FK
+→ `check_part` and indexed, `reason` FK → `check_skip_reason` and indexed.
+
+| Table | Columns |
+|---|---|
+| `flight_check_value` | `flight_id` FK → `flight_debrief`, `part`, `value INTEGER` (seconds, knots, fpm, tenths of hPa, or 0/1) |
+| `flight_check_skip` | `flight_id` FK → `flight_debrief`, `part`, `reason` |
+
+Each part of a measured flight is in exactly one of the two. One validated code path writes them (`settleFlight`),
+so a test guards that rather than a trigger (D-090).
+
+### `flight_landing`
+
+The touchdown, one row per measured flight that logged one: `flight_id` (PK, FK → `flight_debrief`).
+
+| Column | Type | Rules |
+|---|---|---|
+| `vs_fpm`, `g_hundredths`, `bounces`, `ias_kt`, `wind_kt` | INTEGER | ≥ 0. The sink rate is positive; 1.47 G is 147 |
+| `heading_true_deg`, `wind_dir_deg` | INTEGER | 0–359, true, as the sim gives them |
+| `pitch_tenths`, `bank_tenths` | INTEGER NULL | nose up and right wing down positive; NULL only means not logged |
+| `vref_kt` | INTEGER NULL | > 0; NULL only means not known (no PMDG data, or not entered in the FMC) |
+| `off_centreline_dm`, `off_heading_tenths` | INTEGER NULL | information only, never scored (D-122); NULL only means no runway was named |
+
+### `flight_review` and `flight_review_item`
+
+Claude's review (D-156, D-161), once per flight, never replaced: `flight_id` (PK, FK → `flight_debrief`), `summary`,
+`landing`, `atc` (TEXT, may be empty), `model` (not empty: the model that wrote it) and `written_at` (UTC instant).
+What to work on is one `flight_review_item` per point: primary key `(flight_id, seq)`, FK → `flight_review`, `seq`
+≥ 0, `text` not empty.
+
+## Milestone 10's processes
+
+**Settling.** `settleIfFlown` reads the flight's lines back (`loadFlightEvents`), measures them (`measureFlight`, with
+"diverted" when the arrival isn't the planned destination) and `settleFlight` writes `flight_debrief`, the value and
+skip rows and `flight_landing` in the settling transaction.
+
+**The review.** Written after the transaction, in the background (`ReviewWriter`): one automatic try right after
+settling, then only when Dave presses Retry. `storeReview` writes `flight_review` and its items in one transaction and
+fails if the flight already has one.

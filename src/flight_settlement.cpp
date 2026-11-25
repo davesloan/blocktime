@@ -4,6 +4,8 @@
 
 #include "flight_settlement.h"
 
+#include "debrief_store.h"
+
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -216,6 +218,12 @@ std::optional<SettledFlight> settleFlight(db::Database& db, const PlannedFlightV
         if (!service.run()) return fail(s.service + ": " + service.error());
     }
 
+    // The debrief's measurements (D-160): written once, with the flight.
+    if (!flown.lines.empty() &&
+        !writeMeasurements(db, flightId, measureFlight(flown.lines, settled.diverted), &message)) {
+        return fail("debrief: " + message);
+    }
+
     db::Statement ledger(db, "INSERT INTO ledger_line (category, posted_at, amount_cents) VALUES (?, ?, ?)");
     db::Statement link(db, "INSERT INTO flight_money_line (ledger_line_id, flight_id) VALUES (?, ?)");
     for (const auto* lines : {&settled.money.income, &settled.money.costs}) {
@@ -289,8 +297,9 @@ std::optional<SettledFlight> settleIfFlown(db::Database& db, const std::filesyst
     if (error) error->clear();
     const auto planned = currentPlannedFlight(db);
     if (!planned) return std::nullopt;
-    const auto flown = findFlownFlight(logDir, planned->id, planned->plannedAt, settledLogFlightIds(db));
+    auto flown = findFlownFlight(logDir, planned->id, planned->plannedAt, settledLogFlightIds(db));
     if (!flown) return std::nullopt;
+    flown->lines = loadFlightEvents(logDir, flown->logFlightId);
     return settleFlight(db, *planned, *flown, rates, error);
 }
 

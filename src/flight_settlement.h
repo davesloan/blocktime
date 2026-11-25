@@ -17,6 +17,7 @@
 #include <string_view>
 #include <vector>
 
+#include "flight_events.h"
 #include "open_flight.h"
 #include "planned_flight.h"
 #include "pricing.h"
@@ -42,6 +43,8 @@ struct FlownFlight {
     long long blockS = 0;               // block_in block_time_s
     std::vector<PhaseStart> phases;     // its phase_changed events, in log order (D-137)
     std::vector<ServiceTime> services;  // the GSX services completed before block out (D-137, D-138)
+    // The flight's log lines (flight_events.h), measured for the debrief when it settles (D-160). Empty: no debrief.
+    std::vector<LogLine> lines;
 };
 
 // Reads up to maxFiles daily logs in `logDir`, oldest first, as one stream. The first block_out with this
@@ -59,7 +62,8 @@ struct SettledFlight {
     Preview money;          // the posted lines and their total
 };
 
-// One transaction: the flight with its cabins, plan, phases and services; its money lines, each a ledger_line posted at block in plus a
+// One transaction: the flight with its cabins, plan, phases and services; its debrief measurements (D-160, measured
+// from flown.lines with "diverted" from the arrival); its money lines, each a ledger_line posted at block in plus a
 // flight_money_line; the airplane moved to the arrival airport with fuelInLb on board and no longer awaiting
 // delivery; and the planned flight deleted. Money (D-109): the planned flight's prices with the real block time for
 // crew and maintenance, and fuel charged for what was added. On failure nothing is written and `error` says why.

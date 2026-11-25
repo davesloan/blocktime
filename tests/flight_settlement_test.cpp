@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <set>
@@ -11,6 +12,9 @@
 #include <gtest/gtest.h>
 
 #include "airline_queries.h"
+#include "debrief_measure.h"
+#include "debrief_store.h"
+#include "flight_events.h"
 #include "flight_settlement.h"
 #include "planned_flight.h"
 #include "test_airline.h"
@@ -576,4 +580,91 @@ TEST_F(Settlement, NoParkingStoredAsNull) {
     std::string error;
     ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
     EXPECT_EQ(integer("SELECT count(*) FROM flight WHERE origin_parking IS NULL AND arrival_parking IS NULL"), 1);
+}
+
+namespace {
+
+constexpr const char* kFixtureFlight = "2026-11-24T23:53:16.837Z";
+
+// The KLAS-KSAN fixture (tests/data/README.md) as this test's log, flown as planned flight `id`.
+void copyFixture(const fs::path& dir, std::int64_t id) {
+    std::ifstream in(BLOCKTIME_SOURCE_DIR "/tests/data/flight-klas-ksan/events-2026-11-24.jsonl", std::ios::binary);
+    std::ofstream out(dir / "events-2026-11-24.jsonl", std::ios::binary);
+    const std::string from = "\"planned_flight_id\":1,";
+    std::string l;
+    while (std::getline(in, l)) {
+        const auto at = l.find(from);
+        if (at != std::string::npos) l.replace(at, from.size(), "\"planned_flight_id\":" + std::to_string(id) + ",");
+        out << l << "\n";
+    }
+}
+
+}  // namespace
+
+TEST_F(Settlement, WritesMeasurementsInTheTransaction) {
+    copyFixture(dir_, planDelivery());
+    std::string error;
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    const auto stored = loadMeasurements(db_);
+    ASSERT_EQ(stored.size(), 1u);
+    const FlightMeasurements& m = stored.at(kFixtureFlight);
+    const FlightMeasurements expected = measureFlight(loadFlightEvents(dir_, kFixtureFlight), false);
+    EXPECT_EQ(m.family, expected.family);
+    ASSERT_EQ(m.values.size(), expected.values.size());
+    for (const auto& v : expected.values) {
+        const auto it =
+            std::find_if(m.values.begin(), m.values.end(), [&](const CheckValue& x) { return x.part == v.part; });
+        ASSERT_NE(it, m.values.end()) << v.part;
+        EXPECT_EQ(it->value, v.value) << v.part;
+    }
+    EXPECT_TRUE(m.skipped.empty());
+    ASSERT_TRUE(m.landing);
+    EXPECT_EQ(m.landing->vsFpm, 591);
+    EXPECT_EQ(m.landing->vrefKt, 125);
+    EXPECT_FALSE(m.landing->pitchTenths);
+    EXPECT_EQ(m.landing->offCentrelineDm, 27);
+}
+
+TEST_F(Settlement, SkipsAreStoredWithTheirReason) {
+    const std::int64_t id = planDelivery();
+    writeLog({blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    std::string error;
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    const FlightMeasurements m = loadMeasurements(db_).at(kOut);
+    EXPECT_EQ(m.values.size() + m.skipped.size(), kCheckParts.size());
+    EXPECT_FALSE(m.skipped.empty());
+    EXPECT_FALSE(m.landing);
+}
+
+TEST_F(Settlement, FailedSettleWritesNoMeasurements) {
+    copyFixture(dir_, planDelivery());
+    ASSERT_TRUE(db_.exec("CREATE TRIGGER no_landing BEFORE INSERT ON flight_landing BEGIN"
+                         " SELECT RAISE(ABORT, 'test'); END;"));
+    std::string error;
+    EXPECT_FALSE(settleIfFlown(db_, dir_, Rates{}, &error).has_value());
+    EXPECT_NE(error, "");
+    EXPECT_EQ(count("flight"), 0);
+    EXPECT_EQ(count("flight_debrief"), 0);
+    EXPECT_EQ(count("flight_check_value"), 0);
+    EXPECT_EQ(count("ledger_line WHERE category = 'fuel'"), 0);
+}
+
+TEST_F(Settlement, ReviewStoredOnce) {
+    copyFixture(dir_, planDelivery());
+    std::string error;
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    StoredReview r{"A tidy flight.", "Firm at 591 fpm.", "Levelled at FL360 as cleared.", "claude-opus-5-5",
+                   "2026-11-25T00:55:00Z", {"Beacon before the push", "Landing lights at 10,000 ft"}};
+    EXPECT_TRUE(storeReview(db_, kFixtureFlight, r, &error)) << error;
+    StoredReview other = r;
+    other.summary = "Something else.";
+    EXPECT_FALSE(storeReview(db_, kFixtureFlight, other, &error));
+    EXPECT_FALSE(storeReview(db_, "no-such-flight", r, &error));
+    const auto reviews = loadReviews(db_);
+    ASSERT_EQ(reviews.size(), 1u);
+    const StoredReview& got = reviews.at(kFixtureFlight);
+    EXPECT_EQ(got.summary, "A tidy flight.");
+    EXPECT_EQ(got.workOn, r.workOn);
+    EXPECT_EQ(got.model, "claude-opus-5-5");
+    EXPECT_EQ(count("flight_review_item"), 2);
 }

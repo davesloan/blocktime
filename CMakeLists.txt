@@ -101,7 +101,8 @@ add_library(blocktime-core STATIC
   src/cockpit_monitor.cpp
   src/flight_events.cpp
   src/debrief_measure.cpp
-  src/debrief_score.cpp)
+  src/debrief_score.cpp
+  src/debrief_store.cpp)
 target_include_directories(blocktime-core PUBLIC src)
 find_package(yaml-cpp CONFIG REQUIRED)
 target_link_libraries(blocktime-core PUBLIC blocktime-options nlohmann_json::nlohmann_json unofficial::sqlite3::sqlite3

@@ -63,12 +63,12 @@ protected:
 
 }  // namespace
 
-TEST(AirlineDb, EmptyDatabaseMigratesToVersion6) {
+TEST(AirlineDb, EmptyDatabaseMigratesToVersion7) {
     db::Database d = db::Database::openInMemory();
     std::string error;
     EXPECT_TRUE(migrateAirlineDatabase(d, &error)) << error;
-    EXPECT_EQ(d.userVersion(), 6);
-    EXPECT_EQ(kAirlineSchemaVersion, 6);
+    EXPECT_EQ(d.userVersion(), 7);
+    EXPECT_EQ(kAirlineSchemaVersion, 7);
 }
 
 TEST(AirlineDb, ForeignKeysAreOn) {
@@ -172,6 +172,12 @@ TEST(AirlineDb, QueryPlansUseIndexes) {
              "SELECT passengers FROM flight_cabin WHERE flight_id = 1",
              "SELECT phase, started_at FROM flight_phase WHERE flight_id = 1 ORDER BY seq",
              "SELECT service FROM flight_service WHERE flight_id = 1",
+             "SELECT part, value FROM flight_check_value WHERE flight_id = 1",
+             "SELECT part, reason FROM flight_check_skip WHERE flight_id = 1",
+             "SELECT flight_id FROM flight_check_value WHERE part = 'taxi_max_kt'",
+             "SELECT flight_id FROM flight_check_skip WHERE part = 'taxi_max_kt'",
+             "SELECT flight_id FROM flight_check_skip WHERE reason = 'no_atis'",
+             "SELECT text FROM flight_review_item WHERE flight_id = 1 ORDER BY seq",
          }) {
         const std::string plan = queryPlan(d, sql);
         EXPECT_NE(plan.find("USING"), std::string::npos) << sql << "\n" << plan;
@@ -387,11 +393,55 @@ TEST(AirlineDb, Migration6AddsParking) {
     addFlightParents(d);
     ASSERT_TRUE(insertFlight(d, "2026-11-23T10:30:05.120Z", "delivery", "2026-11-23T10:30:05Z", "2026-11-23T13:20:41Z",
                              20000));
-    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 6, &error)) << error;
     EXPECT_EQ(d.userVersion(), 6);
     db::Statement q(d, "SELECT origin_parking IS NULL AND arrival_parking IS NULL FROM flight");
     ASSERT_TRUE(q.next());
     EXPECT_EQ(q.integer(0), 1);  // flights from before 0.10.0 have no spot
     EXPECT_TRUE(d.exec("UPDATE flight SET origin_parking = 'Gate D14', arrival_parking = 'Parking 70'"));
     EXPECT_FALSE(d.exec("UPDATE flight SET arrival_parking = ''"));
+}
+
+TEST(AirlineDb, Migration7Tables) {
+    db::Database d = db::Database::openInMemory();
+    std::string error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 6, &error)) << error;
+    EXPECT_FALSE(hasTable(d, "flight_debrief"));
+    addFlightParents(d);
+    ASSERT_TRUE(insertFlight(d, "2026-11-23T10:30:05.120Z", "delivery", "2026-11-23T10:30:05Z", "2026-11-23T13:20:41Z",
+                             20000));
+    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    for (const char* t : {"check_part", "check_skip_reason", "flight_debrief", "flight_check_value", "flight_check_skip",
+                          "flight_landing", "flight_review", "flight_review_item"}) {
+        EXPECT_TRUE(hasTable(d, t)) << t;
+    }
+    db::Statement parts(d, "SELECT COUNT(*) FROM check_part");
+    ASSERT_TRUE(parts.next());
+    EXPECT_EQ(parts.integer(0), 17);
+    db::Statement reasons(d, "SELECT COUNT(*) FROM check_skip_reason");
+    ASSERT_TRUE(reasons.next());
+    EXPECT_EQ(reasons.integer(0), 5);
+
+    EXPECT_FALSE(d.exec("INSERT INTO flight_debrief (flight_id, family) VALUES (1, '747')"));
+    EXPECT_TRUE(d.exec("INSERT INTO flight_debrief (flight_id, family) VALUES (1, '737')"));
+    EXPECT_FALSE(d.exec("INSERT INTO flight_debrief (flight_id, family) VALUES (99, '737')"));  // no such flight
+    EXPECT_TRUE(d.exec("INSERT INTO flight_check_value (flight_id, part, value) VALUES (1, 'taxi_max_kt', 25)"));
+    EXPECT_FALSE(d.exec("INSERT INTO flight_check_value (flight_id, part, value) VALUES (1, 'taxi_max_kt', 26)"));
+    EXPECT_FALSE(d.exec("INSERT INTO flight_check_value (flight_id, part, value) VALUES (1, 'made_up', 1)"));
+    EXPECT_TRUE(d.exec("INSERT INTO flight_check_skip (flight_id, part, reason) VALUES (1, 'std_late_s', 'no_marker')"));
+    EXPECT_FALSE(d.exec("INSERT INTO flight_check_skip (flight_id, part, reason) VALUES (1, 'over_250_s', 'lazy')"));
+    const auto landing = [&](const std::string& heading, const std::string& vref) {
+        return d.exec("INSERT INTO flight_landing (flight_id, vs_fpm, g_hundredths, bounces, ias_kt, heading_true_deg,"
+                      " wind_dir_deg, wind_kt, vref_kt) VALUES (1, 591, 147, 0, 125, " + heading + ", 330, 9, " + vref +
+                      ")");
+    };
+    EXPECT_FALSE(landing("360", "125"));
+    EXPECT_FALSE(landing("286", "0"));
+    EXPECT_TRUE(landing("286", "NULL"));
+    EXPECT_FALSE(d.exec("INSERT INTO flight_review (flight_id, summary, landing, atc, model, written_at)"
+                        " VALUES (1, 'Good', '', '', '', '2026-11-24T00:55:00Z')"));  // no model
+    EXPECT_TRUE(d.exec("INSERT INTO flight_review (flight_id, summary, landing, atc, model, written_at)"
+                       " VALUES (1, 'Good', '', '', 'claude-opus-5-5', '2026-11-24T00:55:00Z')"));
+    EXPECT_FALSE(d.exec("INSERT INTO flight_review_item (flight_id, seq, text) VALUES (1, 0, '')"));
+    EXPECT_TRUE(d.exec("INSERT INTO flight_review_item (flight_id, seq, text) VALUES (1, 0, 'Beacon first')"));
 }
