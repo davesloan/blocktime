@@ -75,6 +75,10 @@ struct FlightMeasurements {
 
 FlightMeasurements measureFlight(const std::vector<LogLine>& lines, bool diverted);
 
+// When the flight starts for the debrief: the engine start before block out (the start after the engines were last
+// all off, since the lead-in can reach the previous leg), else block out. nullopt without a block_out.
+std::optional<std::chrono::system_clock::time_point> flightStart(const std::vector<LogLine>& lines);
+
 // The FMC's landing flaps detents in degrees, by the sim's FLAPS HANDLE INDEX (D-148), per family.
 int flapDetentDegrees(Family family, int handleIndex);
 

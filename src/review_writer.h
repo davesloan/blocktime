@@ -19,17 +19,8 @@
 #include <QString>
 #include <QtQml/qqmlregistration.h>
 
+#include "review_client.h"
 #include "sqlite_db.h"
-
-// The HTTPS call, behind an interface so ReviewWriter can be tested without the network. ClaudeReviewer is the real one.
-class ReviewClient {
-public:
-    virtual ~ReviewClient() = default;
-    virtual bool hasKey() const = 0;
-    // Posts the request body. `done` is called once: the HTTP status (0 when nothing came back), the body, and a
-    // network error ("" when an answer came back).
-    virtual void write(std::string body, std::function<void(int status, QByteArray body, QString networkError)> done) = 0;
-};
 
 class ReviewWriter : public QObject {
     Q_OBJECT

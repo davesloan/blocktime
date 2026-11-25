@@ -99,7 +99,7 @@ std::optional<double> hpa(const nlohmann::json& atis) {
 
 class Measurer {
 public:
-    Measurer(const std::vector<LogLine>& lines, bool diverted) : diverted_(diverted) {
+    Measurer(const std::vector<LogLine>& lines, bool diverted) : diverted_(diverted), start_(flightStart(lines)) {
         for (const LogLine& l : lines) {
             const Time t = when(l);
             if (l.type == "telemetry") telemetry_.push_back({l.ts, &l.data});
@@ -166,21 +166,8 @@ private:
     }
 
     void beacon() {
-        if (!blockOut_ || telemetry_.empty()) return skip("beacon_late_s", "no_marker");
-        // The engine start: the start after the engines were last all off (the lead-in can reach the previous leg).
-        // Only a start before block out moves the deadline.
-        std::optional<Time> started;
-        bool running = false;
-        for (const Point& p : telemetry_) {
-            if (p.t > *blockOut_) break;
-            bool any = false;
-            if (p.d->contains("eng_running"))
-                for (const auto& e : (*p.d)["eng_running"]) any |= e.get<bool>();
-            if (any && !running) started = p.t;
-            if (!any) started.reset();
-            running = any;
-        }
-        const Time deadline = running && started ? *started : *blockOut_;
+        if (!blockOut_ || telemetry_.empty() || !start_) return skip("beacon_late_s", "no_marker");
+        const Time deadline = *start_;
         put("beacon_late_s",
             secondsUntil(telemetry_, deadline, end(), [](const nlohmann::json& d) { return d.value("beacon", false); }));
     }
@@ -370,6 +357,7 @@ private:
     const nlohmann::json* runway_ = nullptr;
     std::optional<Time> blockOut_, blockIn_;
     bool pmdg_ = false;
+    std::optional<Time> start_;
 };
 
 }  // namespace
@@ -381,6 +369,26 @@ int flapDetentDegrees(Family family, int handleIndex) {
     const auto i = static_cast<std::size_t>(handleIndex);
     if (family == Family::B777) return i < k777.size() ? k777[i] : k777.back();
     return i < k737.size() ? k737[i] : k737.back();
+}
+
+std::optional<Clock::time_point> flightStart(const std::vector<LogLine>& lines) {
+    std::optional<Time> blockOut;
+    for (const LogLine& l : lines)
+        if (l.type == "block_out") blockOut = when(l);
+    if (!blockOut) return std::nullopt;
+    std::optional<Time> started;
+    bool running = false;
+    for (const LogLine& l : lines) {
+        if (l.type != "telemetry") continue;
+        if (l.ts > *blockOut) break;
+        bool any = false;
+        if (l.data.contains("eng_running"))
+            for (const auto& e : l.data["eng_running"]) any |= e.get<bool>();
+        if (any && !running) started = l.ts;
+        if (!any) started.reset();
+        running = any;
+    }
+    return running && started ? *started : *blockOut;
 }
 
 FlightMeasurements measureFlight(const std::vector<LogLine>& lines, bool diverted) {

@@ -106,3 +106,16 @@ TEST(DebriefReview, ParsesEachFailure) {
     EXPECT_EQ(parseReviewResponse(200, "not json").error, "Claude's answer wasn't readable");
     EXPECT_FALSE(parseReviewResponse(401, "{}").review);
 }
+
+TEST(DebriefReview, TimelineStartsWithThisFlight) {
+    // The lead-in before block out reaches back to the previous leg's landing: only its state at the start shows.
+    const std::string t = buildTimeline(fixture());
+    EXPECT_EQ(t.rfind("23:53:16 at the start: engines off, beacon off, strobes off, seat belt sign off, landing lights "
+                      "off, gear down",
+                      0),
+              0u)
+        << t.substr(0, 300);
+    EXPECT_EQ(t.find("23:2"), std::string::npos);
+    EXPECT_EQ(t.find("23:4"), std::string::npos);
+    EXPECT_NE(t.find("no bounce after touchdown"), std::string::npos);
+}

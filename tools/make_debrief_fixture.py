@@ -88,7 +88,7 @@ def main(log_dir, out_path):
             out.append({"ts": l["ts"], "type": t, "data": td})
             at = datetime.fromisoformat(d["time"].replace("Z", "+00:00")) + timedelta(seconds=15)
             out.append({"ts": l["ts"], "type": "bounces", "data": {
-                "flight_id": FLIGHT, "time": at.strftime("%Y-%m-%dT%H:%M:%S.") + f"{at.microsecond // 1000:03d}Z",
+                "flight_id": d["flight_id"], "time": at.strftime("%Y-%m-%dT%H:%M:%S.") + f"{at.microsecond // 1000:03d}Z",
                 "bounces": 0}})
         else:
             out.append(l)

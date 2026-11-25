@@ -10,7 +10,7 @@
 #include <QNetworkAccessManager>
 #include <QObject>
 
-#include "review_writer.h"
+#include "review_client.h"
 
 class ClaudeReviewer : public QObject, public ReviewClient {
     Q_OBJECT

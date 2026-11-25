@@ -273,6 +273,7 @@ qt_add_qml_module(blocktime-app
     src/new_flight_model.h src/new_flight_model.cpp
     src/planned_flight_model.h src/planned_flight_model.cpp
     src/flight_watcher.h src/flight_watcher.cpp
+    src/review_client.h
     src/review_writer.h src/review_writer.cpp
     src/claude_reviewer.h src/claude_reviewer.cpp)
 target_link_libraries(blocktime-app PRIVATE blocktime-sim Qt6::Quick Qt6::QuickControls2 Qt6::Location Qt6::Positioning
@@ -299,6 +300,13 @@ add_custom_command(TARGET blocktime-app POST_BUILD
   COMMENT "windeployqt blocktime-app"
   VERBATIM)
 
+# The debrief replay tool (docs/debrief.md section 8): the checks, the score and Claude's request for a flight in a
+# saved event log, with the app's own code. A console app; it runs with the Qt DLLs windeployqt put next to the app.
+qt_add_executable(blocktime-debrief src/debrief_main.cpp src/review_client.h src/claude_reviewer.h
+  src/claude_reviewer.cpp)
+target_link_libraries(blocktime-debrief PRIVATE blocktime-core Qt6::Core Qt6::Network)
+add_dependencies(blocktime-debrief blocktime-app)
+
 # Tests for the Qt side (models and bridge, no QML). They run from the app's folder, so they use the Qt DLLs that
 # windeployqt put there: the app is built first.
 if(BLOCKTIME_BUILD_TESTS)
@@ -313,6 +321,7 @@ if(BLOCKTIME_BUILD_TESTS)
     src/new_flight_model.h src/new_flight_model.cpp
     src/planned_flight_model.h src/planned_flight_model.cpp
     src/flight_watcher.h src/flight_watcher.cpp
+    src/review_client.h
     src/review_writer.h src/review_writer.cpp)
   target_link_libraries(blocktime-qt-tests PRIVATE blocktime-sim Qt6::Gui Qt6::Qml Qt6::Positioning Qt6::Network
     GTest::gtest_main)

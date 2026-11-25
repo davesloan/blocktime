@@ -104,7 +104,11 @@ std::optional<std::string> eventText(const LogLine& l) {
         return std::format("touchdown, {} fpm, {} G, {} kt", std::llabs(whole(d, "vs_fpm")), str(d, "g"),
                            whole(d, "ias_kt"));
     }
-    if (t == "bounces") return std::format("{} bounce(s) after touchdown", whole(d, "bounces"));
+    if (t == "bounces") {
+        const long long n = whole(d, "bounces");
+        return n == 0 ? std::string("no bounce after touchdown")
+                      : std::format("{} bounce{} after touchdown", n, n == 1 ? "" : "s");
+    }
     if (t == "landing_runway") return "landed on runway " + str(d, "runway");
     if (t == "altimeter") {
         return std::format("altimeters set: captain {} hPa, first officer {} hPa", str(d, "capt_mb"), str(d, "fo_mb"));
@@ -150,7 +154,33 @@ std::string buildTimeline(const std::vector<LogLine>& events) {
         if (l.type == "flight_marker" && l.data.value("marker", "") == "final_approach") finalApproach = when(l);
         if (l.type == "touchdown") touchdown = when(l);
     }
-    for (const LogLine& l : events) {
+    // The lead-in before the start (it can reach the previous leg) only sets the state the timeline opens with.
+    const std::optional<Time> start = flightStart(events);
+    std::size_t first = 0;
+    if (start) {
+        for (; first < events.size() && events[first].ts < *start; ++first) {
+            if (events[first].type == "telemetry") lastTel = &events[first].data;
+            if (events[first].type == "cockpit") lastCockpit = &events[first].data;
+        }
+        std::vector<std::string> state;
+        if (lastTel) {
+            const int n = enginesRunning(*lastTel);
+            state.push_back(n == 0 ? std::string("engines off") : std::format("{} engine(s) running", n));
+            state.push_back(lastTel->value("beacon", false) ? "beacon on" : "beacon off");
+            state.push_back(lastTel->value("strobe", false) ? "strobes on" : "strobes off");
+        }
+        if (lastCockpit) {
+            state.push_back(std::string("seat belt sign ") + beltsText(lastCockpit->value("seat_belts", 0)));
+            state.push_back(lastCockpit->value("landing_lights", false) ? "landing lights on" : "landing lights off");
+            state.push_back(lastCockpit->value("gear_down", false) ? "gear down" : "gear up");
+        }
+        std::string text = "at the start:";
+        for (std::size_t i = 0; i < state.size(); ++i) text += (i == 0 ? " " : ", ") + state[i];
+        lines.push_back({*start, text});
+    }
+    for (std::size_t i = first; i < events.size(); ++i) {
+        const LogLine& l = events[i];
+        if (start && when(l) < *start && l.type != "telemetry" && l.type != "cockpit") continue;
         if (auto text = eventText(l)) lines.push_back({when(l), *text});
         if (l.type == "cockpit") {
             for (auto& c : cockpitChanges(lastCockpit, l.data)) lines.push_back({l.ts, std::move(c)});
