@@ -457,7 +457,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-040 — End-of-flight analysis and 0–100 score by Claude
 - Date: 2026-11-22
-- Status: Accepted
+- Status: Accepted; the score part superseded by D-156 (BlockTime's code scores, Claude explains)
 - Decided by: Dave
 - Area: app, recorder
 - Decision: When a flight ends, the web app sends Claude, through the Claude API:
@@ -2368,3 +2368,100 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Alternatives considered: keep picking but only near SayIntentions' gate (still blind to the scenery); no
   assignment at all (loses Dave's favourite spots); comparing the read-back by name (SayIntentions' names aren't
   MSFS's: "106" for Parking 70); measuring the AGL fallback from the field's elevation (Dave doesn't need it precise).
+
+## D-156 — The debrief: BlockTime's code scores, Claude Opus 5.5 explains
+- Date: 2026-11-24
+- Status: Accepted
+- Decided by: Dave
+- Area: app, design
+- Decision: At settling, BlockTime's own code runs the procedure checks and computes both scores (the landing's stars
+  and the 0–100). Claude (`claude-opus-5-5`, through the Messages API) gets the checks, a timeline of the flight and the
+  ATC log, and writes the review: what went well, what to work on, the landing explained, and ATC compliance. Claude
+  never sets a score. Supersedes D-040's "Claude returns a 0–100 score". Design: `docs/debrief.md`.
+- Why: A spike on the KLAS → KSAN log (2026-11-24) wrote both versions. Code gives the same score for the same flight,
+  so the running average means something, and the rules can be tested. Claude's value is in the text: reading the ATC
+  log and connecting cause and effect. Dave: this also lets the scoring be tuned without paying for more Claude calls.
+  Opus 5.5 over Sonnet 5.5: about $0.12–0.16 a flight against $0.06–0.08, a couple of dollars a month, for better
+  reasoning.
+- Alternatives considered: Claude setting the 0–100 (D-040 as written; the number drifts between runs); no Claude
+  (free, but no ATC reading or insight); Sonnet 5.5 or Haiku 5.5.
+
+## D-157 — The procedure checks; ATC compliance is information only
+- Date: 2026-11-24
+- Status: Accepted (Claude proposed the list, Dave accepted it)
+- Decided by: Dave + Claude
+- Area: app, design
+- Decision: Twelve scored checks (`docs/debrief.md` section 2): beacon before pushback, seat belt sign from taxi to
+  10,000 ft, taxi speed, origin altimeter, lights for takeoff, 250 kt below 10,000 ft, STD by the transition altitude,
+  seat belt sign for the descent, destination altimeter, landing lights below 10,000 ft, stable at 1,000 ft AGL, strobes
+  off after landing. Plus a landing section with its own rating. **ATC compliance is never scored for now**: Claude
+  reports it as information. A go-around is never marked down. The score never touches money or anything else in the
+  airline.
+- Why: Dave: SayIntentions sometimes clears him to something wrong that he has to ignore, so compliance can't count yet.
+  No penalties follows design rule 2 (D-072).
+- Alternatives considered: scoring ATC compliance; letting the score affect the airline.
+
+## D-158 — The landing gets 0 to 5 stars
+- Date: 2026-11-24
+- Status: Accepted (stars: Dave); the bands are Proposed (Claude)
+- Decided by: Dave + Claude
+- Area: app
+- Decision: The landing is rated in whole stars, 0 to 5, by fixed rules: bands by sink rate (240, 360, 600, 900,
+  1,200 fpm), one star back at 15 kt or more of crosswind, minus one for each bounce, bank above 5°, pitch outside 0° to
+  8° (737) or 7.5° (777), and speed outside VREF ±10 kt; 1.7 G caps it at 2 stars and 2.0 G at 1. Each star below 5
+  takes points off the overall score (0, 4, 8, 14, 20, 30).
+- Why: Dave: "the landing score doesn't need to be 0-100 … even something silly like a 0-5 star rating." The bands put
+  the spike's 591 fpm, 1.47 G landing at 3 stars.
+- Alternatives considered: 0–100 or 0–10 for the landing; Claude rating the landing.
+
+## D-159 — PMDG's SDK broadcast is read on every flight
+- Date: 2026-11-24
+- Status: Accepted
+- Decided by: Dave
+- Area: recorder, build
+- Decision: The recorder reads PMDG's broadcast in normal running, not only with `--probe`, for the values the checks
+  need: the 737's seat belt selector and retractable landing lights, the FMC's VREF and landing flaps on both families,
+  and the autopilot. A build without PMDG's SDK headers leaves those values out of the log and the checks that need them
+  show as not checked. Refines D-135, which kept the shutdown checklist to plain SimVars (that checklist doesn't change).
+- Why: Those values aren't in any plain SimVar (probe flights, `docs/notes/probe-flight.md`). Dave is fine with a public
+  build lacking them.
+- Alternatives considered: plain SimVars only, dropping the 737's seat belt check and every VREF check.
+
+## D-160 — Measurements are stored; scores are computed when shown
+- Date: 2026-11-24
+- Status: Proposed
+- Decided by: Claude (following Dave's point about tuning)
+- Area: app, data
+- Decision:
+  - Each flight stores what each check measured (seconds late, knots, fpm), or why it couldn't be measured, and the
+    landing's values, written once. The rules that turn them into passes, stars and points live in one code file and
+    run whenever a score or an average is shown, so a changed rule re-scores every flight.
+  - Score: 100, minus 6 per missed check, minus the landing's points, never below 0.
+  - The tolerances in `docs/debrief.md` section 2 (beacon within 10 s, taxi ≤ 30 kt, altimeters within 1 hPa,
+    260 kt for more than 10 s, STD within 60 s, strobes off within 180 s, the stable approach's VREF −5/+20 and
+    1,000 fpm).
+  - A changed *measurement* applies to flights settled after it; stored rows are never rewritten. The replay tool
+    (`blocktime-debrief.exe`) shows a change on saved logs first.
+- Why: Dave wants to play with the scoring without more Claude costs; storing results would freeze each flight's score
+  at the rules of the day it flew. Claude's text gives no numbers, so it stays true after a re-score.
+- Alternatives considered: storing pass/fail and the score; recomputing everything from the event log (lost after 30
+  days).
+
+## D-161 — How the review is written
+- Date: 2026-11-24
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision:
+  - One automatic try in the background at settling. If it fails, a Retry button; nothing retries on its own across
+    restarts, so a failing call never spends money unseen.
+  - Input: the flight's timeline, the checks and landing, the ATIS texts, the ATC log's `COM` lines labelled by side
+    (`incoming_message` is Dave's side, `outgoing_message` the station's), and the missed checks of the last five
+    flights for habits.
+  - Output: structured JSON with four parts (`summary`, `work_on`, `landing`, `atc`), stored once with the model id.
+  - The request: raw HTTPS from Qt (no official C++ SDK), adaptive thinking, effort set explicitly (medium to start),
+    server-side refusal fallbacks on, `claude_api_key` in settings.json as a secret.
+  - Flights flown before milestone 10 get no debrief.
+- Why: Each call costs money, so retries are Dave's choice. Four fixed parts let the summary lay them out. The habit
+  memory is what code can't see across flights.
+- Alternatives considered: retrying at every startup; free text; regenerating a review.
