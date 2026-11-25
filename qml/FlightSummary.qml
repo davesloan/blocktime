@@ -26,12 +26,15 @@ Card {
     required property ReviewWriter reviews
     property bool showActions: false
     property bool showDebrief: false
+    // The Replay button (D-175): on Flights and on Live, not in the replay window itself.
+    property bool replayable: false
 
     readonly property var debrief: card.summary.debrief ?? ({})
     readonly property bool measured: card.debrief.measured ?? false
 
     signal turnaround()
     signal done()
+    signal replay()
 
     title: card.summary.title ?? ""
 
@@ -63,6 +66,22 @@ Card {
             visible: card.measured
             text: card.showDebrief ? "Flight" : "Debrief"
             onClicked: card.showDebrief = !card.showDebrief
+        }
+
+        // Why Replay is greyed: the log is kept 30 days.
+        Text {
+            visible: card.replayable && (card.summary.replayNote ?? "") !== ""
+            text: card.summary.replayNote ?? ""
+            color: Theme.textMuted
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeSmall
+        }
+
+        SecondaryButton {
+            visible: card.replayable
+            enabled: (card.summary.replayNote ?? "") === ""
+            text: "Replay"
+            onClicked: card.replay()
         }
 
         SecondaryButton {

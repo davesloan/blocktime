@@ -86,6 +86,8 @@ public:
     // landingLines, reviewState, reviewError, review: {summary, workOn, landing, atc} } (docs/debrief.md section 6).
     Q_INVOKABLE QVariantMap summary(int row) const;
     Q_INVOKABLE int rowOf(const QString& flightId) const;  // -1 if it isn't listed
+    // Opens the replay window for a flight: a second BlockTime process, `--replay <id>`, read-only (D-175).
+    Q_INVOKABLE void replay(const QString& flightId) const;
 
 signals:
     void countChanged();

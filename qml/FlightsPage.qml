@@ -116,9 +116,11 @@ Item {
                 summary: page.summary
                 track: page.track
                 reviews: page.reviews
+                replayable: true
                 mapTileUrl: page.mapTileUrl
                 mapCacheDir: page.mapCacheDir
                 mapUserAgent: page.mapUserAgent
+                onReplay: page.flights.replay(page.summary.flightId ?? "")
             }
         }
     }

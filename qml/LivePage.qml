@@ -101,8 +101,10 @@ Item {
                     mapCacheDir: page.mapCacheDir
                     mapUserAgent: page.mapUserAgent
                     showActions: !page.replaying
+                    replayable: !page.replaying
                     onTurnaround: page.plannedFlight.turnaround()
                     onDone: page.plannedFlight.doneForNow()
+                    onReplay: page.flights.replay(page.plannedFlight.summaryFlightId)
                 }
             }
 

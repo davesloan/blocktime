@@ -1105,6 +1105,19 @@ TEST_F(LiveFlight, FlightListRowsFromDatabaseAndTrackFromLog) {
     EXPECT_EQ(list.rowOf("nope"), -1);
 }
 
+// The Replay button (D-175) is greyed, with the reason, once the flight's log is gone.
+TEST_F(LiveFlight, FlightListReplayNote) {
+    write({liveOut(plannedId_), liveIn()});
+    auto m = model();
+    m->checkFlown();
+    FlightListModel list(db_, dir_, "XLY");
+    list.reloadBlocking();
+    ASSERT_EQ(list.count(), 1);
+    EXPECT_EQ(list.summary(0)["replayNote"].toString(), "");
+    for (const auto& f : fs::directory_iterator(dir_)) fs::remove(f.path());
+    EXPECT_EQ(list.summary(0)["replayNote"].toString(), "The log for 22 Nov is no longer on this PC");
+}
+
 TEST_F(LiveFlight, FlightListShowsADiversion) {
     write({liveOut(plannedId_),
            liveLine("block_in", std::string(R"({"flight_id":")") + kLiveOut + R"(","time":")" + kLiveIn +

@@ -9,11 +9,15 @@
 #include <optional>
 #include <utility>
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QGeoCoordinate>
 #include <QList>
+#include <QLocale>
+#include <QProcess>
 
 #include "debrief_score.h"
+#include "flight_replay.h"
 #include "loads.h"
 #include "money.h"
 #include "new_flight_model.h"
@@ -293,7 +297,16 @@ QVariantMap FlightListModel::summary(int row) const {
             {"costs", moneyLines(f.costs)},
             {"totalText", q(blocktime::formatMoneyFull(f.totalCents))},
             {"parkedText", f.arrivalParking.empty() ? QString() : "Parked at " + q(f.arrivalParking)},
-            {"debrief", debrief(f)}};
+            {"debrief", debrief(f)},
+            // Why the Replay button is greyed: the log is kept 30 days (D-175).
+            {"replayNote", blocktime::replayLogAvailable(logDir_, f.logFlightId)
+                               ? QString()
+                               : "The log for " + QLocale(QLocale::English).toString(out.date(), "d MMM") +
+                                     " is no longer on this PC"}};
+}
+
+void FlightListModel::replay(const QString& flightId) const {
+    QProcess::startDetached(QCoreApplication::applicationFilePath(), {QStringLiteral("--replay"), flightId});
 }
 
 int FlightListModel::rowOf(const QString& flightId) const {
