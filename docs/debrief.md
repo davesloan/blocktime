@@ -66,7 +66,8 @@ All of it goes in the event log as facts; nothing is judged here.
 
 - **A `cockpit` event**, written whenever one of its values changes (at most once a second, like the probe's):
   - `landing_lights` (bool): any landing light on. The 777 and the 737's fixed lights from `LIGHT LANDING`; the 737's
-    retractable lights from PMDG's `LTS_LandingLtRetractableSw` (on if either is on).
+    retractable lights from PMDG's `LTS_LandingLtRetractableSw` (on if either is on). The BBJ2 has none: its landing
+    lights are on/off only (Dave); the runway turnoff lights, which Dave uses for taxi, don't count.
   - `seat_belts` (0 off, 1 auto, 2 on): the 737 from PMDG's `COMM_FastenBeltsSelector`; the 777 from
     `CABIN SEATBELTS ALERT SWITCH` (0/1, logged as 0 or 2).
   - `gear_down` (bool): from `GEAR TOTAL PCT EXTENDED` (fully extended). Samples while paused are ignored, because
@@ -277,7 +278,8 @@ The spike's KLAS → KSAN log becomes a trimmed test fixture, so the checks are 
 
 ## Checked in the sim (Dave, in milestone 10's sim tests)
 
-- The 737's retractable landing lights reach `landing_lights`; the 777's lights through `LIGHT LANDING`.
+- The BBJ2's landing lights reach `landing_lights` and its runway turnoff lights don't; the 777's lights through
+  `LIGHT LANDING`.
 - `GEAR TOTAL PCT EXTENDED` while paused.
 - The sign of `PLANE PITCH DEGREES` at touchdown, and that `bounces` counts a real bounce.
 - VREF and landing flaps read from the 777's FMC in normal running (seen in the probe: VREF 144, flaps 30).

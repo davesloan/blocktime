@@ -78,7 +78,8 @@ Newest entries at the top. Add an entry at the end of every working session.
   autopilot's height and put the 250 kt spell in the climb, so the timeline now gives heights for cockpit changes in
   the air and a line per spell above 260 kt; the second review got both right.
 - **Sim checks** (form run `m10-debrief`):
-  - the 737's retractable landing lights reach `landing_lights`;
+  - the BBJ2's landing lights reach `landing_lights` and its runway turnoff lights don't (it has no retractable
+    landing lights, Dave);
   - the seat belt selector on both families;
   - the gear value while paused;
   - **the sign of `PLANE PITCH DEGREES` at touchdown** (`kSimPitchNoseUp` in `debrief_score.cpp` assumes nose up is

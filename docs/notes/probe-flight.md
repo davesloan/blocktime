@@ -89,7 +89,8 @@ comments (`PMDG_NG3_SDK.h`).
   - `LTS_PositionSw`: 0 steady, 1 off, 2 strobe & steady. 2 at the runway, 0 after landing; 1 wasn't seen.
   - Also moved: `LTS_AntiCollisionSw`, `LTS_TaxiSw`, `LTS_LandingLtFixedSw[2]`, `LTS_RunwayTurnoffSw[2]`, `LTS_LogoSw`,
     `LTS_WingSw` and `LTS_WheelWellSw`. On this panel the wheel-well light went on and off with the taxi light.
-  - `LTS_LandingLtRetractableSw` stayed 0: the BBJ2 flights left those lights off.
+  - `LTS_LandingLtRetractableSw` stayed 0: the BBJ2 has no retractable landing lights, only on/off fixed ones (Dave,
+    2026-11-24). It also has left and right runway turnoff lights, which Dave uses only for taxi.
 - **Cabin and systems:**
   - `COMM_FastenBeltsSelector` is 0 off, 1 auto, 2 on.
   - `APU_Selector` is 0 off, 1 on, 2 start, and springs back to 1. A value of 3 showed for one sample at two of the
