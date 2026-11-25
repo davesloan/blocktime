@@ -66,8 +66,9 @@ All of it goes in the event log as facts; nothing is judged here.
 
 - **A `cockpit` event**, written whenever one of its values changes (at most once a second, like the probe's):
   - `landing_lights` (bool): any landing light on. The 777 and the 737's fixed lights from `LIGHT LANDING`; the 737's
-    retractable lights from PMDG's `LTS_LandingLtRetractableSw` (on if either is on). The BBJ2 has none: its landing
-    lights are on/off only (Dave); the runway turnoff lights, which Dave uses for taxi, don't count.
+    retractable lights from PMDG's `LTS_LandingLtRetractableSw` (on if either is on). They only work with PMDG's
+    non-LED lights package; Dave flies the LED package, where the landing lights are on/off only. The runway turnoff
+    lights, which Dave uses for taxi, don't count.
   - `seat_belts` (0 off, 1 auto, 2 on): the 737 from PMDG's `COMM_FastenBeltsSelector`; the 777 from
     `CABIN SEATBELTS ALERT SWITCH` (0/1, logged as 0 or 2).
   - `gear_down` (bool): from `GEAR TOTAL PCT EXTENDED` (fully extended). Samples while paused are ignored, because
@@ -259,7 +260,8 @@ The spike's KLAS → KSAN log becomes a trimmed test fixture, so the checks are 
 
 - Every tolerance in the checks table, the star bands and the score's points (D-160, D-158). Tunable at no cost.
 - Seat belts as one check from taxi to 10,000 ft, so one slip isn't counted twice.
-- AUTO on the 737's seat belt selector counts as on.
+- AUTO on the 737's seat belt selector counts as on (Dave never uses it on the 737, and on the 777 only in a
+  freighter, 2026-11-24).
 - Measurements stored and scores computed on display (D-160), and no score numbers in Claude's text.
 - Structured JSON from Claude, with four sections.
 - The last five flights' misses as Claude's habit memory.
