@@ -84,7 +84,10 @@ All of it goes in the event log as facts; nothing is judged here.
 - **A `bounces` event** 15 s after touchdown: how many times the wheels left the ground again for at least 0.5 s. Fast
   sampling stays on until then (Claude's call: a separate event, so the touchdown line on Live isn't delayed).
 - **`cockpit` carries `pmdg`** (whether PMDG data arrived this session), so a missing value reads as "no PMDG data",
-  not as "off".
+  not as "off". **A `cockpit` snapshot is written at block out** (as built, D-162): the lines are change-based, so
+  after a long turnaround the state at the push would otherwise be older than the 30-minute lead-in.
+- **The pitch is stored as the sim gives it** (`sim_pitch_tenths`); the scoring flips it (as built, D-162), so if the
+  sim check shows the sign the other way round, one constant changes and every flight re-scores.
 - **The PMDG reader** moves out of `--probe`: a small normal-running part subscribes to the 737's or the 777's
   broadcast (whichever is loaded) and reads only the fields above. `--probe` keeps logging everything as today.
 
@@ -99,7 +102,7 @@ passes it are below. All tolerances are Claude's proposals (D-160) and are meant
 | 2 | Seat belt sign on from taxi to 10,000 ft | seconds it was off between the start of taxi out and `above_10000` | 0 |
 | 3 | Taxi speed | highest ground speed in taxi out and taxi in | ≤ 30 kt |
 | 4 | Origin altimeter | at the takeoff roll, both altimeters' difference from the latest origin ATIS (or the one before it), tenths of hPa | ≤ 10 (1 hPa) |
-| 5 | Lights for takeoff | strobes and landing lights at the takeoff roll | both on |
+| 5 | Lights for takeoff | strobes and landing lights 10 s into the takeoff roll (as built: lights switched on as thrust comes up count) | both on |
 | 6 | 250 kt below 10,000 ft | seconds above 260 kt IAS while airborne below 10,000 ft indicated | ≤ 10 s |
 | 7 | STD by the transition altitude | seconds both altimeters reached STD (1013.2 hPa) after the `transition_altitude` marker | ≤ 60 s |
 | 8 | Seat belt sign on for the descent | seconds off between the `transition_level` marker and block in | 0 |
@@ -111,11 +114,13 @@ passes it are below. All tolerances are Claude's proposals (D-160) and are meant
 Rules that apply to every check:
 
 - **Not checked** when its data isn't in the log (no PMDG headers, VREF never entered, no ATIS logged, no transition
-  marker on a short hop). A not-checked check counts neither way and the summary says why. The reason is stored with
+  marker on a short hop). On a 737 without PMDG data that includes the landing lights (checks 5 and 10), since
+  `LIGHT LANDING` misses the retractable ones. A not-checked check counts neither way and the summary says why. The reason is stored with
   the flight (section 7), so it's still shown once the log is gone.
 - **Stable approach parts** (check 11) are stored separately and shown separately, but score as one check: missed if any
   part is missed. A part whose data is missing is not checked; the rest still count.
-- **A go-around:** checks 10 and 11 use the approach that ended in the landing. The earlier approach is shown as
+- **A go-around:** checks 10 and 11 use the approach that ended in the landing (check 10's window starts again at
+  the go-around). The earlier approach is shown as
   information ("Went around at 600 ft") and never marked down.
 - **A diversion:** check 9 is not checked unless the ATIS logged is for the airport landed at.
 - **STD** is read as 1013.2 hPa on the millibar values, because `KOHLSMAN SETTING STD` never moves on PMDG
@@ -179,6 +184,8 @@ lands ★3: 100 − 30 − 8 = **62**. (The spike itself missed check 6: measure
   `effort` set explicitly (start at `medium`, tune with the replay tool), `max_tokens` 16,000, a timeout of about 5
   minutes. Server-side refusal fallbacks are on (`fallbacks: "default"`). A refusal, an HTTP error or a timeout stores
   nothing.
+- **A debrief that can't be measured or written never stops the flight settling** (as built, D-162): the money is
+  settled and the flight shows no debrief.
 - **One automatic try, at settling.** If it fails, the summary shows "Debrief not written" with the reason and a
   **Retry** button. The reason is kept only while the app runs; after a restart, or if the app closed while the call
   was running, a flight with checks and no review just shows "Debrief not written" and Retry. Nothing retries on its

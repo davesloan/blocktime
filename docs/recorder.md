@@ -228,7 +228,8 @@ At minimum (exact SimVar names to be confirmed against the MSFS 2020 SDK docs an
   ignored while paused), `pmdg` (whether PMDG's broadcast has arrived this session) and, only with it, `vref_kt`,
   `landing_flaps` and `autopilot`. With PMDG data the lights and seat belts come from it (the 737's seat belt SimVar
   never moves and `LIGHT LANDING` misses its retractable lights); without, from `LIGHT LANDING` and
-  `CABIN SEATBELTS ALERT SWITCH`. It carries the `flight_id` while a flight is open.
+  `CABIN SEATBELTS ALERT SWITCH`. It carries the `flight_id` while a flight is open, and one is written at block out
+  whatever changed, so each flight's log holds the cockpit state at the push.
 - `touchdown` also carries `sim_pitch_deg` (raw `PLANE PITCH DEGREES`: the SDK documents nose up as negative, unverified),
   `bank_deg`, `heading_true_deg`, `wind_dir_deg` and `wind_kt` (true, from `AMBIENT WIND DIRECTION` and `VELOCITY`) of
   the first frame on the ground. Fast sampling stays on for 15 s after the first contact, then a `bounces` event counts

@@ -2484,6 +2484,16 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
     show as not checked.
   - **The real-flight fixture** (`tests/data/flight-klas-ksan/`) is Dave's KLAS → KSAN leg in the 0.11.0 format, with
     cabin announcements and audio links removed; `tests/data/README.md` lists what the script added.
+  - From the final review:
+    - **a debrief that can't be measured or written never blocks settling**: the measurement runs in a try and the
+      write behind a savepoint, so the money settles and the flight shows no debrief;
+    - **the 737's landing lights are not checked without PMDG data** (checks 5 and 10), like its seat belt sign;
+    - **check 10's window starts again at a go-around**;
+    - **lights for takeoff are read 10 s into the roll**, so lights switched on as thrust comes up count;
+    - **the pitch is stored raw** (`sim_pitch_tenths`) and flipped in the scoring, so a wrong guess about the sim's
+      sign is one constant and every flight re-scores;
+    - **a `cockpit` snapshot is written at block out**, so a long turnaround doesn't leave the push's state unknown;
+    - **Retry reads 30 days of logs**, as long as they're kept.
 - Why: Each settles something `docs/debrief.md` left to the builder.
 - Alternatives considered: the debrief beside the money on Live only (Flights would lack it); bounces inside the
   touchdown event (a 15 s delay on Live); the timeline from 30 minutes before block out (the previous leg's events read
