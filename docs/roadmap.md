@@ -154,9 +154,10 @@ Deepening the live flight comes first. Order agreed with Dave on 2026-11-24; eac
 
 ### Milestone 11 — Flight replay
 
-`docs/replay.md`, D-164 to D-167. A Replay button on every Flight Summary plays the flight on Live at 1×, 2×, 3× or
-10×, read-only, through a second `RecorderBridge` fed from the log. The test bench for the milestones below, and a
-`--replay … --grab` command so Claude Code can check panels itself. No sim test needed.
+`docs/replay.md`, D-164, D-166, D-167, D-175. A Replay button on every Flight Summary opens a second, read-only
+BlockTime window that plays the flight on Live at 1×, 2×, 3× or 10×, through a second `RecorderBridge` fed from the
+log. The test bench for the milestones below, and a `--replay … --at … --grab` command so Claude Code can check panels
+itself. No sim test needed.
 
 ### Milestone 12 — The dashboard header and status lines
 

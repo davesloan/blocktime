@@ -2528,7 +2528,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-165 — The replay feeds a second RecorderBridge from the log
 - Date: 2026-11-24
-- Status: Accepted
+- Status: Superseded by D-175 (the second bridge stays; it lives in its own process, not beside the real one)
 - Decided by: Dave + Claude
 - Area: app
 - Decision: A replay makes a new `RecorderBridge` (the same class, a second instance) and feeds it the flight's log
@@ -2559,7 +2559,8 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-167 — Replay's smaller calls
 - Date: 2026-11-24
-- Status: Accepted (in `docs/replay.md`, approved by Dave)
+- Status: Accepted (in `docs/replay.md`, approved by Dave); partly superseded by D-175 (Stop is Close, Back to Flights
+  is Close)
 - Decided by: Claude
 - Area: app
 - Decision:
@@ -2688,3 +2689,22 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   real flights, and he knows bugs can be found and fixed quickly. Sim time is slow (about 20 minutes to load).
   Extends D-099.
 - Alternatives considered: a sim test run per milestone, as through milestone 10.
+
+## D-175 — The replay runs as its own read-only process
+- Date: 2026-11-25
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: app
+- Decision: `BlockTime.exe --replay <flight>` is a separate process, like `--demo`: no recorder thread or mutex, no
+  `AirlineSession`, the airline database opened with `SQLITE_OPEN_READONLY`, and none of `FlightWatcher`,
+  `PlannedFlightModel`, `ReviewWriter` or the planner. Its window (`ReplayWindow.qml`) shows Live alone, with the
+  replay bar. The Replay button on a Flight Summary launches it as a second window. Kept from D-164 to D-167: a second
+  `RecorderBridge` fed through the `apply*` methods, the bridge's clock, the read-only planned flight, 1×/2×/3×/10×,
+  pause, skipped pauses, `--at` and `--grab`. Dropped: Live switching between bridges, a real block out stopping the
+  replay, Replay disabled while a flight is open, hiding live-only controls in replay mode, and the wiring test.
+- Why: A gut check before milestone 11 (Dave). The need is real: since D-174 a replay is how dashboard work gets
+  checked. But most of D-165's cost came from sharing a window with the real recorder, which Dave would almost never
+  do, and its hiding rules would grow with every later milestone. In its own process the replay is safe because the
+  writers are never built, and SQLite refuses a write anyway.
+- Alternatives considered: D-165 as designed (in-app); a command-line replay only, with no button or playback (D-164
+  rejected it; playback is cheap once the log reader exists).
