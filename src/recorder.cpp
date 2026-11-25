@@ -276,21 +276,6 @@ int Recorder::run(const std::atomic<bool>& stop) {
             if (const std::string line = flightLine(e); !line.empty()) observer.onLine(line, false);
         }
     };
-    // Every block event goes through here, so the tracker opens and closes with the flight.
-    const auto blockEvent = [&](BlockEvent e, const TelemetrySample* s) {
-        // The spot it happened at, from the loaded airports' parking (D-148).
-        if (auto* out = std::get_if<BlockOut>(&e)) out->parking = tracker.parkingAt(out->latDeg, out->lonDeg);
-        if (auto* in = std::get_if<BlockIn>(&e)) in->parking = tracker.parkingAt(in->latDeg, in->lonDeg);
-        logBlockEvent(outbox, observer, e);
-        if (const auto* out = std::get_if<BlockOut>(&e)) {
-            writeFlightEvents(tracker.onBlockOut(*out, target.get(), s ? s->indicatedAltitudeFt : 0));
-        } else if (const auto* in = std::get_if<BlockIn>(&e)) {
-            writeFlightEvents(tracker.onBlockIn(*in, s ? s->indicatedAltitudeFt : 0));
-        } else if (std::holds_alternative<FlightInterrupted>(e)) {
-            tracker.onFlightEnded();
-        }
-        if (simPtr) simPtr->setFastSampling(tracker.wantsFastSampling());
-    };
     // The cockpit state the debrief checks (D-159), written on change while connected; with the flight's id while one
     // is open. A new sim session starts it afresh.
     CockpitMonitor cockpit;
@@ -299,6 +284,26 @@ int Recorder::run(const std::atomic<bool>& stop) {
         if (!data) return;
         if (tracker.flightOpen()) (*data)["flight_id"] = tracker.flightId();
         log.write("cockpit", *data);
+    };
+    // Every block event goes through here, so the tracker opens and closes with the flight.
+    const auto blockEvent = [&](BlockEvent e, const TelemetrySample* s) {
+        // The spot it happened at, from the loaded airports' parking (D-148).
+        if (auto* out = std::get_if<BlockOut>(&e)) out->parking = tracker.parkingAt(out->latDeg, out->lonDeg);
+        if (auto* in = std::get_if<BlockIn>(&e)) in->parking = tracker.parkingAt(in->latDeg, in->lonDeg);
+        logBlockEvent(outbox, observer, e);
+        if (const auto* out = std::get_if<BlockOut>(&e)) {
+            writeFlightEvents(tracker.onBlockOut(*out, target.get(), s ? s->indicatedAltitudeFt : 0));
+            // The cockpit state at block out, with the flight's id (debrief, D-159).
+            if (auto snap = cockpit.snapshot(std::chrono::system_clock::now())) {
+                (*snap)["flight_id"] = tracker.flightId();
+                log.write("cockpit", *snap);
+            }
+        } else if (const auto* in = std::get_if<BlockIn>(&e)) {
+            writeFlightEvents(tracker.onBlockIn(*in, s ? s->indicatedAltitudeFt : 0));
+        } else if (std::holds_alternative<FlightInterrupted>(e)) {
+            tracker.onFlightEnded();
+        }
+        if (simPtr) simPtr->setFastSampling(tracker.wantsFastSampling());
     };
     // GSX's services, read whether or not a flight is open (D-073, D-138). A new sim session starts them afresh.
     GsxWatcher gsx;

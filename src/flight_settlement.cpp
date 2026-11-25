@@ -218,10 +218,19 @@ std::optional<SettledFlight> settleFlight(db::Database& db, const PlannedFlightV
         if (!service.run()) return fail(s.service + ": " + service.error());
     }
 
-    // The debrief's measurements (D-160): written once, with the flight.
-    if (!flown.lines.empty() &&
-        !writeMeasurements(db, flightId, measureFlight(flown.lines, settled.diverted), &message)) {
-        return fail("debrief: " + message);
+    // The debrief's measurements (D-160): written once, with the flight. The debrief is extra and the money isn't, so
+    // a measurement that can't be taken or written leaves the flight settled without one (behind a savepoint).
+    if (!flown.lines.empty()) {
+        std::optional<FlightMeasurements> measured;
+        try {
+            measured = measureFlight(flown.lines, settled.diverted);
+        } catch (const std::exception&) {
+            measured.reset();  // a log line the measurement can't read
+        }
+        if (measured && db.exec("SAVEPOINT debrief", &message)) {
+            if (!writeMeasurements(db, flightId, *measured, &message)) db.exec("ROLLBACK TO debrief");
+            db.exec("RELEASE debrief");
+        }
     }
 
     db::Statement ledger(db, "INSERT INTO ledger_line (category, posted_at, amount_cents) VALUES (?, ?, ?)");

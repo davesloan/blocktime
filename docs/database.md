@@ -523,7 +523,7 @@ The touchdown, one row per measured flight that logged one: `flight_id` (PK, FK 
 |---|---|---|
 | `vs_fpm`, `g_hundredths`, `bounces`, `ias_kt`, `wind_kt` | INTEGER | ≥ 0. The sink rate is positive; 1.47 G is 147 |
 | `heading_true_deg`, `wind_dir_deg` | INTEGER | 0–359, true, as the sim gives them |
-| `pitch_tenths`, `bank_tenths` | INTEGER NULL | nose up and right wing down positive; NULL only means not logged |
+| `sim_pitch_tenths`, `bank_tenths` | INTEGER NULL | the sim's pitch as logged (its sign is checked in the sim; the scoring flips it) and right wing down positive; NULL only means not logged |
 | `vref_kt` | INTEGER NULL | > 0; NULL only means not known (no PMDG data, or not entered in the FMC) |
 | `off_centreline_dm`, `off_heading_tenths` | INTEGER NULL | information only, never scored (D-122); NULL only means no runway was named |
 

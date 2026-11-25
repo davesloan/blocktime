@@ -31,6 +31,9 @@ constexpr int kStarBandsFpm[] = {240, 360, 600, 900, 1200};  // up to each: 5, 4
 constexpr int kCrosswindKt = 15;
 constexpr int kBankTenths = 50;
 constexpr int kPitchMaxTenths737 = 80, kPitchMaxTenths777 = 75;
+// PLANE PITCH DEGREES' sign: the SDK documents nose up as negative. Unverified until the milestone 10 sim check; if
+// it's wrong, flip this and every stored flight re-scores (D-160).
+constexpr int kSimPitchNoseUp = -1;
 constexpr int kVrefSpreadKt = 10;
 constexpr int kGCapTwo = 170, kGCapOne = 200;  // hundredths of G
 constexpr int kLandingPoints[] = {-30, -20, -14, -8, -4, 0};  // by stars, 0-5
@@ -202,7 +205,7 @@ private:
         stars -= f.bounces;
         if (f.bankTenths && std::abs(*f.bankTenths) > kBankTenths) --stars;
         const int pitchMax = m_.family == Family::B777 ? kPitchMaxTenths777 : kPitchMaxTenths737;
-        if (f.pitchTenths && (*f.pitchTenths < 0 || *f.pitchTenths > pitchMax)) --stars;
+        if (const auto pitch = pitchUpTenths(f); pitch && (*pitch < 0 || *pitch > pitchMax)) --stars;
         if (f.vrefKt && std::abs(f.iasKt - *f.vrefKt) > kVrefSpreadKt) --stars;
         if (f.gHundredths >= kGCapOne) stars = std::min(stars, 1);
         else if (f.gHundredths >= kGCapTwo) stars = std::min(stars, 2);
@@ -239,6 +242,11 @@ Averages averages(const std::vector<ScoredFlight>& newestFirst) {
         }
     }
     return {mean(scores), mean(scores10), mean(stars), mean(stars10)};
+}
+
+std::optional<int> pitchUpTenths(const LandingFacts& f) {
+    if (!f.simPitchTenths) return std::nullopt;
+    return kSimPitchNoseUp * *f.simPitchTenths;
 }
 
 std::string starsText(int stars) {

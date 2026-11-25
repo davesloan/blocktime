@@ -26,6 +26,7 @@ struct Point {
 using Series = std::vector<Point>;
 
 constexpr double kStdHpa = 1013.2;
+constexpr std::chrono::seconds kTakeoffLightsGrace{10};
 constexpr double kInHgToHpa = 33.8639;
 
 // When the thing happened: data.time if it has one (D-125's readers order by it), else the line's ts.
@@ -164,6 +165,8 @@ private:
         if (cockpit_.empty() || (m_.family == Family::B737 && !pmdg_)) return "no_pmdg_data";
         return nullptr;
     }
+    // So do the 737's landing lights: LIGHT LANDING misses its retractable ones (D-159).
+    const char* landingLightsMissing() const { return beltsMissing(); }
 
     void beacon() {
         if (!blockOut_ || telemetry_.empty() || !start_) return skip("beacon_late_s", "no_marker");
@@ -226,9 +229,12 @@ private:
             skip("takeoff_strobes", "no_marker");
             return skip("takeoff_landing_lights", "no_marker");
         }
-        put("takeoff_strobes", flag(stateAt(telemetry_, *t), "strobe") ? 1 : 0);
-        if (cockpit_.empty()) return skip("takeoff_landing_lights", "no_pmdg_data");
-        put("takeoff_landing_lights", flag(stateAt(cockpit_, *t), "landing_lights") ? 1 : 0);
+        // A few seconds' grace: the takeoff's time is back-dated to the start of the roll, and lights switched on as
+        // thrust comes up still count (cockpit lines are written at most once a second).
+        const Time by = *t + kTakeoffLightsGrace;
+        put("takeoff_strobes", flag(stateAt(telemetry_, by), "strobe") ? 1 : 0);
+        if (const char* r = landingLightsMissing()) return skip("takeoff_landing_lights", r);
+        put("takeoff_landing_lights", flag(stateAt(cockpit_, by), "landing_lights") ? 1 : 0);
     }
 
     void over250() {
@@ -266,10 +272,14 @@ private:
     }
 
     void landingLights() {
-        if (cockpit_.empty()) return skip("landing_lights_off_s", "no_pmdg_data");
+        if (const char* r = landingLightsMissing()) return skip("landing_lights_off_s", r);
         const auto below = marker("below_10000", true);
         if (!below || !touchdown_) return skip("landing_lights_off_s", "no_marker");
-        put("landing_lights_off_s", secondsWhere(cockpit_, *below + std::chrono::seconds(60), touchdown_->t,
+        // Only the approach that landed: after a go-around the window starts again (docs/debrief.md section 2).
+        Time from = *below + std::chrono::seconds(60);
+        for (const auto& [p, at] : phases_)
+            if (p == "go_around" && at <= touchdown_->t) from = std::max(from, at);
+        put("landing_lights_off_s", secondsWhere(cockpit_, from, touchdown_->t,
                                                  [](const nlohmann::json& d) { return !d.value("landing_lights", false); }));
     }
 
@@ -334,7 +344,7 @@ private:
         f.headingTrueDeg = whole(d.value("heading_true_deg", 0.0));
         f.windDirDeg = whole(d.value("wind_dir_deg", 0.0));
         f.windKt = whole(d.value("wind_kt", 0.0));
-        if (d.contains("sim_pitch_deg")) f.pitchTenths = whole(-d["sim_pitch_deg"].get<double>() * 10);
+        if (d.contains("sim_pitch_deg")) f.simPitchTenths = whole(d["sim_pitch_deg"].get<double>() * 10);
         if (d.contains("bank_deg")) f.bankTenths = whole(d["bank_deg"].get<double>() * 10);
         if (const nlohmann::json* cp = stateAt(cockpit_, touchdown_->t); pmdg_ && cp && number(cp, "vref_kt") > 0) {
             f.vrefKt = whole(number(cp, "vref_kt"));

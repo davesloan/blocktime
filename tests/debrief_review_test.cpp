@@ -119,3 +119,26 @@ TEST(DebriefReview, TimelineStartsWithThisFlight) {
     EXPECT_EQ(t.find("23:4"), std::string::npos);
     EXPECT_NE(t.find("no bounce after touchdown"), std::string::npos);
 }
+
+TEST(DebriefReview, NullFieldsFromSayIntentionsDontThrow) {
+    // SayIntentions sends null for fields it has no value for (seen for outgoing_message and the *_english ones).
+    ReviewInput in = input();
+    in.events.push_back({*parseUtc("2026-11-25T00:31:00.000Z"), "atc_exchange",
+                         nlohmann::json::parse(R"({"entry":{"id":2,"channel":null,"station_name":null,
+                             "incoming_message":null,"outgoing_message":"Say again?","stamp_zulu":null}})")});
+    in.events.push_back({*parseUtc("2026-11-25T00:31:05.000Z"), "atc_exchange",
+                         nlohmann::json::parse(R"({"entry":{"id":3,"channel":"COM1","station_name":null,
+                             "incoming_message":null,"outgoing_message":"Descend FL240.","stamp_zulu":null}})")});
+    in.events.push_back({*parseUtc("2026-11-25T00:31:10.000Z"), "atis",
+                         nlohmann::json::parse(R"({"icao":null,"letter":null,"role":"destination","text":null})")});
+    std::string body;
+    EXPECT_NO_THROW(body = buildReviewRequest(in));
+    const std::string user = nlohmann::json::parse(body)["messages"][0]["content"].get<std::string>();
+    EXPECT_EQ(user.find("Say again?"), std::string::npos);    // no channel: not known to be ATC
+    EXPECT_NE(user.find("ATC: Descend FL240."), std::string::npos);
+    ReviewAnswer a;
+    EXPECT_NO_THROW(a = parseReviewResponse(200, R"({"model":null,"stop_reason":null,"content":[{"type":null},
+        {"type":"text","text":"{\"summary\":\"x\",\"work_on\":[],\"landing\":\"\",\"atc\":\"\"}"}]})"));
+    ASSERT_TRUE(a.review);
+    EXPECT_EQ(a.review->model, "claude-opus-5-5");
+}

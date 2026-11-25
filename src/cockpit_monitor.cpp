@@ -38,6 +38,13 @@ std::optional<nlohmann::json> CockpitMonitor::due(TimePoint now) {
     return e;
 }
 
+std::optional<nlohmann::json> CockpitMonitor::snapshot(TimePoint now) {
+    if (!plain_) return std::nullopt;
+    last_ = current();
+    lastWritten_ = now;
+    return last_;
+}
+
 void CockpitMonitor::reset() {
     plain_.reset();
     pmdg_.reset();

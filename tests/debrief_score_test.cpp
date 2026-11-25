@@ -35,7 +35,7 @@ FlightMeasurements clean() {
     f.headingTrueDeg = 270;
     f.windDirDeg = 270;
     f.windKt = 10;
-    f.pitchTenths = 45;
+    f.simPitchTenths = -45;  // the sim's sign: nose up is negative
     f.bankTenths = 10;
     m.landing = f;
     return m;
@@ -135,19 +135,19 @@ TEST(DebriefScore, EachLandingDeduction) {
     m.landing->bankTenths = -51;
     EXPECT_EQ(*scoreFlight(m).stars, 4);
     m = clean();
-    m.landing->pitchTenths = 81;  // the 737's limit is 8°
+    m.landing->simPitchTenths = -81;  // 8.1° nose up: the 737's limit is 8°
     EXPECT_EQ(*scoreFlight(m).stars, 4);
     m.family = Family::B777;
-    m.landing->pitchTenths = 76;  // the 777's is 7.5°
+    m.landing->simPitchTenths = -76;  // the 777's is 7.5°
     EXPECT_EQ(*scoreFlight(m).stars, 4);
     m = clean();
-    m.landing->pitchTenths = -1;  // nose first
+    m.landing->simPitchTenths = 1;  // nose first
     EXPECT_EQ(*scoreFlight(m).stars, 4);
     m = clean();
     m.landing->iasKt = 151;
     EXPECT_EQ(*scoreFlight(m).stars, 4);
     m.landing->vrefKt.reset();  // no VREF: no speed rule
-    m.landing->pitchTenths.reset();
+    m.landing->simPitchTenths.reset();
     m.landing->bankTenths.reset();
     EXPECT_EQ(*scoreFlight(m).stars, 5);
 }
@@ -217,4 +217,12 @@ TEST(DebriefScore, AveragesLastTen) {
     EXPECT_NEAR(*a.starsLast10, 4, 1e-9);
     EXPECT_FALSE(averages({}).score);
     EXPECT_EQ(starsText(3), "★★★☆☆");
+}
+
+TEST(DebriefScore, PitchUpFromTheSimsSign) {
+    LandingFacts f;
+    f.simPitchTenths = -51;
+    EXPECT_EQ(pitchUpTenths(f), 51);
+    f.simPitchTenths.reset();
+    EXPECT_FALSE(pitchUpTenths(f));
 }

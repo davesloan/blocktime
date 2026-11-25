@@ -46,6 +46,9 @@ public:
     void onPmdg(const PmdgCockpit& p, TimePoint now);
     // The event's data when it changed since the last one written and at least 1 s has passed since then.
     std::optional<nlohmann::json> due(TimePoint now);
+    // The current state, changed or not (nullopt before the first plain sample): written at block out, so each
+    // flight's log holds the cockpit state however long ago it last changed (cockpit lines are change-based).
+    std::optional<nlohmann::json> snapshot(TimePoint now);
     void reset();  // a new sim session
 
 private:

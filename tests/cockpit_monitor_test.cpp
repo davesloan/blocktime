@@ -88,3 +88,16 @@ TEST(CockpitMonitor, NothingBeforeTheFirstSample) {
     CockpitMonitor m;
     EXPECT_FALSE(m.due(t0).has_value());
 }
+
+TEST(CockpitMonitor, SnapshotWritesTheCurrentStateEvenUnchanged) {
+    // At block out: the flight's log gets the cockpit state, however long ago it last changed.
+    CockpitMonitor m;
+    EXPECT_FALSE(m.snapshot(t0).has_value());
+    m.onPlain(plain(true, true), t0);
+    ASSERT_TRUE(m.due(t0).has_value());
+    const auto s = m.snapshot(t0 + 200ms);  // unchanged, and inside the once-a-second limit
+    ASSERT_TRUE(s.has_value());
+    EXPECT_EQ((*s)["landing_lights"], true);
+    EXPECT_EQ((*s)["seat_belts"], 2);
+    EXPECT_FALSE(m.due(t0 + 2s).has_value());  // nothing new after it
+}

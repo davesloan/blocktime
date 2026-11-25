@@ -42,4 +42,7 @@ Averages averages(const std::vector<ScoredFlight>& newestFirst);
 
 std::string starsText(int stars);  // "★★★☆☆"
 
+// The touchdown pitch, nose up positive, from the sim's value (LandingFacts::simPitchTenths). nullopt: not logged.
+std::optional<int> pitchUpTenths(const LandingFacts& f);
+
 }  // namespace blocktime

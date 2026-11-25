@@ -99,7 +99,7 @@ TEST(DebriefMeasure, KlasKsanFixture) {
     EXPECT_EQ(m.landing->vrefKt, 125);
     EXPECT_EQ(m.landing->windDirDeg, 330);
     EXPECT_EQ(m.landing->windKt, 9);
-    EXPECT_FALSE(m.landing->pitchTenths);  // not in the fixture's log
+    EXPECT_FALSE(m.landing->simPitchTenths);  // not in the fixture's log
     EXPECT_EQ(m.landing->offCentrelineDm, 27);
     EXPECT_EQ(m.landing->offHeadingTenths, 6);
 }
@@ -119,8 +119,11 @@ TEST(DebriefMeasure, NoCockpitPmdgFieldsSkipsBeltsAndVref) {
     EXPECT_EQ(skipReason(m, "belts_off_descent_s"), "no_pmdg_data");
     EXPECT_EQ(skipReason(m, "stable_landing_flaps"), "no_pmdg_data");
     EXPECT_EQ(skipReason(m, "stable_vref_offset_kt"), "no_pmdg_data");
-    EXPECT_EQ(*value(m, "stable_gear_down"), 1);       // the plain gear SimVar
-    EXPECT_GT(*value(m, "landing_lights_off_s"), 360);  // the plain landing light SimVar
+    EXPECT_EQ(*value(m, "stable_gear_down"), 1);  // the plain gear SimVar
+    // LIGHT LANDING misses the 737's retractable lights: without PMDG data they aren't judged.
+    EXPECT_EQ(skipReason(m, "landing_lights_off_s"), "no_pmdg_data");
+    EXPECT_EQ(skipReason(m, "takeoff_landing_lights"), "no_pmdg_data");
+    EXPECT_EQ(*value(m, "takeoff_strobes"), 1);
     ASSERT_TRUE(m.landing);
     EXPECT_FALSE(m.landing->vrefKt);
 }
@@ -184,4 +187,38 @@ TEST(DebriefMeasure, BeaconDeadlineIsTheEngineStartWhenEarlier) {
     EXPECT_EQ(m.family, Family::B777);
     EXPECT_EQ(*value(m, "beacon_late_s"), 60);
     EXPECT_FALSE(m.landing);
+}
+
+TEST(DebriefMeasure, LandingLightsAfterAGoAround) {
+    // Lights off on an abandoned approach don't count: the window starts at the go-around (00:46:00), and the lights
+    // came on at 00:46:38.
+    const auto m = measureFlight(with(fixture(), "2026-11-25T00:46:00.000Z", "phase_changed", {{"phase", "go_around"}}),
+                                 false);
+    EXPECT_NEAR(*value(m, "landing_lights_off_s"), 38, 1);
+}
+
+TEST(DebriefMeasure, TakeoffLightsHaveAGrace) {
+    // Landing lights switched on 5 s into the takeoff roll (00:05:11) still count as on for takeoff.
+    auto lines = fixture();
+    nlohmann::json late;
+    for (auto& l : lines) {
+        if (l.type == "cockpit" && formatUtc(l.ts).starts_with("2026-11-25T00:04:25")) {
+            late = l.data;
+            l.data["landing_lights"] = false;
+        }
+    }
+    ASSERT_FALSE(late.is_null());
+    const auto at = *parseUtc("2026-11-25T00:05:16.000Z");
+    lines.insert(std::find_if(lines.begin(), lines.end(), [&](const LogLine& l) { return l.ts > at; }),
+                 LogLine{at, "cockpit", late});
+    EXPECT_EQ(*value(measureFlight(lines, false), "takeoff_landing_lights"), 1);
+}
+
+TEST(DebriefMeasure, PitchIsStoredAsTheSimGivesIt) {
+    auto lines = fixture();
+    for (auto& l : lines)
+        if (l.type == "touchdown") l.data["sim_pitch_deg"] = -5.06;
+    const auto m = measureFlight(lines, false);
+    ASSERT_TRUE(m.landing);
+    EXPECT_EQ(m.landing->simPitchTenths, -51);  // raw: the sign is the sim's (D-158, checked in the sim)
 }

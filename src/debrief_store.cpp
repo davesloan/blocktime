@@ -54,7 +54,7 @@ bool writeMeasurements(db::Database& db, std::int64_t flightId, const FlightMeas
     if (m.landing) {
         const LandingFacts& f = *m.landing;
         db::Statement landing(db, "INSERT INTO flight_landing (flight_id, vs_fpm, g_hundredths, bounces, ias_kt,"
-                                  " heading_true_deg, wind_dir_deg, wind_kt, pitch_tenths, bank_tenths, vref_kt,"
+                                  " heading_true_deg, wind_dir_deg, wind_kt, sim_pitch_tenths, bank_tenths, vref_kt,"
                                   " off_centreline_dm, off_heading_tenths) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         landing.bind(1, flightId);
         int i = 2;
@@ -62,7 +62,7 @@ bool writeMeasurements(db::Database& db, std::int64_t flightId, const FlightMeas
                       (f.windDirDeg % 360 + 360) % 360, f.windKt}) {
             landing.bind(i++, static_cast<std::int64_t>(v));
         }
-        for (const auto& v : {f.pitchTenths, f.bankTenths, f.vrefKt, f.offCentrelineDm, f.offHeadingTenths}) {
+        for (const auto& v : {f.simPitchTenths, f.bankTenths, f.vrefKt, f.offCentrelineDm, f.offHeadingTenths}) {
             bindOptional(landing, i++, v);
         }
         if (!landing.run()) return fail("landing: " + landing.error());
@@ -81,7 +81,7 @@ std::map<std::string, FlightMeasurements> loadMeasurements(db::Database& db) {
                             " JOIN flight f USING (flight_id)");
     while (skips.next()) out[skips.text(0)].skipped.push_back({skips.text(1), skips.text(2)});
     db::Statement landings(db, "SELECT f.log_flight_id, vs_fpm, g_hundredths, bounces, ias_kt, heading_true_deg,"
-                               " wind_dir_deg, wind_kt, pitch_tenths, bank_tenths, vref_kt, off_centreline_dm,"
+                               " wind_dir_deg, wind_kt, sim_pitch_tenths, bank_tenths, vref_kt, off_centreline_dm,"
                                " off_heading_tenths FROM flight_landing l JOIN flight f USING (flight_id)");
     while (landings.next()) {
         LandingFacts f;
@@ -92,7 +92,7 @@ std::map<std::string, FlightMeasurements> loadMeasurements(db::Database& db) {
         f.headingTrueDeg = static_cast<int>(landings.integer(5));
         f.windDirDeg = static_cast<int>(landings.integer(6));
         f.windKt = static_cast<int>(landings.integer(7));
-        f.pitchTenths = optionalInt(landings, 8);
+        f.simPitchTenths = optionalInt(landings, 8);
         f.bankTenths = optionalInt(landings, 9);
         f.vrefKt = optionalInt(landings, 10);
         f.offCentrelineDm = optionalInt(landings, 11);

@@ -61,7 +61,10 @@ struct LandingFacts {
     int bounces = 0;
     int iasKt = 0;
     int headingTrueDeg = 0, windDirDeg = 0, windKt = 0;  // the sim's, true
-    std::optional<int> pitchTenths, bankTenths;           // nose up positive; nullopt: not logged
+    // PLANE PITCH DEGREES as the sim gives it, ×10 (the SDK documents nose up as negative; debrief_score.h flips it,
+    // so a wrong guess about the sign is fixed in one place and re-scores every flight). nullopt: not logged.
+    std::optional<int> simPitchTenths;
+    std::optional<int> bankTenths;                        // right wing down positive; nullopt: not logged
     std::optional<int> vrefKt;                            // nullopt: not set or no PMDG data
     std::optional<int> offCentrelineDm, offHeadingTenths;  // information only (D-122); nullopt: no runway named
 };

@@ -12,6 +12,7 @@
 #include "debrief_score.h"
 #include "debrief_store.h"
 #include "flight_events.h"
+#include "flight_history.h"
 
 using namespace blocktime;
 
@@ -61,7 +62,7 @@ void ReviewWriter::start(const QString& logFlightId) {
     }
 
     ReviewInput in;
-    in.events = loadFlightEvents(logDir_, id);
+    in.events = loadFlightEvents(logDir_, id, kFlightHistoryFiles);  // logs are kept 30 days
     if (in.events.empty()) return finish(logFlightId, "The flight's event log is gone");
     const auto measured = loadMeasurements(db_);
     in.measurements = measured.at(id);
@@ -80,10 +81,18 @@ void ReviewWriter::start(const QString& logFlightId) {
         }
     }
 
+    // The request is built from logged data (some of it SayIntentions'); a line it can't read becomes a reason, not a
+    // crash on the UI thread.
+    std::string body;
+    try {
+        body = buildReviewRequest(in);
+    } catch (const std::exception&) {
+        return finish(logFlightId, "Couldn't build the request from the flight's log");
+    }
     writing_.insert(logFlightId);
     errors_.erase(logFlightId);
     emit reviewChanged(logFlightId);
-    client_.write(buildReviewRequest(in), [this, logFlightId](int status, QByteArray body, QString) {
+    client_.write(std::move(body), [this, logFlightId](int status, QByteArray body, QString) {
         // A network error's text can quote the URL or the host; say only that it failed.
         if (status == 0) return finish(logFlightId, "Couldn't reach Claude");
         ReviewAnswer a = parseReviewResponse(status, body.toStdString());

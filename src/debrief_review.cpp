@@ -251,7 +251,7 @@ std::string buildReviewRequest(const ReviewInput& in) {
         user += std::format("\nLanding: {} of 5 stars. {} fpm, {}.{:02} G, {} bounce(s), {} kt", *scored.stars, f->vsFpm,
                             f->gHundredths / 100, f->gHundredths % 100, f->bounces, f->iasKt);
         if (f->vrefKt) user += std::format(" (VREF {} kt)", *f->vrefKt);
-        if (f->pitchTenths) user += std::format(", pitch {:.1f}°", *f->pitchTenths / 10.0);
+        if (const auto pitch = pitchUpTenths(*f)) user += std::format(", pitch {:.1f}° nose up", *pitch / 10.0);
         if (f->bankTenths) user += std::format(", bank {:.1f}°", *f->bankTenths / 10.0);
         user += std::format(", wind {:03}° at {} kt ({} kt across the runway)\n", f->windDirDeg, f->windKt,
                             scored.crosswindKt.value_or(0));
@@ -263,20 +263,23 @@ std::string buildReviewRequest(const ReviewInput& in) {
     user += "\nATC exchanges (UTC; \"Pilot\" is Dave's side, spoken by him or his AI co-pilot):\n";
     std::set<long long> seen;
     for (const LogLine& l : in.events) {
-        if (l.type != "atc_exchange" || !l.data.contains("entry")) continue;
+        // SayIntentions sends null for fields it has no value for: str() reads those as "".
+        if (l.type != "atc_exchange" || !l.data.contains("entry") || !l.data["entry"].is_object()) continue;
         const auto& e = l.data["entry"];
-        if (e.value("channel", "").rfind("COM", 0) != 0) continue;  // cabin crew and PA are on INTERCOM
+        if (str(e, "channel").rfind("COM", 0) != 0) continue;  // cabin crew and PA are on INTERCOM
         const long long id = e.contains("id") && e["id"].is_number() ? e["id"].get<long long>() : -1;
         if (id >= 0 && !seen.insert(id).second) continue;
-        const std::string at = e.value("stamp_zulu", "").size() >= 19 ? e.value("stamp_zulu", "").substr(11, 8)
-                                                                       : hhmmss(l.ts);
+        const std::string stamp = str(e, "stamp_zulu");
+        const std::string at = stamp.size() >= 19 ? stamp.substr(11, 8) : hhmmss(l.ts);
         if (e.contains("incoming_message") && e["incoming_message"].is_string() &&
             !e["incoming_message"].get<std::string>().empty()) {
             user += at + " Pilot: " + e["incoming_message"].get<std::string>() + "\n";
         }
         if (e.contains("outgoing_message") && e["outgoing_message"].is_string() &&
             !e["outgoing_message"].get<std::string>().empty()) {
-            user += at + " " + e.value("station_name", "ATC") + ": " + e["outgoing_message"].get<std::string>() + "\n";
+            const std::string station = str(e, "station_name");
+            user += at + " " + (station.empty() ? std::string("ATC") : station) + ": " +
+                    e["outgoing_message"].get<std::string>() + "\n";
         }
     }
 
@@ -284,9 +287,9 @@ std::string buildReviewRequest(const ReviewInput& in) {
     std::set<std::string> letters;
     for (const LogLine& l : in.events) {
         if (l.type != "atis") continue;
-        const std::string key = l.data.value("icao", "") + l.data.value("letter", "");
-        if (!letters.insert(key).second) continue;
-        user += std::format("{} ({}): {}\n", l.data.value("icao", ""), l.data.value("role", ""), l.data.value("text", ""));
+        const std::string key = str(l.data, "icao") + str(l.data, "letter");
+        if (str(l.data, "text").empty() || !letters.insert(key).second) continue;
+        user += std::format("{} ({}): {}\n", str(l.data, "icao"), str(l.data, "role"), str(l.data, "text"));
     }
 
     user += "\nChecks missed on earlier flights:\n";
@@ -330,12 +333,15 @@ ReviewAnswer parseReviewResponse(int httpStatus, std::string_view body) {
     }
     const ReviewAnswer unreadable{std::nullopt, "Claude's answer wasn't readable"};
     if (!j.is_object()) return unreadable;
-    const std::string stop = j.value("stop_reason", "");
+    const std::string stop = str(j, "stop_reason");
     if (stop == "refusal") return {std::nullopt, "Claude declined to write it"};
     if (stop == "max_tokens") return {std::nullopt, "Claude's answer was cut off"};
     if (!j.contains("content") || !j["content"].is_array()) return unreadable;
     for (const auto& block : j["content"]) {
-        if (block.value("type", "") != "text" || !block.contains("text") || !block["text"].is_string()) continue;
+        if (!block.is_object() || str(block, "type") != "text" || !block.contains("text") ||
+            !block["text"].is_string()) {
+            continue;
+        }
         const auto r = nlohmann::json::parse(block["text"].get<std::string>(), nullptr, false);
         if (!r.is_object()) return unreadable;
         for (const char* key : {"summary", "landing", "atc"})
@@ -347,7 +353,7 @@ ReviewAnswer parseReviewResponse(int httpStatus, std::string_view body) {
         review.atc = r["atc"].get<std::string>();
         for (const auto& item : r["work_on"])
             if (item.is_string() && !item.get<std::string>().empty()) review.workOn.push_back(item.get<std::string>());
-        review.model = j.value("model", kReviewModel);
+        review.model = str(j, "model").empty() ? std::string(kReviewModel) : str(j, "model");
         return {review, ""};
     }
     return unreadable;

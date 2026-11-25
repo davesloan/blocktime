@@ -1861,3 +1861,13 @@ TEST_F(Debrief, SummaryShowsTheWrittenReview) {
     EXPECT_EQ(r["summary"].toString(), "A tidy flight.");
     EXPECT_EQ(r["workOn"].toStringList(), QStringList{"Beacon first"});
 }
+
+TEST_F(Debrief, RetryFindsALogOlderThanAWeek) {
+    // Logs are kept 30 days: a flight with eight newer daily logs can still be reviewed.
+    for (int day = 25; day <= 30; ++day) std::ofstream(dir_ / std::format("events-2026-11-{}.jsonl", day));
+    for (int day = 1; day <= 2; ++day) std::ofstream(dir_ / std::format("events-2026-12-0{}.jsonl", day));
+    ReviewWriter w(db_, dir_, client_);
+    w.retry(kDebriefFlight);
+    EXPECT_EQ(client_.bodies.size(), 1u);
+    EXPECT_EQ(w.error(kDebriefFlight), "");
+}

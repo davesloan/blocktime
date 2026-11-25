@@ -230,7 +230,9 @@ QVariantMap FlightListModel::debrief(const blocktime::FlightView& f) const {
                           l->bounces == 0   ? QStringLiteral("no bounce")
                           : l->bounces == 1 ? QStringLiteral("1 bounce")
                                             : QStringLiteral("%1 bounces").arg(l->bounces)};
-        if (l->pitchTenths) parts << QString::fromUtf8("pitch %1°").arg(*l->pitchTenths / 10.0, 0, 'f', 1);
+        if (const auto pitch = blocktime::pitchUpTenths(*l)) {
+            parts << QString::fromUtf8("pitch %1°").arg(*pitch / 10.0, 0, 'f', 1);
+        }
         if (l->bankTenths) parts << QString::fromUtf8("bank %1°").arg(std::abs(*l->bankTenths) / 10.0, 0, 'f', 1);
         if (l->vrefKt) {
             const int off = l->iasKt - *l->vrefKt;

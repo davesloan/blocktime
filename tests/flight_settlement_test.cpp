@@ -621,7 +621,7 @@ TEST_F(Settlement, WritesMeasurementsInTheTransaction) {
     ASSERT_TRUE(m.landing);
     EXPECT_EQ(m.landing->vsFpm, 591);
     EXPECT_EQ(m.landing->vrefKt, 125);
-    EXPECT_FALSE(m.landing->pitchTenths);
+    EXPECT_FALSE(m.landing->simPitchTenths);
     EXPECT_EQ(m.landing->offCentrelineDm, 27);
 }
 
@@ -636,17 +636,29 @@ TEST_F(Settlement, SkipsAreStoredWithTheirReason) {
     EXPECT_FALSE(m.landing);
 }
 
-TEST_F(Settlement, FailedSettleWritesNoMeasurements) {
+TEST_F(Settlement, DebriefFailureStillSettles) {
+    // The debrief is extra; the money isn't: a debrief that can't be written leaves the flight settled without one.
     copyFixture(dir_, planDelivery());
     ASSERT_TRUE(db_.exec("CREATE TRIGGER no_landing BEFORE INSERT ON flight_landing BEGIN"
                          " SELECT RAISE(ABORT, 'test'); END;"));
     std::string error;
-    EXPECT_FALSE(settleIfFlown(db_, dir_, Rates{}, &error).has_value());
-    EXPECT_NE(error, "");
-    EXPECT_EQ(count("flight"), 0);
+    EXPECT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    EXPECT_EQ(count("flight"), 1);
+    EXPECT_GT(count("flight_money_line"), 0);
     EXPECT_EQ(count("flight_debrief"), 0);
     EXPECT_EQ(count("flight_check_value"), 0);
-    EXPECT_EQ(count("ledger_line WHERE category = 'fuel'"), 0);
+}
+
+TEST_F(Settlement, MeasurementErrorStillSettles) {
+    // A line only the measurement reads, which it can't (a flag that isn't a bool), mustn't stop the flight settling.
+    const std::int64_t id = planDelivery();
+    writeLog({blockOut(kOut, id, 20000),
+              line("cockpit", R"({"flight_id":")" + std::string(kOut) + R"(","pmdg":"yes","seat_belts":2})"),
+              blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    std::string error;
+    EXPECT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    EXPECT_EQ(count("flight"), 1);
+    EXPECT_EQ(count("flight_debrief"), 0);
 }
 
 TEST_F(Settlement, ReviewStoredOnce) {

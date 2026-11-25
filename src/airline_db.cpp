@@ -321,7 +321,7 @@ CREATE TABLE flight_landing (
   heading_true_deg INTEGER NOT NULL CHECK (heading_true_deg BETWEEN 0 AND 359),
   wind_dir_deg INTEGER NOT NULL CHECK (wind_dir_deg BETWEEN 0 AND 359),
   wind_kt INTEGER NOT NULL CHECK (wind_kt >= 0),
-  pitch_tenths INTEGER,
+  sim_pitch_tenths INTEGER,
   bank_tenths INTEGER,
   vref_kt INTEGER CHECK (vref_kt IS NULL OR vref_kt > 0),
   off_centreline_dm INTEGER,
