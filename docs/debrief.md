@@ -167,7 +167,8 @@ lands ★3: 100 − 30 − 8 = **62**. (The spike itself missed check 6: measure
   - the flight in one line each: route, aircraft, block times, the planned cruise level;
   - a timeline of the flight's events: phases, markers, level-offs, `cockpit` changes, altimeter changes, liftoff,
     touchdown and the runways, plus derived lines (the state at 1,000 ft, the sink from 1,000 ft to touchdown, the
-    autopilot's disconnect when the PMDG data has it). As built, it opens at the engine start or block out with one
+    autopilot's disconnect when the PMDG data has it; in the air each cockpit change gives its height, and each spell
+    above 260 kt below 10,000 ft has its own line). As built, it opens at the engine start or block out with one
     line giving the cockpit state then: the 30-minute lead-in can reach the previous leg's landing (D-162);
   - each check with its measurement and result, and the landing with its stars;
   - the ATIS texts, once per letter;
@@ -192,7 +193,8 @@ lands ★3: 100 − 30 − 8 = **62**. (The spike itself missed check 6: measure
   own, so a failing call never spends money unseen.
 - **No key** in `settings.json` (`claude_api_key`): "Add a Claude API key to write debriefs", with the checks and
   scores shown anyway.
-- **Cost:** about 8,000–15,000 tokens in, 3,000–5,000 out (thinking included): $0.12–0.16 a flight.
+- **Cost:** estimated at 8,000–15,000 tokens in and 3,000–5,000 out ($0.12–0.16 a flight). **Measured** on the
+  KLAS → KSAN leg: about 6,000 in and 1,500–1,900 out, **about $0.05 a flight** (`docs/notes/claude-debrief.md`).
 
 ## 6. Where it shows
 

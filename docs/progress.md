@@ -73,9 +73,10 @@ Newest entries at the top. Add an entry at the end of every working session.
   It ran with `LOCALAPPDATA` pointed at the copy; the real `blocktime.db` is still schema 6.
 
 **Unverified or broken:**
-- **Never called the real API.** The headers, body and answer parsing are tested only against the documented shapes.
-  The first real review is in the sim test, or earlier with `blocktime-debrief --claude` (about $0.15) if Dave agrees.
-  Token counts and cost go in a new `docs/notes/claude-debrief.md` then.
+- **The real API works** (two calls with Dave's OK, `docs/notes/claude-debrief.md`): about 6,000 tokens in, 20 s,
+  **about $0.05 a flight**, and Dave's Max plan includes $100 of API credit a month. The first review guessed the
+  autopilot's height and put the 250 kt spell in the climb, so the timeline now gives heights for cockpit changes in
+  the air and a line per spell above 260 kt; the second review got both right.
 - **Sim checks** (form run `m10-debrief`):
   - the 737's retractable landing lights reach `landing_lights`;
   - the seat belt selector on both families;

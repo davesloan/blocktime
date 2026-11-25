@@ -142,3 +142,17 @@ TEST(DebriefReview, NullFieldsFromSayIntentionsDontThrow) {
     ASSERT_TRUE(a.review);
     EXPECT_EQ(a.review->model, "claude-opus-5-5");
 }
+
+TEST(DebriefReview, TimelineGivesHeightsAndSpeedSpells) {
+    // From the first real review: without these, Claude guessed the autopilot's height and put the 260 kt spell in
+    // the climb.
+    const std::string t = buildTimeline(fixture());
+    const auto ap = t.find("00:49:11 autopilot off at ");
+    ASSERT_NE(ap, std::string::npos) << t;
+    EXPECT_NE(t.substr(ap, 60).find("ft above the ground"), std::string::npos) << t.substr(ap, 60);
+    EXPECT_NE(t.find("landing lights on at "), std::string::npos);
+    const auto spell = t.find("above 260 kt below 10,000 ft for 1");
+    ASSERT_NE(spell, std::string::npos) << t;
+    EXPECT_EQ(t.substr(spell - 9, 5), "00:39") << t.substr(spell - 9, 80);
+    EXPECT_NE(t.substr(spell, 100).find("descending"), std::string::npos) << t.substr(spell, 100);
+}

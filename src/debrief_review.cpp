@@ -183,7 +183,12 @@ std::string buildTimeline(const std::vector<LogLine>& events) {
         if (start && when(l) < *start && l.type != "telemetry" && l.type != "cockpit") continue;
         if (auto text = eventText(l)) lines.push_back({when(l), *text});
         if (l.type == "cockpit") {
-            for (auto& c : cockpitChanges(lastCockpit, l.data)) lines.push_back({l.ts, std::move(c)});
+            // In the air, each change says how high it happened (the first real review guessed the autopilot's).
+            std::string height;
+            if (lastTel && !lastTel->value("on_ground", true)) {
+                height = std::format(" at {} ft above the ground", group(std::llround(lastTel->value("alt_agl_ft", 0.0) / 10) * 10));
+            }
+            for (auto& c : cockpitChanges(lastCockpit, l.data)) lines.push_back({l.ts, c + height});
             lastCockpit = &l.data;
         }
         if (l.type == "telemetry") {
@@ -202,6 +207,35 @@ std::string buildTimeline(const std::vector<LogLine>& events) {
             }
             lastTel = &d;
         }
+    }
+    // Each spell above 260 kt below 10,000 ft, with when, how long and which way (the 250 kt check's detail has no
+    // time, and the first real review put a descent's spell in the climb).
+    {
+        const LogLine* spellStart = nullptr;
+        double fastest = 0;
+        const auto close = [&](Time end) {
+            if (!spellStart) return;
+            const auto& d = spellStart->data;
+            lines.push_back({spellStart->ts,
+                             std::format("above 260 kt below 10,000 ft for {} s, {} through {} ft, fastest {} kt",
+                                         std::llround(std::chrono::duration<double>(end - spellStart->ts).count()),
+                                         d.value("vs_fpm", 0.0) < 0 ? "descending" : "climbing",
+                                         group(std::llround(d.value("alt_ind_ft", 0.0))), std::lround(fastest))});
+            spellStart = nullptr;
+        };
+        for (std::size_t i = first; i < events.size(); ++i) {
+            const LogLine& l = events[i];
+            if (l.type != "telemetry") continue;
+            const bool fast = !l.data.value("on_ground", true) && l.data.value("alt_ind_ft", 0.0) < 10000 &&
+                              l.data.value("ias_kt", 0.0) > 260;
+            if (fast && !spellStart) {
+                spellStart = &l;
+                fastest = 0;
+            }
+            if (fast) fastest = std::max(fastest, l.data.value("ias_kt", 0.0));
+            if (!fast) close(l.ts);
+        }
+        if (spellStart) close(events.back().ts);
     }
     // Condensed from the telemetry around the landing: the state at the 1,000 ft marker, then the sink to touchdown.
     if (finalApproach) {

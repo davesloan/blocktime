@@ -266,7 +266,7 @@ New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\BlockTime" | Out-Null; no
 | `simbrief_user_id` | Importing your latest SimBrief plan. Your Pilot ID, on SimBrief's Account Settings page. Not the first part of an airframe's Internal ID (`docs/notes/simbrief-api.md`) |
 | `sayintentions_api_key` | The active runways for planning. Your pilot API key, on your SayIntentions portal account page |
 | `sayintentions_developer_key` | The same. Request a personal developer key at https://p2.sayintentions.ai/p2/#developer-key (`docs/notes/sayintentions-api.md`) |
-| `claude_api_key` | Claude's written review in each flight's debrief (D-156). An API key from the Anthropic Console (https://console.anthropic.com), billed to that account: about $0.12–0.16 a flight on Claude Opus 5.5. Without it the checks, score and landing stars still show |
+| `claude_api_key` | Claude's written review in each flight's debrief (D-156). An API key from the Anthropic Console (https://console.anthropic.com), billed to that account: about $0.05 a flight on Claude Opus 5.5 (`docs/notes/claude-debrief.md`). Without it the checks, score and landing stars still show |
 
 Without the SayIntentions keys, planning still works and SimBrief chooses the runways. The keys are never logged.
 
