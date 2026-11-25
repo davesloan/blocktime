@@ -99,7 +99,8 @@ add_library(blocktime-core STATIC
   src/telemetry_filter.cpp
   src/touchdown_capture.cpp
   src/cockpit_monitor.cpp
-  src/flight_events.cpp)
+  src/flight_events.cpp
+  src/debrief_measure.cpp)
 target_include_directories(blocktime-core PUBLIC src)
 find_package(yaml-cpp CONFIG REQUIRED)
 target_link_libraries(blocktime-core PUBLIC blocktime-options nlohmann_json::nlohmann_json unofficial::sqlite3::sqlite3
@@ -191,7 +192,8 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/gsx_watcher_test.cpp
     tests/gsx_timeline_test.cpp
     tests/cockpit_monitor_test.cpp
-    tests/flight_events_test.cpp)
+    tests/flight_events_test.cpp
+    tests/debrief_measure_test.cpp)
   target_link_libraries(blocktime-tests PRIVATE blocktime-core GTest::gtest_main)
   # Tests read the repo's config files (config/catalog.yaml, config/airline.example.yaml).
   target_compile_definitions(blocktime-tests PRIVATE BLOCKTIME_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
