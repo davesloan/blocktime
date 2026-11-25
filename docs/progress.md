@@ -22,6 +22,36 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-24 — Milestone 9 sim test: two BBJ2 legs, KSFO → KLAS → KSAN
+
+**Done:**
+- Dave flew both legs with the sim checks form (run `m9-gates`): 16 of 18 steps passed, 2 failed (s04, s16). Results
+  read back from the form and checked against the event log. Findings are in `docs/notes/sayintentions-api.md` and
+  `docs/notes/msfs-observed-behaviour.md`.
+
+**Working / verified:**
+- Status tiles (brake, engines), the Mach tile (on at M.70 at FL229, back to knots in the descent), parking names at
+  block out and in ("Gate D6", "Gate E7", "Gate 5"), the summary's "Parked at", and the next load-in spot at KLAS
+  and KSAN.
+- Approach at flaps 1 on leg 2 (within 2 s). Both flap SimVars follow the PMDG 737 lever.
+- `lined_up`: KLAS 08R at 4.8 nm (Dave's tap: within 5 s), KSAN 27 at 10.0 nm. Short final at 1,000 ft to touchdown
+  both legs.
+- The arrival gate flow end to end: SayIntentions' gate read in cruise, BlockTime's pick sent, read back.
+
+**Unverified or broken:**
+- **Gate assignment picks unusable spots (s16 failed).** "Closest to the landing runway" chose KLAS "Gate 239", a
+  mid-field stand, and KSAN "Parking 70", which the scenery shows as a construction zone. Dave wants to talk about
+  gate assignment before it changes.
+- **A send that SayIntentions ignores still says "assigned".** At KLAS, `assignGate("239")` gave no error but
+  SayIntentions kept E7A; Live said "Arrival gate: Gate 239" while ATC sent Dave to E7A.
+- **Leg 1's Approach started 82 s before flaps 1**, 16 nm out, on the 3,000 ft AGL fallback over the ridge south-west
+  of KLAS.
+- s04: no `assigned_gate` in flightJSON before pushback (it appears once SayIntentions picks, in cruise). Not a bug.
+- `getAirport` returns `[]`: the probe can go.
+
+**Next step:**
+- Dave's call on gate assignment and the AGL fallback, then fix, test and push `main` (D-121).
+
 ## 2026-11-24 — Dashboard brainstorm (after the MVP), no code
 
 **Done:**

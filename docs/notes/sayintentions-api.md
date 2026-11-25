@@ -94,6 +94,18 @@ Sources:
   SayIntentions' gate counts only when `assigned_gate_lat/lon` are within 5 km of the destination: what
   `assigned_gate` holds before departure hasn't been read yet (it may be the departure gate). Milestone 9's sim test
   reads it at the gate.
+- **Seen in milestone 9's sim test (2026-11-24, N814SX KSFO→KLAS→KSAN, 0.10.0):**
+  - Before pushback at KSFO, Dave found no `assigned_gate` in flightJSON. SayIntentions fills it in only once it picks
+    the arrival gate (in cruise both legs: 22:45Z, 8 min after reaching FL390; 00:21Z, 30 s after reaching FL360).
+  - **`assignGate` answers without an error even when it changes nothing.** KLAS: BlockTime sent "239" (MSFS's
+    "Gate 239", a stand mid-field by 08R); no error, but `getParking` still read back "E7A" and ATC kept Terminal 3
+    Gate E7A. KSAN: BlockTime sent "70" (MSFS's "Parking 70", a GA ramp); SayIntentions took it and named it
+    "Gate 106" (`getParking` "106"), replacing its own Terminal 2 East Gate 27. So a send counts as accepted only when
+    the read-back changes.
+  - **MSFS's parking data lists spots the scenery doesn't have.** KSAN's Parking 70 (32.7320, -117.1900, type 4, radius
+    24 m) sits in what the KSAN scenery shows as a construction zone: no stands, obstacles on the ground. The facility
+    data gives no hint of this.
+  - **`getAirport` returned `[]`** for both KLAS and KSAN: no gates, no frequencies. Not useful as called.
 - **getCommsHistory** (milestone 10, the ATC log for D-040): `GET .../sapi/getCommsHistory?api_key=&since_id=`.
   Returns `flight_id` and `comm_history[]` (`stamp_zulu`, `frequency`, `station_name`, `incoming_message` from the
   pilot, `outgoing_message` from ATC, English versions, audio URLs). **Current flight only**: it can't be fetched

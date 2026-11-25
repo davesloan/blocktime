@@ -3,6 +3,18 @@
 These facts come from BlockTime Recorder logs. Each entry says when and with what it was seen. Add new
 observations at the top.
 
+## 2026-11-24: PMDG 737-800 BBJ2 N814SX, KSFO → KLAS → KSAN (recorder 0.10.0)
+
+- **Both flap SimVars follow the PMDG 737 lever.** `FLAPS HANDLE INDEX` steps 0, 1, 2, 3, 4 with the detents (it
+  reads the position the lever passes through, so a quick 1 → 5 shows 2 and 3 for a second each).
+  `TRAILING EDGE FLAPS LEFT PERCENT` follows the surface: it climbs about 1.4 % a second after flaps 1 and stops at
+  22.2 % for flaps 1. One stray 0.43 % sample came 7 s before the lever moved. BlockTime's "flaps out" (above 1 %)
+  fired within 1-3 s of the lever both legs.
+- **3,000 ft AGL is reached early over mountains.** On the KLAS arrival from the south-west, the ridge put the BBJ2 at
+  2,809 ft AGL at 8,076 ft MSL, 16 nm from the field, so Approach started on AGL 82 s before flaps 1.
+- **`AIRSPEED MACH`** passed 0.700 at FL229 in the 737's 307 kt climb.
+- MSFS's KSAN parking data lists a ramp (Parking 70) that the scenery shows as a construction zone.
+
 ## 2026-11-24: PMDG 777-300ER N916SX, KSAN → KSLC with a go-around (recorder 0.8.0)
 
 - **The level detector reads indicated altitude, and the 777 captures a level slowly:** the last 100 ft to FL370 took
