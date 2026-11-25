@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <chrono>
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -110,4 +111,11 @@ TEST(Redact, RedactsEverySecret) {
     EXPECT_EQ(redact("GET ?api_key=pilot&key=carto X-Developer-Key: dev", {"pilot", "carto", "dev"}),
               "GET ?api_key=<key>&key=<key> X-Developer-Key: <key>");
     EXPECT_EQ(redact("nothing here", std::vector<std::string>{}), "nothing here");
+}
+
+TEST_F(AppSettings_, ReadsClaudeKeyAsSecret) {
+    const auto s = loadAppSettings(write("settings.json", R"({"carto_key":"c","claude_api_key":"sk-ant-test"})"));
+    EXPECT_EQ(s.claudeApiKey, "sk-ant-test");
+    const auto secrets = s.secrets();
+    EXPECT_NE(std::find(secrets.begin(), secrets.end(), "sk-ant-test"), secrets.end());
 }

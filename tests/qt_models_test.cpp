@@ -35,6 +35,11 @@
 #include "flight_settlement.h"
 #include "planned_flight.h"
 #include "planned_flight_model.h"
+#include "review_writer.h"
+#include "debrief_store.h"
+#include "rates.h"
+
+#include <nlohmann/json.hpp>
 #include "planner.h"
 #include "recorder_bridge.h"
 #include "test_airline.h"
@@ -1662,4 +1667,136 @@ TEST(RecorderBridge, EnginesRunningPerEngine) {
     s.mach = 0.6;
     b.applySample(s);
     EXPECT_FALSE(b.showMach());
+}
+
+// --- ReviewWriter: Claude's review, once after settling (D-161) ---------------------------------------------------
+
+namespace {
+
+constexpr const char* kDebriefFlight = "2026-11-24T23:53:16.837Z";
+constexpr const char* kTestKey = "sk-ant-test-123";
+
+class FakeReviewClient : public ReviewClient {
+public:
+    bool hasKey() const override { return key; }
+    void write(std::string body, std::function<void(int, QByteArray, QString)> done) override {
+        bodies.push_back(std::move(body));
+        pending = std::move(done);
+    }
+    void answer(int status, const std::string& body, const QString& networkError = {}) {
+        auto done = std::move(pending);
+        pending = nullptr;
+        done(status, QByteArray::fromStdString(body), networkError);
+    }
+
+    bool key = true;
+    std::vector<std::string> bodies;
+    std::function<void(int, QByteArray, QString)> pending;
+};
+
+const char* kGoodAnswer = R"({"model":"claude-opus-5-5","stop_reason":"end_turn","content":[{"type":"text",
+    "text":"{\"summary\":\"A tidy flight.\",\"work_on\":[\"Beacon first\"],\"landing\":\"Firm.\",\"atc\":\"\"}"}]})";
+
+// The KLAS-KSAN fixture settled as the planned flight: a measured flight with no review.
+class Debrief : public LiveFlight {
+protected:
+    void SetUp() override {
+        LiveFlight::SetUp();
+        std::ifstream in(BLOCKTIME_SOURCE_DIR "/tests/data/flight-klas-ksan/events-2026-11-24.jsonl", std::ios::binary);
+        std::ofstream out(dir_ / "events-2026-11-24.jsonl", std::ios::binary);
+        const std::string from = "\"planned_flight_id\":1,";
+        std::string l;
+        while (std::getline(in, l)) {
+            const auto at = l.find(from);
+            if (at != std::string::npos) {
+                l.replace(at, from.size(), "\"planned_flight_id\":" + std::to_string(plannedId_) + ",");
+            }
+            out << l << "\n";
+        }
+        out.close();
+        std::string error;
+        ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    }
+
+    std::int64_t reviews() {
+        db::Statement q(db_, "SELECT COUNT(*) FROM flight_review");
+        return q.next() ? q.integer(0) : -1;
+    }
+
+    FakeReviewClient client_;
+};
+
+}  // namespace
+
+TEST_F(Debrief, WritesOnceAfterSettling) {
+    ReviewWriter w(db_, dir_, client_);
+    EXPECT_EQ(w.state(kDebriefFlight), "missing");
+    int changes = 0;
+    QObject::connect(&w, &ReviewWriter::reviewChanged, [&](const QString& id) {
+        EXPECT_EQ(id, kDebriefFlight);
+        ++changes;
+    });
+    w.onSettled(kDebriefFlight);
+    ASSERT_EQ(client_.bodies.size(), 1u);
+    EXPECT_EQ(w.state(kDebriefFlight), "writing");
+    const auto body = nlohmann::json::parse(client_.bodies[0]);
+    EXPECT_NE(body["messages"][0]["content"].get<std::string>().find("KBFI → KSAN"), std::string::npos);
+    client_.answer(200, kGoodAnswer);
+    EXPECT_EQ(w.state(kDebriefFlight), "written");
+    EXPECT_EQ(reviews(), 1);
+    EXPECT_EQ(loadReviews(db_).at(kDebriefFlight).workOn, std::vector<std::string>{"Beacon first"});
+    EXPECT_EQ(changes, 2);  // writing, then written
+    w.onSettled(kDebriefFlight);  // already written: no second call
+    EXPECT_EQ(client_.bodies.size(), 1u);
+}
+
+TEST_F(Debrief, FailureStoresNothingAndKeepsReason) {
+    ReviewWriter w(db_, dir_, client_);
+    w.onSettled(kDebriefFlight);
+    client_.answer(529, R"({"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}})");
+    EXPECT_EQ(w.state(kDebriefFlight), "failed");
+    EXPECT_EQ(w.error(kDebriefFlight), "Claude: Overloaded");
+    EXPECT_EQ(w.error(kDebriefFlight).indexOf(kTestKey), -1);
+    EXPECT_EQ(reviews(), 0);
+}
+
+TEST_F(Debrief, NetworkErrorSaysOnlyThat) {
+    ReviewWriter w(db_, dir_, client_);
+    w.onSettled(kDebriefFlight);
+    client_.answer(0, "", "Host api.anthropic.com not found");
+    EXPECT_EQ(w.error(kDebriefFlight), "Couldn't reach Claude");
+}
+
+TEST_F(Debrief, RetryCallsAgain) {
+    ReviewWriter w(db_, dir_, client_);
+    w.onSettled(kDebriefFlight);
+    client_.answer(529, "{}");
+    w.retry(kDebriefFlight);
+    ASSERT_EQ(client_.bodies.size(), 2u);
+    w.retry(kDebriefFlight);  // already writing: ignored
+    EXPECT_EQ(client_.bodies.size(), 2u);
+    client_.answer(200, kGoodAnswer);
+    EXPECT_EQ(w.state(kDebriefFlight), "written");
+    EXPECT_EQ(w.error(kDebriefFlight), "");
+}
+
+TEST_F(Debrief, NoAutomaticCallForOldFlights) {
+    ReviewWriter w(db_, dir_, client_);  // e.g. after a restart: a measured flight with no review
+    EXPECT_EQ(w.state(kDebriefFlight), "missing");
+    EXPECT_TRUE(client_.bodies.empty());
+}
+
+TEST_F(Debrief, NoKeyMakesNoCall) {
+    client_.key = false;
+    ReviewWriter w(db_, dir_, client_);
+    w.onSettled(kDebriefFlight);
+    EXPECT_TRUE(client_.bodies.empty());
+    EXPECT_EQ(w.state(kDebriefFlight), "no_key");
+}
+
+TEST_F(Debrief, UnmeasuredFlightHasNoState) {
+    ReviewWriter w(db_, dir_, client_);
+    EXPECT_EQ(w.state("2020-01-01T00:00:00.000Z"), "none");
+    w.retry("2020-01-01T00:00:00.000Z");
+    EXPECT_TRUE(client_.bodies.empty());
 }

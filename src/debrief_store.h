@@ -31,6 +31,9 @@ struct StoredReview {
     std::vector<std::string> workOn;
 };
 
+bool isMeasured(db::Database& db, std::string_view logFlightId);  // has a flight_debrief row
+bool hasReview(db::Database& db, std::string_view logFlightId);
+
 // Every written review, by log_flight_id.
 std::map<std::string, StoredReview> loadReviews(db::Database& db);
 

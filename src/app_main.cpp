@@ -32,6 +32,8 @@
 
 #include "airline_session.h"
 #include "app_settings.h"
+#include "claude_reviewer.h"
+#include "review_writer.h"
 #include "error_log.h"
 #include "event_log.h"
 #include "fleet_table_model.h"
@@ -295,11 +297,16 @@ int main(int argc, char* argv[]) {
     NewFlightModel newFlight(planningDb, airlineIcao, blocktime::defaultRatesFile(), planner);
     PlannedFlightModel plannedFlight(planningDb, airlineIcao, planner, bridge, flightTarget, logDir,
                                      blocktime::defaultRatesFile());
+    // Claude's review of each settled flight (D-161): one automatic try after settling, then Retry on the summary.
+    ClaudeReviewer claude(settings.claudeApiKey);
+    ReviewWriter reviews(planningDb, logDir, claude);
+    QObject::connect(&reviews, &ReviewWriter::reviewChanged, [&] { flights.reload(); });
     // A flight settled: the airplane moved, money was posted and Flights has a new row (D-113).
-    QObject::connect(&plannedFlight, &PlannedFlightModel::settled, [&] {
+    QObject::connect(&plannedFlight, &PlannedFlightModel::settled, [&](const QString& logFlightId) {
         fleet.reset(airline.airplanes(), toQStringList(airline.notices()), fleetSummary());
         ledger.reset(airline.ledger(), airline.cash());
         flights.reload();
+        reviews.onSettled(logFlightId);
     });
     plannedFlight.checkFlown();  // a flight that ended while BlockTime was closed or crashed
     QObject::connect(&newFlight, &NewFlightModel::planned, &plannedFlight,

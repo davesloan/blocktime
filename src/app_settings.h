@@ -20,8 +20,10 @@ struct AppSettings {
     std::string cartoKey;  // "" means no map tiles
     // Planning (milestone 5). "" means not set. The two SayIntentions keys are secrets, like the CARTO key.
     std::string simbriefUserId, sayIntentionsApiKey, sayIntentionsDeveloperKey;
+    // Milestone 10 (D-161): the Claude API key for the debrief's review. A secret.
+    std::string claudeApiKey;
 
-    // The keys that must never reach a log: the non-empty ones of carto, SayIntentions pilot and developer.
+    // The keys that must never reach a log: the non-empty ones of carto, SayIntentions pilot and developer, Claude.
     std::vector<std::string> secrets() const;
 };
 

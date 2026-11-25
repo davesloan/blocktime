@@ -102,6 +102,18 @@ std::map<std::string, FlightMeasurements> loadMeasurements(db::Database& db) {
     return out;
 }
 
+bool isMeasured(db::Database& db, std::string_view logFlightId) {
+    db::Statement q(db, "SELECT 1 FROM flight_debrief JOIN flight USING (flight_id) WHERE log_flight_id = ?");
+    q.bind(1, logFlightId);
+    return q.next();
+}
+
+bool hasReview(db::Database& db, std::string_view logFlightId) {
+    db::Statement q(db, "SELECT 1 FROM flight_review JOIN flight USING (flight_id) WHERE log_flight_id = ?");
+    q.bind(1, logFlightId);
+    return q.next();
+}
+
 std::map<std::string, StoredReview> loadReviews(db::Database& db) {
     std::map<std::string, StoredReview> out;
     db::Statement reviews(db, "SELECT f.log_flight_id, summary, landing, atc, model, written_at FROM flight_review r"

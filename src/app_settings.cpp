@@ -34,12 +34,13 @@ AppSettings loadAppSettings(const std::filesystem::path& file) {
     read("simbrief_user_id", settings.simbriefUserId);
     read("sayintentions_api_key", settings.sayIntentionsApiKey);
     read("sayintentions_developer_key", settings.sayIntentionsDeveloperKey);
+    read("claude_api_key", settings.claudeApiKey);
     return settings;
 }
 
 std::vector<std::string> AppSettings::secrets() const {
     std::vector<std::string> out;
-    for (const std::string* key : {&cartoKey, &sayIntentionsApiKey, &sayIntentionsDeveloperKey}) {
+    for (const std::string* key : {&cartoKey, &sayIntentionsApiKey, &sayIntentionsDeveloperKey, &claudeApiKey}) {
         if (!key->empty()) out.push_back(*key);
     }
     return out;
