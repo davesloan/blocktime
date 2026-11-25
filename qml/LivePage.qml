@@ -17,7 +17,7 @@ Item {
     id: page
 
     required property RecorderBridge recorder
-    required property PlannedFlightModel plannedFlight
+    required property PlannedFlightDisplay plannedFlight
     required property FlightListModel flights
     required property ReviewWriter reviews
     required property string mapTileUrl

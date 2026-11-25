@@ -35,6 +35,7 @@
 #include "flight_settlement.h"
 #include "planned_flight.h"
 #include "planned_flight_model.h"
+#include "replay_planned_flight.h"
 #include "review_writer.h"
 #include "debrief_store.h"
 #include "rates.h"
@@ -1912,4 +1913,64 @@ TEST_F(Debrief, RetryFindsALogOlderThanAWeek) {
     w.retry(kDebriefFlight);
     EXPECT_EQ(client_.bodies.size(), 1u);
     EXPECT_EQ(w.error(kDebriefFlight), "");
+}
+
+// The replay's planned flight (D-175): built from the settled flight, it follows the replay bridge and writes nothing.
+namespace {
+
+PlannedFlightView replayView() {
+    PlannedFlightView v;
+    v.registration = "N814SX";
+    v.typeCode = "B737-BBJ2";
+    v.origin = "KLAS";
+    v.originName = "Harry Reid Intl";
+    v.destination = "KSAN";
+    v.destinationName = "San Diego Intl";
+    v.flightNumber = "1231";
+    v.kind = FlightKind::Vip;
+    v.cabins = {{"economy", 40}};
+    v.fuelPriceCentsPer100Lb = 4100;
+    v.plannedAt = "2026-11-24T22:00:00Z";
+    return v;
+}
+
+}  // namespace
+
+TEST(ReplayPlannedFlight, FollowsTheBridge) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(replayView(), "XLY", Rates{}, b, "2026-11-24T23:53:16.837Z");
+    EXPECT_TRUE(f.hasFlight());
+    EXPECT_EQ(f.state(), "replay");
+    EXPECT_EQ(f.stateText(), "Replay");
+    EXPECT_EQ(f.title(), QString::fromUtf8("XLY1231 · KLAS → KSAN"));
+    EXPECT_EQ(f.airplaneText(), QString::fromUtf8("N814SX · B737-BBJ2"));
+    EXPECT_EQ(f.notRecording(), "");
+
+    BlockOut out;
+    out.flightId = "2026-11-24T23:53:16.837Z";
+    out.time = *parseUtc(out.flightId);
+    b.applyBlockEvent(out);
+    EXPECT_EQ(f.state(), "flying");
+
+    BlockIn in;
+    in.flightId = out.flightId;
+    in.time = out.time + std::chrono::hours(1);
+    b.applyBlockEvent(in);
+    EXPECT_EQ(f.state(), "summary");
+    EXPECT_FALSE(f.hasFlight());
+    EXPECT_EQ(f.summaryFlightId(), "2026-11-24T23:53:16.837Z");
+}
+
+TEST(ReplayPlannedFlight, IsReadOnly) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(replayView(), "XLY", Rates{}, b, "2026-11-24T23:53:16.837Z");
+    EXPECT_TRUE(f.readOnly());
+    f.cancelFlight();
+    f.importPlan();
+    f.doneForNow();
+    EXPECT_TRUE(f.hasFlight());
+    EXPECT_EQ(f.message(), "");
+    EXPECT_FALSE(f.busy());
 }

@@ -16,7 +16,7 @@ import QtQuick.Layouts
 Card {
     id: panel
 
-    required property PlannedFlightModel flight
+    required property PlannedFlightDisplay flight
 
     property bool collapsed: false
 
@@ -172,8 +172,10 @@ Card {
                 color: Theme.textPrimary
             }
 
+            // Not on a replay's copy: it can't import, reopen SimBrief or cancel (D-175).
             RowLayout {
                 Layout.topMargin: Theme.gap4
+                visible: !panel.flight.readOnly
                 spacing: Theme.gap8
 
                 PrimaryButton {
