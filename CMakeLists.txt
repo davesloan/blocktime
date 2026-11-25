@@ -102,6 +102,7 @@ add_library(blocktime-core STATIC
   src/flight_events.cpp
   src/telemetry_json.cpp
   src/feed_text.cpp
+  src/flight_replay.cpp
   src/debrief_measure.cpp
   src/debrief_score.cpp
   src/debrief_store.cpp
@@ -200,6 +201,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/flight_events_test.cpp
     tests/telemetry_json_test.cpp
     tests/feed_text_test.cpp
+    tests/flight_replay_test.cpp
     tests/debrief_measure_test.cpp
     tests/debrief_score_test.cpp
     tests/debrief_review_test.cpp)

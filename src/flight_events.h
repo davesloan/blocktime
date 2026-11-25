@@ -34,5 +34,7 @@ inline constexpr std::chrono::minutes kFlightLeadIn{30};
 // when the flight has no block_in (interrupted, or not in these files).
 std::vector<LogLine> loadFlightEvents(const std::filesystem::path& logDir, std::string_view logFlightId,
                                       std::size_t maxFiles = kOpenFlightLookbackFiles);
+// The same over the given day files, oldest first.
+std::vector<LogLine> loadFlightEvents(const std::vector<std::filesystem::path>& files, std::string_view logFlightId);
 
 }  // namespace blocktime

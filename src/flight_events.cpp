@@ -15,7 +15,10 @@ std::vector<LogLine> loadFlightEvents(const std::filesystem::path& logDir, std::
                                       std::size_t maxFiles) {
     std::vector<std::filesystem::path> files = dailyLogFiles(logDir);
     if (files.size() > maxFiles) files.erase(files.begin(), files.end() - static_cast<std::ptrdiff_t>(maxFiles));
+    return loadFlightEvents(files, logFlightId);
+}
 
+std::vector<LogLine> loadFlightEvents(const std::vector<std::filesystem::path>& files, std::string_view logFlightId) {
     std::deque<LogLine> leadIn;  // the last kFlightLeadIn of lines before block out
     std::vector<LogLine> flight;
     bool open = false;
