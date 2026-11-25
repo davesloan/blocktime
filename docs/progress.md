@@ -22,6 +22,29 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-24 — Shaping the dashboard milestones: flight replay is milestone 11
+
+**Done:**
+- Brainstorm with Dave (no code): `docs/replay.md`, D-163 to D-168, roadmap's new "After the MVP: the dashboard".
+  - **Order (D-163):** 11 flight replay, 12 the dashboard header and status lines, 13 the Pre-Flight panel, then a
+    brainstorm for the in-flight panels, predictions and developer mode.
+  - **Replay (D-164, D-165):** a Replay button on every Flight Summary plays the flight on Live at 1×/2×/3×/10×, through
+    a second `RecorderBridge` fed from the log, read-only by its wiring. It replays today's dashboard code; recorder
+    rule changes show only on flights recorded after them.
+  - **Live's clock (D-166):** the bridge's `now`, never the wall clock.
+  - **ATC (D-168):** dashboard code reads `atc_exchange` through one plain form, so another ATC system (BeyondATC) could
+    be added later.
+- **Found:** SayIntentions' pre-departure clearance and taxi routes are already in the logged `atc_exchange` lines
+  (`notes/sayintentions-api.md`), so the Pre-Flight clearance card needs no probe flight.
+
+**Unverified or broken:**
+- Nothing new. Milestone 10's sim test (below) is still to fly.
+- `decisions.md` has two entries numbered D-150 (the dashboard names, and milestone 9's smaller calls). Left as is
+  (append-only); later references mean the dashboard one unless they say milestone 9.
+
+**Next step:**
+- Dave flies milestone 10's `m10-debrief` run. Milestone 11's plan waits until Dave is ready for it.
+
 ## 2026-11-24 — Milestone 10 built: procedure checks, landing stars and Claude's debrief (version 0.11.0)
 
 **Done:**

@@ -120,6 +120,10 @@ Sources:
     - Dave's own speech arrives as recognised text and can be garbled ("Compare Reservoir Insights, StockSate").
     - An instruction can come late: "maintain 5,300" arrived while Dave was already passing 5,262 ft on the
       published descent, so a level below it isn't necessarily a bust (why ATC compliance isn't scored, D-157).
+  - **The clearance is in it** (checked 2026-11-24 on the same log, D-163): Las Vegas Clearance on 118.0, "Cleared to
+    San Diego via the RADYR2 departure. Then as filed. Climb via the SID. Expect FL360 one-zero minutes after
+    departure. Departure on 125.9. Squawk 2546. Expect runway 8L". Ground's taxi routes are there too ("Runway 8L,
+    taxi via Yellow Taxilane, Spot 1, Charlie-2, Bravo, hold short runway 1R."). Spoken text, not fields.
   - **No local copy.** Checked 2026-11-23: SayIntentions' folders on Dave's PC hold no ATC text:
     - `%LOCALAPPDATA%\SayIntentions\SI-Telemetry\logs\si_telemetry.log` is the telemetry bridge's own log;
     - the rest is the client's WebView cache and a Stream Deck log.

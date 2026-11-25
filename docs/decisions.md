@@ -2498,3 +2498,95 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Alternatives considered: the debrief beside the money on Live only (Flights would lack it); bounces inside the
   touchdown event (a 15 s delay on Live); the timeline from 30 minutes before block out (the previous leg's events read
   as this flight's).
+
+## D-163 — After the MVP: replay first, then the dashboard in two milestones
+- Date: 2026-11-24
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: design
+- Decision: Milestone 11 is **flight replay** (`docs/replay.md`). Milestone 12 is the dashboard's header, status lines
+  and block in (D-151, D-152, D-154), with the plan's block-in time until the predictions exist. Milestone 13 is the
+  Pre-Flight panel (D-153). After that, a brainstorm for the in-flight panels, the predictions (TOD, block-in
+  estimate), developer mode and the short final view. **The clearance card needs no probe flight:** SayIntentions'
+  clearance is already in the logged `atc_exchange` lines ("Cleared to San Diego via the RADYR2 departure… Climb via
+  the SID… Departure on 125.9. Squawk 2546."), so milestone 13 reads it from there.
+- Why: Not every milestone needs the sim (Dave). With replay first, every dashboard change is checked against real
+  flights, on the desktop or the laptop.
+- Alternatives considered: the dashboard header first, checked only in the sim and with `--demo`'s made-up values.
+
+## D-164 — Replay from the Flight Summary, at 1×, 2×, 3× or 10×
+- Date: 2026-11-24
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: Every Flight Summary of a settled flight has a **Replay** button; the replay plays on Live at 1×, 2×, 3× or
+  10×, starting at 1× and changeable at any time, and can be stopped whenever. It works as long as the flight's log
+  files still exist. No jumping ahead in the app: speed covers long legs. It replays today's dashboard code, "so any
+  changes underneath are replayed correctly".
+- Why: A test and debugging tool for the dashboard; 10× turns a 10-hour leg into an hour.
+- Alternatives considered: a command-line replay only; jumping ahead to a phase.
+
+## D-165 — The replay feeds a second RecorderBridge from the log
+- Date: 2026-11-24
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: app
+- Decision: A replay makes a new `RecorderBridge` (the same class, a second instance) and feeds it the flight's log
+  lines through the same `apply*` methods `BridgeObserver` uses; Live binds to it while the replay runs. Live's planned
+  flight comes from a separate read-only class built from the settled flight and its stored plan, presenting the
+  properties Live reads. Nothing that writes or calls out (`FlightWatcher`, `PlannedFlightModel`, `ReviewWriter`, the
+  gate assigner) is connected to the replay bridge; a test replays a whole flight and checks the database, the log and
+  the network fakes are untouched. A real block out stops the replay, and Replay is disabled while a flight is open.
+- Why: Everything from the bridge up is today's code, and the replay is safe by its wiring, not by checks that a later
+  milestone could forget. One bridge class, because the bridge holds logic (stages, the Mach switch, the feed) that a
+  second class would copy.
+- Alternatives considered: re-running the recorder over the logged telemetry (the log lacks the frame samples, PMDG
+  broadcast, GSX variables and facility data it reads, so touchdown, GSX and the landing would replay wrong); one
+  bridge with a replay switch (every writer must check it); two bridge classes with one interface (Dave's idea, kept for
+  the planned flight model only).
+
+## D-166 — Live reads the time from its bridge, never the wall clock
+- Date: 2026-11-24
+- Status: Accepted
+- Decided by: Claude
+- Area: app
+- Decision: The bridge has a `now`: the wall clock on the real bridge, the replay time on a replay bridge.
+  `FlightPanel.qml`'s `Date.now()` and `EventFeedModel`'s wall-clock stamps move to it. From milestone 11 on, nothing
+  on Live reads the wall clock directly.
+- Why: At 10× the block clock, the feed and every later countdown (the clearance's 30 minutes, TOD) must run at the
+  replay's speed.
+- Alternatives considered: faking the system time for the app (affects everything, including the real recorder).
+
+## D-167 — Replay's smaller calls
+- Date: 2026-11-24
+- Status: Accepted (in `docs/replay.md`, approved by Dave)
+- Decided by: Claude
+- Area: app
+- Decision:
+  - It starts at the lead-in `loadFlightEvents` reads (up to 30 minutes before block out), so Pre-Flight and GSX replay.
+  - Pause / Resume next to the speeds; Stop goes back to the flight's summary on Flights.
+  - Stretches where the logged sim was paused are skipped.
+  - Times show as they happened that day; the block clock runs at the replay's speed.
+  - At block in the summary shows **Replay again** and **Back to Flights**; At Gate Turnaround, Done for now and the
+    debrief's Retry are hidden. The connection reads `Replay`.
+  - The log is found from the flight id (the block-out time): the day files from the lead-in to block in, not only
+    the last 7 or 30.
+  - Fields an older log lacks are left at zero or empty.
+  - `--replay <flight id> [--speed N] [--at <phase or mm:ss>] [--grab <file>]` for Claude Code; `--at` is the only
+    place a replay jumps ahead.
+  - The replay's tests use a full-format slice of the KLAS → KSAN leg (the debrief fixture strips position, fuel and
+    the title).
+  - A timer about every 50 ms, only while a replay runs.
+- Why: Each settles something the brainstorm left open.
+- Alternatives considered: starting at block out (Pre-Flight wouldn't replay); playing paused stretches in real time.
+
+## D-168 — Dashboard code reads ATC through one plain form
+- Date: 2026-11-24
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: app
+- Decision: `atc_exchange` keeps SayIntentions' entry verbatim; dashboard code reads it through one small function
+  that gives time, station, frequency and ATC's words, never SayIntentions' fields directly.
+- Why: Dave may connect another ATC system later (BeyondATC). ATC comes through `FlightWatcher` and the log, not the
+  bridge, so a second source would only have to fill that form.
+- Alternatives considered: reading SayIntentions' fields wherever they're needed.

@@ -2,7 +2,8 @@
 
 The design for the **Live Flight Screen**, called **the dashboard** for short, from the brainstorm with Dave on
 2026-11-24. It is the first piece of "deepening the live flight" (`roadmap.md`, after the MVP) and replaces today's
-three-column Live (D-139) when it's built. Nothing here is built yet. Decisions D-150 to D-154.
+three-column Live (D-139) when it's built. Nothing here is built yet. Decisions D-150 to D-154; built in milestones 12 and 13 (D-163), checked with replays
+(`replay.md`). Nothing on the dashboard reads the wall clock (D-166).
 
 Only the header, the pre-flight panel and the cruise draft are designed. The panels for departure, climb, descent,
 short final and arrival are for later brainstorms.
@@ -157,7 +158,11 @@ page switches to the summary at block in (D-134, `design.md` section 13.7); this
 
 ## Open before building
 
-- **What SayIntentions exposes.** The clearance (SID, initial altitude, squawk, departure frequency), the taxi route
+- **What SayIntentions exposes.** Found 2026-11-24 (D-163): the clearance and the taxi routes are already in the
+  logged `atc_exchange` lines (KLAS: "Cleared to San Diego via the RADYR2 departure. Then as filed. Climb via the SID.
+  Expect FL360 one-zero minutes after departure. Departure on 125.9. Squawk 2546. Expect runway 8L"), so the clearance
+  card reads them from there, as spoken text. Still open: the published frequencies.
+  Earlier note: the clearance (SID, initial altitude, squawk, departure frequency), the taxi route
   and the frequencies are only useful if BlockTime can read them. `notes/sayintentions-api.md`: the local
   `flightJSON` already has `atc_exchange` messages, routes and the arrival ATIS, but nothing confirmed for the
   clearance or frequencies. Needs a probe flight before the clearance card is promised. Fallback for published

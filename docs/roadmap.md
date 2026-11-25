@@ -148,6 +148,31 @@ Old milestone 7 and D-040: cockpit state for the analysis, the SayIntentions ATC
 the score and evaluation in the summary. As built: BlockTime's code measures twelve checks and the landing and computes
 the score and stars; Claude Opus 5.5 writes the review (D-156).
 
+## After the MVP: the dashboard (D-163)
+
+Deepening the live flight comes first. Order agreed with Dave on 2026-11-24; each still gets its own plan.
+
+### Milestone 11 — Flight replay
+
+`docs/replay.md`, D-164 to D-167. A Replay button on every Flight Summary plays the flight on Live at 1×, 2×, 3× or
+10×, read-only, through a second `RecorderBridge` fed from the log. The test bench for the milestones below, and a
+`--replay … --grab` command so Claude Code can check panels itself. No sim test needed.
+
+### Milestone 12 — The dashboard header and status lines
+
+`docs/dashboard.md`, D-151, D-152, D-154: the identity row, the route arc, the phase pill, the three status lines and
+the header staying at block in. Block-in time shows the plan's until the predictions exist. Checked on replays.
+
+### Milestone 13 — The Pre-Flight panel
+
+`docs/dashboard.md`, D-153: the load sheet, departure data and the clearance. The clearance is read from the logged
+`atc_exchange` lines (D-163), through one plain ATC form (D-168).
+
+### Then
+
+A brainstorm for the departure, climb, cruise, descent, short final and arrival panels, the predictions (D-120: TOD,
+the block-in estimate), and developer mode.
+
 ## After the MVP (not ordered)
 
 Rotations unlocked by flying (D-075) and background flying with catch-up (sections 7–8), the settings screen (airline, fleets, leasing, and managing the
