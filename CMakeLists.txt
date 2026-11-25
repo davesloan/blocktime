@@ -255,12 +255,15 @@ foreach(_qml IN LISTS BLOCKTIME_QML_FILES)
   set_source_files_properties("${_qml}" PROPERTIES QT_RESOURCE_ALIAS "${_name}")
 endforeach()
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+# The logo, for the sidebar: qrc:/qt/qml/BlockTime/blocktime.svg (Qt's svg image plugin is deployed already).
+set_source_files_properties(icons/blocktime.svg PROPERTIES QT_RESOURCE_ALIAS blocktime.svg)
 
-qt_add_executable(blocktime-app WIN32 src/app_main.cpp)
+qt_add_executable(blocktime-app WIN32 src/app_main.cpp src/blocktime.rc)  # the .rc holds the icon
 qt_add_qml_module(blocktime-app
   URI BlockTime
   VERSION 1.0
   QML_FILES ${BLOCKTIME_QML_FILES}
+  RESOURCES icons/blocktime.svg
   SOURCES
     src/event_feed_model.h src/event_feed_model.cpp
     src/recorder_bridge.h src/recorder_bridge.cpp

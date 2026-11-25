@@ -1,0 +1,8 @@
+// BlockTime
+// Copyright (C) 2026 Dave Sloan
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// The app's icon: Explorer shows it for BlockTime.exe, and Qt's Windows plugin loads IDI_ICON1 as the default icon of
+// every window, so the title bar and taskbar use it too.
+
+IDI_ICON1 ICON "../icons/blocktime.ico"

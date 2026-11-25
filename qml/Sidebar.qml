@@ -51,20 +51,13 @@ Rectangle {
             Layout.bottomMargin: Theme.gap8
             spacing: Theme.gap12
 
-            Rectangle {
+            // The app icon (icons/blocktime.svg), drawn at its pixel size so it stays sharp.
+            Image {
                 Layout.preferredWidth: Theme.logoSize
                 Layout.preferredHeight: Theme.logoSize
-                radius: Theme.radiusSmall
-                color: Theme.accent
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "B"
-                    color: Theme.textOnAccent
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeTitle
-                    font.weight: Font.Bold
-                }
+                source: "qrc:/qt/qml/BlockTime/blocktime.svg"
+                sourceSize.width: Theme.logoSize
+                sourceSize.height: Theme.logoSize
             }
 
             Column {

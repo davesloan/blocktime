@@ -2590,3 +2590,18 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: Dave may connect another ATC system later (BeyondATC). ATC comes through `FlightWatcher` and the log, not the
   bridge, so a second source would only have to fill that form.
 - Alternatives considered: reading SayIntentions' fields wherever they're needed.
+
+## D-169 — The app icon
+- Date: 2026-11-25
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: app
+- Decision: Dave's logo (a blue arc with a white pointer on a dark rounded square) is the app icon. It lives in
+  `icons/` as `blocktime.ico` and `blocktime.svg`. `src/blocktime.rc` puts the .ico in `BlockTime.exe` as
+  `IDI_ICON1`, which Qt's Windows plugin also uses for every window's title bar and taskbar icon, so no
+  `setWindowIcon` call. The sidebar's brand mark draws the .svg (a resource of the QML module) in place of the
+  "B" placeholder. The console tools (`blocktime-import`, `blocktime-debrief`) get no icon.
+- Why: One file per format, from Dave; the .rc is the only way to give the .exe itself an icon, and Qt's default
+  covers the windows. Qt's svg image plugin is already in the Qt kit and deployed by windeployqt.
+- Alternatives considered: a PNG for the sidebar (blurry at some scales); `QGuiApplication::setWindowIcon`
+  (redundant with IDI_ICON1).

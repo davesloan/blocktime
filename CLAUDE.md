@@ -197,6 +197,7 @@ CMakeLists.txt       ← the one build (CMakePresets.json, vcpkg.json next to it
 config/              ← catalog.yaml and airline.example.yaml (copied to %LOCALAPPDATA%\BlockTime)
 src/                 ← C++: recorder, airline logic, Qt models, app_main.cpp, import_main.cpp (blocktime-import)
 qml/                 ← the QML interface (Theme.qml holds the look)
+icons/               ← the app icon (.ico for the exe, .svg for the sidebar; D-169)
 tests/               ← GoogleTest: blocktime-tests (plain C++) and blocktime-qt-tests (Qt models)
 docs/
   README.md          ← index of all docs

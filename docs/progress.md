@@ -22,6 +22,22 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-25 — The app icon
+
+**Done:**
+- Dave's logo is the app icon (D-169): `icons/blocktime.ico` and `icons/blocktime.svg`, embedded in `BlockTime.exe`
+  through `src/blocktime.rc`, and drawn in the sidebar in place of the "B" placeholder.
+
+**Working / verified:**
+- Debug build with no warnings, qmllint quiet. Explorer's icon read back from `BlockTime.exe` is the logo; a
+  `--demo --grab` screenshot shows it in the sidebar.
+
+**Unverified or broken:**
+- Title bar and taskbar icon not looked at on screen (Qt loads `IDI_ICON1` for them).
+
+**Next step:**
+- Unchanged: milestone 10's sim test, then milestone 11 (flight replay).
+
 ## 2026-11-24 — Shaping the dashboard milestones: flight replay is milestone 11
 
 **Done:**
