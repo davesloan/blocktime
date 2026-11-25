@@ -1800,3 +1800,64 @@ TEST_F(Debrief, UnmeasuredFlightHasNoState) {
     w.retry("2020-01-01T00:00:00.000Z");
     EXPECT_TRUE(client_.bodies.empty());
 }
+
+// --- The debrief in the Flight Summary and the Flights strip (Task 9) ---------------------------------------------
+
+TEST_F(Debrief, SummaryHasDebrief) {
+    FlightListModel list(db_, dir_, "XLY");
+    list.reloadBlocking();
+    const int row = list.rowOf(kDebriefFlight);
+    ASSERT_GE(row, 0);
+    const QVariantMap d = list.summary(row)["debrief"].toMap();
+    EXPECT_TRUE(d["measured"].toBool());
+    EXPECT_EQ(d["scoreText"].toString(), "62");
+    EXPECT_EQ(d["starsText"].toString(), QString::fromUtf8("★★★☆☆"));
+    EXPECT_EQ(d["landingPointsText"].toString(), QString::fromUtf8("−8"));
+    const QVariantList checks = d["checks"].toList();
+    ASSERT_EQ(checks.size(), 12);
+    int missed = 0;
+    for (const QVariant& c : checks) missed += c.toMap()["state"].toString() == "missed";
+    EXPECT_EQ(missed, 5);
+    const QVariantMap beacon = checks[0].toMap();
+    EXPECT_EQ(beacon["label"].toString(), "Beacon on before pushback");
+    EXPECT_EQ(beacon["detail"].toString(), "2 min 43 s late");
+    EXPECT_EQ(beacon["pointsText"].toString(), QString::fromUtf8("−6"));
+    EXPECT_EQ(checks[2].toMap()["pointsText"].toString(), "");
+    const QStringList landing = d["landingLines"].toStringList();
+    ASSERT_EQ(landing.size(), 2);
+    EXPECT_TRUE(landing[0].startsWith(QString::fromUtf8("591 fpm · 1.47 G · no bounce · VREF +0 · wind 330/9"))) << landing[0].toStdString();
+    EXPECT_EQ(landing[1], QString::fromUtf8("2.7 m off the centreline, 0.6° off the heading (information)"));
+    EXPECT_EQ(d["reviewState"].toString(), "missing");
+}
+
+TEST_F(Debrief, AverageStripText) {
+    FlightListModel list(db_, dir_, "XLY");
+    list.reloadBlocking();
+    EXPECT_EQ(list.averageScoreText(), "Average score 62 (last 10: 62)");
+    EXPECT_EQ(list.averageStarsText(), QString::fromUtf8("Landings ★★★☆☆ 3.0 (last 10: 3.0)"));
+}
+
+TEST_F(Debrief, OldFlightHasNoDebrief) {
+    ASSERT_TRUE(db_.exec("DELETE FROM flight_debrief"));  // as a flight settled before 0.11.0
+    FlightListModel list(db_, dir_, "XLY");
+    list.reloadBlocking();
+    const QVariantMap d = list.summary(list.rowOf(kDebriefFlight))["debrief"].toMap();
+    EXPECT_FALSE(d["measured"].toBool());
+    EXPECT_EQ(list.averageScoreText(), "");
+    EXPECT_EQ(list.averageStarsText(), "");
+}
+
+TEST_F(Debrief, SummaryShowsTheWrittenReview) {
+    ReviewWriter w(db_, dir_, client_);
+    FlightListModel list(db_, dir_, "XLY", &w);
+    w.onSettled(kDebriefFlight);
+    list.reloadBlocking();
+    EXPECT_EQ(list.summary(list.rowOf(kDebriefFlight))["debrief"].toMap()["reviewState"].toString(), "writing");
+    client_.answer(200, kGoodAnswer);
+    list.reloadBlocking();
+    const QVariantMap d = list.summary(list.rowOf(kDebriefFlight))["debrief"].toMap();
+    EXPECT_EQ(d["reviewState"].toString(), "written");
+    const QVariantMap r = d["review"].toMap();
+    EXPECT_EQ(r["summary"].toString(), "A tidy flight.");
+    EXPECT_EQ(r["workOn"].toStringList(), QStringList{"Beacon first"});
+}

@@ -19,6 +19,7 @@ Item {
     required property RecorderBridge recorder
     required property PlannedFlightModel plannedFlight
     required property FlightListModel flights
+    required property ReviewWriter reviews
     required property string mapTileUrl
     required property string mapCacheDir
     required property string mapUserAgent
@@ -43,6 +44,7 @@ Item {
 
         function onModelReset() { page.refreshSummary() }
         function onTracksChanged() { page.refreshSummary() }
+        function onDebriefChanged() { page.refreshSummary() }
     }
 
     ScrollView {
@@ -91,6 +93,7 @@ Item {
                 sourceComponent: FlightSummary {
                     summary: page.summary
                     track: page.summaryTrack
+                    reviews: page.reviews
                     mapTileUrl: page.mapTileUrl
                     mapCacheDir: page.mapCacheDir
                     mapUserAgent: page.mapUserAgent

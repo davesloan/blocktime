@@ -4,13 +4,16 @@
 
 #include "flight_list_model.h"
 
+#include <cmath>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include <QDateTime>
 #include <QGeoCoordinate>
 #include <QList>
 
+#include "debrief_score.h"
 #include "loads.h"
 #include "money.h"
 #include "new_flight_model.h"
@@ -44,11 +47,27 @@ QString kindLabel(const std::string& code) {
     return kind ? NewFlightModel::kindLabel(*kind) : q(code);
 }
 
+QString signedPoints(int points) { return QString::fromUtf8("−") + QString::number(-points); }  // "−6"
+
+// "Average score 71 (last 10: 74 ▲)": the arrow when the last 10 differ from all of them, as shown.
+QString averageText(const QString& label, std::optional<double> all, std::optional<double> last10, bool oneDecimal) {
+    if (!all || !last10) return {};
+    const auto shown = [&](double v) { return oneDecimal ? QString::number(v, 'f', 1) : QString::number(std::lround(v)); };
+    const QString a = shown(*all), l = shown(*last10);
+    QString arrow;
+    if (l != a) arrow = *last10 > *all ? QString::fromUtf8(" ▲") : QString::fromUtf8(" ▼");
+    return QStringLiteral("%1 %2 (last 10: %3%4)").arg(label, a, l, arrow);
+}
+
 }  // namespace
 
 FlightListModel::FlightListModel(blocktime::db::Database& db, std::filesystem::path logDir, QString airlineIcao,
-                                 QObject* parent)
-    : QAbstractListModel(parent), db_(db), logDir_(std::move(logDir)), airlineIcao_(std::move(airlineIcao)) {}
+                                 ReviewWriter* reviews, QObject* parent)
+    : QAbstractListModel(parent),
+      db_(db),
+      logDir_(std::move(logDir)),
+      airlineIcao_(std::move(airlineIcao)),
+      reviews_(reviews) {}
 
 FlightListModel::~FlightListModel() {
     // ~jthread requests a stop and joins; loadFlightHistory returns as soon as it sees the stop. A result already
@@ -60,8 +79,32 @@ void FlightListModel::readFlights() {
     const int before = count();
     beginResetModel();
     flights_ = blocktime::listFlights(db_);
+    readDebriefs();
     endResetModel();
     if (count() != before) emit countChanged();
+    emit debriefChanged();
+}
+
+void FlightListModel::refreshDebrief() {
+    readDebriefs();
+    emit debriefChanged();
+}
+
+void FlightListModel::readDebriefs() {
+    measurements_ = blocktime::loadMeasurements(db_);
+    written_ = blocktime::loadReviews(db_);
+    // The averages are computed now, from the measurements, so a changed rule re-scores them too (D-160).
+    std::vector<blocktime::ScoredFlight> scored;
+    for (const blocktime::FlightView& f : flights_) {
+        if (const auto it = measurements_.find(f.logFlightId); it != measurements_.end()) {
+            scored.push_back(blocktime::scoreFlight(it->second));
+        }
+    }
+    const blocktime::Averages a = blocktime::averages(scored);
+    averageScoreText_ = averageText("Average score", a.score, a.scoreLast10, false);
+    averageStarsText_ = a.stars ? averageText("Landings " + q(blocktime::starsText(static_cast<int>(std::lround(*a.stars)))),
+                                              a.stars, a.starsLast10, true)
+                                : QString();
 }
 
 void FlightListModel::reload() {
@@ -165,6 +208,69 @@ QGeoPath FlightListModel::track(int row) const {
     return QGeoPath(points);
 }
 
+QVariantMap FlightListModel::debrief(const blocktime::FlightView& f) const {
+    const auto it = measurements_.find(f.logFlightId);
+    if (it == measurements_.end()) return {{"measured", false}};
+    const blocktime::FlightMeasurements& m = it->second;
+    const blocktime::ScoredFlight s = blocktime::scoreFlight(m);
+    QVariantList checks;
+    for (const blocktime::CheckOutcome& c : s.checks) {
+        const char* state = c.state == blocktime::CheckState::Passed   ? "passed"
+                            : c.state == blocktime::CheckState::Missed ? "missed"
+                                                                       : "not_checked";
+        checks.append(QVariantMap{{"label", q(c.label)},
+                                  {"detail", q(c.detail)},
+                                  {"state", QString::fromLatin1(state)},
+                                  {"pointsText", c.points < 0 ? signedPoints(c.points) : QString()}});
+    }
+    QStringList landing;
+    if (const auto& l = m.landing) {
+        QStringList parts{QStringLiteral("%1 fpm").arg(l->vsFpm),
+                          QStringLiteral("%1.%2 G").arg(l->gHundredths / 100).arg(l->gHundredths % 100, 2, 10, QChar('0')),
+                          l->bounces == 0   ? QStringLiteral("no bounce")
+                          : l->bounces == 1 ? QStringLiteral("1 bounce")
+                                            : QStringLiteral("%1 bounces").arg(l->bounces)};
+        if (l->pitchTenths) parts << QString::fromUtf8("pitch %1°").arg(*l->pitchTenths / 10.0, 0, 'f', 1);
+        if (l->bankTenths) parts << QString::fromUtf8("bank %1°").arg(std::abs(*l->bankTenths) / 10.0, 0, 'f', 1);
+        if (l->vrefKt) {
+            const int off = l->iasKt - *l->vrefKt;
+            parts << QStringLiteral("VREF %1%2").arg(off >= 0 ? "+" : "").arg(off);
+        }
+        parts << QStringLiteral("wind %1/%2 (%3 kt cross)")
+                     .arg(l->windDirDeg, 3, 10, QChar('0'))
+                     .arg(l->windKt)
+                     .arg(s.crosswindKt.value_or(0));
+        landing << parts.join(QString::fromUtf8(" · "));
+        if (l->offCentrelineDm && l->offHeadingTenths) {
+            landing << QString::fromUtf8("%1 m off the centreline, %2° off the heading (information)")
+                           .arg(*l->offCentrelineDm / 10.0, 0, 'f', 1)
+                           .arg(*l->offHeadingTenths / 10.0, 0, 'f', 1);
+        }
+    }
+    const QString id = q(f.logFlightId);
+    const auto w = written_.find(f.logFlightId);
+    QString state = reviews_ ? reviews_->state(id) : (w != written_.end() ? "written" : "missing");
+    QVariantMap review;
+    if (w != written_.end()) {
+        QStringList workOn;
+        for (const std::string& item : w->second.workOn) workOn << q(item);
+        review = {{"summary", q(w->second.summary)},
+                  {"workOn", workOn},
+                  {"landing", q(w->second.landing)},
+                  {"atc", q(w->second.atc)}};
+        state = "written";
+    }
+    return {{"measured", true},
+            {"scoreText", QString::number(s.score)},
+            {"starsText", s.stars ? q(blocktime::starsText(*s.stars)) : QString()},
+            {"landingPointsText", s.stars && s.landingPoints < 0 ? signedPoints(s.landingPoints) : QString()},
+            {"checks", checks},
+            {"landingLines", landing},
+            {"reviewState", state},
+            {"reviewError", reviews_ ? reviews_->error(id) : QString()},
+            {"review", review}};
+}
+
 QVariantMap FlightListModel::summary(int row) const {
     if (row < 0 || row >= count()) return {};
     const blocktime::FlightView& f = flights_[static_cast<std::size_t>(row)];
@@ -172,7 +278,8 @@ QVariantMap FlightListModel::summary(int row) const {
     QString title = airlineIcao_ + q(f.flightNumber) + QString::fromUtf8(" · ") + q(f.origin) + arrow + q(f.arrival);
     if (f.arrival != f.plannedDestination) title += " (planned " + q(f.plannedDestination) + ")";
     const QDateTime out = parseUtc(f.blockOutAt);
-    return {{"title", title},
+    return {{"flightId", q(f.logFlightId)},
+            {"title", title},
             {"dateText", out.toString(QStringLiteral("d MMM yyyy"))},
             {"outText", hhmmZ(out)},
             {"inText", hhmmZ(parseUtc(f.blockInAt))},
@@ -183,7 +290,8 @@ QVariantMap FlightListModel::summary(int row) const {
             {"income", moneyLines(f.income)},
             {"costs", moneyLines(f.costs)},
             {"totalText", q(blocktime::formatMoneyFull(f.totalCents))},
-            {"parkedText", f.arrivalParking.empty() ? QString() : "Parked at " + q(f.arrivalParking)}};
+            {"parkedText", f.arrivalParking.empty() ? QString() : "Parked at " + q(f.arrivalParking)},
+            {"debrief", debrief(f)}};
 }
 
 int FlightListModel::rowOf(const QString& flightId) const {

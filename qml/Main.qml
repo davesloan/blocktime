@@ -13,6 +13,7 @@ ApplicationWindow {
 
     required property RecorderBridge recorder
     required property FlightListModel flights
+    required property ReviewWriter reviews
     required property FleetTableModel fleet
     required property LedgerModel ledger
     required property NewFlightModel newFlight
@@ -119,6 +120,7 @@ ApplicationWindow {
                     recorder: window.recorder
                     plannedFlight: window.plannedFlight
                     flights: window.flights
+                    reviews: window.reviews
                     mapTileUrl: window.mapTileUrl
                     mapCacheDir: window.mapCacheDir
                     mapUserAgent: window.mapUserAgent
@@ -127,6 +129,7 @@ ApplicationWindow {
                 FlightsPage {
                     recorder: window.recorder
                     flights: window.flights
+                    reviews: window.reviews
                     mapTileUrl: window.mapTileUrl
                     mapCacheDir: window.mapCacheDir
                     mapUserAgent: window.mapUserAgent

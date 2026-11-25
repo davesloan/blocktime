@@ -85,6 +85,8 @@ QtObject {
     readonly property int liveFeedWidth: 300   // Live's event log; the planned flight's side column
     readonly property int summaryHeight: 520
     readonly property int summaryMapMinHeight: 240
+    readonly property int checkMarkWidth: 18     // the debrief's ✓ / ✗ column
+    readonly property int checkPointsWidth: 36   // the debrief's "−6" column
 
     // Window
     readonly property int windowWidth: 1300

@@ -292,15 +292,15 @@ int main(int argc, char* argv[]) {
     });
     const QString airlineIcao = QString::fromStdString(airline.airlineIcao());
     // Settled flights from the database, tracks from the log (D-111); refreshed when a flight is settled.
-    FlightListModel flights(planningDb, logDir, airlineIcao);
+    // Claude's review of each settled flight (D-161): one automatic try after settling, then Retry on the summary.
+    ClaudeReviewer claude(settings.claudeApiKey);
+    ReviewWriter reviews(planningDb, logDir, claude);
+    FlightListModel flights(planningDb, logDir, airlineIcao, &reviews);
     flights.reload();
     NewFlightModel newFlight(planningDb, airlineIcao, blocktime::defaultRatesFile(), planner);
     PlannedFlightModel plannedFlight(planningDb, airlineIcao, planner, bridge, flightTarget, logDir,
                                      blocktime::defaultRatesFile());
-    // Claude's review of each settled flight (D-161): one automatic try after settling, then Retry on the summary.
-    ClaudeReviewer claude(settings.claudeApiKey);
-    ReviewWriter reviews(planningDb, logDir, claude);
-    QObject::connect(&reviews, &ReviewWriter::reviewChanged, [&] { flights.reload(); });
+    QObject::connect(&reviews, &ReviewWriter::reviewChanged, &flights, &FlightListModel::refreshDebrief);
     // A flight settled: the airplane moved, money was posted and Flights has a new row (D-113).
     QObject::connect(&plannedFlight, &PlannedFlightModel::settled, [&](const QString& logFlightId) {
         fleet.reset(airline.airplanes(), toQStringList(airline.notices()), fleetSummary());
@@ -315,6 +315,7 @@ int main(int argc, char* argv[]) {
     QQmlApplicationEngine engine;
     const QVariantMap props{{"recorder", QVariant::fromValue(&bridge)},
                             {"flights", QVariant::fromValue(&flights)},
+                            {"reviews", QVariant::fromValue(&reviews)},
                             {"fleet", QVariant::fromValue(&fleet)},
                             {"ledger", QVariant::fromValue(&ledger)},
                             {"newFlight", QVariant::fromValue(&newFlight)},

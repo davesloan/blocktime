@@ -17,6 +17,7 @@
 #include <QByteArray>
 #include <QObject>
 #include <QString>
+#include <QtQml/qqmlregistration.h>
 
 #include "sqlite_db.h"
 
@@ -32,6 +33,8 @@ public:
 
 class ReviewWriter : public QObject {
     Q_OBJECT
+    QML_ELEMENT
+    QML_UNCREATABLE("Created by the app")
 
 public:
     ReviewWriter(blocktime::db::Database& db, std::filesystem::path logDir, ReviewClient& client,
