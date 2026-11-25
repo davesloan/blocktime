@@ -25,6 +25,7 @@
 #include "open_flight.h"
 #include "sim_connection.h"
 #include "telemetry_filter.h"
+#include "telemetry_json.h"
 
 namespace blocktime {
 
@@ -46,46 +47,6 @@ void sleepFor(std::chrono::milliseconds total, const std::atomic<bool>& stop) {
 }
 
 int engineCount(const TelemetrySample& s) { return std::clamp(s.numEngines, 0, 4); }
-
-nlohmann::json engRunning(const TelemetrySample& s) {
-    nlohmann::json a = nlohmann::json::array();
-    for (int i = 0; i < engineCount(s); ++i) a.push_back(s.engCombustion[i] != 0);
-    return a;
-}
-
-double totalFuelFlow(const TelemetrySample& s) {
-    double sum = 0;
-    for (int i = 0; i < engineCount(s); ++i) sum += s.engFuelFlowPph[i];
-    return sum;
-}
-
-nlohmann::json toJson(const TelemetrySample& s) {
-    return {
-        {"parking_brake", s.parkingBrake != 0},
-        {"on_ground", s.onGround != 0},
-        {"fuel_lb", s.fuelTotalLb},
-        {"fuel_gal", s.fuelTotalGal},
-        {"lat", s.latitudeDeg},
-        {"lon", s.longitudeDeg},
-        {"alt_ft", s.altitudeFt},
-        {"alt_agl_ft", s.altitudeAglFt},
-        {"alt_ind_ft", s.indicatedAltitudeFt},
-        {"vs_fpm", s.verticalSpeedFpm},
-        {"gs_kt", s.groundSpeedKt},
-        {"ias_kt", s.indicatedAirspeedKt},
-        {"heading_true_deg", s.headingTrueDeg},
-        {"engines", s.numEngines},
-        {"eng_running", engRunning(s)},
-        {"fuel_flow_pph", totalFuelFlow(s)},
-        {"beacon", s.lightBeacon != 0},
-        {"strobe", s.lightStrobe != 0},
-        {"mach", s.mach},
-        {"flaps_te_pct", s.flapsTrailingPct},
-        {"flaps_handle", s.flapsHandleIndex},
-        {"title", std::string(simString(s.title, sizeof(s.title)))},
-        {"atc_id", std::string(simString(s.atcId, sizeof(s.atcId)))},
-    };
-}
 
 // Turns raw samples into telemetry / telemetry_invalid events, logging invalid only on change.
 class TelemetryLogger {

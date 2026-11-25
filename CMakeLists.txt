@@ -100,6 +100,7 @@ add_library(blocktime-core STATIC
   src/touchdown_capture.cpp
   src/cockpit_monitor.cpp
   src/flight_events.cpp
+  src/telemetry_json.cpp
   src/debrief_measure.cpp
   src/debrief_score.cpp
   src/debrief_store.cpp
@@ -196,6 +197,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/gsx_timeline_test.cpp
     tests/cockpit_monitor_test.cpp
     tests/flight_events_test.cpp
+    tests/telemetry_json_test.cpp
     tests/debrief_measure_test.cpp
     tests/debrief_score_test.cpp
     tests/debrief_review_test.cpp)
