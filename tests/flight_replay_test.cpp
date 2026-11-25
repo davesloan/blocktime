@@ -100,6 +100,16 @@ TEST(FlightReplay, NestedPausesAreOneStretch) {
     EXPECT_EQ(offsets(t), (std::vector<std::int64_t>{0, 11000}));
 }
 
+// After a reconnect the recorder logs no `unpaused` for a pause from before it (sim_connection.cpp resets its flags), so
+// a session boundary ends the stretch; otherwise every later line would get the pause's offset.
+TEST(FlightReplay, SessionBoundaryEndsAPause) {
+    const ReplayTimeline t({line(0ms, "telemetry"), line(10s, "paused", {{"flags", 1}}),
+                            line(5min, "sim_connected"), line(5min + 1s, "telemetry"),
+                            line(6min, "paused", {{"flags", 8}}), line(7min, "recorder_started"),
+                            line(7min + 2s, "telemetry")});
+    EXPECT_EQ(offsets(t), (std::vector<std::int64_t>{0, 11000, 72000}));  // 7:02 less 4:50 and 1:00 paused
+}
+
 TEST(FlightReplay, OffsetOfPhaseAndTime) {
     const ReplayTimeline t({line(0ms, "telemetry"), line(10min, "block_out", {{"flight_id", "F"}}),
                             line(15min, "phase_changed", {{"phase", "takeoff"}}),

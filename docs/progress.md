@@ -41,17 +41,28 @@ Newest entries at the top. Add an entry at the end of every working session.
 - Smaller calls in **D-176 (Proposed)**.
 
 **Working / verified:**
-- 680 tests pass; debug build with no warnings; qmllint reports nothing.
+- 681 tests pass in the debug and release builds, with no warnings; qmllint reports nothing.
 - `--replay last --at cruise --grab` and `--at block_in` on Dave's real KSAN → KSJC leg: the day's times in the feed,
   the stages, M.80 at FL400, the planned panel with only Copy route; at block in the summary with Replay again and no
   turnaround buttons. `blocktime.db`'s hash was unchanged after the replay.
 - `--demo --page 1 --grab` (scratch data copy) shows the Replay button on Flights.
+- Code review (fresh reviewer): one Important finding fixed. A pause with no `unpaused` after a reconnect in the
+  lead-in would have collapsed the whole flight into one instant; a session boundary now ends the pause
+  (`FlightReplay.SessionBoundaryEndsAPause`).
 
 **Unverified:**
 - Watching a replay play in a real window at each speed, Pause, Replay again and Close (the grabs hold the replay;
   a test covers the timer).
 - The Replay button launching the second window from the main app (`QProcess::startDetached`).
-- The release build (only the debug build was built this session).
+
+**Known minor issues from the code review (left for now, D-174):**
+- A lead-in that starts mid-pause plays the paused part (up to 30 min of a frozen gate; 3 min at 10×).
+- A sim disconnect in the lead-in isn't replayed as `sim_stopped`, so GSX services Live dropped that day keep showing.
+- `--replay last` with no settled flight, or a mistyped id, says "The log for  is no longer on this PC".
+- `--at H:MM` counts time after block out without the pauses, so after a pause it lands later than the block clock
+  says.
+- The Replay button doesn't pass the main app's `--log-dir` on.
+- `--grab` without `--at` grabs an empty Live (nothing is fed before the screenshot).
 
 **What Dave should see next time he looks (no sim needed):**
 1. Flights → pick a flight from the last 30 days → **Replay**: a second window opens on that flight's lead-in, pill

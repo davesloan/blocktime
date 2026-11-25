@@ -76,7 +76,9 @@ ReplayTimeline::ReplayTimeline(std::vector<LogLine> lines) {
             if (!pausedSince) pausedSince = l.ts;
             continue;
         }
-        if (l.type == "unpaused") {
+        // A session boundary also ends a pause: after a reconnect the recorder logs no `unpaused` for one from before.
+        const bool boundary = l.type == "sim_connected" || l.type == "sim_disconnected" || l.type == "recorder_started";
+        if (l.type == "unpaused" || boundary) {
             if (pausedSince) {
                 pauses_.push_back({ms(*pausedSince - start_ - pausedTotal), l.ts - *pausedSince});
                 pausedTotal += l.ts - *pausedSince;
