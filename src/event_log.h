@@ -12,6 +12,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -43,6 +44,8 @@ private:
 
 // UTC timestamp, ISO-8601 with milliseconds (truncated), e.g. 2026-11-21T14:03:07.123Z
 std::string formatUtc(std::chrono::system_clock::time_point t);
+// formatUtc's inverse: "2026-11-24T23:53:16.837Z", milliseconds optional. nullopt for anything else.
+std::optional<std::chrono::system_clock::time_point> parseUtc(std::string_view iso);
 
 // formatUtc() of the current time.
 std::string utcTimestamp();

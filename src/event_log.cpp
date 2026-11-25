@@ -10,6 +10,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 
 namespace blocktime {
 
@@ -18,6 +19,15 @@ std::string formatUtc(std::chrono::system_clock::time_point t) {
 }
 
 std::string utcTimestamp() { return formatUtc(std::chrono::system_clock::now()); }
+
+std::optional<std::chrono::system_clock::time_point> parseUtc(std::string_view iso) {
+    if (iso.size() < 20 || iso.back() != 'Z') return std::nullopt;
+    std::istringstream in{std::string(iso)};
+    std::chrono::sys_time<std::chrono::milliseconds> t;
+    in >> std::chrono::parse("%FT%TZ", t);
+    if (in.fail()) return std::nullopt;
+    return t;
+}
 
 namespace {
 
