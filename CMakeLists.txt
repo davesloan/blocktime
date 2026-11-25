@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.25)
 # SimConnect itself is still linked statically, so no SimConnect.dll ships; the VC++ runtime comes with MSFS.
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 
-project(blocktime VERSION 0.11.1 LANGUAGES CXX)
+project(blocktime VERSION 0.12.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -255,7 +255,9 @@ set(BLOCKTIME_QML_FILES
   qml/NotRecordingBanner.qml
   qml/FlightSummary.qml
   qml/DebriefPanel.qml
-  qml/CheckList.qml)
+  qml/CheckList.qml
+  qml/ReplayWindow.qml
+  qml/ReplayBar.qml)
 foreach(_qml IN LISTS BLOCKTIME_QML_FILES)
   get_filename_component(_name "${_qml}" NAME)
   set_source_files_properties("${_qml}" PROPERTIES QT_RESOURCE_ALIAS "${_name}")

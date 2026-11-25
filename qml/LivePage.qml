@@ -23,6 +23,9 @@ Item {
     required property string mapTileUrl
     required property string mapCacheDir
     required property string mapUserAgent
+    // The replay window's Live (D-175): the summary at block in has no At Gate Turnaround or Done for now; the
+    // replay's bar has Replay again and Close.
+    property bool replaying: false
 
     // The summary of the flight that just ended, from the Flights list (design.md §13.7).
     readonly property bool showSummary: plannedFlight.state === "summary"
@@ -97,7 +100,7 @@ Item {
                     mapTileUrl: page.mapTileUrl
                     mapCacheDir: page.mapCacheDir
                     mapUserAgent: page.mapUserAgent
-                    showActions: true
+                    showActions: !page.replaying
                     onTurnaround: page.plannedFlight.turnaround()
                     onDone: page.plannedFlight.doneForNow()
                 }

@@ -31,7 +31,9 @@ private:
 
 class QmlHotReload : public QObject {
 public:
-    QmlHotReload(QQmlApplicationEngine& engine, const QString& sourceDir, QVariantMap initialProperties);
+    // `root` is the module's root component: Main, or ReplayWindow for --replay (D-175).
+    QmlHotReload(QQmlApplicationEngine& engine, const QString& sourceDir, QVariantMap initialProperties,
+                 QString root = QStringLiteral("Main"));
     ~QmlHotReload() override;
 
     // Replaces any loaded window with a fresh Main.qml. On a QML error there is no window until the next good save;
@@ -44,6 +46,7 @@ private:
     QQmlApplicationEngine& engine_;
     QString dir_;
     QVariantMap props_;
+    QString root_;
     QmlSourceInterceptor interceptor_;
     QFileSystemWatcher watcher_;
     QTimer debounce_;

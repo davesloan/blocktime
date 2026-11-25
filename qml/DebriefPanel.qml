@@ -94,7 +94,8 @@ ScrollView {
             }
 
             SecondaryButton {
-                visible: panel.reviewState === "failed" || panel.reviewState === "missing"
+                // Not in a replay window: it has no ReviewWriter, and a replay calls nothing (D-175).
+                visible: panel.reviews !== null && (panel.reviewState === "failed" || panel.reviewState === "missing")
                 text: "Retry"
                 onClicked: panel.reviews.retry(panel.flightId)
             }

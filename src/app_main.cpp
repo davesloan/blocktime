@@ -8,6 +8,8 @@
 // Options:
 //   --log-dir <folder>  write the event log there instead of %LOCALAPPDATA%\BlockTime\events
 //   --demo              show made-up values and record nothing, to look at the UI without the sim
+//   --replay <flight>   play a settled flight (its log id, or "last") in a read-only window (D-175), with
+//                       --speed <n>, --at <phase | block_out | block_in | H:MM> and --grab <png>
 
 #include <QCryptographicHash>
 #include <QGuiApplication>
@@ -30,6 +32,7 @@
 #include <string_view>
 #include <thread>
 
+#include "airline_config.h"
 #include "airline_session.h"
 #include "app_settings.h"
 #include "claude_reviewer.h"
@@ -47,6 +50,7 @@
 #include "qt_planner.h"
 #include "recorder.h"
 #include "recorder_bridge.h"
+#include "replay_session.h"
 #include "single_instance.h"
 
 namespace {
@@ -163,6 +167,76 @@ QStringList toQStringList(const std::vector<std::string>& lines) {
     return out;
 }
 
+// --grab: saves the window after 6 s and quits. With QT_QPA_PLATFORM=offscreen nothing shows on screen
+// (docs/notes/qt-setup.md).
+void grabAfterStartup(QQmlApplicationEngine& engine, const QString& grabFile) {
+    QTimer::singleShot(6000, QCoreApplication::instance(), [&engine, grabFile] {
+        const QList<QObject*> roots = engine.rootObjects();
+        if (auto* window = roots.isEmpty() ? nullptr : qobject_cast<QQuickWindow*>(roots.first())) {
+            window->grabWindow().save(grabFile);
+        }
+        QCoreApplication::quit();
+    });
+}
+
+struct ReplayOptions {
+    QString flight;  // a log flight id, or "last"
+    double speed = 1;
+    QString at;
+    QString grabFile;
+};
+
+// The replay window (D-175): a separate, read-only process. No recorder thread or mutex, no AirlineSession (no
+// migrations, lease settling or config import), the database opened read-only, and nothing that writes or calls out.
+int runReplay(const ReplayOptions& options, const std::filesystem::path& logDir, const MapSettings& map) {
+    const blocktime::AirlinePaths paths = blocktime::defaultAirlinePaths();
+    std::string error;
+    std::optional<blocktime::db::Database> opened = blocktime::db::Database::openReadOnly(paths.database, &error);
+    if (!opened) std::cerr << "Replay: couldn't open the airline database: " << error << std::endl;
+    blocktime::db::Database db = opened ? std::move(*opened) : blocktime::db::Database::openInMemory();
+    if (!opened) blocktime::migrateAirlineDatabase(db, nullptr);
+
+    QString flightId = options.flight;
+    if (flightId == "last") flightId = QString::fromStdString(blocktime::latestFlightId(db).value_or(""));
+    const auto config = blocktime::loadAirlineConfig(paths.airlineConfig, nullptr);
+    const QString airlineIcao = config ? QString::fromStdString(config->identity.icaoCode) : QString();
+    const blocktime::Rates rates = blocktime::loadRates(blocktime::defaultRatesFile(), nullptr).value_or(blocktime::Rates{});
+
+    FlightListModel flights(db, logDir, airlineIcao);
+    flights.reload();
+    ReplaySession replay(logDir, flightId, blocktime::flownFlightView(db, flightId.toStdString()), airlineIcao, rates);
+    replay.setSpeed(options.speed);
+    if (!options.at.isEmpty() && !replay.seek(options.at)) {
+        std::cerr << "Replay: the flight has no " << options.at.toStdString() << std::endl;
+    }
+    // A screenshot holds where --at put it.
+    if (options.grabFile.isEmpty()) replay.start();
+
+    QQmlApplicationEngine engine;
+    const QVariantMap props{{"replay", QVariant::fromValue(&replay)},
+                            {"flights", QVariant::fromValue(&flights)},
+                            {"mapTileUrl", map.tileUrl},
+                            {"mapCacheDir", map.cacheDir},
+                            {"mapUserAgent", map.userAgent}};
+#ifdef BLOCKTIME_QML_SOURCE_DIR
+    QGuiApplication::setQuitOnLastWindowClosed(false);
+    // Closing the replay window ends the replay; hot reload otherwise keeps the app alive between reloads.
+    QObject::connect(&engine, &QQmlApplicationEngine::objectCreated, &engine, [](QObject* root) {
+        if (auto* window = qobject_cast<QQuickWindow*>(root)) {
+            QObject::connect(window, &QQuickWindow::closing, QCoreApplication::instance(), &QCoreApplication::quit);
+        }
+    });
+    QmlHotReload hotReload(engine, QStringLiteral(BLOCKTIME_QML_SOURCE_DIR), props, QStringLiteral("ReplayWindow"));
+    hotReload.load();
+#else
+    engine.setInitialProperties(props);
+    engine.loadFromModule("BlockTime", "ReplayWindow");
+    if (engine.rootObjects().isEmpty()) return 1;
+#endif
+    if (!options.grabFile.isEmpty()) grabAfterStartup(engine, options.grabFile);
+    return QGuiApplication::exec();
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -194,6 +268,7 @@ int main(int argc, char* argv[]) {
     QString grabFile;   // --grab <png>: a developer check of the screens; saves the window after 6 s and quits
     int startPage = 0;  // --page <n>: the page shown first (0 Live, 1 Flights, 2 Fleet, 3 Money)
     blocktime::RecorderOptions recorderOptions;  // --probe (D-116)
+    ReplayOptions replay;                        // --replay (D-175)
     const QStringList args = QGuiApplication::arguments();
     for (qsizetype i = 1; i < args.size(); ++i) {
         if (args[i] == "--log-dir" && i + 1 < args.size()) {
@@ -206,7 +281,19 @@ int main(int argc, char* argv[]) {
             startPage = args[++i].toInt();
         } else if (args[i] == "--probe") {
             recorderOptions.probe = true;
+        } else if (args[i] == "--replay" && i + 1 < args.size()) {
+            replay.flight = args[++i];
+        } else if (args[i] == "--speed" && i + 1 < args.size()) {
+            replay.speed = args[++i].toDouble();
+        } else if (args[i] == "--at" && i + 1 < args.size()) {
+            replay.at = args[++i];
         }
+    }
+
+    if (!replay.flight.isEmpty()) {
+        replay.grabFile = grabFile;
+        if (replay.speed <= 0) replay.speed = 1;
+        return runReplay(replay, logDir, map);
     }
 
     // Declared before the thread, so they outlive it.
@@ -340,15 +427,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 #endif
-    if (!grabFile.isEmpty()) {
-        // With QT_QPA_PLATFORM=offscreen nothing shows on screen (docs/notes/qt-setup.md).
-        QTimer::singleShot(6000, &app, [&engine, grabFile] {
-            const QList<QObject*> roots = engine.rootObjects();
-            if (auto* window = roots.isEmpty() ? nullptr : qobject_cast<QQuickWindow*>(roots.first())) {
-                window->grabWindow().save(grabFile);
-            }
-            QCoreApplication::quit();
-        });
-    }
+    if (!grabFile.isEmpty()) grabAfterStartup(engine, grabFile);
     return QGuiApplication::exec();
 }

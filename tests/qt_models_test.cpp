@@ -2096,3 +2096,19 @@ TEST(ReplaySession, WritesNothing) {
     EXPECT_EQ(fs::last_write_time(file), written);
     EXPECT_EQ(std::distance(fs::directory_iterator(dir), fs::directory_iterator()), 1);
 }
+
+TEST(ReplaySession, TimerPlaysUntilPaused) {
+    qtApp();
+    ReplaySession r(kReplayFixtureDir, kReplayFlight, std::nullopt, "XLY", Rates{});
+    ASSERT_TRUE(r.seek("0:10"));
+    r.setSpeed(10);
+    const auto from = r.bridge()->now();
+    r.start();
+    EXPECT_TRUE(processUntil([&] { return r.bridge()->now() - from >= std::chrono::seconds(2); }));
+    r.setPaused(true);
+    QCoreApplication::processEvents();
+    const auto paused = r.bridge()->now();
+    const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
+    while (std::chrono::steady_clock::now() < until) QCoreApplication::processEvents();
+    EXPECT_EQ(r.bridge()->now(), paused);
+}

@@ -22,8 +22,10 @@ QUrl QmlSourceInterceptor::intercept(const QUrl& url, DataType type) {
     return QFileInfo::exists(local) ? QUrl::fromLocalFile(local) : url;
 }
 
-QmlHotReload::QmlHotReload(QQmlApplicationEngine& engine, const QString& sourceDir, QVariantMap initialProperties)
-    : engine_(engine), dir_(sourceDir), props_(std::move(initialProperties)), interceptor_(sourceDir) {
+QmlHotReload::QmlHotReload(QQmlApplicationEngine& engine, const QString& sourceDir, QVariantMap initialProperties,
+                           QString root)
+    : engine_(engine), dir_(sourceDir), props_(std::move(initialProperties)), root_(std::move(root)),
+      interceptor_(sourceDir) {
     engine_.addUrlInterceptor(&interceptor_);
     // Editors often save in several writes (or replace the file); wait for them to settle.
     debounce_.setSingleShot(true);
@@ -43,12 +45,12 @@ void QmlHotReload::load() {
     engine_.clearSingletons();
     engine_.clearComponentCache();
     engine_.setInitialProperties(props_);
-    engine_.loadFromModule("BlockTime", "Main");
+    engine_.loadFromModule("BlockTime", root_);
 
     if (!engine_.rootObjects().isEmpty()) {
         qInfo("QML hot reload: loaded");
     } else {
-        qWarning("QML hot reload: Main didn't load. Fix the error above and save again.");
+        qWarning("QML hot reload: %s didn't load. Fix the error above and save again.", qUtf8Printable(root_));
         // Without a window the app couldn't be closed except from Task Manager, and it would keep holding the
         // recorder mutex. A plain window that doesn't use the module stands in until the next good save.
         engine_.loadData(R"(
