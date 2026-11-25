@@ -3,6 +3,20 @@
 These facts come from BlockTime Recorder logs. Each entry says when and with what it was seen. Add new
 observations at the top.
 
+## 2026-11-25: PMDG 777-300ER N916SX at KLAS, loaded onto a runway (recorder 0.11.0)
+
+- **The sim put the 777 on a runway instead of the gate Dave chose**, with the engines already running and 179,270 lb of
+  fuel (the plan had about 33,900). It's a sim fault on loading, seen once.
+- Dave set and released the parking brake and the airplane rolled at 2–13 kt. After 13.5 m that met the block-out rule
+  (a release followed by 10 m of movement), and the airplane, airport and fuel all matched the planned flight, so
+  BlockTime opened it with no parking spot (`parking: ""`). GSX's warp to a gate then showed as two position jumps
+  (about 400 m and 2 km) during Taxi out.
+- **Recovery:** close BlockTime (the open flight is logged as interrupted and discarded, the planned flight stays),
+  set the fuel to the plan, restart BlockTime at the gate. Flown with that fuel, settling would have charged for
+  about 159,000 lb added.
+- **No guard for it (D-170):** refusing a block out away from a parking spot would catch this, but Dave rates it too
+  rare.
+
 ## 2026-11-24: PMDG 737-800 BBJ2 N814SX, KSFO → KLAS → KSAN (recorder 0.10.0)
 
 - **Both flap SimVars follow the PMDG 737 lever.** `FLAPS HANDLE INDEX` steps 0, 1, 2, 3, 4 with the detents (it

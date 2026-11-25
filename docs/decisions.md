@@ -2605,3 +2605,17 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   covers the windows. Qt's svg image plugin is already in the Qt kit and deployed by windeployqt.
 - Alternatives considered: a PNG for the sidebar (blurry at some scales); `QGuiApplication::setWindowIcon`
   (redundant with IDI_ICON1).
+
+## D-170 — No parking-spot check at block out
+- Date: 2026-11-25
+- Status: Accepted
+- Decided by: Dave
+- Area: recorder
+- Decision: A block out stays accepted wherever the airplane is (aircraft, origin airport and fuel matching, D-088,
+  D-110). BlockTime doesn't refuse one because no parking spot is within 40 m.
+- Why: The only case it would catch is the sim loading the airplane somewhere other than the chosen gate, seen once
+  (2026-11-25, the 777 on a KLAS runway, `docs/notes/msfs-observed-behaviour.md`). Dave: "too rare". The recovery is
+  to close BlockTime, which discards the open flight and keeps the planned one. A check would also refuse gates the
+  scenery's parking data lacks.
+- Alternatives considered: refusing a block out with no parking spot within 40 m (a `block_out_refused` reason);
+  refusing one after a position jump.
