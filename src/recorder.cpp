@@ -19,6 +19,7 @@
 #include "cockpit_monitor.h"
 #include "event_log.h"
 #include "event_outbox.h"
+#include "feed_text.h"
 #include "flight_tracker.h"
 #include "gsx_watcher.h"
 #include "match_reporter.h"
@@ -97,8 +98,6 @@ private:
     bool hasLast_ = false;
 };
 
-std::string hhmmss(TimePoint t) { return formatUtc(t).substr(11, 8); }
-
 // Writes a block event to the log through the outbox, then reports a short line for it. If the write fails, the
 // event is held and retried, and the line shows its data so it is never lost unseen (D-049).
 void logBlockEvent(EventOutbox& outbox, RecorderObserver& observer, const BlockEvent& event) {
@@ -109,25 +108,7 @@ void logBlockEvent(EventOutbox& outbox, RecorderObserver& observer, const BlockE
                             data.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
                         false);
     }
-    const std::string now = utcTimestamp().substr(11, 8);
-    std::visit(
-        [&](const auto& e) {
-            using T = std::decay_t<decltype(e)>;
-            if constexpr (std::is_same_v<T, BlockOut>) {
-                observer.onLine(std::format("{}  BLOCK OUT  {}  released {}  fuel {:.0f} lb", now, e.atcId,
-                                            hhmmss(e.time), e.fuelLb),
-                                false);
-            } else if constexpr (std::is_same_v<T, BlockIn>) {
-                observer.onLine(std::format("{}  BLOCK IN  brake set {}  fuel {:.0f} lb  block {}:{:02}", now,
-                                            hhmmss(e.time), e.fuelLb, e.blockTimeS / 3600, e.blockTimeS / 60 % 60),
-                                false);
-            } else if constexpr (std::is_same_v<T, BlockOutRefused>) {
-                observer.onLine(std::format("{}  NOT RECORDING  {}", now, problemCode(e.match.problem)), false);
-            } else {
-                observer.onLine(std::format("{}  FLIGHT INTERRUPTED  ({})", now, e.reason), false);
-            }
-        },
-        event);
+    observer.onLine(utcTimestamp().substr(11, 8) + "  " + blockFeedText(event), false);
     observer.onBlockEvent(event);
 }
 
@@ -150,29 +131,8 @@ PhaseSample toPhaseSample(const TelemetrySample& s, TimePoint time, double activ
 
 // A short feed line for the flight events worth seeing as they happen; "" for the rest.
 std::string flightLine(const LogEvent& e) {
-    const std::string now = utcTimestamp().substr(11, 8);
-    if (e.type == "phase_changed") {
-        std::string phase = e.data.value("phase", "");
-        std::transform(phase.begin(), phase.end(), phase.begin(), [](unsigned char c) {
-            return c == '_' ? ' ' : static_cast<char>(std::toupper(c));
-        });
-        return now + "  " + phase;
-    }
-    if (e.type == "liftoff") return now + "  LIFTOFF  " + e.data.value("runway", "");
-    if (e.type == "lined_up") {
-        return std::format("{}  LINED UP  runway {}  {:.1f} nm", now, e.data.value("runway", ""),
-                           e.data.value("distance_nm", 0.0));
-    }
-    if (e.type == "gsx_service") {
-        const std::string state = e.data.value("state", "");
-        if (state != "requested" && state != "performing" && state != "completed") return "";
-        return now + "  GSX " + e.data.value("service", "") + " " + state;
-    }
-    if (e.type == "touchdown") {
-        return std::format("{}  TOUCHDOWN  {:.0f} fpm  {:.2f} g", now, e.data.value("vs_fpm", 0.0),
-                           e.data.value("g", 0.0));
-    }
-    return "";
+    const std::string text = feedText(e.type, e.data);
+    return text.empty() ? text : utcTimestamp().substr(11, 8) + "  " + text;
 }
 
 // Retries held block events at most every 5 s (D-049), so a failing disk isn't hammered every 100 ms.
@@ -344,9 +304,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
         for (const LogEvent& e : appEvents_.drain()) {
             log.write(e.type, e.data);
             if (e.type == "arrival_gate") {
-                observer.onLine(utcTimestamp().substr(11, 8) + "  ARRIVAL GATE  " + e.data.value("gate", std::string()) +
-                                    "  (" + e.data.value("result", std::string()) + ")",
-                                false);
+                observer.onLine(utcTimestamp().substr(11, 8) + "  " + feedText(e.type, e.data), false);
             }
             observer.onFlightEvent(e.type, e.data);
         }
