@@ -47,13 +47,15 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 **Unverified or broken:**
 - **Leg 1's stored debrief is wrong**: its gear was stored as up (−6 and a missed stable approach) and its review was
-  written from that. Dave decides whether to correct the row by hand and let Retry write a new review.
+  written from that. **Dave chose to leave it as is** (2026-11-25): stored measurements stay as written (D-160).
 - Not exercised: a real bounce, Retry with the network off (Dave: edge case), the 777's VREF in flight.
 - PMDG's broadcast sends nothing until a value changes (`docs/notes/msfs-observed-behaviour.md`); harmless in a
   normal flow.
 
 **Next step:**
-- The MVP is done once leg 1's debrief is settled. Then milestone 11 (flight replay, D-163..D-168) in a new session.
+- The MVP is done. Open: Dave asked for two APU checks (both families' APU is readable from PMDG's data: the 737's
+  `APU_Selector` and EGT, the 777's `ELEC_APU_Selector` and `APURunning`); which two checks is his call. Then
+  milestone 11 (flight replay, D-163..D-168) in a new session.
 
 ## 2026-11-25 — The app icon
 
