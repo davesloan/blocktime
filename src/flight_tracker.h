@@ -60,6 +60,7 @@ public:
 
 private:
     LogEvent toLog(const PhaseEvent& e) const;
+    LogEvent bouncesEvent(TimePoint at, int bounces);
     LogEvent altimeterEvent(const AltimeterSample& a) const;
     bool flightLevel(Phase phase, int altFt) const;
     std::vector<AirportRunways> runwayList() const;
@@ -77,6 +78,7 @@ private:
     bool liftoffLogged_ = false;
     TouchdownCapture touchdown_;
     bool fast_ = false;
+    bool bouncesDone_ = false;  // the bounce count is logged: fast sampling is over for this flight
 };
 
 }  // namespace blocktime

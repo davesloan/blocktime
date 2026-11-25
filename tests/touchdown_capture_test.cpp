@@ -106,3 +106,66 @@ TEST(TouchdownCapture, ResetAllowsAnother) {
     ASSERT_TRUE(t);
     EXPECT_DOUBLE_EQ(t->vsFpm, -250);
 }
+
+// Frames 1/30 s apart, each checked for the bounce count; returns the count once it's reported.
+std::optional<int> feedBounces(TouchdownCapture& c, int fromMs, int frames, bool onGround) {
+    std::optional<int> got;
+    for (int i = 0; i < frames; ++i) {
+        const FastSample f = frame(fromMs + i * 33, onGround, onGround ? 0 : 100);
+        c.onSample(f);
+        if (auto b = c.bouncesDue(f); b && !got) got = b;
+    }
+    return got;
+}
+
+TEST(TouchdownCapture, CountsABounce) {
+    TouchdownCapture c;
+    feed(c, 0, 10, false, -400);
+    EXPECT_FALSE(feedBounces(c, 330, 6, true));     // contact at 330 ms
+    EXPECT_FALSE(feedBounces(c, 528, 24, false));   // airborne for about 0.8 s
+    EXPECT_FALSE(feedBounces(c, 1320, 400, true));  // to 14.5 s after contact
+    const auto b = feedBounces(c, 15330, 30, true);
+    ASSERT_TRUE(b);
+    EXPECT_EQ(*b, 1);
+    EXPECT_FALSE(feedBounces(c, 16400, 30, true));  // reported once
+}
+
+TEST(TouchdownCapture, IgnoresAFlicker) {
+    TouchdownCapture c;
+    feed(c, 0, 10, false, -400);
+    feedBounces(c, 330, 6, true);
+    feedBounces(c, 528, 9, false);  // 0.3 s
+    const auto b = feedBounces(c, 825, 500, true);
+    ASSERT_TRUE(b);
+    EXPECT_EQ(*b, 0);
+}
+
+TEST(TouchdownCapture, FinishBouncesEarly) {
+    TouchdownCapture c;
+    EXPECT_FALSE(c.finishBounces());  // no contact yet
+    feed(c, 0, 10, false, -400);
+    feedBounces(c, 330, 60, true);
+    const auto b = c.finishBounces();
+    ASSERT_TRUE(b);
+    EXPECT_EQ(*b, 0);
+    EXPECT_FALSE(c.finishBounces());
+}
+
+TEST(TouchdownCapture, KeepsAttitudeAndWind) {
+    TouchdownCapture c;
+    feed(c, 0, 10, false, -200);
+    FastSample f = frame(330, true, 0);
+    f.pitchDeg = -4.2;
+    f.bankDeg = 1.1;
+    f.headingTrueDeg = 286;
+    f.windDirDeg = 340;
+    f.windKt = 9;
+    c.onSample(f);
+    const auto t = feed(c, 363, 40, true, 0);
+    ASSERT_TRUE(t);
+    EXPECT_DOUBLE_EQ(t->pitchDeg, -4.2);
+    EXPECT_DOUBLE_EQ(t->bankDeg, 1.1);
+    EXPECT_DOUBLE_EQ(t->headingTrueDeg, 286);
+    EXPECT_DOUBLE_EQ(t->windDirDeg, 340);
+    EXPECT_DOUBLE_EQ(t->windKt, 9);
+}

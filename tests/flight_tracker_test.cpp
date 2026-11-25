@@ -166,6 +166,106 @@ TEST(FlightTracker, FastSamplingWindow) {
     const LogEvent* td = find(events, "touchdown");
     ASSERT_TRUE(td);
     EXPECT_DOUBLE_EQ(td->data["vs_fpm"].get<double>(), -150);
+    EXPECT_TRUE(t.wantsFastSampling());  // on for the bounce count (D-158)
+    f.time = kT0 + 136s;
+    ASSERT_TRUE(find(t.onFastSample(f), "bounces"));
+    EXPECT_FALSE(t.wantsFastSampling());
+}
+
+namespace {
+
+// Block out to 280 ft on the way down, with fast sampling on; returns the second it got there.
+int armForLanding(FlightTracker& t) {
+    t.onBlockOut(blockOut(), target(), 25);
+    PhaseSample g;
+    g.onGround = true;
+    g.aglFt = 8;
+    for (int i = 0; i < 12; ++i) {
+        g.time = kT0 + seconds(i);
+        g.activeS = i;
+        g.groundSpeedKt = 6 + i * 5;
+        t.onSample(g);
+    }
+    t.onSample(airborne(12, 230, 200, 1500));
+    t.onSample(airborne(13, 1500, 1500, 1500));
+    for (int sec = 14; sec <= 80; ++sec) t.onSample(airborne(sec, 9000 - (sec - 14) * 25, 9000 - (sec - 14) * 25, -1500));
+    t.onSample(airborne(81, 2500, 2400, -800));
+    t.onSample(airborne(82, 250, 250, -700));
+    return 82;
+}
+
+FastSample fast(TimePoint at, bool onGround) {
+    FastSample f;
+    f.time = at;
+    f.onGround = onGround;
+    f.vsFpm = onGround ? 0 : -500;
+    f.pitchDeg = -5.06;
+    f.bankDeg = 0.84;
+    f.headingTrueDeg = 286.4;
+    f.windDirDeg = 339.6;
+    f.windKt = 9.4;
+    return f;
+}
+
+}  // namespace
+
+TEST(FlightTracker, TouchdownCarriesAttitudeAndWind) {
+    FlightTracker t;
+    const int s0 = armForLanding(t);
+    ASSERT_TRUE(t.wantsFastSampling());
+    t.onFastSample(fast(kT0 + seconds(s0), false));
+    t.onFastSample(fast(kT0 + seconds(s0 + 1), true));
+    const LogEvent* td = nullptr;
+    std::vector<LogEvent> events;
+    for (int ms = 1100; ms <= 2000 && !td; ms += 100) {
+        events = t.onFastSample(fast(kT0 + seconds(s0) + milliseconds(ms), true));
+        td = find(events, "touchdown");
+    }
+    ASSERT_TRUE(td);
+    EXPECT_DOUBLE_EQ(td->data["sim_pitch_deg"].get<double>(), -5.1);
+    EXPECT_DOUBLE_EQ(td->data["bank_deg"].get<double>(), 0.8);
+    EXPECT_EQ(td->data["heading_true_deg"], 286);
+    EXPECT_EQ(td->data["wind_dir_deg"], 340);
+    EXPECT_EQ(td->data["wind_kt"], 9);
+}
+
+TEST(FlightTracker, BouncesEventAfterTouchdown) {
+    FlightTracker t;
+    const int s0 = armForLanding(t);
+    const TimePoint c = kT0 + seconds(s0 + 1);  // contact
+    t.onFastSample(fast(c - 100ms, false));
+    std::vector<LogEvent> all;
+    for (int ms = 0; ms < 200; ms += 33) append(all, t.onFastSample(fast(c + milliseconds(ms), true)));
+    for (int ms = 200; ms < 900; ms += 33) append(all, t.onFastSample(fast(c + milliseconds(ms), false)));
+    for (int ms = 900; ms < 15100; ms += 100) append(all, t.onFastSample(fast(c + milliseconds(ms), true)));
+    const LogEvent* b = find(all, "bounces");
+    ASSERT_TRUE(b);
+    EXPECT_EQ(b->data["bounces"], 1);
+    EXPECT_EQ(b->data["flight_id"], formatUtc(kT0));
+    EXPECT_FALSE(t.wantsFastSampling());
+}
+
+TEST(FlightTracker, TaxiInEmitsBouncesEarly) {
+    FlightTracker t;
+    const int s0 = armForLanding(t);
+    const TimePoint c = kT0 + seconds(s0 + 1);
+    t.onFastSample(fast(c - 100ms, false));
+    for (int ms = 0; ms < 1500; ms += 100) t.onFastSample(fast(c + milliseconds(ms), true));
+    // A short rollout: on the ground and slow well before 15 s.
+    std::vector<LogEvent> all;
+    for (int sec = s0 + 2; sec <= s0 + 12; ++sec) {
+        PhaseSample g;
+        g.time = kT0 + seconds(sec);
+        g.activeS = sec;
+        g.onGround = true;
+        g.aglFt = 8;
+        g.groundSpeedKt = sec < s0 + 6 ? 100 : 20;
+        append(all, t.onSample(g));
+    }
+    ASSERT_TRUE(find(all, "phase_changed"));
+    const LogEvent* b = find(all, "bounces");
+    ASSERT_TRUE(b);
+    EXPECT_EQ(b->data["bounces"], 0);
     EXPECT_FALSE(t.wantsFastSampling());
 }
 

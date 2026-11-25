@@ -177,13 +177,23 @@ std::vector<LogEvent> FlightTracker::onSample(const PhaseSample& s) {
         }
     }
 
+    // A rollout slowed to taxi before the bounce window ended: the count so far (D-158).
+    if (!bouncesDone_ && detector_->phase() == Phase::TaxiIn) {
+        if (const auto b = touchdown_.finishBounces()) events.push_back(bouncesEvent(s.time, *b));
+    }
     updateFastSampling(s);
     return events;
 }
 
+LogEvent FlightTracker::bouncesEvent(TimePoint at, int bounces) {
+    bouncesDone_ = true;
+    fast_ = false;
+    return {"bounces", {{"flight_id", flightId_}, {"time", formatUtc(at)}, {"bounces", bounces}}};
+}
+
 void FlightTracker::updateFastSampling(const PhaseSample& s) {
     const Phase phase = detector_->phase();
-    if (touchdown_.captured() || phase == Phase::TaxiIn) {
+    if (bouncesDone_ || phase == Phase::TaxiIn) {
         fast_ = false;
     } else if (!fast_) {
         fast_ = descending(phase) && !s.onGround && s.aglFt < kTouchdownArmAglFt;
@@ -194,17 +204,25 @@ void FlightTracker::updateFastSampling(const PhaseSample& s) {
 
 std::vector<LogEvent> FlightTracker::onFastSample(const FastSample& s) {
     if (!detector_ || !fast_) return {};
-    const auto t = touchdown_.onSample(s);
-    if (!t) return {};
-    fast_ = false;
-    return {{"touchdown",
-             {{"flight_id", flightId_},
-              {"time", formatUtc(t->time)},
-              {"lat", t->lat},
-              {"lon", t->lon},
-              {"vs_fpm", std::round(t->vsFpm)},
-              {"g", std::round(t->gForce * 100.0) / 100.0},
-              {"ias_kt", std::round(t->iasKt)}}}};
+    std::vector<LogEvent> events;
+    if (const auto t = touchdown_.onSample(s)) {
+        events.push_back({"touchdown",
+                          {{"flight_id", flightId_},
+                           {"time", formatUtc(t->time)},
+                           {"lat", t->lat},
+                           {"lon", t->lon},
+                           {"vs_fpm", std::round(t->vsFpm)},
+                           {"g", std::round(t->gForce * 100.0) / 100.0},
+                           {"ias_kt", std::round(t->iasKt)},
+                           {"sim_pitch_deg", round1(t->pitchDeg)},
+                           {"bank_deg", round1(t->bankDeg)},
+                           {"heading_true_deg", std::lround(t->headingTrueDeg) % 360},
+                           {"wind_dir_deg", std::lround(t->windDirDeg) % 360},
+                           {"wind_kt", std::lround(t->windKt)}}});
+    }
+    // Fast sampling stays on after the touchdown until the bounce count is out (D-158).
+    if (const auto b = touchdown_.bouncesDue(s)) events.push_back(bouncesEvent(s.time, *b));
+    return events;
 }
 
 std::vector<LogEvent> FlightTracker::onAltimeter(const AltimeterSample& a) {
@@ -233,6 +251,7 @@ void FlightTracker::onFlightEnded() {
     liftoffLogged_ = false;
     touchdown_.reset();
     fast_ = false;
+    bouncesDone_ = false;
     logged_.reset();
 }
 

@@ -69,6 +69,7 @@ struct TouchdownRecord {
     double vsFpm;
     std::int32_t onGround;
     double aglFt, gForce, iasKt, lat, lon;
+    double pitchDeg, bankDeg, headingTrueDeg, windDirDeg, windKt;  // the landing rating's (D-158)
 };
 struct BaroMbRecord {
     double capt, fo;
@@ -105,6 +106,11 @@ constexpr FlightVar kTouchdownVars[] = {
     {"AIRSPEED INDICATED", "knots", SIMCONNECT_DATATYPE_FLOAT64},
     {"PLANE LATITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64},
     {"PLANE LONGITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64},
+    {"PLANE PITCH DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT64},
+    {"PLANE BANK DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT64},
+    {"PLANE HEADING DEGREES TRUE", "degrees", SIMCONNECT_DATATYPE_FLOAT64},
+    {"AMBIENT WIND DIRECTION", "degrees", SIMCONNECT_DATATYPE_FLOAT64},
+    {"AMBIENT WIND VELOCITY", "knots", SIMCONNECT_DATATYPE_FLOAT64},
 };
 // Two definitions, as in the probe: a refused STD name can't take the millibar values down with it.
 constexpr FlightVar kBaroMbVars[] = {{"KOHLSMAN SETTING MB:1", "millibars", SIMCONNECT_DATATYPE_FLOAT64},
@@ -498,7 +504,8 @@ void SimConnection::handleMessage(const void* raw, unsigned long size) {
                 if (dataSize < sizeof(r) || !onFast_) break;
                 std::memcpy(&r, data, sizeof(r));
                 onFast_(FastSample{std::chrono::system_clock::now(), r.onGround != 0, r.vsFpm, r.aglFt, r.gForce,
-                                   r.iasKt, r.lat, r.lon});
+                                   r.iasKt, r.lat, r.lon, r.pitchDeg, r.bankDeg, r.headingTrueDeg, r.windDirDeg,
+                                   r.windKt});
                 break;
             }
             if (d->dwRequestID == REQ_BARO_MB) {
