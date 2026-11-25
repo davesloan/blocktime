@@ -7,6 +7,7 @@
 #pragma once
 
 #include <QAbstractListModel>
+#include <QDateTime>
 #include <QList>
 #include <QString>
 #include <QtQml/qqmlregistration.h>
@@ -26,8 +27,9 @@ public:
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
 
-    // Adds a row at the top, stamped with the current UTC time (HH:mm:ss). kind: "block", "warn" or "info".
-    void add(const QString& kind, const QString& text);
+    // Adds a row at the top, stamped with `at` in UTC (HH:mm:ss): the bridge's clock (D-166). kind: "block", "warn" or
+    // "info".
+    void add(const QString& kind, const QString& text, const QDateTime& at);
 
 private:
     struct Row {

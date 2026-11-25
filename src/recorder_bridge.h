@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <chrono>
+#include <functional>
 #include <map>
 #include <optional>
 #include <string>
@@ -27,7 +29,7 @@ class RecorderBridge : public QObject {
     QML_ELEMENT
     QML_UNCREATABLE("Created by the app")
 
-    // "waiting", "starting", "connected", or "blocked" (another recorder holds the mutex)
+    // "waiting", "starting", "connected", "blocked" (another recorder holds the mutex) or "replay" (D-175)
     Q_PROPERTY(QString connection READ connection NOTIFY connectionChanged)
     Q_PROPERTY(QString logDir READ logDir NOTIFY logDirChanged)
 
@@ -99,6 +101,15 @@ public:
 
     Q_INVOKABLE void openLogFolder() const;
 
+    // Live's clock (D-166): the wall clock on the real bridge, the replay's time on a replay bridge. Nothing on Live
+    // reads the wall clock directly.
+    using Clock = std::function<std::chrono::system_clock::time_point()>;
+    void setClock(Clock clock) { clock_ = std::move(clock); }
+    std::chrono::system_clock::time_point now() const { return clock_(); }
+    Q_INVOKABLE double nowMs() const;
+    // A replay bridge: the connection reads "replay" (D-175).
+    void setReplay();
+
     // GUI thread only. BridgeObserver posts these.
     void applyStarted(const QString& logDir);
     void applyLine(const QString& line, bool error);
@@ -138,6 +149,8 @@ signals:
 
 private:
     std::map<std::string, blocktime::AirportFacilities> airports_;
+    Clock clock_ = [] { return std::chrono::system_clock::now(); };
+    QDateTime nowUtc() const;
     void setConnection(const QString& c);
 
     QString connection_ = "waiting";

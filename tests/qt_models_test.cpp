@@ -41,6 +41,7 @@
 
 #include <nlohmann/json.hpp>
 #include "planner.h"
+#include "event_log.h"
 #include "recorder_bridge.h"
 #include "test_airline.h"
 
@@ -132,19 +133,17 @@ bool processUntil(Pred done) {
 
 TEST(EventFeed, NewestFirstWithUtcTime) {
     EventFeedModel feed;
-    feed.add("info", "first");
-    feed.add("block", "second");
+    feed.add("info", "first", QDateTime::fromString("2026-11-24T23:53:16Z", Qt::ISODate));
+    feed.add("block", "second", QDateTime::currentDateTimeUtc());
     ASSERT_EQ(feed.rowCount(), 2);
     EXPECT_EQ(feed.data(feed.index(0), EventFeedModel::TextRole).toString(), "second");
     EXPECT_EQ(feed.data(feed.index(0), EventFeedModel::KindRole).toString(), "block");
-    EXPECT_TRUE(QRegularExpression(R"(^\d\d:\d\d:\d\d$)")
-                    .match(feed.data(feed.index(1), EventFeedModel::TimeRole).toString())
-                    .hasMatch());
+    EXPECT_EQ(feed.data(feed.index(1), EventFeedModel::TimeRole).toString(), "23:53:16");
 }
 
 TEST(EventFeed, CappedAtMaxRows) {
     EventFeedModel feed;
-    for (int i = 0; i < EventFeedModel::kMaxRows + 5; ++i) feed.add("info", QString::number(i));
+    for (int i = 0; i < EventFeedModel::kMaxRows + 5; ++i) feed.add("info", QString::number(i), QDateTime::currentDateTimeUtc());
     ASSERT_EQ(feed.rowCount(), EventFeedModel::kMaxRows);
     EXPECT_EQ(feed.data(feed.index(0), EventFeedModel::TextRole).toString(),
               QString::number(EventFeedModel::kMaxRows + 4));
@@ -1508,6 +1507,49 @@ TEST(RecorderBridge, ArrivalStaysUntilShowNextLeg) {
     b.showNextLeg();
     EXPECT_FALSE(b.showingFlight());
     EXPECT_TRUE(stage(b, 5)["lines"].toList().isEmpty());
+}
+
+// D-166: Live's times come from the bridge's clock, so a replay shows the flight's own times.
+TEST(RecorderBridge, FeedUsesTheBridgeClock) {
+    qtApp();
+    RecorderBridge b;
+    const TimePoint fixed = *parseUtc("2026-11-24T23:53:16.000Z");
+    b.setClock([fixed] { return fixed; });
+    EXPECT_EQ(b.now(), fixed);
+    EXPECT_DOUBLE_EQ(b.nowMs(), 1795564396000.0);
+    b.applyLine("x", false);
+    EXPECT_EQ(b.events()->data(b.events()->index(0), EventFeedModel::TimeRole).toString(), "23:53:16");
+}
+
+TEST(RecorderBridge, ShutdownChecksUseTheBridgeClock) {
+    qtApp();
+    RecorderBridge b;
+    b.setClock([] { return *parseUtc("2026-11-24T12:34:56.000Z"); });
+    BlockOut out;
+    out.flightId = "2026-11-24T10:00:00.000Z";
+    out.time = std::chrono::sys_days{std::chrono::November / 24 / 2026} + std::chrono::hours(10);
+    b.applyBlockEvent(out);
+    BlockIn in;
+    in.flightId = out.flightId;
+    in.time = out.time + std::chrono::hours(2);
+    b.applyBlockEvent(in);
+    b.applyFlightEvent("phase_changed", phaseEvent("arrived", "12:00:00"));
+    TelemetrySample s{};
+    s.parkingBrake = 1;
+    s.onGround = 1;
+    s.numEngines = 2;
+    b.applySample(s);
+    const QVariantList arrival = stage(b, 5)["lines"].toList();
+    ASSERT_EQ(arrival.size(), 2);
+    EXPECT_EQ(arrival[1].toMap()["start"].toString(), "12:34Z")
+        << arrival[1].toMap()["start"].toString().toStdString();
+}
+
+TEST(RecorderBridge, ReplayConnection) {
+    qtApp();
+    RecorderBridge b;
+    b.setReplay();
+    EXPECT_EQ(b.connection(), "replay");
 }
 
 TEST(RecorderBridge, BeaconOnKeepsReadyAway) {

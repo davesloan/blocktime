@@ -11,16 +11,18 @@ import BlockTime  // explicit, so hot reload from the source folder still sees t
 Rectangle {
     id: pill
 
-    // "connected", "starting", "waiting" or "blocked", as RecorderBridge.connection
+    // "connected", "starting", "waiting", "blocked" or "replay", as RecorderBridge.connection
     property string status
 
     readonly property color tone: status === "connected" ? Theme.good
                                 : status === "starting" ? Theme.warn
                                 : status === "blocked" ? Theme.bad
+                                : status === "replay" ? Theme.accent
                                 : Theme.textSecondary
     readonly property string label: status === "connected" ? "Connected"
                                   : status === "starting" ? "Sim starting"
                                   : status === "blocked" ? "Recorder already running"
+                                  : status === "replay" ? "Replay"
                                   : "Waiting for sim"
 
     implicitWidth: row.implicitWidth + 24

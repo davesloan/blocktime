@@ -4,7 +4,6 @@
 
 #include "event_feed_model.h"
 
-#include <QDateTime>
 
 int EventFeedModel::rowCount(const QModelIndex& parent) const {
     return parent.isValid() ? 0 : static_cast<int>(rows_.size());
@@ -25,7 +24,7 @@ QHash<int, QByteArray> EventFeedModel::roleNames() const {
     return {{TimeRole, "time"}, {KindRole, "kind"}, {TextRole, "text"}};
 }
 
-void EventFeedModel::add(const QString& kind, const QString& text) {
+void EventFeedModel::add(const QString& kind, const QString& text, const QDateTime& at) {
     if (rows_.size() >= kMaxRows) {
         const int last = static_cast<int>(rows_.size()) - 1;
         beginRemoveRows({}, last, last);
@@ -33,6 +32,6 @@ void EventFeedModel::add(const QString& kind, const QString& text) {
         endRemoveRows();
     }
     beginInsertRows({}, 0, 0);
-    rows_.prepend({QDateTime::currentDateTimeUtc().toString("HH:mm:ss"), kind, text});
+    rows_.prepend({at.toUTC().toString("HH:mm:ss"), kind, text});
     endInsertRows();
 }

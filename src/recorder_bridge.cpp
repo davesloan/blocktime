@@ -42,6 +42,15 @@ void RecorderBridge::openLogFolder() const {
     if (!logDir_.isEmpty()) QDesktopServices::openUrl(QUrl::fromLocalFile(logDir_));
 }
 
+double RecorderBridge::nowMs() const {
+    return static_cast<double>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(now().time_since_epoch()).count());
+}
+
+QDateTime RecorderBridge::nowUtc() const { return toQDateTime(now()); }
+
+void RecorderBridge::setReplay() { setConnection("replay"); }
+
 void RecorderBridge::setConnection(const QString& c) {
     if (c == connection_) return;
     connection_ = c;
@@ -51,7 +60,7 @@ void RecorderBridge::setConnection(const QString& c) {
 void RecorderBridge::applyStarted(const QString& logDir) {
     logDir_ = logDir;
     emit logDirChanged();
-    events_.add("info", "Recording to " + logDir);
+    events_.add("info", "Recording to " + logDir, nowUtc());
 }
 
 void RecorderBridge::applyLine(const QString& line, bool error) {
@@ -67,7 +76,7 @@ void RecorderBridge::applyLine(const QString& line, bool error) {
     } else if (text.startsWith("BLOCK ") || text.startsWith("FLIGHT INTERRUPTED")) {
         kind = "block";
     }
-    events_.add(kind, text.simplified());
+    events_.add(kind, text.simplified(), nowUtc());
 }
 
 void RecorderBridge::applyConnection(ConnectionState state) {
@@ -109,7 +118,7 @@ void RecorderBridge::applySample(const TelemetrySample& s) {
     emit sampleChanged();
     // The shutdown checklist after block in (D-135); the stages ignore it at any other time.
     const ShutdownChecks checks{enginesRunning_ == 0, parkingBrake_, s.lightBeacon == 0, s.lightStrobe == 0};
-    if (stages_.onShutdownChecks(checks, utcTimestamp())) emit stagesChanged();
+    if (stages_.onShutdownChecks(checks, formatUtc(now()))) emit stagesChanged();
 }
 
 void RecorderBridge::showNextLeg() {
@@ -176,7 +185,8 @@ void RecorderBridge::applyMatch(const MatchResult& m) {
 void RecorderBridge::setBlocked() {
     setConnection("blocked");
     events_.add("warn", "BlockTime is already recording in another window, so this one isn't. Close the other "
-                        "one, then restart this one.");
+                        "one, then restart this one.",
+                nowUtc());
 }
 
 void RecorderBridge::applyAirport(blocktime::AirportFacilities airport) {
@@ -221,7 +231,7 @@ QVariantList RecorderBridge::stages() const {
 }
 
 void RecorderBridge::applyStopped(int result) {
-    if (result != 0) events_.add("warn", "Couldn't write to the log folder, so nothing is being recorded.");
+    if (result != 0) events_.add("warn", "Couldn't write to the log folder, so nothing is being recorded.", nowUtc());
 }
 
 void BridgeObserver::onStarted(const std::filesystem::path& logDir) {

@@ -17,7 +17,8 @@ ColumnLayout {
     required property RecorderBridge recorder
 
     readonly property bool live: recorder.hasSample
-    property double now: Date.now()
+    // The bridge's clock, never the wall clock (D-166): a replay runs it at its own speed.
+    property double now: recorder.nowMs()
 
     // 12345.6 -> "12,346"
     function grouped(x: real): string {
@@ -51,7 +52,7 @@ ColumnLayout {
         repeat: true
         triggeredOnStart: true
         running: panel.recorder.flightOpen
-        onTriggered: panel.now = Date.now()
+        onTriggered: panel.now = panel.recorder.nowMs()
     }
 
     GridLayout {
