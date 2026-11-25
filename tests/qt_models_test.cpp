@@ -565,8 +565,6 @@ public:
     QString assignError;
     QByteArray parkingBody = R"({"parking":{"id":"1","name":"Gate E7","lat":36.0,"lon":-115.0,"heading":0}})";
     int parkingCalls = 0;
-    QByteArray siAirportBody = R"({"api_key":"secret","airport":{"icao":"KPDX","api_key":"secret","gates":[]}})";
-    int siAirportCalls = 0;
     void fetchSiFlight(std::function<void(QByteArray, QString)> done) override {
         ++siFlightCalls;
         done(siFlightBody, siFlightError);
@@ -578,10 +576,6 @@ public:
     void fetchParking(std::function<void(QByteArray, QString)> done) override {
         ++parkingCalls;
         done(parkingBody, {});
-    }
-    void fetchSiAirport(std::function<void(QByteArray, QString)> done) override {
-        ++siAirportCalls;
-        done(siAirportBody, {});
     }
 };
 
@@ -1262,11 +1256,12 @@ struct WatcherRig {
         watcher = std::make_unique<FlightWatcher>(planner, bridge, target, queue);
         watcher->setIntervals(std::chrono::milliseconds(30), std::chrono::milliseconds(30));
         watcher->setGateInterval(std::chrono::milliseconds(30));
-        watcher->setGateContext([](const QString& icao) -> std::optional<blocktime::GateContext> {
+        watcher->setGateContext([this](const QString& icao) -> std::optional<blocktime::GateContext> {
             if (icao != "KPDX") return std::nullopt;
-            return blocktime::GateContext{35.8, blocktime::SpotUse::Gate, {}};
+            return blocktime::GateContext{35.8, blocktime::SpotUse::Gate, preferred};
         });
     }
+    std::vector<std::string> preferred{"E7"};  // Dave prefers E7 at KPDX (D-155)
     // KPDX with Gate E7 200 m north of the runway and Gate E9 600 m north.
     void loadDestination() {
         blocktime::AirportFacilities a;
@@ -1556,7 +1551,20 @@ TEST(FlightWatcher, SendsTheGateAndLogsOnce) {
     EXPECT_EQ(gates[0].data["si_parking"], "Gate E7");
     EXPECT_EQ(gates[0].data["flight_id"], "2026-11-23T22:51:08.969Z");
     EXPECT_TRUE(gates[0].data.contains("time"));
-    EXPECT_EQ(r.planner.siAirportCalls, 0);  // only with --probe
+}
+
+TEST(FlightWatcher, KeepsSayIntentionsGateWithoutAPreference) {
+    WatcherRig r;
+    r.preferred.clear();
+    r.loadDestination();
+    r.sayIntentionsPicksE9();
+    r.blockOut();
+    r.wait(100);
+    EXPECT_TRUE(r.planner.assignCalls.isEmpty());
+    const auto gates = r.pushed("arrival_gate");
+    ASSERT_EQ(gates.size(), 1u);
+    EXPECT_EQ(gates[0].data["result"], "kept");
+    EXPECT_EQ(gates[0].data["gate"], "Gate E9");
 }
 
 TEST(FlightWatcher, NoSayIntentionsNoGate) {
@@ -1606,20 +1614,6 @@ TEST(FlightWatcher, GateStopsAtBlockIn) {
     r.wait(100);
     EXPECT_EQ(r.planner.siFlightCalls, calls);
     EXPECT_TRUE(r.planner.assignCalls.isEmpty());
-}
-
-TEST(FlightWatcher, ProbeLogsSayIntentionsAirportWithoutKeys) {
-    WatcherRig r;
-    r.watcher->setProbe(true);
-    r.loadDestination();
-    r.sayIntentionsPicksE9();
-    r.blockOut();
-    r.wait(100);
-    EXPECT_EQ(r.planner.siAirportCalls, 1);
-    const auto probes = r.pushed("probe_si_airport");
-    ASSERT_EQ(probes.size(), 1u);
-    EXPECT_EQ(probes[0].data["answer"].dump().find("api_key"), std::string::npos);
-    EXPECT_EQ(probes[0].data["answer"]["airport"]["icao"], "KPDX");
 }
 
 TEST(PlannedFlightModel, LoadInTextNamesTheSpot) {

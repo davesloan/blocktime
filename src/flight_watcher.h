@@ -41,8 +41,6 @@ public:
     // pick a gate. Without it, no gate work is done.
     using GateContextFor = std::function<std::optional<blocktime::GateContext>(const QString& destinationIcao)>;
     void setGateContext(GateContextFor gateContext);
-    // --probe: after the arrival gate, log getAirport's answer once (probe_si_airport, without any api_key).
-    void setProbe(bool probe);
 
 private:
     void onBlockEvent(const QString& type, const QString& flightId);
@@ -60,7 +58,6 @@ private:
     QTimer atcTimer_, originTimer_, destinationTimer_, gateTimer_;
     GateContextFor gateContext_;
     bool gateDone_ = false;  // one try per flight
-    bool probe_ = false;
     QString flightId_, origin_, destination_;
     bool destinationDone_ = false;  // touched down: no more destination ATIS this flight
     blocktime::CommsDedupe comms_;

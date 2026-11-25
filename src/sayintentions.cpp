@@ -154,10 +154,6 @@ std::string getParkingUrl(std::string_view apiKey) {
     return "https://apipri.sayintentions.ai/sapi/getParking?api_key=" + percentEncode(apiKey);
 }
 
-std::string getAirportUrl(std::string_view apiKey) {
-    return "https://apipri.sayintentions.ai/sapi/getAirport?api_key=" + percentEncode(apiKey);
-}
-
 std::optional<std::string> parseAssignedGate(std::string_view body) {
     const json root = json::parse(body, nullptr, false);
     if (root.is_discarded() || !root.is_object()) return std::nullopt;
@@ -177,16 +173,6 @@ std::optional<SiParking> parseParking(std::string_view body) {
     p.lon = number(*parking, "lon").value_or(0);
     if (p.name.empty()) return std::nullopt;
     return p;
-}
-
-json withoutApiKeys(json j) {
-    if (j.is_object()) {
-        j.erase("api_key");
-        for (auto& [key, value] : j.items()) value = withoutApiKeys(std::move(value));
-    } else if (j.is_array()) {
-        for (auto& value : j) value = withoutApiKeys(std::move(value));
-    }
-    return j;
 }
 
 }  // namespace blocktime

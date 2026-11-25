@@ -134,7 +134,6 @@ TEST(SayIntentions, GateUrls) {
     EXPECT_EQ(assignGateUrl("k&y", "E7", "KLAS"),
               "https://apipri.sayintentions.ai/sapi/assignGate?api_key=k%26y&gate=E7&airport=KLAS");
     EXPECT_EQ(getParkingUrl("key"), "https://apipri.sayintentions.ai/sapi/getParking?api_key=key");
-    EXPECT_EQ(getAirportUrl("key"), "https://apipri.sayintentions.ai/sapi/getAirport?api_key=key");
 }
 
 TEST(SayIntentions, ParsesAssignedGateAndParking) {
@@ -147,8 +146,3 @@ TEST(SayIntentions, ParsesAssignedGateAndParking) {
     EXPECT_FALSE(parseParking(R"({"error":"No parking found"})").has_value());
 }
 
-TEST(SayIntentions, WithoutApiKeysAtEveryDepth) {
-    const auto j = withoutApiKeys(
-        nlohmann::json::parse(R"({"api_key":"a","x":{"api_key":"b","y":[{"api_key":"c","z":1}]},"w":2})"));
-    EXPECT_EQ(j.dump(), R"({"w":2,"x":{"y":[{"z":1}]}})");
-}

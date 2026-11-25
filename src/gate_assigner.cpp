@@ -8,14 +8,6 @@
 
 namespace blocktime {
 
-namespace {
-
-bool sameSpot(const ParkingSpot& a, const ParkingSpot& b) {
-    return a.name == b.name && a.number == b.number && a.type == b.type && a.lat == b.lat && a.lon == b.lon;
-}
-
-}  // namespace
-
 std::optional<GatePlan> planGate(const SiFlight& si, const std::string& destinationIcao,
                                  const AirportFacilities& airport, const GateContext& context) {
     if (si.assignedGate.empty() || si.destination != destinationIcao) return std::nullopt;
@@ -25,41 +17,48 @@ std::optional<GatePlan> planGate(const SiFlight& si, const std::string& destinat
         distanceMeters(*si.gateLat, *si.gateLon, airport.lat, airport.lon) > kSiGateMaxFromAirportM) {
         return std::nullopt;
     }
-    const auto pick = pickGate(airport, si.arrivingRunway, context);
+    // SayIntentions' gate is matched to an MSFS spot by its position: its names aren't always MSFS's (D-147).
+    const auto siSpot = nearestSpot(airport.spots, *si.gateLat, *si.gateLon, kParkedSpotMaxM);
+    const auto pick = pickGate(airport, siSpot, context);
     GatePlan plan;
+    plan.siLat = *si.gateLat;
+    plan.siLon = *si.gateLon;
     plan.event = {{"icao", destinationIcao},
                   {"runway", si.arrivingRunway},
                   {"si_gate", si.assignedGate},
-                  {"gate", pick ? spotName(pick->spot) : ""},
-                  {"reason", pick ? std::string(pickReasonCode(pick->reason)) : "none_fits"},
+                  {"gate", ""},
+                  {"reason", ""},
                   {"sent", false},
-                  {"result", ""},
+                  {"result", "kept"},
                   {"si_parking", ""},
                   {"error", ""}};
     if (!pick) {
-        plan.event["result"] = "none_fits";
+        if (siSpot && !spotFits(*siSpot, context.wingspanM)) {
+            plan.event["result"] = "none_fits";
+        } else if (siSpot) {
+            plan.event["gate"] = spotName(*siSpot);
+        }
         return plan;
     }
-    // SayIntentions' gate is matched to an MSFS spot by its position: its names aren't always MSFS's (D-147).
-    std::optional<ParkingSpot> siSpot;
-    if (si.gateLat && si.gateLon) siSpot = nearestSpot(airport.spots, *si.gateLat, *si.gateLon);
-    if (siSpot && sameSpot(*siSpot, pick->spot)) {
-        plan.event["result"] = "same_as_si";
-        return plan;
-    }
+    plan.event["gate"] = spotName(pick->spot);
+    plan.event["reason"] = std::string(pickReasonCode(pick->reason));
     plan.send = true;
     plan.shortName = spotShortName(pick->spot);
     return plan;
 }
 
-nlohmann::json finishSend(nlohmann::json event, const std::string& error, const std::optional<SiParking>& readBack) {
+nlohmann::json finishSend(const GatePlan& plan, const std::string& error, const std::optional<SiParking>& readBack) {
+    nlohmann::json event = plan.event;
     event["sent"] = true;
     event["error"] = error;
-    if (error.empty()) {
-        event["result"] = "assigned";
-        event["si_parking"] = readBack ? readBack->name : "";
-    } else {
+    if (!error.empty()) {
         event["result"] = error.find("Unknown gate") != std::string::npos ? "unknown_gate" : "error";
+    } else if (!readBack) {
+        event["result"] = "unconfirmed";
+    } else {
+        event["si_parking"] = readBack->name;
+        const bool stayed = distanceMeters(readBack->lat, readBack->lon, plan.siLat, plan.siLon) <= kParkedSpotMaxM;
+        event["result"] = stayed ? "ignored" : "assigned";
     }
     return event;
 }

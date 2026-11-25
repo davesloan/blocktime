@@ -86,14 +86,13 @@ Sources:
   could be found."}`, `{"status": "UNKNOWN ERROR"}`. `getParking` answers `{"parking": {"id", "name": "Gate A21",
   "lat", "lon", "heading"}}` or `{"error": "No parking found"}`: its name has "Gate " in front, `assignGate`'s answer
   (`assigned_gate_name`) doesn't. **`getAirport`'s answer isn't documented** ("comprehensive airport information
-  including weather and communication frequencies", for the airports of the current flight plan): with `--probe`,
-  BlockTime logs it once per flight as `probe_si_airport` (every `api_key` removed) to see whether it lists gates.
-- **How BlockTime uses it (0.10.0, `FlightWatcher`):** polls flightJSON every 30 s from block out; once
-  `assigned_gate` is set for the planned destination and the destination's spots are loaded, it picks (D-147) and
-  logs one `arrival_gate` event per flight. Failures before the send are quiet (SayIntentions may not be running).
-  SayIntentions' gate counts only when `assigned_gate_lat/lon` are within 5 km of the destination: what
-  `assigned_gate` holds before departure hasn't been read yet (it may be the departure gate). Milestone 9's sim test
-  reads it at the gate.
+  including weather and communication frequencies", for the airports of the current flight plan); milestone 9 got
+  `[]` from it (below).
+- **How BlockTime uses it (`FlightWatcher`, D-155):** polls flightJSON every 30 s from block out; once
+  `assigned_gate` is set for the planned destination (its position within 5 km of it) and the destination's spots
+  are loaded, it keeps SayIntentions' gate unless a preferred spot or a larger one is needed, then sends
+  `assignGate` and reads `getParking` back. One `arrival_gate` event per flight. Failures before the send are quiet
+  (SayIntentions may not be running).
 - **Seen in milestone 9's sim test (2026-11-24, N814SX KSFO→KLAS→KSAN, 0.10.0):**
   - Before pushback at KSFO, Dave found no `assigned_gate` in flightJSON. SayIntentions fills it in only once it picks
     the arrival gate (in cruise both legs: 22:45Z, 8 min after reaching FL390; 00:21Z, 30 s after reaching FL360).

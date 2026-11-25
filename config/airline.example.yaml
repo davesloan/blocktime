@@ -31,8 +31,8 @@ airplanes:
     #                                 # min_runway_ft, mlw_lb, passenger_weight_lb, bag_weight_lb, max_payload_lb.
     #                                 # Read only when it's leased.
 
-# Optional (D-147): the airline's own gates, by airport, first choice first, in SayIntentions' short form ("D14").
-# BlockTime asks SayIntentions for the first one that fits. Only passenger and VIP flights use them; charters,
-# deliveries and freighters go to ramps.
+# Optional (D-155): the airline's favourite spots, by airport, first choice first, in short form ("D14" for Gate D14,
+# "70" for Parking 70). BlockTime asks SayIntentions for the first one that fits instead of its own gate. Passenger
+# and VIP flights use the gates listed; charters, deliveries and freighters use the ramps.
 preferred_gates:
   KPDX: [D14]

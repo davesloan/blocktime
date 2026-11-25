@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// pickGate: the arrival gate by D-074's rules, with milestone 9's details (D-147).
+// pickGate: whether BlockTime asks for another arrival gate than SayIntentions' (D-147, D-155).
 
 #include <optional>
 #include <string>
@@ -19,7 +19,6 @@ namespace {
 constexpr double kLat = 36.0, kLon = -115.0;
 constexpr double kBbjM = 35.8;  // the BBJ2's wingspan
 
-// Runway 09/27, 3,000 m, centred on the reference point: its ends are 1,500 m east and west.
 AirportFacilities airport(std::vector<ParkingSpot> spots) {
     AirportFacilities a;
     a.icao = "KTST";
@@ -59,75 +58,69 @@ TEST(GatePicker, SpotUseByKind) {
     EXPECT_EQ(spotUseFor("cargo"), SpotUse::CargoRamp);
 }
 
+// SayIntentions' gate is BlockTime's default: it knows which gates and ramps the scenery has (D-155).
+TEST(GatePicker, KeepsSayIntentionsGateThatFits) {
+    const auto a = airport({spot(16, 7, 9, 20, 0, 200), spot(16, 9, 9, 20, 0, 600)});
+    EXPECT_FALSE(pickGate(a, a.spots[1], context(SpotUse::Gate)).has_value());
+    EXPECT_FALSE(pickGate(a, a.spots[1], context(SpotUse::Ramp)).has_value());
+}
+
+TEST(GatePicker, KeepsSayIntentionsGateItCantPlace) {
+    const auto a = airport({spot(16, 7, 9, 20, 0, 200)});
+    EXPECT_FALSE(pickGate(a, std::nullopt, context(SpotUse::Gate)).has_value());
+}
+
 TEST(GatePicker, PreferredFirstThatFits) {
     const auto a = airport({spot(15, 12, 9, 15, 0, 900), spot(15, 14, 9, 18, 0, 1000), spot(14, 1, 9, 20, 0, 100)});
-    const auto p = pickGate(a, "27", context(SpotUse::Gate, {"D12", "D14"}));
+    const auto p = pickGate(a, a.spots[2], context(SpotUse::Gate, {"D12", "D14"}));
     EXPECT_EQ(picked(p), "Gate D14");
     EXPECT_EQ(p->reason, PickReason::Preferred);
 }
 
-TEST(GatePicker, ClosestGateToRunway) {
-    // A is 300 m from the runway's middle, 1,530 m from either threshold; B is 600 m past the east end.
-    const auto a = airport({spot(12, 1, 9, 20, 0, 300), spot(13, 1, 9, 20, 2100, 0)});
-    const auto p = pickGate(a, "27", context(SpotUse::Gate));
-    EXPECT_EQ(picked(p), "Gate A1");
-    EXPECT_EQ(p->reason, PickReason::Closest);
+TEST(GatePicker, PreferredEvenWhenSayIntentionsCantBePlaced) {
+    const auto a = airport({spot(15, 14, 9, 20, 0, 1000)});
+    EXPECT_EQ(picked(pickGate(a, std::nullopt, context(SpotUse::Gate, {"D14"}))), "Gate D14");
 }
 
-TEST(GatePicker, CharterGetsRampNotGate) {
-    const auto a = airport({spot(12, 1, 9, 20, 0, 100), spot(1, 70, 4, 20, 0, 800)});
-    const auto p = pickGate(a, "27", context(SpotUse::Ramp));
-    EXPECT_EQ(picked(p), "Parking 70");
-    EXPECT_EQ(p->reason, PickReason::Closest);
+TEST(GatePicker, SayIntentionsGivingAPreferredGateIsKept) {
+    const auto a = airport({spot(15, 12, 9, 20, 0, 900), spot(15, 14, 9, 20, 0, 1000)});
+    EXPECT_FALSE(pickGate(a, a.spots[1], context(SpotUse::Gate, {"D12", "D14"})).has_value());
 }
 
-TEST(GatePicker, PreferredIgnoredForCharter) {
-    const auto a = airport({spot(15, 14, 9, 20, 0, 100), spot(1, 70, 4, 20, 0, 800)});
-    EXPECT_EQ(picked(pickGate(a, "27", context(SpotUse::Ramp, {"D14"}))), "Parking 70");
+// A favourite ramp works for charter and cargo; a favourite gate isn't used for them, nor a ramp for a gate flight.
+TEST(GatePicker, PreferredMatchesHowTheFlightParks) {
+    const auto a = airport({spot(15, 14, 9, 20, 0, 100), spot(1, 70, 4, 20, 0, 800), spot(16, 7, 9, 20, 0, 200)});
+    EXPECT_FALSE(pickGate(a, a.spots[2], context(SpotUse::Ramp, {"D14"})).has_value());
+    EXPECT_EQ(picked(pickGate(a, a.spots[2], context(SpotUse::Ramp, {"D14", "70"}))), "Parking 70");
+    EXPECT_EQ(picked(pickGate(a, a.spots[2], context(SpotUse::CargoRamp, {"70"}))), "Parking 70");
+    EXPECT_FALSE(pickGate(a, a.spots[2], context(SpotUse::Gate, {"70"})).has_value());
 }
 
-TEST(GatePicker, FreighterGetsCargoRamp) {
-    const auto a = airport({spot(1, 1, 4, 20, 0, 100), spot(1, 2, 5, 20, 0, 900)});
-    const auto p = pickGate(a, "27", context(SpotUse::CargoRamp));
-    EXPECT_EQ(picked(p), "Parking 2");
-    EXPECT_EQ(p->reason, PickReason::Closest);
+// SayIntentions' gate too small for the type: the nearest one of the same kind that fits.
+TEST(GatePicker, LargerGateNearestToSayIntentions) {
+    const auto a = airport({spot(16, 7, 9, 15, 0, 200), spot(16, 9, 9, 20, 0, 600), spot(16, 5, 9, 20, 0, 350),
+                            spot(1, 70, 4, 30, 0, 210)});
+    const auto p = pickGate(a, a.spots[0], context(SpotUse::Gate));
+    EXPECT_EQ(picked(p), "Gate E5");
+    EXPECT_EQ(p->reason, PickReason::Larger);
 }
 
-TEST(GatePicker, NoGaRampFallsToAnyRamp) {
-    const auto a = airport({spot(1, 1, 4, 15, 0, 100), spot(1, 2, 5, 20, 0, 900), spot(12, 1, 9, 20, 0, 50)});
-    const auto p = pickGate(a, "27", context(SpotUse::Ramp));
-    EXPECT_EQ(picked(p), "Parking 2");
-    EXPECT_EQ(p->reason, PickReason::AnyRamp);
+TEST(GatePicker, LargerRampForARamp) {
+    const auto a = airport({spot(1, 70, 4, 15, 0, 200), spot(12, 1, 9, 20, 0, 210), spot(1, 2, 5, 20, 0, 400)});
+    EXPECT_EQ(picked(pickGate(a, a.spots[0], context(SpotUse::Ramp))), "Parking 2");
 }
 
-TEST(GatePicker, NoRampFallsToGate) {
-    const auto a = airport({spot(1, 1, 3, 10, 0, 100), spot(12, 1, 9, 20, 0, 500)});
-    const auto p = pickGate(a, "27", context(SpotUse::Ramp));
-    EXPECT_EQ(picked(p), "Gate A1");
-    EXPECT_EQ(p->reason, PickReason::GateFallback);
+TEST(GatePicker, NothingLargerKeepsSayIntentions) {
+    const auto a = airport({spot(16, 7, 9, 15, 0, 200), spot(1, 70, 4, 30, 0, 210)});
+    EXPECT_FALSE(pickGate(a, a.spots[0], context(SpotUse::Gate)).has_value());
 }
 
 TEST(GatePicker, MilitaryNeverPicked) {
-    const auto a = airport({spot(1, 1, 6, 30, 0, 100), spot(1, 2, 7, 30, 0, 100), spot(12, 1, 9, 20, 0, 900)});
-    EXPECT_EQ(picked(pickGate(a, "27", context(SpotUse::Ramp))), "Gate A1");
-}
-
-TEST(GatePicker, UnknownRunwayUsesReferencePoint) {
-    // X is 200 m from the reference point; Y is 100 m past the east end, 1,600 m from it.
-    const auto a = airport({spot(12, 1, 9, 20, 0, 200), spot(13, 1, 9, 20, 1600, 0)});
-    EXPECT_EQ(picked(pickGate(a, "27", context(SpotUse::Gate))), "Gate B1");
-    EXPECT_EQ(picked(pickGate(a, "", context(SpotUse::Gate))), "Gate A1");
-    EXPECT_EQ(picked(pickGate(a, "36", context(SpotUse::Gate))), "Gate A1");
-}
-
-TEST(GatePicker, NoGateFitsGivesNothing) {
-    const auto a = airport({spot(12, 1, 9, 15, 0, 100), spot(1, 70, 4, 30, 0, 200)});
-    EXPECT_FALSE(pickGate(a, "27", context(SpotUse::Gate)).has_value());
+    const auto a = airport({spot(1, 1, 4, 15, 0, 100), spot(1, 2, 6, 30, 0, 110), spot(1, 3, 3, 20, 0, 900)});
+    EXPECT_EQ(picked(pickGate(a, a.spots[0], context(SpotUse::Ramp))), "Parking 3");
 }
 
 TEST(GatePicker, ReasonCodes) {
     EXPECT_EQ(pickReasonCode(PickReason::Preferred), "preferred");
-    EXPECT_EQ(pickReasonCode(PickReason::Closest), "closest");
-    EXPECT_EQ(pickReasonCode(PickReason::AnyRamp), "any_ramp");
-    EXPECT_EQ(pickReasonCode(PickReason::GateFallback), "gate_fallback");
+    EXPECT_EQ(pickReasonCode(PickReason::Larger), "larger");
 }

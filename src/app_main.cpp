@@ -288,7 +288,6 @@ int main(int argc, char* argv[]) {
         if (!planned) return std::nullopt;
         return airline.gateContext(planned->typeCode, planned->kind, destination.toStdString());
     });
-    flightWatcher.setProbe(recorderOptions.probe);
     const QString airlineIcao = QString::fromStdString(airline.airlineIcao());
     // Settled flights from the database, tracks from the log (D-111); refreshed when a flight is settled.
     FlightListModel flights(planningDb, logDir, airlineIcao);

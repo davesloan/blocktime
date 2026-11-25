@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Whether to ask SayIntentions for BlockTime's arrival gate, once SayIntentions has picked its own, and the
-// arrival_gate event that records what happened (D-141, D-147). One try per flight; FlightWatcher runs it.
+// arrival_gate event that records what happened (D-141, D-147, D-155). One try per flight; FlightWatcher runs it.
 
 #pragma once
 
@@ -23,7 +23,8 @@ inline constexpr double kSiGateMaxFromAirportM = 5000.0;
 
 struct GatePlan {
     bool send = false;
-    std::string shortName;  // to send to assignGate
+    std::string shortName;      // to send to assignGate
+    double siLat = 0, siLon = 0;  // SayIntentions' own gate, to tell from the read-back whether it moved
     // arrival_gate: icao, runway, si_gate, gate, reason, sent, result, si_parking, error. Complete when !send;
     // finishSend completes it after a send. FlightWatcher adds flight_id and time.
     nlohmann::json event;
@@ -34,7 +35,10 @@ struct GatePlan {
 std::optional<GatePlan> planGate(const SiFlight& si, const std::string& destinationIcao,
                                  const AirportFacilities& airport, const GateContext& context);
 
-// After assignGate: result "assigned", or "unknown_gate" (SayIntentions didn't know the name) or "error".
-nlohmann::json finishSend(nlohmann::json event, const std::string& error, const std::optional<SiParking>& readBack);
+// Results without a send: "kept" (SayIntentions' gate stands) or "none_fits" (it's too small and nothing larger is
+// there). After assignGate: "assigned" (getParking reads back a spot away from SayIntentions' own gate), "ignored"
+// (it reads back SayIntentions' own: assignGate can answer without an error and change nothing), "unconfirmed" (no
+// read-back), "unknown_gate" (SayIntentions didn't know the name) or "error".
+nlohmann::json finishSend(const GatePlan& plan, const std::string& error, const std::optional<SiParking>& readBack);
 
 }  // namespace blocktime

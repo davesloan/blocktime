@@ -73,9 +73,14 @@ std::string str(const nlohmann::json& d, const char* key) {
 // The arrival_gate event's line (D-147): BlockTime's gate, or SayIntentions' own when it kept it.
 std::string arrivalGateText(const nlohmann::json& d) {
     const std::string result = str(d, "result"), gate = str(d, "gate"), si = str(d, "si_gate");
-    const std::string note = str(d, "reason") == "gate_fallback" ? " (no ramp fits)" : "";
-    if (result == "assigned") return "Arrival gate: " + gate + note;
-    if (result == "same_as_si") return "Arrival gate: " + gate + (note.empty() ? " (SayIntentions' choice)" : note);
+    if (result == "kept") return "Arrival gate: SayIntentions' " + si;
+    if (result == "assigned") {
+        const std::string reason = str(d, "reason");
+        return "Arrival gate: " + gate +
+               (reason == "preferred" ? " (preferred)" : reason == "larger" ? " (SayIntentions' was too small)" : "");
+    }
+    if (result == "ignored") return "Arrival gate: SayIntentions' " + si + " (it didn't take " + gate + ")";
+    if (result == "unconfirmed") return "Arrival gate: " + gate + " (not confirmed)";
     if (result == "unknown_gate") return "Arrival gate: SayIntentions' " + si + " (it doesn't know " + gate + ")";
     if (result == "none_fits") return "Arrival gate: SayIntentions' " + si + " (no spot fits)";
     return "Arrival gate: SayIntentions' " + si + " (assignGate failed)";

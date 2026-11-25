@@ -1004,7 +1004,8 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-074 — The app assigns the arrival gate through SayIntentions
 - Date: 2026-11-22
-- Status: Accepted (fallbacks confirmed by Dave, 2026-11-22); timing and runway source superseded by D-141
+- Status: Accepted (fallbacks confirmed by Dave, 2026-11-22); timing and runway source superseded by D-141; the
+  closest-to-runway pick superseded by D-155
 - Decided by: Dave (rule), Claude (fallbacks)
 - Area: app
 - Decision: Mid-flight the app picks a gate and asks SayIntentions to assign it (`assignGate`). Order: preferred
@@ -2194,7 +2195,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-147 — Milestone 9's gate rules
 - Date: 2026-11-24
-- Status: Accepted (Dave, 2026-11-24)
+- Status: Accepted (Dave, 2026-11-24); kinds, preferred gates and closest to the runway superseded by D-155
 - Decided by: Claude
 - Area: app, recorder
 - Decision:
@@ -2337,3 +2338,33 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   the review found new literals.
 - Alternatives considered: semantic names only, no scale (dozens of one-off names for 4, 8 and 12); leaving the
   older files' literals (inconsistent).
+
+## D-155 — Keep SayIntentions' arrival gate unless Dave prefers another or it's too small
+- Date: 2026-11-24
+- Status: Accepted
+- Decided by: Dave (keep SayIntentions' gate, favourite spots), Claude (the details)
+- Area: app
+- Decision:
+  - BlockTime no longer picks from the whole airport. **SayIntentions' gate stands** unless:
+    - **a preferred spot** for that airport (`preferred_gates` in airline.yaml) fits: the first one listed, unless
+      SayIntentions' gate is already one of them. Preferred spots now work for every flight kind: gates for passenger
+      and VIP flights, ramps (types 2–5) for charters, deliveries and freighters, so Dave can list favourite ramps too;
+    - **SayIntentions' gate is too small** for the type's wingspan: then the nearest spot of the same kind (gate or
+      ramp) that fits, measured from SayIntentions' gate. If none fits, SayIntentions' gate stands.
+  - **A send counts only when the read-back moves.** `assignGate` can answer without an error and change nothing, so
+    the result is "assigned" when `getParking` reads back a spot more than 40 m from SayIntentions' own gate and
+    "ignored" when it reads back SayIntentions' own; "unconfirmed" with no read-back. Live names the gate ATC will
+    give: "Arrival gate: SayIntentions' Terminal 3 Gate E7A", "Arrival gate: Gate D14 (preferred)", or "Arrival gate:
+    SayIntentions' Terminal 3 Gate E7A (it didn't take Gate D14)".
+  - **Where Dave parked is still the fact** (D-148): `block_in` and the flight's `arrival_parking` keep the spot he
+    actually stopped at, whatever was assigned.
+  - The `getAirport` probe is removed: it answered `[]` at KLAS and KSAN.
+  - The 3,000 ft AGL Approach fallback stays as it is: over a ridge it starts Approach early (16 nm out at KLAS), which
+    Dave accepts. Final approach and Short final are what matter.
+- Why: Milestone 9's sim test. Closest to the landing runway picked KLAS "Gate 239", a mid-field stand, and KSAN
+  "Parking 70", which the scenery shows as a construction zone: MSFS's parking data lists spots the scenery doesn't
+  have. SayIntentions sends GA flights to charter ramps and freighters to cargo ramps, so its gate is the better
+  default. At KLAS, `assignGate("239")` gave no error but SayIntentions kept E7A while Live showed Gate 239.
+- Alternatives considered: keep picking but only near SayIntentions' gate (still blind to the scenery); no
+  assignment at all (loses Dave's favourite spots); comparing the read-back by name (SayIntentions' names aren't
+  MSFS's: "106" for Parking 70); measuring the AGL fallback from the field's elevation (Dave doesn't need it precise).

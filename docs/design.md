@@ -458,27 +458,30 @@ as they happen, each with its start and end time. The same records go into the f
 - **Stored (D-137):** each settled flight keeps its phase start times and its completed GSX services in the database
   (`docs/database.md`), for the leg templates (section 7).
 
-### 13.6 Arrival gate (D-074, D-141)
+### 13.6 Arrival gate (D-074, D-141, D-155)
 
 Once SayIntentions has picked its own arrival gate (usually in cruise; it sets the landing runway and transition at
-the same time), the app picks an arrival gate and asks SayIntentions to assign it (`assignGate`, needs an active
-SayIntentions flight), so ATC gives it after landing. It reads the result back from SayIntentions, and sends nothing
-if SayIntentions already chose the same gate.
-1. **Preferred gates** for the airport, from config, first one that fits.
-2. Otherwise the parking spot of the **right size and type closest to the arrival runway** (SayIntentions'
-   landing runway, D-141, as a line between its thresholds). Size: twice the spot's radius is at least the type's
-   wingspan (`wingspan_m` in catalog.yaml, D-147).
-3. **Type:** passenger flights use gates. **Freighters and charters use ramps** (cargo ramps for freighters).
-   If no ramp of the right size exists, any ramp that fits, then a gate as a last resort,
-   with a note on the dashboard.
+the same time), the app decides whether to ask for another one with `assignGate` (needs an active SayIntentions
+flight), so ATC gives it after landing. **SayIntentions' gate is the default**: it knows which gates and ramps the
+scenery has, and sends GA flights to charter ramps and freighters to cargo ramps. MSFS's parking data doesn't: it
+lists spots the scenery shows as a construction zone (KSAN) and mid-field stands (KLAS). The app asks for another
+spot only for:
+1. **A preferred spot** for the airport (`preferred_gates` in airline.yaml, by ICAO, first one that fits), unless
+   SayIntentions' gate is already one of them. Gates for passenger and VIP flights; ramps for charters, deliveries
+   and freighters, so a favourite ramp works too. Military spots are never used.
+2. **A gate too small for the type:** twice the spot's radius is less than the type's wingspan (`wingspan_m` in
+   catalog.yaml, D-147). Then the nearest spot of the same kind (gate or ramp) that fits, from SayIntentions' gate;
+   if none fits, SayIntentions' gate stands.
 - Parking spots (name, position, size, type) come from the sim over SimConnect. Gate names are sent to
   SayIntentions in short form, letters and digits only ("E7" for MSFS's Gate E7, "70" for Parking 70; D-147).
-  SayIntentions' own names aren't always MSFS's (its KLAS "E7A" is MSFS's E7): if it answers "Unknown gate", it keeps
-  its own gate and Live says so. SayIntentions' gate is matched to an MSFS spot by its position, and it counts as
-  its arrival pick only once that position is within 5 km of the destination (before departure flightJSON's
-  `assigned_gate` may be the departure gate).
-- **Preferred gates** (`preferred_gates` in airline.yaml, by ICAO) apply only to passenger and VIP flights.
-  Charters and deliveries use GA ramps, freighters cargo ramps; military spots are never picked (D-147).
+  SayIntentions' own names aren't always MSFS's (its KLAS "E7A" is MSFS's E7, its KSAN "106" is MSFS's Parking 70).
+  SayIntentions' gate is matched to an MSFS spot by its position (within 40 m), and it counts as its arrival pick
+  only once that position is within 5 km of the destination (before departure flightJSON's `assigned_gate` may be
+  the departure gate).
+- **The read-back decides.** `assignGate` can answer without an error and change nothing (KLAS, milestone 9), so the
+  app reads SayIntentions' parking back with `getParking`: the request took only if it moved away from SayIntentions'
+  own gate. Live names the gate ATC will give. If `assignGate` answers "Unknown gate" or fails, SayIntentions keeps
+  its own gate and Live says so.
 - **One try per flight**, logged as an `arrival_gate` event and shown on Live (section 13.5). Built in milestone 9
   (`gate_picker.h`, `gate_assigner.h`, `FlightWatcher`).
 - BlockTime can't see whether an AI aircraft is parked there; SayIntentions and GSX handle that on the ground.

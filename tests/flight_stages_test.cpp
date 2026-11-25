@@ -382,7 +382,7 @@ TEST(FlightStages, BlockOutStartsAFreshFlight) {
 
 namespace {
 
-json gate(const std::string& result, const std::string& reason = "closest") {
+json gate(const std::string& result, const std::string& reason = "preferred") {
     return {{"time", at("19:10:00")}, {"icao", "KLAS"}, {"runway", "26L"}, {"si_gate", "Terminal 3 Gate E7A"},
             {"gate", result == "none_fits" ? "" : "Gate E9"}, {"reason", reason}, {"sent", true},
             {"result", result}, {"si_parking", ""}, {"error", ""}};
@@ -413,9 +413,12 @@ TEST(FlightStages, ParkedAtSpot) {
 }
 
 TEST(FlightStages, ArrivalGateLines) {
-    EXPECT_EQ(gateLine(gate("assigned")), "Arrival gate: Gate E9");
-    EXPECT_EQ(gateLine(gate("same_as_si")), "Arrival gate: Gate E9 (SayIntentions' choice)");
-    EXPECT_EQ(gateLine(gate("assigned", "gate_fallback")), "Arrival gate: Gate E9 (no ramp fits)");
+    EXPECT_EQ(gateLine(gate("kept", "")), "Arrival gate: SayIntentions' Terminal 3 Gate E7A");
+    EXPECT_EQ(gateLine(gate("assigned", "preferred")), "Arrival gate: Gate E9 (preferred)");
+    EXPECT_EQ(gateLine(gate("assigned", "larger")), "Arrival gate: Gate E9 (SayIntentions' was too small)");
+    EXPECT_EQ(gateLine(gate("ignored", "preferred")),
+              "Arrival gate: SayIntentions' Terminal 3 Gate E7A (it didn't take Gate E9)");
+    EXPECT_EQ(gateLine(gate("unconfirmed", "preferred")), "Arrival gate: Gate E9 (not confirmed)");
     EXPECT_EQ(gateLine(gate("unknown_gate")),
               "Arrival gate: SayIntentions' Terminal 3 Gate E7A (it doesn't know Gate E9)");
     EXPECT_EQ(gateLine(gate("error")), "Arrival gate: SayIntentions' Terminal 3 Gate E7A (assignGate failed)");

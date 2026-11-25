@@ -112,10 +112,6 @@ void QtPlanner::fetchParking(std::function<void(QByteArray, QString)> done) {
     getSayIntentions(blocktime::getParkingUrl(settings_.sayIntentionsApiKey), std::move(done));
 }
 
-void QtPlanner::fetchSiAirport(std::function<void(QByteArray, QString)> done) {
-    getSayIntentions(blocktime::getAirportUrl(settings_.sayIntentionsApiKey), std::move(done));
-}
-
 void QtPlanner::getSayIntentions(const std::string& url, std::function<void(QByteArray, QString)> done) {
     if (settings_.sayIntentionsApiKey.empty() || settings_.sayIntentionsDeveloperKey.empty()) {
         done({}, QStringLiteral("No SayIntentions keys in settings.json"));

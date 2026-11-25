@@ -15,9 +15,9 @@ Every flight you fly is recorded automatically, from parking brake release to pa
 > level-offs, markers, the runways and the touchdown rate), and the log collects the ATC exchanges, the ATIS and the
 > altimeter settings for the debrief to come. GSX's services (catering, refuelling, boarding, pushback, deboarding)
 > show with their times from the gate to the gate, with a shutdown checklist after arrival, and each flight keeps its
-> phase and service times. Once SayIntentions has picked its arrival gate, BlockTime picks its own by the airline's
-> rules (gate or ramp, size, closest to the landing runway) and asks SayIntentions for it; each flight keeps the spot
-> it parked at, which the next flight shows as where to load in. Live shows the stages, the live values and the event
+> phase and service times. Once SayIntentions has picked its arrival gate, BlockTime keeps it unless the airline prefers
+> another spot there or it's too small for the airplane, and then asks SayIntentions for that one; each flight keeps
+> the spot it parked at, which the next flight shows as where to load in. Live shows the stages, the live values and the event
 > log in three columns. The debrief comes next (`docs/roadmap.md`).
 
 This project is built for one pilot's own use and shared in case others want to tinker. It isn't designed to be easy to
@@ -124,8 +124,9 @@ New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\BlockTime" | Out-Null; Co
   D-082).
   Optional per airplane: `flight_number`, the default number of its free flights (re-read at every start, D-106), and
   `limits`, its own values in place of its airframe's (read only when it's leased, D-100).
-  Optional for the airline: `preferred_gates`, your own gates by airport in SayIntentions' short form
-  (`{ KPDX: [D14] }`), asked for first on passenger and VIP flights (D-147).
+  Optional for the airline: `preferred_gates`, your own spots by airport in short form (`{ KPDX: [D14] }`), asked
+  for in place of SayIntentions' gate: gates on passenger and VIP flights, ramps on charters, deliveries and
+  freighters (D-155).
 - **`catalog.yaml`:** aircraft types (lease rate, family, role) and airframes (seats, holds and `limits`: minimum
   runway, MLW, passenger and bag weight, and max payload, which must match the airplane's SimBrief airframe). Numbers
   marked `estimate` are placeholders until they're read from the PMDG load pages. Each type also names its

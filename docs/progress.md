@@ -50,7 +50,10 @@ Newest entries at the top. Add an entry at the end of every working session.
 - `getAirport` returns `[]`: the probe can go.
 
 **Next step:**
-- Dave's call on gate assignment and the AGL fallback, then fix, test and push `main` (D-121).
+- Done in the same session: D-155 (SayIntentions' gate stands unless a preferred or larger spot is needed; a send
+  counts only when the read-back moves; the AGL fallback stays). 568 tests pass. In the next flight, check the
+  arrival gate line: "Arrival gate: SayIntentions' …" with no preference set, and "Gate D14 (preferred)" at KPDX.
+  Then milestone 10 in a new session (D-121).
 
 ## 2026-11-24 — Dashboard brainstorm (after the MVP), no code
 

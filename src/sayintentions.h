@@ -69,7 +69,6 @@ std::optional<SiFlight> parseSiFlight(std::string_view json);
 
 std::string assignGateUrl(std::string_view apiKey, std::string_view gate, std::string_view icao);
 std::string getParkingUrl(std::string_view apiKey);
-std::string getAirportUrl(std::string_view apiKey);
 std::optional<std::string> parseAssignedGate(std::string_view json);  // assigned_gate_name
 
 struct SiParking {
@@ -77,8 +76,5 @@ struct SiParking {
     double lat = 0, lon = 0;
 };
 std::optional<SiParking> parseParking(std::string_view json);  // getParking's "parking"
-
-// A copy with every "api_key" member removed, at any depth: for logging an answer whole (the probe).
-nlohmann::json withoutApiKeys(nlohmann::json j);
 
 }  // namespace blocktime
