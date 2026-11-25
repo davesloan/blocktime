@@ -22,6 +22,24 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-25 — Milestone 10 closed: the MVP is done
+
+**Done:**
+- Dave closed milestone 10 (2026-11-25): no more sim tests for it; anything odd gets fixed as it comes up in normal
+  flying. **The MVP is complete** (`docs/roadmap.md`).
+- Version 0.11.1 on `main`, pushed: the debrief with fourteen checks (including the two APU checks, D-172, D-173),
+  landing stars, the score and averages, and Claude's review following Dave's corrections (D-171). 646 tests pass.
+
+**Never exercised in the sim (fix if they come up):**
+- the APU lines on a real flight (777 `APURunning`, the 737's 300 °C EGT) and the two APU checks;
+- a real bounce counted by the `bounces` event;
+- Retry after a failed review (network off; Dave: an edge case);
+- the 777's VREF and landing flaps in flight;
+- leg 1 of the sim test (2026-11-25) keeps its stored gear-up miss and old review (Dave: leave as is).
+
+**Next step:**
+- Milestone 11 (flight replay, D-163..D-168) in a new Claude Code session (D-121), starting from this entry.
+
 ## 2026-11-25 — Two APU checks (version 0.11.1)
 
 **Done:**
