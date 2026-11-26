@@ -2757,3 +2757,22 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   at 1× it looked stuck. A telemetry line is a full sample, so one is enough to set the scene.
 - Alternatives considered: fast-forwarding the quiet stretch at 10× (still a wait, and a second speed rule); starting
   at block out (Pre-Departure's GSX services wouldn't replay).
+
+## D-179 — The panels below the dashboard's header look like an instrument panel
+- Date: 2026-11-25
+- Status: Accepted (the look by Dave; Claude's details confirmed by Dave on 2026-11-25). Built with
+  the panels, not in milestone 12.
+- Decided by: Dave + Claude
+- Area: design
+- Decision: The area below the header is an inset instrument panel (`docs/dashboard.md`, "The instrument panel look";
+  mockup `docs/images/dashboard-instrument-panel.html`). Values that move, such as airspeed, altitude, vertical speed
+  and fuel, are old steam gauges. What the debrief's checks score (beacon, strobes, landing lights, seat belts, APU,
+  altimeters on STD, gear) are indicator lamps: small domed glass buttons with an incandescent glow behind them. The
+  header stays flat. Claude's calls (confirmed by Dave): each lamp has its own lens colour; a small amber bug on a gauge marks
+  the plan's value; numbers that aren't natural dials (frequency, top of descent, landing time) are amber radio-stack
+  readouts; a needle glides briefly to each new value (telemetry comes at most once a second) and is still otherwise,
+  so there is no continuous animation.
+- Why: Dave has the real gauges, switches and lights in the sim. Numbers in flat cards were fine for the MVP but are
+  lifeless and give the dashboard no reason to exist; the look has to be fun to glance at. Dave on the mockup: "cool".
+- Alternatives considered: the flat data cards of the first cruise draft (D-151's brainstorm); a full glass-cockpit
+  look (PFD tapes), which repeats what the PMDG already shows.

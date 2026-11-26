@@ -1,0 +1,273 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Dashboard mockup: gauges</title>
+<style>
+  :root {
+    --bg: #0E1116; --surface: #161B22; --raised: #1C222B; --border: #262D37;
+    --text: #E6EAF0; --text2: #8B95A3; --muted: #5B6573;
+    --good: #22C55E; --warn: #E0B030;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; padding: 24px; }
+  .wrap { width: 1080px; margin: 0 auto; }
+  .note { color: var(--text2); font-size: 13px; margin: 0 0 14px; }
+
+  /* ---------- header (flat, as already designed) ---------- */
+  .header { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px 14px; }
+  .idrow { display: grid; grid-template-columns: 1fr 2fr 1fr; align-items: start; }
+  .icao { font-size: 46px; font-weight: 700; line-height: 1; }
+  .fltno { font-size: 38px; font-weight: 600; line-height: 1.1; }
+  .mid { text-align: center; }
+  .airline { font-size: 26px; font-weight: 600; }
+  .sub { color: var(--text2); font-size: 14px; }
+  .subdim { color: var(--muted); font-size: 14px; }
+  .right { text-align: right; font-size: 13px; color: var(--text2); line-height: 1.8; }
+  .clock { display: inline-block; border: 1px solid var(--text2); border-radius: 14px; padding: 2px 14px;
+           font-family: Consolas, monospace; font-size: 18px; color: var(--text); margin-bottom: 4px; }
+  hr.thin { border: 0; border-top: 1px solid var(--border); margin: 12px 0 0; }
+  .arcrow { position: relative; height: 200px; }
+  .apt { position: absolute; top: 78px; }
+  .apt.l { left: 0; } .apt.r { right: 0; text-align: right; }
+  .apt .code { font-size: 36px; font-weight: 700; line-height: 1; }
+  .apt .name { color: var(--text2); font-size: 12px; margin-top: 4px; }
+  .apt .line { font-size: 12px; margin-top: 2px; }
+  .arcrow svg { position: absolute; left: 0; top: 0; }
+  .pill { display: flex; gap: 2px; border-radius: 16px; overflow: hidden; height: 30px; }
+  .pill div { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
+  .done { background: #2f9a4c; } .now { background: var(--warn); color: #3a2a00; } .todo { background: var(--raised); color: var(--muted); }
+  .status { text-align: center; margin-top: 10px; }
+  .s1 { font-size: 19px; font-weight: 600; } .s2 { font-size: 13px; color: var(--text2); } .s3 { font-size: 12px; color: var(--muted); }
+
+  /* ---------- the inset instrument panel ---------- */
+  .panel { position: relative; margin-top: 14px; border-radius: 12px; padding: 22px 30px 24px;
+           background: linear-gradient(180deg, #0A0D11 0%, #0C0F14 100%);
+           box-shadow: inset 0 4px 10px rgba(0,0,0,.85), inset 0 1px 2px rgba(0,0,0,.9),
+                       inset 0 -1px 0 rgba(255,255,255,.035), 0 1px 0 rgba(255,255,255,.05); }
+  .screw { position: absolute; width: 11px; height: 11px; border-radius: 50%;
+           background: radial-gradient(circle at 35% 30%, #5a626d, #23282f 70%);
+           box-shadow: 0 1px 1px rgba(0,0,0,.8), inset 0 0 1px rgba(255,255,255,.15); }
+  .screw::after { content: ""; position: absolute; left: 2px; right: 2px; top: 5px; height: 1.5px; background: #111418; transform: rotate(35deg); }
+  .screw.tl { left: 9px; top: 9px; } .screw.tr { right: 9px; top: 9px; }
+  .screw.bl { left: 9px; bottom: 9px; } .screw.br { right: 9px; bottom: 9px; }
+
+  /* indicator lights (glareshield strip) */
+  .lights { display: flex; justify-content: center; gap: 30px; padding: 4px 0 18px;
+            border-bottom: 1px solid rgba(255,255,255,.04); margin-bottom: 18px; }
+  .lamp { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 74px; }
+  .bezel { width: 38px; height: 38px; border-radius: 50%; padding: 4px;
+           background: conic-gradient(from 200deg, #8a929c, #3a4048, #9aa2ac, #2c3138, #8a929c);
+           box-shadow: 0 2px 3px rgba(0,0,0,.8); }
+  .lens { position: relative; width: 100%; height: 100%; border-radius: 50%; }
+  .lens::after { /* the glass dome's highlight */
+    content: ""; position: absolute; left: 22%; top: 12%; width: 40%; height: 28%; border-radius: 50%;
+    background: radial-gradient(ellipse at center, rgba(255,255,255,.55), rgba(255,255,255,0) 70%); }
+  .placard { white-space: nowrap; font-size: 10px; letter-spacing: .12em; color: #C9CED6; font-weight: 600; text-align: center;
+             background: #15191F; border-radius: 3px; padding: 2px 6px; box-shadow: inset 0 1px 1px rgba(0,0,0,.8); }
+  .red.off   { background: radial-gradient(circle at 50% 55%, #3b1210, #1a0807 75%); }
+  .red.on    { background: radial-gradient(circle at 50% 55%, #fff1d6 0%, #ff9a72 16%, #e3301f 45%, #7d0f09 85%);
+               box-shadow: 0 0 16px 5px rgba(255,64,40,.45); }
+  .white.off { background: radial-gradient(circle at 50% 55%, #2c2d2b, #141513 75%); }
+  .white.on  { background: radial-gradient(circle at 50% 55%, #ffffff 0%, #fff4dc 22%, #e9d9b6 50%, #8d7e62 90%);
+               box-shadow: 0 0 16px 5px rgba(255,236,200,.35); }
+  .amber.off { background: radial-gradient(circle at 50% 55%, #3a2808, #191104 75%); }
+  .amber.on  { background: radial-gradient(circle at 50% 55%, #fff6d0 0%, #ffd060 18%, #e89a10 48%, #7a4a02 88%);
+               box-shadow: 0 0 16px 5px rgba(255,170,30,.45); }
+  .green.off { background: radial-gradient(circle at 50% 55%, #10301a, #07160b 75%); }
+  .green.on  { background: radial-gradient(circle at 50% 55%, #eaffe0 0%, #8cf59a 18%, #22b44a 48%, #0b4a1c 88%);
+               box-shadow: 0 0 16px 5px rgba(60,220,100,.38); }
+  .state { font-size: 10px; color: var(--muted); margin-top: -4px; }
+
+  .gauges { display: flex; justify-content: space-between; padding: 0 6px; }
+  .gauge { text-align: center; }
+  .glabel { font-size: 10px; letter-spacing: .14em; color: #9AA3AF; margin-top: 6px; font-weight: 600; }
+
+  /* old radio-stack style readouts */
+  .stack { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 20px; }
+  .radio { background: linear-gradient(180deg, #1b2027, #14181e); border-radius: 6px; padding: 10px 14px 12px;
+           box-shadow: 0 2px 4px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.06); }
+  .radio .t { font-size: 10px; letter-spacing: .14em; color: #9AA3AF; font-weight: 600; }
+  .window { margin-top: 6px; background: #070605; border-radius: 3px; padding: 6px 10px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,.95); display: flex; justify-content: space-between; align-items: baseline; }
+  .digits { font-family: "Consolas", monospace; font-size: 26px; color: #FFB23E; letter-spacing: .06em;
+            text-shadow: 0 0 6px rgba(255,160,40,.55); }
+  .digits small { font-size: 14px; }
+  .aside { font-family: Consolas, monospace; font-size: 12px; color: #B8762A; text-shadow: 0 0 4px rgba(255,150,40,.4); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="note">Mockup only: cruise at FL330, numbers made up. The header is the one already designed; only the panel below it is new.</p>
+
+  <div class="header">
+    <div class="idrow">
+      <div><div class="icao">XLY</div><div class="fltno">1231</div></div>
+      <div class="mid"><div class="airline">Soxxly Airlines</div><div class="sub">Flight 1231</div><div class="subdim">San Diego to Las Vegas</div></div>
+      <div class="right"><span class="clock">0:41:10</span><br>Block out 1:22 PM<br>Block in ~2:27 PM</div>
+    </div>
+    <hr class="thin">
+    <div class="arcrow">
+      <svg width="1030" height="200" viewBox="0 0 1030 200">
+        <defs>
+          <linearGradient id="alt" x1="0" x2="1">
+            <stop offset="0" stop-color="#EF4444"/><stop offset=".22" stop-color="#E0B030"/>
+            <stop offset=".45" stop-color="#5BBF4A"/><stop offset=".75" stop-color="#3B82F6"/>
+          </linearGradient>
+        </defs>
+        <path d="M 225 170 Q 515 -20 805 170" fill="none" stroke="#3a424d" stroke-width="4" stroke-dasharray="3 12" stroke-linecap="round"/>
+        <path d="M 225 170 Q 370 75 535 75" fill="none" stroke="url(#alt)" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="535" cy="75" r="10" fill="var(--surface)" stroke="#3B82F6" stroke-width="3"/>
+        <text x="535" y="52" text-anchor="middle" fill="#E6EAF0" font-size="15" font-weight="600">FL330 · 452 kt</text>
+        <text x="515" y="150" text-anchor="middle" fill="#8B95A3" font-size="15">127 NM flown · 103 NM to go</text>
+      </svg>
+      <div class="apt l"><div class="code">KSAN</div><div class="name">San Diego Intl</div><div class="line">Off 1:31 PM · rwy 27</div></div>
+      <div class="apt r"><div class="code">KLAS</div><div class="name">Harry Reid Intl</div><div class="line">Gate C11</div></div>
+    </div>
+    <div class="pill">
+      <div class="done">Pre-Flight</div><div class="done">Departure</div><div class="done">Climb</div>
+      <div class="now">Cruise</div><div class="todo">Descent</div><div class="todo">Arrival</div>
+    </div>
+    <div class="status">
+      <div class="s1">Cruising at FL330</div><div class="s2">Top of climb 1:48 PM</div><div class="s3">Climbing to FL330</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <span class="screw tl"></span><span class="screw tr"></span><span class="screw bl"></span><span class="screw br"></span>
+
+    <div class="lights">
+      <div class="lamp"><div class="bezel"><div class="lens red on"></div></div><div class="placard">BEACON</div></div>
+      <div class="lamp"><div class="bezel"><div class="lens white on"></div></div><div class="placard">STROBE</div></div>
+      <div class="lamp"><div class="bezel"><div class="lens white off"></div></div><div class="placard">LANDING</div></div>
+      <div class="lamp"><div class="bezel"><div class="lens amber off"></div></div><div class="placard">SEAT BELTS</div></div>
+      <div class="lamp"><div class="bezel"><div class="lens amber off"></div></div><div class="placard">APU</div></div>
+      <div class="lamp"><div class="bezel"><div class="lens green on"></div></div><div class="placard">ALT STD</div></div>
+      <div class="lamp"><div class="bezel"><div class="lens green off"></div></div><div class="placard">GEAR DN</div></div>
+    </div>
+
+    <div class="gauges">
+      <div class="gauge"><svg id="asi" width="220" height="220"></svg><div class="glabel">AIRSPEED</div></div>
+      <div class="gauge"><svg id="altm" width="220" height="220"></svg><div class="glabel">ALTITUDE</div></div>
+      <div class="gauge"><svg id="vsi" width="220" height="220"></svg><div class="glabel">VERTICAL SPEED</div></div>
+      <div class="gauge"><svg id="fuel" width="220" height="220"></svg><div class="glabel">FUEL</div></div>
+    </div>
+
+    <div class="stack">
+      <div class="radio"><div class="t">FREQUENCY NOW</div>
+        <div class="window"><span class="digits">132.15</span><span class="aside">LA CENTER</span></div></div>
+      <div class="radio"><div class="t">TOP OF DESCENT</div>
+        <div class="window"><span class="digits">24<small> NM</small></span><span class="aside">~2:03 PM</span></div></div>
+      <div class="radio"><div class="t">LANDING</div>
+        <div class="window"><span class="digits">~2:18</span><span class="aside">PLAN 2:20</span></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const NS = "http://www.w3.org/2000/svg";
+function el(parent, tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text !== undefined) e.textContent = text;
+  parent.appendChild(e); return e;
+}
+const C = 110, R = 92;
+function pt(r, deg) { const a = (deg - 90) * Math.PI / 180; return [C + r * Math.cos(a), C + r * Math.sin(a)]; }
+
+function face(svg) {
+  const d = el(svg, "defs", {});
+  const bz = el(d, "linearGradient", { id: svg.id + "bz", x1: 0, y1: 0, x2: 1, y2: 1 });
+  el(bz, "stop", { offset: 0, "stop-color": "#7d8590" }); el(bz, "stop", { offset: .5, "stop-color": "#2a2f36" });
+  el(bz, "stop", { offset: 1, "stop-color": "#6b737d" });
+  const gl = el(d, "radialGradient", { id: svg.id + "gl", cx: .35, cy: .25, r: .6 });
+  el(gl, "stop", { offset: 0, "stop-color": "#fff", "stop-opacity": .16 }); el(gl, "stop", { offset: 1, "stop-color": "#fff", "stop-opacity": 0 });
+  el(svg, "circle", { cx: C, cy: C, r: 108, fill: "#000", opacity: .6 });           // shadow
+  el(svg, "circle", { cx: C, cy: C, r: 106, fill: `url(#${svg.id}bz)` });          // bezel
+  el(svg, "circle", { cx: C, cy: C, r: 98, fill: "#0b0c0d", stroke: "#000", "stroke-width": 2 }); // face
+}
+function glass(svg) {
+  el(svg, "ellipse", { cx: C - 18, cy: C - 34, rx: 70, ry: 48, fill: `url(#${svg.id}gl)` });
+}
+function ticks(svg, from, to, n, len, w) {
+  for (let i = 0; i <= n; i++) {
+    const deg = from + (to - from) * i / n, [x1, y1] = pt(R, deg), [x2, y2] = pt(R - len, deg);
+    el(svg, "line", { x1, y1, x2, y2, stroke: "#e8e8e8", "stroke-width": w });
+  }
+}
+function num(svg, deg, r, t, size = 15) {
+  const [x, y] = pt(r, deg);
+  el(svg, "text", { x, y: y + size * .36, "text-anchor": "middle", fill: "#f0f0f0", "font-size": size,
+                    "font-family": "Bahnschrift, 'Segoe UI', sans-serif", "font-weight": 600 }, t);
+}
+function needle(svg, deg, len = 80) {
+  const g = el(svg, "g", { transform: `rotate(${deg} ${C} ${C})` });
+  el(g, "path", { d: `M ${C-4} ${C+18} L ${C-2.4} ${C-len+10} L ${C} ${C-len} L ${C+2.4} ${C-len+10} L ${C+4} ${C+18} Z`,
+                  fill: "#f4f4f4", filter: "drop-shadow(0 2px 2px rgba(0,0,0,.9))" });
+  el(svg, "circle", { cx: C, cy: C, r: 8, fill: "#22262b", stroke: "#555c66", "stroke-width": 1.5 });
+}
+function bug(svg, deg, colour = "#E0B030") {
+  const g = el(svg, "g", { transform: `rotate(${deg} ${C} ${C})` });
+  el(g, "path", { d: `M ${C-6} ${C-R-2} L ${C+6} ${C-R-2} L ${C+6} ${C-R+6} L ${C} ${C-R+12} L ${C-6} ${C-R+6} Z`, fill: colour });
+}
+function windowBox(svg, x, y, w, h, t, size = 16) {
+  el(svg, "rect", { x, y, width: w, height: h, rx: 2, fill: "#000", stroke: "#3b4048" });
+  el(svg, "text", { x: x + w / 2, y: y + h / 2 + size * .36, "text-anchor": "middle", fill: "#f4f4f4",
+                    "font-size": size, "font-family": "Consolas, monospace" }, t);
+}
+function caption(svg, y, t) {
+  el(svg, "text", { x: C, y, "text-anchor": "middle", fill: "#9aa3af", "font-size": 9, "letter-spacing": "1.5",
+                    "font-family": "'Segoe UI', sans-serif" }, t);
+}
+
+// Airspeed: 0–400 kt over 300°, IAS 268, Mach .80
+(() => {
+  const s = document.getElementById("asi"); face(s);
+  const a = v => -150 + 300 * v / 400;
+  ticks(s, a(0), a(400), 40, 7, 1.2); ticks(s, a(0), a(400), 8, 13, 2.2);
+  for (let v = 50; v <= 400; v += 50) num(s, a(v), 66, String(v), v % 100 ? 11 : 14);
+  windowBox(s, C - 24, C + 26, 48, 22, ".800", 15);
+  caption(s, C - 30, "KNOTS"); bug(s, a(270));
+  needle(s, a(268)); glass(s);
+})();
+
+// Altimeter: 0–9 (hundreds) round the dial, drum 33,000, STD
+(() => {
+  const s = document.getElementById("altm"); face(s);
+  ticks(s, 0, 360, 50, 7, 1.2); ticks(s, 0, 360, 10, 13, 2.2);
+  for (let i = 0; i < 10; i++) num(s, i * 36, 70, String(i), 16);
+  windowBox(s, C - 40, C + 20, 80, 24, "33 000", 17);
+  windowBox(s, C - 20, C + 47, 40, 15, "STD", 11);
+  caption(s, C - 34, "FEET"); needle(s, 0); glass(s);
+})();
+
+// Vertical speed: 0 at 9 o'clock, ±6 (x1000 fpm), non-linear
+(() => {
+  const s = document.getElementById("vsi"); face(s);
+  const map = v => { const av = Math.abs(v), d = av <= 1 ? av * 60 : av <= 2 ? 60 + (av - 1) * 40 : 100 + (av - 2) * 17.5;
+                     return -90 + Math.sign(v) * d; };
+  [-6,-4,-2,-1,0,1,2,4,6].forEach(v => { const [x1,y1] = pt(R, map(v)), [x2,y2] = pt(R - 14, map(v));
+    el(s, "line", { x1, y1, x2, y2, stroke: "#e8e8e8", "stroke-width": 2.2 }); num(s, map(v), 68, String(Math.abs(v)), 15); });
+  for (let v = -6; v <= 6; v += .5) if (v % 1) { const [x1,y1] = pt(R, map(v)), [x2,y2] = pt(R - 7, map(v));
+    el(s, "line", { x1, y1, x2, y2, stroke: "#e8e8e8", "stroke-width": 1.2 }); }
+  el(s, "text", { x: C + 30, y: C - 14, fill: "#9aa3af", "font-size": 10, "font-family": "'Segoe UI', sans-serif" }, "UP");
+  el(s, "text", { x: C + 30, y: C + 24, fill: "#9aa3af", "font-size": 10, "font-family": "'Segoe UI', sans-serif" }, "DN");
+  caption(s, C + 44, "FT/MIN × 1000"); needle(s, map(0)); glass(s);
+})();
+
+// Fuel: 0–12 (x1000 lb) over 240°, 6.9 now, plan bug at 6.7
+(() => {
+  const s = document.getElementById("fuel"); face(s);
+  const a = v => -120 + 240 * v / 12;
+  // low-fuel arc
+  const [x1,y1] = pt(R - 3, a(0)), [x2,y2] = pt(R - 3, a(2));
+  el(s, "path", { d: `M ${x1} ${y1} A ${R-3} ${R-3} 0 0 1 ${x2} ${y2}`, fill: "none", stroke: "#c43a2c", "stroke-width": 6 });
+  ticks(s, a(0), a(12), 24, 7, 1.2); ticks(s, a(0), a(12), 6, 13, 2.2);
+  for (let v = 0; v <= 12; v += 2) num(s, a(v), 68, String(v), 15);
+  caption(s, C + 36, "LB × 1000"); windowBox(s, C - 30, C + 46, 60, 20, "+200", 13);
+  bug(s, a(6.7)); needle(s, a(6.9)); glass(s);
+})();
+</script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 The design for the **Live Flight Screen**, called **the dashboard** for short, from the brainstorm with Dave on
 2026-11-24. It is the first piece of "deepening the live flight" (`roadmap.md`, after the MVP) and replaces today's
-three-column Live (D-139) when it's built. Nothing here is built yet. Decisions D-150 to D-154; built in milestones 12 and 13 (D-163), checked with replays
+three-column Live (D-139) when it's built. Nothing here is built yet. Decisions D-150 to D-154 and D-179; built in milestones 12 and 13 (D-163), checked with replays
 (`replay.md`). Nothing on the dashboard reads the wall clock (D-166).
 
 Only the header, the pre-flight panel and the cruise draft are designed. The panels for departure, climb, descent,
@@ -107,6 +107,38 @@ log stays out of the dashboard (it's in the flight log and, later, behind a deve
 Dave starts GSX deboarding, then to `Ready for next flight` (D-135's "ready for shutdown or turnaround", reworded;
 exact wording to settle).
 
+## The instrument panel look (D-179)
+
+Everything below the header is drawn as an **inset instrument panel**: recessed into the page, darker than the cards
+around it, with small screw heads in its corners. The header itself stays flat. Dave has the real gauges, switches and
+lights in the sim, so the dashboard isn't there to repeat numbers: it has to be fun to look at. Numbers in flat cards
+were fine for the MVP and are lifeless after it.
+
+![The instrument panel look, in cruise](images/dashboard-instrument-panel.png)
+
+A sketch with made-up numbers; the HTML it was drawn from is `images/dashboard-instrument-panel.html`.
+
+- **Steam gauges** for values that move: airspeed (with the Mach number in a small window), altitude (a pointer for
+  hundreds, a counter, the altimeter setting in a small window), vertical speed, fuel (with a red low-fuel arc). Black
+  faces, white ticks and needles, a metal bezel, a faint glare on the glass.
+- **Indicator lamps** for what the debrief's checks score (`debrief.md` section 2): beacon, strobes, landing lights,
+  seat belts, APU, altimeters on STD, gear down. Each is a small domed glass button in a metal ring with an
+  incandescent bulb behind it: a warm glow when lit, dark tinted glass when off, an engraved placard under it. The
+  recorder already logs all of them (`beacon` and `strobe` in telemetry, the rest in the `cockpit` event).
+- Claude's calls (confirmed by Dave, 2026-11-25):
+  - Each lamp has its own lens colour: beacon red, strobes and landing lights white, seat belts and APU amber,
+    STD and gear green.
+  - A small amber **bug** on a gauge marks the plan's value (cruise speed, planned fuel now).
+  - Numbers that aren't natural dials (frequency, top of descent, landing time) are **radio-stack readouts**: amber
+    digits glowing in a dark window.
+  - A needle **glides** briefly to each new value (telemetry comes at most once a second, so it would otherwise jump)
+    and is still between changes: no continuous animation (budget under 1% CPU).
+- Open, for the panels' brainstorm: whether a lit lamp means only "switch on", or also warns when the switch is wrong
+  for the moment (landing lights off below 10,000 ft); which gauges and lamps each phase's panel shows; how the
+  Pre-Flight panel's load sheet and clearance (D-153) take the look (a transponder-style squawk, radio-stack
+  frequencies).
+- Every colour and size goes in `Theme.qml` like the rest (D-054).
+
 ## Below the header, by phase
 
 ### Pre-Flight panel (D-153)
@@ -147,8 +179,9 @@ ground at the gate, ground and tower after block out, and so on.
 
 ### Cruise (draft)
 
-Data cards: altitude, ground speed (with IAS), top of descent (distance and local time), fuel against plan, the
-frequency now, and landing time against plan. A draft only; the in-flight panels are for a later brainstorm.
+Altitude, ground speed (with IAS), top of descent (distance and local time), fuel against plan, the frequency now, and
+landing time against plan. A draft only; the in-flight panels are for a later brainstorm. First sketched as data cards,
+then in the instrument panel look (D-179, sketch above).
 
 ### After block in (D-154)
 
