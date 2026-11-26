@@ -2268,13 +2268,13 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-151 — The dashboard header: identity row, route arc, phase pill
 - Date: 2026-11-24
-- Status: Accepted (after the MVP); the parts marked Proposed in `docs/dashboard.md` are Claude's calls
+- Status: Accepted (after the MVP); Claude's calls below confirmed by Dave on 2026-11-25
 - Decided by: Dave + Claude
 - Area: design
 - Decision: A card across the top (`docs/dashboard.md`): a three-column identity row (ICAO code and flight number;
   airline name, flight, cities; block clock with block out and block in in local time, block in an estimate until
   known), a thin line, a large arc from origin to destination that acts as a progress bar coloured by altitude, and a
-  full-width pill with one section per stage (grey, yellow in progress, green done). Claude's calls (Proposed): the
+  full-width pill with one section per stage (grey, yellow in progress, green done). Claude's calls (confirmed): the
   marker moves by distance along the planned route; sections about equal in width; the pill's small divisions are the
   recorder's phases, never GSX or level-offs; the line sits between the identity row and the arc.
 - Why: Readable at a glance while flying; the arc gives the flight a shape; equal sections keep short stages visible.
@@ -2776,3 +2776,49 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   lifeless and give the dashboard no reason to exist; the look has to be fun to glance at. Dave on the mockup: "cool".
 - Alternatives considered: the flat data cards of the first cruise draft (D-151's brainstorm); a full glass-cockpit
   look (PFD tapes), which repeats what the PMDG already shows.
+
+## D-180 — Milestone 12's Live: the header over the planned flight, the tiles and the feed
+- Date: 2026-11-25
+- Status: Accepted
+- Decided by: Dave (the feed, the checklist's place) + Claude
+- Area: app
+- Decision: Milestone 12 puts the header (D-151, D-152) at the top of Live while a flight is planned, open or showing
+  its summary. Below it: the planned flight panel at the gate, the Flight Summary after block in (D-154), today's
+  flight tiles, and the event feed as a narrow column on the right until developer mode exists. Today's stages column
+  goes; its shutdown checklist moves under the status lines until "Ready for next flight".
+- Why: The panels in the instrument panel look (D-179) come later, so the space below the header needs today's working
+  parts meanwhile. Dave keeps the feed while he reports oddities from flights.
+- Alternatives considered: dropping the feed now as D-152 describes (Claude's pick; Dave chose to keep it for now).
+
+## D-181 — Airports get a city
+- Date: 2026-11-25
+- Status: Accepted
+- Decided by: Dave
+- Area: database
+- Decision: Migration 9 adds `city TEXT NOT NULL DEFAULT ''` to `airport`, and `blocktime-import` fills it from
+  OurAirports' `municipality` column. The header's middle line reads "San Diego to Las Vegas"; an airport without a
+  city shows its name. Dave re-runs the import once after updating.
+- Why: The airport names ("San Diego International Airport") are long and repeat what's under the airport codes.
+- Alternatives considered: the airport names in that line; a hand-kept list of cities.
+
+## D-182 — Milestone 12's design calls: route progress, the pill's divisions, the status lines' wording
+- Date: 2026-11-25
+- Status: Accepted (Dave approved the design, 2026-11-25)
+- Decided by: Claude
+- Area: app
+- Decision: (`docs/dashboard.md`, "Milestone 12: how the header is built") Distance flown is the position projected
+  onto the route through the stored plan's navlog fixes (the straight line without a plan), searching forward and never
+  going down, 0 until liftoff and the whole route at block in. The flown arc is coloured by the highest altitude in each
+  1% of the route as a share of the plan's cruise altitude. The pill's divisions are a fixed set of phases (pushback,
+  taxi out, takeoff; descent, approach, landing, taxi in), green, yellow or grey inside the current stage. The status
+  lines follow the table in that section; previous lines show when they started; in-place changes don't push lines
+  down; markers stay out. Block in until the predictions: now or block out plus the plan's block time. From the
+  builder check: the GSX line starts when GSX performs a service (not at the request); `Step climb` gets its level
+  when it ends; `Landed on runway …` comes at touchdown and `landing_runway` corrects it in place; the arrival gate's
+  name follows `arrivalGateText`'s rule, replaced by block in's spot; the shutdown checklist shows from block in until
+  the summary is dismissed, with D-135's Ready trigger unchanged.
+- Why: The navlog is already stored, so the marker agrees with the distance text with no network call; searching
+  forward handles routes that double back. A fixed set of divisions keeps the bar's shape.
+- Alternatives considered: distance from the track flown (the "to go" part still needs the route); straight-line
+  progress always (disagrees with the route's distance); colours by absolute altitude (a short low flight would never
+  reach blue).

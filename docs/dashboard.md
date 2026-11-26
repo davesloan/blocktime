@@ -43,7 +43,7 @@ One card across the top, in this order.
   - `Block in ~2:30 PM`, an estimate (with `~`) until block in. Before block out it's the plan's; in flight it comes
     from the predictions (D-120) and updates as the flight goes on; at block in it's the real time.
 
-**2. A thin horizontal line** under the identity row (Claude's call, Proposed: it separates who the flight is from
+**2. A thin horizontal line** under the identity row (Claude's call, confirmed by Dave: it separates who the flight is from
 the flight happening; the arc and the pill below it stay one unit).
 
 **3. The route arc.** The origin on the left, the destination on the right, joined by a large upward arc.
@@ -54,7 +54,7 @@ the flight happening; the arc and the pill below it stay one unit).
   - **Destination:** the arrival gate once known (`Gate C11`, section 13.6). The arrival time is in the header's right
     column, so it isn't repeated here.
 - The arc is a progress bar. A marker moves along it by **distance flown along the planned route** (Claude's call,
-  Proposed), so it always agrees with the distance text. The marker carries only altitude and ground speed
+  confirmed by Dave), so it always agrees with the distance text. The marker carries only altitude and ground speed
   (`FL330 · 452 kt`); `127 NM flown · 103 NM to go` sits under the arc's middle, so labels never collide with the
   airport blocks near the ends.
 - The flown part of the arc is coloured by altitude, fading smoothly (not in bands): red near the ground, through
@@ -66,10 +66,10 @@ the flight happening; the arc and the pill below it stay one unit).
 Climb, Cruise, Descent, Arrival.
 - Grey until the stage starts, yellow while it's in progress, green once it's done.
 - Sections are about equal in width, not proportional to time, so Cruise doesn't swallow the bar (Claude's call,
-  Proposed).
+  confirmed by Dave).
 - Smaller divisions inside a section are the recorder's phases (pushback, taxi out, takeoff under Departure, and so
   on), a fixed set so the bar never changes shape. Sub-events that come and go (GSX services, level-offs) are in the
-  status lines, not the bar (Claude's call, Proposed).
+  status lines, not the bar (Claude's call, confirmed by Dave).
 - The block clock is no longer at the pill's right end; it moved to the header's right column, so the pill keeps its
   full width.
 
@@ -94,18 +94,148 @@ log stays out of the dashboard (it's in the flight log and, later, behind a deve
   progress`, and so on. Each part changes in place; the line only shifts down when the next stage starts.
 - `Preparing aircraft for flight` or the GSX line stays the current line until block out.
 
-**From block out** (examples; the full list is for a later brainstorm):
+**From block out:**
 `Pushback and startup` (the procedure: engines start during the push) → `Taxiing to runway 27` → `Departed runway
-27` → `Climbing to FL370` → `Cruising at FL370` → …
+27` → `Climbing to FL370` → `Cruising at FL370` → … The full list, settled for milestone 12, is in "Every status line"
+below.
 
 - **Level-offs interrupt the climb line.** `Level at FL240` replaces `Climbing to FL370` while level, then the climb
   line comes back. The target level is the SimBrief plan's cruise level, even if ATC holds Dave lower.
-- `Takeoff roll started` needs a takeoff-roll event the recorder doesn't have yet; the rest of the examples are events
-  or phases it already reports.
+- The takeoff roll has no event of its own, but the recorder's `takeoff` phase is one: it's logged once the takeoff is
+  confirmed and timed back to where the roll began.
 
 **At block in** (D-154): the line always becomes `Parked at gate C11`. It changes to `Deboarding in progress` only if
-Dave starts GSX deboarding, then to `Ready for next flight` (D-135's "ready for shutdown or turnaround", reworded;
-exact wording to settle).
+Dave starts GSX deboarding, then to `Ready for next flight` (D-135's "ready for shutdown or turnaround", reworded).
+Until then the shutdown checklist (engines off, parking brake set, beacon off, strobes off; D-135) sits under the
+status lines (D-180).
+
+## Milestone 12: how the header is built (D-180 to D-182)
+
+Milestone 12 builds the header and status lines above; the panels below the header come later in the instrument
+panel look (D-179). Claude's calls here were approved by Dave with the design on 2026-11-25.
+
+### What Live looks like after milestone 12 (D-180, Dave)
+
+```
+┌ header: identity row · line · route arc · phase pill · status lines (· shutdown checklist) ┐
+└────────────────────────────────────────────────────────────────────────────────────────────┘
+┌ planned flight (at the gate)            ┐ ┌ event ┐
+│   or the Flight Summary (after block in)│ │ feed  │
+├─────────────────────────────────────────┤ │       │
+│ flight tiles (today's flight panel)     │ │       │
+└─────────────────────────────────────────┘ └───────┘
+```
+
+- The header shows while there's a planned flight, an open flight or a flight summary; with nothing planned, Live is
+  the tiles and the feed as today.
+- Today's stages column (`FlightProgress.qml`) goes: the pill and the status lines replace it. Its Ready checklist
+  moves under the status lines.
+- The event feed stays as a narrow column on the right until developer mode exists (Dave). D-152 still holds for the
+  dashboard's design; the feed is a stopgap.
+- At block in the Flight Summary takes the planned flight panel's place below the header (D-154); today it sits above
+  everything.
+- Pre-Departure becomes Pre-Flight everywhere it shows (D-150).
+- The replay window's Live is the same page, so replays show the header too.
+
+### Where each value comes from
+
+| Header part | Source |
+|---|---|
+| `XLY`, `Soxxly Airlines` | the airline configuration (`airline.yaml`) |
+| Flight number | the planned flight |
+| `San Diego to Las Vegas` | the origin's and destination's **city**, a new airport column filled by `blocktime-import` from OurAirports' `municipality` (D-181); the airport's name when a city is empty |
+| Airport names | the airport table, as stored; long names are cut with `…` |
+| Block clock | `Plan 1:05` (the plan's block time, greyed) before block out, then the running clock, then the final time |
+| `Block out` | `--:--`, then block out's time |
+| `Block in ~2:27 PM` | until the predictions (D-120): before block out, now plus the plan's block time; from block out, block out plus the plan's block time; at block in the real time without `~`. No plan: `--:--` |
+| Origin line | `N814SX · 737 BBJ2 · Gate 41` (registration, type, where it parked, D-148) until liftoff, then `Off 1:31 PM · rwy 27` from the `liftoff` event |
+| Destination line | the `arrival_gate` event's gate once known (`Gate C11`), else empty |
+| Marker | the latest sample's altitude and ground speed (`FL330 · 452 kt`, `8,500 ft · 250 kt`) |
+| `127 NM flown · 103 NM to go` | route progress, below |
+| Pill | the six stages and the current phase |
+| Status lines | a new plain C++ class fed the same events as the stages, below |
+
+Altitudes read as flight levels at and above the origin's transition altitude while climbing and cruising, and above
+the destination's transition level in the descent (both from the plan; 18,000 ft without one), else as feet. Lines
+from an event with the recorder's `flight_level` flag use the flag; the marker and `Climbing to FL370` have no flag,
+so the app applies the same rule as `FlightTracker::flightLevel`, shared as one plain function.
+
+**After block in** the planned flight models hold no flight (they clear it at settling), but the header still needs the
+flight number, cities, plan and navlog. It reads them from the settled flight (`flownFlightView`, extended to carry the
+stored OFP's navlog), as the replay already does.
+
+**The arrival gate's name** follows the stages' rule (`arrivalGateText`): BlockTime's spot when it `assigned` one or
+it's `unconfirmed`, otherwise SayIntentions' gate, shown as the name reads (`Gate C11`, `Terminal A Gate 4`, `Parking
+70`). At block in, the spot Dave actually parked at (`block_in`'s `parking`) replaces it (Claude's call).
+
+### Route progress (D-182)
+
+- **The route** is a line through the origin airport, every fix in the stored SimBrief plan's navlog (`pos_lat`,
+  `pos_long`; the plan is kept verbatim, so nothing is fetched) and the destination airport. Without a plan it's the
+  straight line between the airports.
+- **Distance flown** is the latest position projected onto that line, searching forward from the last matched leg so a
+  SID or STAR that doubles back can't jump the marker, and never going down. It stays 0 until liftoff and becomes the
+  whole route at block in. "To go" is the route's length minus that, so the two always add up. Whole NM.
+- **The arc's colours:** the highest altitude seen in each 1% of the route is kept, from the samples. Each piece of the
+  flown arc takes its colour from that altitude as a share of the plan's cruise altitude (35,000 ft without a plan):
+  red at the ground, yellow at about a third, green at about two thirds, blue at cruise, blending smoothly. The arc is
+  drawn as short segments and redrawn only when a piece changes.
+- The top-of-descent tick waits for the predictions (D-120).
+
+### The pill's divisions (D-182)
+
+A fixed set: Pre-Flight, Climb, Cruise and Arrival have none; Departure has pushback, taxi out and takeoff; Descent has
+descent, approach, landing and taxi in (a go-around counts as approach). Inside the current stage, finished divisions
+are green, the current one yellow and the rest grey, so the bar shows progress through Departure and Descent too.
+
+### Every status line (D-182)
+
+| When | Current line |
+|---|---|
+| A planned flight at the gate, no GSX service yet | `Preparing aircraft for flight` |
+| A GSX service starts or finishes, before block out | `Catering complete · Refuelling in progress`: every service of this leg so far, changing in place. It starts when GSX is performing the service, as `GsxTimeline` counts it; a request alone changes nothing (Claude's call) |
+| Phase pushback | `Pushback and startup` |
+| Phase taxi out | `Taxiing to runway 27` (the departure runway Live shows: the ATIS's, else the plan's; `Taxiing to runway` without one) |
+| Phase takeoff | `Takeoff roll` |
+| `liftoff` | `Departed runway 27` |
+| Phase climb | `Climbing to FL370` (the plan's cruise level; `Climbing` without a plan) |
+| `level_off` in the climb, descent, approach or go-around | `Level at FL240`, in place of the current line; `level_off_ended` puts that line back, also in place |
+| Phase cruise | `Cruising at FL370` |
+| `step_climb`, then its end | `Step climb` (the event knows only the level it left), then `Cruising at FL390` in place; a step down reads `Step descent`, then `Cruising at FL350` |
+| Phase descent | `Descending into Las Vegas` (the destination's city) |
+| Phase approach | `Approach into Las Vegas` |
+| Final approach (the event the stages' `Final approach, runway …` line uses) | `Final approach, runway 26L` |
+| Phase go-around | `Go-around` |
+| `touchdown` | `Landed on runway 26L` (the final approach's runway; `Landed` without one) |
+| `landing_runway` | corrects that line's runway in place, wherever it now is: in the recorded flights it comes with taxi in, after it |
+| Phase taxi in | `Taxiing to gate C11` (the arrival gate; `Taxiing to gate` without one) |
+| `block_in` | `Parked at Gate C11` (block in's spot as it reads; `Parked` without one), with the shutdown checklist under the lines |
+| GSX deboarding | `Deboarding in progress`, then `Deboarding complete`, in place |
+| Ready (D-135, unchanged: deboarding completes, or without GSX the checks pass) | `Ready for next flight` |
+
+- The shutdown checklist (engines off, parking brake set, deboarding complete when GSX deboarded, beacon off, strobes
+  off) shows from block in until the summary is dismissed, ticking as items pass, so a beacon left on after Ready is
+  still visible (Claude's call; D-135's trigger for Ready is unchanged).
+
+- The previous lines show the local time they started: `Climbing to FL330 · 1:33 PM`.
+- A line that changes in place (GSX, level-offs, deboarding) doesn't push the others down.
+- Markers (10,000 ft, transition altitude, 200 nm out) don't become status lines; they're in the feed.
+
+### Testing
+
+No fixture has a navlog yet: copy a real OFP from Dave's database (`flight_simbrief_plan.ofp_json`) into `tests/data/`,
+cut down to the fields BlockTime reads and with his SimBrief user details removed, and note the navlog's fields in
+`notes/simbrief-api.md`.
+
+Plain C++ with tests first: reading the navlog, route progress, the altitude pieces and their colours, the status lines
+(from the recorded flights in `tests/data/` and made-up events), the header's texts and times, and migration 9 with the
+import's city. Then Live is checked on Dave's real flights with `--replay last --at … --grab` at the gate, in taxi, in
+a climb level-off, in cruise, on final and at block in, and with `--demo`. No sim test.
+
+### Left to the builder
+
+Sizes, fonts and colours (all in `Theme.qml`), the departure and arrival icons (Segoe Fluent Icons), class and file
+names, how the header shrinks on a short window, and the airplane type's short name in the origin line.
 
 ## The instrument panel look (D-179)
 
