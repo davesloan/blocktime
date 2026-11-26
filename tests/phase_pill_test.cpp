@@ -25,30 +25,48 @@ std::vector<StageView> stages(int current) {
     return v;
 }
 
+void expectMarker(const PillMarker& m, int section, int part, int parts, const std::string& label) {
+    EXPECT_EQ(m.section, section);
+    EXPECT_EQ(m.part, part);
+    EXPECT_EQ(m.parts, parts);
+    EXPECT_EQ(m.label, label);
+}
+
 }  // namespace
 
-TEST(PhasePill, SixSectionsWithFixedDivisions) {
-    const auto p = pillSections(stages(0), "");
+TEST(PhasePill, SixSections) {
+    const auto p = pillSections(stages(3));
     ASSERT_EQ(p.size(), 6u);
     EXPECT_EQ(p[0].name, "Pre-Flight");
-    const std::vector<std::size_t> counts{0, 3, 0, 0, 4, 0};
-    for (std::size_t i = 0; i < 6; ++i) EXPECT_EQ(p[i].divisions.size(), counts[i]) << i;
-    EXPECT_EQ(p[0].state, S::Current);
-}
-
-TEST(PhasePill, TaxiOutInDeparture) {
-    const auto p = pillSections(stages(1), "taxi_out");
-    EXPECT_EQ(p[1].divisions, (std::vector<S>{S::Done, S::Current, S::Upcoming}));
-    EXPECT_EQ(p[4].divisions, (std::vector<S>{S::Upcoming, S::Upcoming, S::Upcoming, S::Upcoming}));
-}
-
-TEST(PhasePill, GoAroundIsApproach) {
-    const auto p = pillSections(stages(4), "go_around");
-    EXPECT_EQ(p[4].divisions, (std::vector<S>{S::Done, S::Current, S::Upcoming, S::Upcoming}));
-}
-
-TEST(PhasePill, DoneStageAllDone) {
-    const auto p = pillSections(stages(3), "cruise");
-    EXPECT_EQ(p[1].divisions, (std::vector<S>{S::Done, S::Done, S::Done}));
+    EXPECT_EQ(p[2].state, S::Done);
     EXPECT_EQ(p[3].state, S::Current);
+    EXPECT_EQ(p[4].state, S::Upcoming);
+}
+
+TEST(PhasePill, PreFlightIsPreparingUntilBoarding) {
+    expectMarker(pillMarker(stages(0), "", false), 0, 0, 2, "Preparing");
+    expectMarker(pillMarker(stages(0), "", true), 0, 1, 2, "Boarding");
+}
+
+TEST(PhasePill, DepartureSlots) {
+    expectMarker(pillMarker(stages(1), "pushback", true), 1, 0, 3, "Pushback");
+    expectMarker(pillMarker(stages(1), "taxi_out", true), 1, 1, 3, "Taxiing");
+    expectMarker(pillMarker(stages(1), "takeoff", true), 1, 2, 3, "Takeoff");
+}
+
+TEST(PhasePill, ClimbAndCruiseHaveOneSlotAndNoLabel) {
+    expectMarker(pillMarker(stages(2), "climb", false), 2, 0, 1, "");
+    expectMarker(pillMarker(stages(3), "cruise", false), 3, 0, 1, "");
+}
+
+TEST(PhasePill, DescentSlotsWithGoAroundAsApproach) {
+    expectMarker(pillMarker(stages(4), "descent", false), 4, 0, 2, "Descending");
+    expectMarker(pillMarker(stages(4), "approach", false), 4, 1, 2, "Approach");
+    expectMarker(pillMarker(stages(4), "go_around", false), 4, 1, 2, "Approach");
+}
+
+TEST(PhasePill, ArrivalFromLandingToTheGate) {
+    expectMarker(pillMarker(stages(5), "landing", false), 5, 0, 3, "Landing");
+    expectMarker(pillMarker(stages(5), "taxi_in", false), 5, 1, 3, "Taxiing");
+    expectMarker(pillMarker(stages(5), "arrived", false), 5, 2, 3, "At Gate");
 }

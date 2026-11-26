@@ -47,7 +47,7 @@ struct ShutdownChecks {
 };
 
 // Shared with the dashboard's status lines (StatusLines).
-std::string serviceName(const std::string& service);  // "refuelling" → "Refuelling"
+std::string serviceName(const std::string& service);  // "refuelling" → "Refueling" (US spelling on screen)
 bool anyRunning(const std::vector<ServiceSpan>& spans);
 bool anyCompleted(const std::vector<ServiceSpan>& spans);
 // The shutdown checklist (D-135): engines, brake, deboarding (only after GSX deboarding), beacon, strobes.
@@ -70,6 +70,8 @@ public:
     void showNextLeg();
     bool showingFlight() const { return showingFlight_; }
     bool hasNextLegServices() const { return !gsx_.nextLeg().empty(); }
+    // GSX boarding has started for the next block out: the pill's marker moves from Preparing to Boarding (D-184).
+    bool boardingStarted() const;
 
     std::vector<StageView> view() const;  // always six; before any event, Pre-Flight is Current
     // The phase with its sub-state: "Climb — level at 11,000 ft", "Cruise — step climb"; "" before block out.

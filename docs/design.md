@@ -421,8 +421,10 @@ as they happen, each with its start and end time. The same records go into the f
 | Departure | Pushback, Taxi out, Takeoff | Pushback (GSX), Taxiing to runway, Takeoff roll, Takeoff |
 | Climb | Climb | Departed runway 30, Level-offs, Above 10,000 ft, Passed transition altitude |
 | Cruise | Cruise | Cruising at FL350, Step climb to FL370, 200 nm from destination |
-| Descent | Descent, Approach, Landing, Taxi in | Top of descent, Passed transition level, Level-offs, Below 10,000 ft, Final approach, Short final, Landed, Taxiing to gate |
-| Arrival | Arrived | Parked at Gate E7, Deboarding (GSX), Ready for shutdown or turnaround |
+| Descent | Descent, Approach | Top of descent, Passed transition level, Level-offs, Below 10,000 ft, Final approach, Short final |
+| Arrival | Landing, Taxi in, Arrived | Landed, Taxiing to gate, Parked at Gate E7, Deboarding (GSX), Ready for shutdown or turnaround |
+
+Arrival starts at touchdown (D-184; until then Landing and Taxi in were under Descent).
 
 - **Milestone 12 (D-150, D-152, D-180):** the dashboard header replaces the Flight progress card on Live. The six
   stages show as its phase pill, and what happens as three status lines under it (`docs/dashboard.md`); the stage
@@ -451,7 +453,7 @@ as they happen, each with its start and end time. The same records go into the f
 - **Departure runway:** from the takeoff position and heading, matched against the sim's runways.
 - **Transition altitude and level, and "200 nm from destination":** from the SimBrief plan.
 - **GSX services (D-073, D-138):** each service shows as its own line with start and end: "Catering",
-  "Refuelling", "Boarding" under Pre-Departure, "Deboarding" under Arrival. Services Dave used appear; ones he skipped
+  "Refueling", "Boarding" under Pre-Departure, "Deboarding" under Arrival. Services Dave used appear; ones he skipped
   or abandoned are left out. A GSX push reads "Pushback (GSX)". If no GSX service was completed before pushback,
   Pre-Departure simply shows as done with no lines (D-136, which drops D-073's "Turnaround and Boarding" line).
   "Cleaning" isn't a GSX service, so it isn't shown.

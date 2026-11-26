@@ -2803,7 +2803,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-182 — Milestone 12's design calls: route progress, the pill's divisions, the status lines' wording
 - Date: 2026-11-25
-- Status: Accepted (Dave approved the design, 2026-11-25)
+- Status: Accepted (Dave approved the design, 2026-11-25); the pill's divisions superseded by D-184
 - Decided by: Claude
 - Area: app
 - Decision: (`docs/dashboard.md`, "Milestone 12: how the header is built") Distance flown is the position projected
@@ -2825,7 +2825,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-183 — Milestone 12's smaller calls while building
 - Date: 2026-11-25
-- Status: Proposed
+- Status: Proposed; the pill's strip, the marker's label and the startup summary's blank block times superseded by D-184
 - Decided by: Claude
 - Area: app
 - Decision:
@@ -2847,3 +2847,52 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: Each came up while building or checking the replay screenshots; none changes what Dave approved in D-182.
 - Alternatives considered: "Step climb" for both directions; "Taxiing to gate Gate C11"; full-height divisions (the
   label split across colours); Qt Quick Shapes for the arc (a Shape can't take a Repeater of paths).
+
+## D-184 — The dashboard header reworked: one top line, a flat arc, a marker under the pill, Arrival from touchdown
+- Date: 2026-11-26
+- Status: Accepted
+- Decided by: Dave (from three rounds of mockups, `docs/images/dashboard-header-v2.html`)
+- Area: app
+- Decision: (`docs/dashboard.md`, "The header as built (D-184)" and "The pill and its marker")
+  - One top line: the airline name centred, `XLY 8` (smaller than the airline name) on the left and the block clock on
+    the right, centred on it. No line under it, no Block out / Block in lines.
+  - A flat arc between the two airplane glyphs; the marker never touches a glyph at any width. No altitude and speed
+    above the marker (the steam gauges will show them, D-179). `Flight 8`, the cities and the distance sit under the
+    arc's middle.
+  - Origin line: `Departing soon` until liftoff, then `Departed 10:43 AM` (block out). Destination line: `Arriving
+    ~12:24 PM`, then at block in `Arrived 12:24 PM · Gate 4`. The airplane, its gate and the planned arrival gate no
+    longer show in the header.
+  - The pill: green while a stage is in progress, cyan once done; no divisions. A raised red marker (a square with a
+    pointed top, a white edge) under the current section, its point in the pill, slides with a little bounce through
+    short sub-phases named under it: Preparing, Boarding · Pushback, Taxiing, Takeoff · (Climb, Cruise: no text) ·
+    Descending, Approach · Landing, Taxiing, At Gate.
+  - **Arrival starts at touchdown**, not block in; Landing and Taxi in move from Descent to Arrival in the stages.
+  - Status lines sit lower and animate on a change: the new line rolls in, the others drop, smaller and greyer.
+  - US spelling on screen: "Refueling", "centerline". Stored names (`refuelling`, `off_centreline_m`) are unchanged.
+- Why: The first build was too tall and the arc too high; the times belong with their airports; the marker reads
+  progress inside a stage better than a thin strip. Dave wanted the cool factor (as with D-179).
+- Alternatives considered: the first build (D-182's divisions, the marker's altitude label, the identity row with Block
+  out / Block in); a flat red-edged marker; hiding the marker in Climb and Cruise (Claude advised keeping it, so it
+  never seems to vanish); Deboarding as Arrival's last part.
+- Supersedes: D-182's pill divisions; parts of D-183 (the strip, the marker's label, the startup summary's times).
+
+## D-185 — Smaller calls while building D-184
+- Date: 2026-11-26
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision:
+  - The marker moves from Preparing to Boarding when GSX boarding has started for the next block out (a running or
+    finished boarding service). Without GSX it stays on Preparing until pushback.
+  - The header's block in time is the `block_in` event's time (the brake set), kept on RecorderBridge, not the moment
+    the event arrived (after engine shutdown). The final block clock now matches the summary's block time.
+  - With no plan there's no arrival estimate, so the destination line is empty until block in. A summary shown at app
+    start reads just `Departed` and `Arrived` (no block events in this session).
+  - The status lines animate only when a new line is pushed on top; a line changing in place and a rebuild (the page
+    opening, a replay seek) are set without animation. The newest line's in-place changes (level-offs, GSX) don't roll.
+  - The marker is 14 × 15 px (Dave: a tad shorter than the mockup's 18); it doesn't slide when the page first opens.
+  - Theme values for the status slots are plain numbers, not lists: indexing a `list<int>` in a binding makes Qt's QML
+    compiler emit C++ with a C4864 warning in the release build.
+- Why: Each came up while building; none changes what Dave chose in D-184.
+- Alternatives considered: the bridge's clock at block in (off by the shutdown time); rolling in-place changes too
+  (busy during level-offs); a `--` estimate without a plan.

@@ -49,6 +49,15 @@ Found while building Qt UI test 1 (branch `qt-ui-spike`, 2026-11-22).
   `map.addMapItem(...)`; being children of `MapView` alone doesn't put them on the map.
 - **Hiding items in a `ColumnLayout`:** if nothing visible has `Layout.fillHeight`, the layout spreads the spare
   height between the items, and a title floats to the middle. Give the remaining item `Layout.fillHeight: true`.
+- **`Row` and `Column` have a read-only `implicitHeight`.** Assigning it fails only at load ("Invalid property
+  assignment"), and the whole page shows as unavailable. In a layout, use `Layout.preferredHeight`.
+- **Indexing a `list<int>` in a binding** (`Theme.sizes[i]`) makes the release build's QML compiler (qmlcachegen)
+  write C++ that MSVC warns about (C4864, "expected 'template' keyword"). The debug build doesn't compile QML, so
+  only the release build shows it. Use plain properties and a ternary instead (milestone 12, D-185).
+- **`slots` and `signals` are Qt macros** in any file that includes Qt headers: a plain C++ struct field named
+  `slots` breaks `recorder_bridge.cpp` with a syntax error pointing at the struct. Pick another name (`parts`).
+- **A Rotation with `axis { x: 1 }`** tips an item back about its top edge with perspective, the status lines'
+  roll (D-184). It loads with the software backend used for grabs; the roll itself hasn't been caught mid-animation.
 
 ## Map tiles (UI test 2, D-059)
 

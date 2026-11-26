@@ -2,9 +2,10 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// The dashboard's header (docs/dashboard.md, D-151, D-152, D-180, D-182): the identity row, a thin line, the route arc
-// coloured by altitude, the phase pill and three status lines, with the shutdown checklist after block in. Data from
-// DashboardHeader (the flight) and RecorderBridge (the lines, checklist and pill).
+// The dashboard's header (docs/dashboard.md, D-151, D-152, D-180, D-182, D-184; mockup docs/images/
+// dashboard-header-v2.html): the flight and the airline with the block clock, a flat arc between the two airplanes
+// coloured by altitude, the phase pill with its marker, and three status lines, with the shutdown checklist after block
+// in. Data from DashboardHeader (the flight) and RecorderBridge (the lines, checklist, pill and marker).
 
 pragma ComponentBehavior: Bound
 
@@ -40,127 +41,14 @@ Rectangle {
 
         anchors.fill: parent
         anchors.margins: Theme.headerPadding
-        spacing: Theme.gap12
+        spacing: 0
 
-        // 1. Identity row: ICAO code and flight number | airline, flight, cities | block clock and times.
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.spacing
-
-            ColumnLayout {
-                Layout.preferredWidth: column.width / 4
-                Layout.alignment: Qt.AlignTop
-                spacing: 0
-
-                Text {
-                    text: card.header.airlineIcao
-                    color: Theme.textPrimary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeHeaderIcao
-                    font.weight: Font.Bold
-                }
-
-                Text {
-                    text: card.header.flightNumber
-                    color: Theme.textPrimary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeHeaderFlight
-                    font.weight: Font.DemiBold
-                }
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignTop
-                spacing: Theme.gap2
-
-                Text {
-                    Layout.fillWidth: true
-                    horizontalAlignment: Text.AlignHCenter
-                    text: card.header.airlineName
-                    color: Theme.textPrimary
-                    elide: Text.ElideRight
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeHeaderAirline
-                    font.weight: Font.DemiBold
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    horizontalAlignment: Text.AlignHCenter
-                    text: card.header.flightText
-                    color: Theme.textSecondary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeBody
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    horizontalAlignment: Text.AlignHCenter
-                    text: card.header.citiesText
-                    color: Theme.textMuted
-                    elide: Text.ElideRight
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeBody
-                }
-            }
-
-            ColumnLayout {
-                Layout.preferredWidth: column.width / 4
-                Layout.alignment: Qt.AlignTop
-                spacing: Theme.gap4
-
-                Rectangle {
-                    Layout.alignment: Qt.AlignRight
-                    implicitWidth: clock.implicitWidth + 2 * Theme.gap14
-                    implicitHeight: Theme.headerClockPillHeight
-                    radius: height / 2
-                    color: "transparent"
-                    border.color: card.header.clockIsPlan ? Theme.textMuted : Theme.textSecondary
-                    border.width: Theme.borderWidth
-
-                    Text {
-                        id: clock
-
-                        anchors.centerIn: parent
-                        text: card.header.clockIsPlan ? "Plan " + card.header.clockText : card.header.clockText
-                        color: card.header.clockIsPlan ? Theme.textSecondary : Theme.textPrimary
-                        font.family: Theme.monoFontFamily
-                        font.pixelSize: Theme.fontSizeHeaderClock
-                    }
-                }
-
-                Text {
-                    Layout.alignment: Qt.AlignRight
-                    text: "Block out " + card.header.blockOutText
-                    color: Theme.textSecondary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeFeed
-                }
-
-                Text {
-                    Layout.alignment: Qt.AlignRight
-                    text: "Block in " + card.header.blockInText
-                    color: Theme.textSecondary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeFeed
-                }
-            }
-        }
-
-        // 2. The thin line: who the flight is, above; the flight happening, below.
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: Theme.hairline
-            color: Theme.border
-        }
-
-        // 3. The route arc between the two airports.
+        // 1. The airline with the flight and the clock level with it, the airports, and the arc between the airplanes.
         Item {
-            id: arcRow
+            id: top
 
             Layout.fillWidth: true
-            implicitHeight: Theme.arcRowHeight
+            implicitHeight: Theme.headerTopHeight
 
             component AirportBlock: ColumnLayout {
                 id: block
@@ -171,12 +59,20 @@ Rectangle {
                 property string name
                 property string line
                 property bool alignRight: false
+                // The glyph's centre and the half-width of its rotated box: the arc keeps the marker clear of it.
+                readonly property real glyphCenterX: glyphText.x + glyphText.width / 2
+                readonly property real glyphCenterY: glyphText.y + glyphText.height / 2
+                readonly property real glyphHalfExtent: (glyphText.width + glyphText.height) * Math.SQRT1_2 / 2
 
                 width: Theme.airportBlockWidth
-                spacing: Theme.gap2
+                spacing: 0
 
                 Text {
+                    id: glyphText
+
                     Layout.alignment: block.alignRight ? Qt.AlignRight : Qt.AlignLeft
+                    Layout.preferredHeight: Theme.fontSizeAirportIcon + Theme.gap2
+                    verticalAlignment: Text.AlignVCenter
                     text: block.glyph
                     rotation: block.glyphRotation
                     color: Theme.textSecondary
@@ -211,7 +107,51 @@ Rectangle {
                     color: Theme.textPrimary
                     elide: Text.ElideRight
                     font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSmall
+                    font.pixelSize: Theme.fontSizeFeed
+                }
+            }
+
+            Text {
+                id: airline
+
+                anchors.horizontalCenter: parent.horizontalCenter
+                height: Theme.headerAirlineHeight
+                verticalAlignment: Text.AlignVCenter
+                text: card.header.airlineName
+                color: Theme.textPrimary
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeHeaderAirline
+                font.weight: Font.DemiBold
+            }
+
+            Text {
+                anchors.left: parent.left
+                anchors.verticalCenter: airline.verticalCenter
+                text: card.header.airlineIcao + " " + card.header.flightNumber
+                color: Theme.textPrimary
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeHeaderIcao
+                font.weight: Font.Bold
+            }
+
+            Rectangle {
+                anchors.right: parent.right
+                anchors.verticalCenter: airline.verticalCenter
+                implicitWidth: clock.implicitWidth + 2 * Theme.gap14
+                implicitHeight: Theme.headerClockPillHeight
+                radius: height / 2
+                color: "transparent"
+                border.color: card.header.clockIsPlan ? Theme.textMuted : Theme.textSecondary
+                border.width: Theme.borderWidth
+
+                Text {
+                    id: clock
+
+                    anchors.centerIn: parent
+                    text: card.header.clockIsPlan ? "Plan " + card.header.clockText : card.header.clockText
+                    color: card.header.clockIsPlan ? Theme.textSecondary : Theme.textPrimary
+                    font.family: Theme.monoFontFamily
+                    font.pixelSize: Theme.fontSizeHeaderClock
                 }
             }
 
@@ -219,7 +159,7 @@ Rectangle {
                 id: origin
 
                 anchors.left: parent.left
-                anchors.bottom: parent.bottom
+                y: Theme.airportBlockTop
                 glyph: ""  // Airplane, nose up for the departure
                 glyphRotation: -45
                 code: card.header.originIcao
@@ -231,7 +171,7 @@ Rectangle {
                 id: destination
 
                 anchors.right: parent.right
-                anchors.bottom: parent.bottom
+                y: Theme.airportBlockTop
                 alignRight: true
                 glyph: ""  // Airplane, nose down for the arrival
                 glyphRotation: 45
@@ -240,14 +180,47 @@ Rectangle {
                 line: card.header.destinationLine
             }
 
+            // Below the arc, between the airports: the flight, the cities and the distance.
+            Column {
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: Theme.routeMidTop
+
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: card.header.flightText
+                    color: Theme.textSecondary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeBody
+                }
+
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: card.header.citiesText
+                    color: Theme.textMuted
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeBody
+                }
+
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    topPadding: Theme.gap4
+                    text: card.header.distanceText
+                    color: Theme.textSecondary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeBody
+                }
+            }
+
             Canvas {
                 id: arc
 
-                // The quadratic curve from the origin's end to the destination's, peaking at the top of the row.
-                readonly property real x0: origin.width + Theme.spacing
-                readonly property real x2: width - destination.width - Theme.spacing
-                readonly property real yEnds: height - Theme.gap12
-                readonly property real yControl: -height * 0.55
+                // A shallow quadratic curve between the airplanes; its ends leave room for the marker beside each one.
+                readonly property real x0: origin.x + origin.glyphCenterX + origin.glyphHalfExtent + Theme.arcGlyphGap
+                                           + Theme.arcMarkerSize / 2
+                readonly property real x2: destination.x + destination.glyphCenterX - destination.glyphHalfExtent
+                                           - Theme.arcGlyphGap - Theme.arcMarkerSize / 2
+                readonly property real yEnds: origin.y + origin.glyphCenterY
+                readonly property real yControl: yEnds - 2 * Theme.arcRise
                 readonly property real progress: card.header.progress
                 readonly property var shares: card.header.arcShares
 
@@ -261,14 +234,16 @@ Rectangle {
                 anchors.fill: parent
                 onProgressChanged: requestPaint()
                 onSharesChanged: requestPaint()
-                onWidthChanged: requestPaint()
+                onX0Changed: requestPaint()
+                onX2Changed: requestPaint()
+                onYEndsChanged: requestPaint()
 
                 onPaint: {
                     const ctx = getContext("2d")
                     ctx.reset()
                     // Still to fly: a dotted grey line.
                     ctx.fillStyle = Theme.textMuted
-                    for (let t = arc.progress; t <= 1.0001; t += 0.025) {
+                    for (let t = arc.progress; t <= 1.0001; t += 0.02) {
                         const p = arc.pointAt(t)
                         ctx.beginPath()
                         ctx.arc(p.x, p.y, Theme.arcDotSize / 2, 0, 2 * Math.PI)
@@ -292,10 +267,8 @@ Rectangle {
                 }
             }
 
-            // The airplane on the arc, with its altitude and ground speed above it; shown once it's flying.
+            // The airplane on the arc, once it's flying.
             Rectangle {
-                id: marker
-
                 readonly property point at: arc.pointAt(card.header.progress)
 
                 visible: card.header.progress > 0
@@ -308,167 +281,314 @@ Rectangle {
                 border.color: Theme.accent
                 border.width: Theme.arcMarkerBorder
             }
-
-            Text {
-                visible: marker.visible && card.header.progress < 1  // parked: it would crowd the destination
-                anchors.horizontalCenter: marker.horizontalCenter
-                anchors.bottom: marker.top
-                anchors.bottomMargin: Theme.gap6
-                text: card.header.markerText
-                color: Theme.textPrimary
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeBody
-                font.weight: Font.DemiBold
-            }
-
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: arc.yEnds - height - Theme.gap12
-                text: card.header.distanceText
-                color: Theme.textSecondary
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeBody
-            }
         }
 
-        // 4. The phase pill: six equal sections, the recorder's phases as divisions inside the current one.
-        Item {
+        // 2. The phase pill: six equal sections, done cyan, current green.
+        Row {
             id: pill
 
             Layout.fillWidth: true
-            implicitHeight: Theme.phasePillHeight
+            Layout.topMargin: Theme.gap4
+            Layout.preferredHeight: Theme.phasePillHeight
+            spacing: Theme.phasePillGap
 
-            Row {
-                anchors.fill: parent
-                spacing: Theme.phasePillGap
-
-                Repeater {
-                    id: sections
-
-                    model: card.recorder.pill
-
-                    Item {
-                        id: section
-
-                        required property var modelData
-                        required property int index
-
-                        readonly property bool first: index === 0
-                        readonly property bool last: index === sections.count - 1
-                        readonly property color fill: section.colorOf(section.modelData.state)
-
-                        function colorOf(state: string): color {
-                            return state === "done" ? Theme.good : state === "current" ? Theme.warn
-                                                                                          : Theme.surfaceRaised
-                        }
-
-                        width: (pill.width - Theme.phasePillGap * (sections.count - 1)) / Math.max(1, sections.count)
-                        height: pill.height
-
-                        // The section's shape: rounded at the bar's two ends only.
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: section.first || section.last ? height / 2 : 0
-                            color: section.fill
-                        }
-
-                        Rectangle {
-                            visible: section.first || section.last
-                            x: section.first ? parent.width / 2 : 0
-                            width: parent.width / 2
-                            height: parent.height
-                            color: section.fill
-                        }
-
-                        // Divisions: a thin strip along the bottom of the current section only (done green, current
-                        // yellow, the rest grey), so every label sits on one solid colour.
-                        Row {
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            height: Theme.phaseDivisionHeight
-                            visible: section.modelData.state === "current"
-                            spacing: Theme.phasePillGap
-
-                            Repeater {
-                                model: section.modelData.divisions
-
-                                Rectangle {
-                                    id: division
-
-                                    required property string modelData
-
-                                    readonly property int count: section.modelData.divisions.length
-
-                                    width: (section.width - Theme.phasePillGap * (count - 1)) / count
-                                    height: Theme.phaseDivisionHeight
-                                    color: section.colorOf(division.modelData)
-                                }
-                            }
-                        }
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: section.modelData.name
-                            color: section.modelData.state === "done" ? Theme.textOnAccent
-                                 : section.modelData.state === "current" ? Theme.textOnWarn : Theme.textMuted
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeFeed
-                            font.weight: Font.DemiBold
-                        }
-                    }
-                }
-            }
-        }
-
-        // 5. The status lines: now, the one before (with its time) and the one before that.
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: Theme.gap2
+            readonly property real sectionWidth: (width - Theme.phasePillGap * 5) / 6
 
             Repeater {
-                model: card.recorder.statusLines
+                id: sections
 
-                Text {
-                    id: statusLine
+                model: card.recorder.pill
+
+                Item {
+                    id: section
 
                     required property var modelData
                     required property int index
 
-                    Layout.fillWidth: true
-                    horizontalAlignment: Text.AlignHCenter
-                    text: statusLine.index > 0 && statusLine.modelData.time !== ""
-                          ? statusLine.modelData.text + " · " + statusLine.modelData.time : statusLine.modelData.text
-                    color: statusLine.index === 0 ? Theme.textPrimary
-                         : statusLine.index === 1 ? Theme.textSecondary : Theme.textMuted
-                    elide: Text.ElideRight
+                    readonly property bool first: index === 0
+                    readonly property bool last: index === sections.count - 1
+                    readonly property string state_: section.modelData.state
+                    readonly property color fill: state_ === "done" ? Theme.phaseDone
+                                                : state_ === "current" ? Theme.good : Theme.surfaceRaised
+
+                    width: pill.sectionWidth
+                    height: pill.height
+
+                    // The section's shape: rounded at the bar's two ends only.
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: section.first || section.last ? height / 2 : 0
+                        color: section.fill
+
+                        Behavior on color { ColorAnimation { duration: Theme.pillColorMs } }
+                    }
+
+                    Rectangle {
+                        visible: section.first || section.last
+                        x: section.first ? parent.width / 2 : 0
+                        width: parent.width / 2
+                        height: parent.height
+                        color: section.fill
+
+                        Behavior on color { ColorAnimation { duration: Theme.pillColorMs } }
+                    }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: section.modelData.name
+                        color: section.state_ === "done" ? Theme.textOnDone
+                             : section.state_ === "current" ? Theme.textOnGood : Theme.textMuted
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeFeed
+                        font.weight: Font.DemiBold
+                    }
+                }
+            }
+        }
+
+        // 3. The marker: its point in the pill, sliding to the current sub-phase with a little bounce, the name under it.
+        Item {
+            id: markerRow
+
+            readonly property var at: card.recorder.pillMarker
+            property bool ready: false  // no slide when the page first appears
+
+            Layout.fillWidth: true
+            Layout.topMargin: -Theme.pillMarkerOverlap
+            implicitHeight: Theme.pillMarkerRowHeight
+            Component.onCompleted: Qt.callLater(() => markerRow.ready = true)
+
+            Item {
+                id: marker
+
+                x: markerRow.at.section * (pill.sectionWidth + Theme.phasePillGap)
+                   + pill.sectionWidth * (markerRow.at.part + 0.5) / markerRow.at.parts
+                height: parent.height
+
+                Behavior on x {
+                    enabled: markerRow.ready
+                    NumberAnimation {
+                        duration: Theme.pillMarkerMoveMs
+                        easing.type: Easing.OutBack
+                        easing.overshoot: Theme.bounceOvershoot
+                    }
+                }
+
+                Canvas {
+                    id: markerShape
+
+                    // A square with a pointed top, with room around it for the shadow.
+                    x: -width / 2
+                    width: Theme.pillMarkerWidth + Theme.gap4
+                    height: Theme.pillMarkerHeight + Theme.gap4
+
+                    onPaint: {
+                        const ctx = getContext("2d")
+                        ctx.reset()
+                        const w = Theme.pillMarkerWidth - 1
+                        const h = Theme.pillMarkerHeight - 1
+                        const left = (width - w) / 2
+                        const topY = 0.5
+                        const shoulder = topY + h * 0.36
+                        const outline = () => {
+                            ctx.beginPath()
+                            ctx.moveTo(left + w / 2, topY)
+                            ctx.lineTo(left + w, shoulder)
+                            ctx.lineTo(left + w, topY + h)
+                            ctx.lineTo(left, topY + h)
+                            ctx.lineTo(left, shoulder)
+                            ctx.closePath()
+                        }
+                        const fill = ctx.createLinearGradient(0, topY, 0, topY + h)
+                        fill.addColorStop(0, Theme.pillMarkerTop)
+                        fill.addColorStop(0.45, Theme.bad)
+                        fill.addColorStop(1, Theme.pillMarkerBottom)
+                        ctx.shadowColor = Theme.pillMarkerShadow
+                        ctx.shadowOffsetY = 1.5
+                        ctx.shadowBlur = 3
+                        outline()
+                        ctx.fillStyle = fill
+                        ctx.fill()
+                        ctx.shadowColor = "transparent"
+                        ctx.lineWidth = 1
+                        ctx.lineJoin = "round"
+                        ctx.strokeStyle = Theme.pillMarkerEdge
+                        outline()
+                        ctx.stroke()
+                        // The shine along the point.
+                        ctx.globalAlpha = 0.55
+                        ctx.beginPath()
+                        ctx.moveTo(left + 1.5, shoulder + 0.7)
+                        ctx.lineTo(left + w / 2, topY + 2.1)
+                        ctx.lineTo(left + w - 1.5, shoulder + 0.7)
+                        ctx.stroke()
+                        ctx.globalAlpha = 1
+                    }
+                }
+
+                Text {
+                    x: -width / 2
+                    y: Theme.pillMarkerHeight + Theme.gap2
+                    text: markerRow.at.label
+                    color: Theme.textSecondary
                     font.family: Theme.fontFamily
-                    font.pixelSize: statusLine.index === 0 ? Theme.fontSizeStatus
-                                  : statusLine.index === 1 ? Theme.fontSizeFeed : Theme.fontSizeSmall
-                    font.weight: statusLine.index === 0 ? Font.DemiBold : Font.Normal
+                    font.pixelSize: Theme.fontSizeSmall
+                }
+            }
+        }
+
+        // 4. The status lines: now, the one before (with its time) and the one before that. A new line rolls in from
+        // above while the others drop a slot, smaller and greyer, and the oldest fades out.
+        Item {
+            id: status
+
+            readonly property var source: card.recorder.statusLines
+            property bool instant: true  // a rebuild (the first fill, a replay seek) doesn't animate
+
+            // A new line pushed on top, as the recorder adds them, rolls; any other change is set without animation.
+            function sync(): void {
+                const next = status.source
+                let topIndex = -1
+                let visible = 0
+                for (let i = 0; i < lines.count; ++i) {
+                    const place = lines.get(i).place
+                    if (place === 0) topIndex = i
+                    if (place < 3) ++visible
+                }
+                const topWords = topIndex >= 0 ? lines.get(topIndex).words : ""
+                if (topIndex >= 0 && next.length >= 2 && next[0].text !== topWords && next[1].text === topWords) {
+                    for (let i = 0; i < lines.count; ++i) {
+                        const place = lines.get(i).place + 1
+                        lines.setProperty(i, "place", Math.min(place, 3))
+                        if (place < next.length && place < 3) lines.setProperty(i, "time", next[place].time)
+                    }
+                    lines.append({ words: next[0].text, time: next[0].time, place: 0, entering: true })
+                    leaving.restart()
+                    return
+                }
+                if (visible === Math.min(next.length, 3)) {
+                    for (let i = 0; i < lines.count; ++i) {
+                        const place = lines.get(i).place
+                        if (place >= 3) continue
+                        lines.setProperty(i, "words", next[place].text)
+                        lines.setProperty(i, "time", next[place].time)
+                    }
+                    return
+                }
+                status.instant = true
+                lines.clear()
+                for (let i = 0; i < next.length && i < 3; ++i)
+                    lines.append({ words: next[i].text, time: next[i].time, place: i, entering: false })
+                Qt.callLater(() => status.instant = false)
+            }
+
+            Layout.fillWidth: true
+            Layout.topMargin: Theme.gap6
+            implicitHeight: Theme.statusBlockHeight
+            onSourceChanged: sync()
+            Component.onCompleted: sync()
+
+            ListModel {
+                id: lines
+            }
+
+            Timer {
+                id: leaving
+
+                interval: Theme.statusRollMs + 100
+                onTriggered: {
+                    for (let i = lines.count - 1; i >= 0; --i)
+                        if (lines.get(i).place >= 3) lines.remove(i)
                 }
             }
 
-            // After block in: the shutdown checklist (D-135), informational only.
-            Row {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.topMargin: Theme.gap6
-                visible: card.recorder.checklist.length > 0
-                spacing: Theme.spacing
+            Repeater {
+                model: lines
 
-                Repeater {
-                    model: card.recorder.checklist
+                Text {
+                    id: line
 
-                    Text {
-                        id: check
+                    required property string words
+                    required property string time
+                    required property int place
+                    required property bool entering
 
-                        required property var modelData
+                    property bool arrived: !entering
+                    readonly property int at: arrived ? Math.min(place, 3) : -1
 
-                        text: (check.modelData.done ? "✓  " : "○  ") + check.modelData.text
-                        color: check.modelData.done ? Theme.good : Theme.textPrimary
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSmall
+                    width: status.width
+                    horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight
+                    text: line.place === 0 || line.time === "" ? line.words : line.words + " · " + line.time
+                    y: at < 0 ? Theme.statusEnterY : at === 0 ? 0 : at === 1 ? Theme.statusSlot1Y
+                     : at === 2 ? Theme.statusSlot2Y : Theme.statusLeaveY
+                    color: at <= 0 ? Theme.textPrimary : at === 1 ? Theme.textSecondary : Theme.textMuted
+                    opacity: at < 0 || at >= 3 ? 0 : 1
+                    font.family: Theme.fontFamily
+                    font.pixelSize: at <= 0 ? Theme.fontSizeStatus : at === 1 ? Theme.fontSizeFeed
+                                  : at === 2 ? Theme.fontSizeSmall : Theme.fontSizeStatusLeaving
+                    font.weight: at <= 0 ? Font.DemiBold : Font.Normal
+                    Component.onCompleted: if (entering) Qt.callLater(() => line.arrived = true)
+
+                    transform: Rotation {
+                        origin.x: line.width / 2
+                        origin.y: 0
+                        axis { x: 1; y: 0; z: 0 }
+                        angle: line.at < 0 ? Theme.statusEnterAngle : 0
+
+                        Behavior on angle {
+                            enabled: !status.instant
+                            NumberAnimation {
+                                duration: Theme.statusRollMs
+                                easing.type: Easing.OutBack
+                                easing.overshoot: Theme.bounceOvershoot
+                            }
+                        }
                     }
+
+                    Behavior on y {
+                        enabled: !status.instant
+                        NumberAnimation {
+                            duration: Theme.statusRollMs
+                            easing.type: Easing.OutBack
+                            easing.overshoot: Theme.bounceOvershoot
+                        }
+                    }
+                    Behavior on font.pixelSize {
+                        enabled: !status.instant
+                        NumberAnimation { duration: Theme.statusFadeMs }
+                    }
+                    Behavior on color {
+                        enabled: !status.instant
+                        ColorAnimation { duration: Theme.statusFadeMs }
+                    }
+                    Behavior on opacity {
+                        enabled: !status.instant
+                        NumberAnimation { duration: Theme.statusFadeMs }
+                    }
+                }
+            }
+        }
+
+        // After block in: the shutdown checklist (D-135), informational only.
+        Row {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.topMargin: Theme.gap6
+            visible: card.recorder.checklist.length > 0
+            spacing: Theme.spacing
+
+            Repeater {
+                model: card.recorder.checklist
+
+                Text {
+                    id: check
+
+                    required property var modelData
+
+                    text: (check.modelData.done ? "✓  " : "○  ") + check.modelData.text
+                    color: check.modelData.done ? Theme.good : Theme.textPrimary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeSmall
                 }
             }
         }

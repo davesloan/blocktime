@@ -139,6 +139,7 @@ void RecorderBridge::applyBlockEvent(const BlockEvent& event) {
             using T = std::decay_t<decltype(e)>;
             if constexpr (std::is_same_v<T, BlockOut>) {
                 blockInParking_.clear();
+                blockInTime_ = QDateTime();
                 feedStages("block_out", data);  // a fresh flight; its pushback follows (D-128)
                 emit stagesChanged();
                 setReleaseRefused(false);
@@ -147,6 +148,7 @@ void RecorderBridge::applyBlockEvent(const BlockEvent& event) {
                 blockOutFuelLb_ = e.fuelLb;
             } else if constexpr (std::is_same_v<T, BlockIn>) {
                 blockInParking_ = QString::fromStdString(e.parking);
+                blockInTime_ = toQDateTime(e.time);  // the brake set, not when the event came (after shutdown)
                 feedStages("block_in", data);  // the flight stays on Live until the summary goes (D-134)
                 emit stagesChanged();
                 flightOpen_ = false;
@@ -255,14 +257,15 @@ QVariantList RecorderBridge::checklist() const {
 
 QVariantList RecorderBridge::pill() const {
     QVariantList out;
-    for (const PillSection& p : pillSections(stages_.view(), stages_.phase())) {
-        QVariantList divisions;
-        for (const StageState s : p.divisions) divisions.append(QString(kStates[static_cast<int>(s)]));
-        out.append(QVariantMap{{"name", QString::fromStdString(p.name)},
-                               {"state", kStates[static_cast<int>(p.state)]},
-                               {"divisions", divisions}});
+    for (const PillSection& p : pillSections(stages_.view())) {
+        out.append(QVariantMap{{"name", QString::fromStdString(p.name)}, {"state", kStates[static_cast<int>(p.state)]}});
     }
     return out;
+}
+
+QVariantMap RecorderBridge::pillMarker() const {
+    const PillMarker m = blocktime::pillMarker(stages_.view(), stages_.phase(), stages_.boardingStarted());
+    return {{"section", m.section}, {"part", m.part}, {"parts", m.parts}, {"label", QString::fromStdString(m.label)}};
 }
 
 QVariantList RecorderBridge::stages() const {

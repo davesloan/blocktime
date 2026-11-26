@@ -20,10 +20,8 @@ Stage stageOf(std::string_view phase) {
     if (phase == "pushback" || phase == "taxi_out" || phase == "takeoff") return Stage::Departure;
     if (phase == "climb") return Stage::Climb;
     if (phase == "cruise") return Stage::Cruise;
-    if (phase == "descent" || phase == "approach" || phase == "go_around" || phase == "landing" ||
-        phase == "taxi_in")
-        return Stage::Descent;
-    if (phase == "arrived") return Stage::Arrival;
+    if (phase == "descent" || phase == "approach" || phase == "go_around") return Stage::Descent;
+    if (phase == "landing" || phase == "taxi_in" || phase == "arrived") return Stage::Arrival;  // from touchdown (D-184)
     return Stage::PreDeparture;
 }
 
@@ -46,7 +44,7 @@ std::string phaseName(std::string_view phase) {
 
 std::string serviceName(const std::string& service) {
     if (service == "catering") return "Catering";
-    if (service == "refuelling") return "Refuelling";
+    if (service == "refuelling") return "Refueling";
     if (service == "boarding") return "Boarding";
     if (service == "deboarding") return "Deboarding";
     return service;
@@ -157,9 +155,9 @@ void FlightStages::onPhase(const std::string& phase, const std::string& iso, int
     } else if (phase == "landing") {
         close(finalLine_, iso);
         close(shortFinalLine_, iso);
-        if (!landedLine_) landedLine_ = add(Stage::Descent, landedText(), iso, false);
+        if (!landedLine_) landedLine_ = add(Stage::Arrival, landedText(), iso, false);
     } else if (phase == "taxi_in") {
-        phaseLine_ = add(Stage::Descent, "Taxiing to gate", iso, true);
+        phaseLine_ = add(Stage::Arrival, "Taxiing to gate", iso, true);
     } else if (phase == "arrived") {
         add(Stage::Arrival, parking_.empty() ? "Parked" : "Parked at " + parking_, iso, false);
         updateReady(iso);
@@ -278,12 +276,17 @@ void FlightStages::onEvent(std::string_view type, const nlohmann::json& d) {
             lines_[*landedLine_].startIso = iso;
             lines_[*landedLine_].text = landedText();
         } else {
-            landedLine_ = add(Stage::Descent, landedText(), iso, false);
+            landedLine_ = add(Stage::Arrival, landedText(), iso, false);
         }
     } else if (type == "landing_runway") {
         landingRunway_ = str(d, "runway");
         if (landedLine_) lines_[*landedLine_].text = landedText();
     }
+}
+
+bool FlightStages::boardingStarted() const {
+    const auto& spans = gsx_.nextLeg();
+    return std::any_of(spans.begin(), spans.end(), [](const ServiceSpan& s) { return s.service == "boarding"; });
 }
 
 std::vector<StageView> FlightStages::view() const {

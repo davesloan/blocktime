@@ -109,24 +109,26 @@ TEST(FlightStages, LandedWithoutARunway) {
     phase(s, "approach", "23:12:34", 9000);
     s.onEvent("touchdown", {{"time", at("23:27:16")}, {"vs_fpm", -142.0}, {"g", 1.21}});
     phase(s, "landing", "23:27:16", 27);
-    const auto v = s.view()[4];
-    ASSERT_EQ(texts(v), (std::vector<std::string>{"Approach", "Landed, −142 fpm"}));
-    EXPECT_EQ(v.lines[0].end, "23:27Z");
+    // Arrival starts at touchdown (D-184): the landing is its first line.
+    EXPECT_EQ(texts(s.view()[4]), std::vector<std::string>{"Approach"});
+    EXPECT_EQ(s.view()[4].lines[0].end, "23:27Z");
+    EXPECT_EQ(texts(s.view()[5]), std::vector<std::string>{"Landed, −142 fpm"});
+    EXPECT_EQ(s.view()[4].state, StageState::Done);
+    EXPECT_EQ(s.view()[5].state, StageState::Current);
 }
 
 TEST(FlightStages, LandedThenRunwayUpdatesTheLine) {
     FlightStages s;
     phase(s, "approach", "23:12:34", 9000);
     phase(s, "landing", "23:27:16", 27);
-    EXPECT_EQ(texts(s.view()[4]).back(), "Landed");  // the touchdown can come a second after the phase
+    EXPECT_EQ(texts(s.view()[5]).back(), "Landed");  // the touchdown can come a second after the phase
     s.onEvent("touchdown", {{"time", at("23:27:15")}, {"vs_fpm", -142.0}, {"g", 1.21}});
     s.onEvent("landing_runway", {{"runway", "10R"}, {"airport", "KPDX"}});
     phase(s, "taxi_in", "23:27:40", 27);
-    const auto v = s.view()[4];
-    EXPECT_EQ(texts(v), (std::vector<std::string>{"Approach", "Landed on 10R, −142 fpm", "Taxiing to gate"}));
+    EXPECT_EQ(texts(s.view()[5]), (std::vector<std::string>{"Landed on 10R, −142 fpm", "Taxiing to gate"}));
     phase(s, "arrived", "23:30:23", 27);
-    EXPECT_EQ(texts(s.view()[5]), (std::vector<std::string>{"Parked"}));
-    EXPECT_EQ(s.view()[4].lines[2].end, "23:30Z");
+    EXPECT_EQ(texts(s.view()[5]), (std::vector<std::string>{"Landed on 10R, −142 fpm", "Taxiing to gate", "Parked"}));
+    EXPECT_EQ(s.view()[5].lines[1].end, "23:30Z");
     EXPECT_EQ(s.view()[5].state, StageState::Current);
 }
 
@@ -217,7 +219,7 @@ TEST(FlightStages, NextLegServicesShowBeforeBlockOut) {
     const auto v = s.view();
     EXPECT_EQ(v[0].state, StageState::Current);
     ASSERT_EQ(v[0].lines.size(), 1u);
-    EXPECT_EQ(v[0].lines[0].text, "Refuelling");
+    EXPECT_EQ(v[0].lines[0].text, "Refueling");
     EXPECT_TRUE(v[0].lines[0].running);
     EXPECT_EQ(v[0].lines[0].start, "09:30Z");
     EXPECT_TRUE(s.hasNextLegServices());
@@ -233,7 +235,7 @@ TEST(FlightStages, DepartedServicesKeptAfterBlockOut) {
     const auto v = s.view();
     EXPECT_EQ(v[0].state, StageState::Done);
     ASSERT_EQ(v[0].lines.size(), 1u);
-    EXPECT_EQ(v[0].lines[0].text, "Refuelling");
+    EXPECT_EQ(v[0].lines[0].text, "Refueling");
     EXPECT_EQ(v[0].lines[0].start, "09:30Z");
     EXPECT_EQ(v[0].lines[0].end, "09:40Z");
     EXPECT_EQ(texts(v[1]), std::vector<std::string>{"Pushback"});
@@ -403,13 +405,13 @@ TEST(FlightStages, ParkedAtSpot) {
     phase(s, "taxi_in", "23:27:40", 27);
     s.onEvent("block_in", {{"flight_id", "x"}, {"time", at("23:30:23")}, {"parking", "Gate D14"}});
     phase(s, "arrived", "23:30:23", 27);
-    EXPECT_EQ(texts(s.view()[5]), (std::vector<std::string>{"Parked at Gate D14"}));
+    EXPECT_EQ(texts(s.view()[5]).back(), "Parked at Gate D14");
 
     FlightStages t;
     phase(t, "taxi_in", "23:27:40", 27);
     t.onEvent("block_in", {{"flight_id", "x"}, {"time", at("23:30:23")}, {"parking", ""}});
     phase(t, "arrived", "23:30:23", 27);
-    EXPECT_EQ(texts(t.view()[5]), (std::vector<std::string>{"Parked"}));
+    EXPECT_EQ(texts(t.view()[5]).back(), "Parked");
 }
 
 TEST(FlightStages, ArrivalGateLines) {
@@ -443,8 +445,8 @@ TEST(FlightStages, ShortFinalAtThousandFeet) {
     s.onEvent("flight_marker", {{"marker", "final_approach"}, {"time", at("19:47:30")}, {"alt_ft", 3150}});
     s.onEvent("touchdown", {{"time", at("19:48:40")}, {"vs_fpm", -120.0}, {"g", 1.1}});
     const auto v = s.view()[4];
-    ASSERT_EQ(texts(v), (std::vector<std::string>{"Approach", "Final approach, runway 26L", "Short final",
-                                                  "Landed, −120 fpm"}));
+    ASSERT_EQ(texts(v), (std::vector<std::string>{"Approach", "Final approach, runway 26L", "Short final"}));
+    EXPECT_EQ(texts(s.view()[5]), std::vector<std::string>{"Landed, −120 fpm"});  // Arrival from touchdown (D-184)
     EXPECT_EQ(v.lines[1].end, "19:47Z");
     EXPECT_EQ(v.lines[2].start, "19:47Z");
     EXPECT_EQ(v.lines[2].end, "19:48Z");
@@ -478,6 +480,19 @@ TEST(FlightStages, SecondApproachAfterGoAround) {
     s.onEvent("touchdown", {{"time", at("20:02:20")}, {"vs_fpm", -110.0}, {"g", 1.1}});
     EXPECT_EQ(texts(s.view()[4]),
               (std::vector<std::string>{"Approach", "Final approach, runway 26L", "Short final", "Go-around", "Approach",
-                                        "Final approach, runway 26R", "Short final", "Landed, −110 fpm"}));
+                                        "Final approach, runway 26R", "Short final"}));
+    EXPECT_EQ(texts(s.view()[5]), std::vector<std::string>{"Landed, −110 fpm"});
     EXPECT_EQ(s.view()[4].lines[6].end, "20:02Z");
+}
+
+TEST(FlightStages, BoardingStartedForThePill) {
+    FlightStages s;
+    gsx(s, "refuelling", "performing", "09:30:00");
+    EXPECT_FALSE(s.boardingStarted());
+    gsx(s, "boarding", "performing", "09:40:00");
+    EXPECT_TRUE(s.boardingStarted());
+    gsx(s, "boarding", "completed", "09:55:00");
+    EXPECT_TRUE(s.boardingStarted());
+    block(s, "block_out", "10:00:00");  // the boarding went with this flight: the next leg hasn't boarded
+    EXPECT_FALSE(s.boardingStarted());
 }

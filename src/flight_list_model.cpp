@@ -248,7 +248,7 @@ QVariantMap FlightListModel::debrief(const blocktime::FlightView& f) const {
                      .arg(s.crosswindKt.value_or(0));
         landing << parts.join(QString::fromUtf8(" · "));
         if (l->offCentrelineDm && l->offHeadingTenths) {
-            landing << QString::fromUtf8("%1 m off the centreline, %2° off the heading (information)")
+            landing << QString::fromUtf8("%1 m off the centerline, %2° off the heading (information)")
                            .arg(*l->offCentrelineDm / 10.0, 0, 'f', 1)
                            .arg(*l->offHeadingTenths / 10.0, 0, 'f', 1);
         }

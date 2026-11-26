@@ -66,10 +66,12 @@ class RecorderBridge : public QObject {
     Q_PROPERTY(bool showingFlight READ showingFlight NOTIFY stagesChanged)
     Q_PROPERTY(bool hasNextLegServices READ hasNextLegServices NOTIFY stagesChanged)
     // The dashboard header (D-152, D-182): the status lines, newest first [{text, time}] with time in local "h:mm AP"
-    // or ""; the shutdown checklist after block in [{text, done}]; the pill [{name, state, divisions: [state]}].
+    // or ""; the shutdown checklist after block in [{text, done}]; the pill [{name, state}] and its marker
+    // {section, part, parts, label} (D-184).
     Q_PROPERTY(QVariantList statusLines READ statusLines NOTIFY stagesChanged)
     Q_PROPERTY(QVariantList checklist READ checklist NOTIFY stagesChanged)
     Q_PROPERTY(QVariantList pill READ pill NOTIFY stagesChanged)
+    Q_PROPERTY(QVariantMap pillMarker READ pillMarker NOTIFY stagesChanged)
 
     Q_PROPERTY(EventFeedModel* events READ events CONSTANT)
 
@@ -105,6 +107,7 @@ public:
     QVariantList statusLines() const;
     QVariantList checklist() const;
     QVariantList pill() const;
+    QVariantMap pillMarker() const;
     // What the status lines need from the flight and its plan (DashboardHeader sets it when the flight changes).
     void setStatusContext(const blocktime::StatusContext& context);
     // The latest sample as the recorder sent it: the header's route progress reads its position.
@@ -113,6 +116,7 @@ public:
     const std::string& phaseCode() const { return stages_.phase(); }
     // Where the last block in parked ("Gate C11"), for the header's destination line; "" before one.
     QString blockInParking() const { return blockInParking_; }
+    QDateTime blockInTime() const { return blockInTime_; }  // the last block in, until the next block out
     // The last flight's Arrival is done with: the stages show the next leg.
     Q_INVOKABLE void showNextLeg();
 
@@ -192,6 +196,7 @@ private:
     blocktime::StatusLines status_;  // fed everything stages_ is
     blocktime::TelemetrySample lastSample_{};
     QString blockInParking_;
+    QDateTime blockInTime_;
     // One flight, block or GSX event to both the stages and the status lines.
     void feedStages(std::string_view type, const nlohmann::json& data);
 };

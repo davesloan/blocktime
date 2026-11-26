@@ -6,40 +6,52 @@
 
 #include <algorithm>
 #include <array>
+#include <vector>
 
 namespace blocktime {
 namespace {
 
-constexpr std::array<std::string_view, 3> kDeparture{"pushback", "taxi_out", "takeoff"};
-constexpr std::array<std::string_view, 4> kDescent{"descent", "approach", "landing", "taxi_in"};
+struct Part {
+    std::string_view label;
+    std::vector<std::string_view> phases;  // the recorder's phases that put the marker here
+};
 
-template <std::size_t N>
-std::vector<StageState> divisions(const std::array<std::string_view, N>& phases, StageState stage,
-                                  std::string_view phase) {
-    if (stage != StageState::Current) return std::vector<StageState>(N, stage);
-    if (phase == "go_around") phase = "approach";
-    const auto at = std::find(phases.begin(), phases.end(), phase);
-    std::vector<StageState> out;
-    for (auto it = phases.begin(); it != phases.end(); ++it) {
-        out.push_back(at == phases.end() ? StageState::Upcoming
-                      : it < at          ? StageState::Done
-                      : it == at         ? StageState::Current
-                                         : StageState::Upcoming);
-    }
-    return out;
-}
+// Each stage's parts in order. A phase none of them names leaves the marker on the first part.
+const std::array<std::vector<Part>, 6> kParts{{
+    {{"Preparing", {}}, {"Boarding", {}}},
+    {{"Pushback", {"pushback"}}, {"Taxiing", {"taxi_out"}}, {"Takeoff", {"takeoff"}}},
+    {{"", {"climb"}}},
+    {{"", {"cruise"}}},
+    {{"Descending", {"descent"}}, {"Approach", {"approach", "go_around"}}},
+    {{"Landing", {"landing"}}, {"Taxiing", {"taxi_in"}}, {"At Gate", {"arrived"}}},
+}};
 
 }  // namespace
 
-std::vector<PillSection> pillSections(const std::vector<StageView>& stages, std::string_view phase) {
+std::vector<PillSection> pillSections(const std::vector<StageView>& stages) {
     std::vector<PillSection> out;
-    for (const StageView& s : stages) {
-        PillSection p{s.name, s.state, {}};
-        if (s.stage == Stage::Departure) p.divisions = divisions(kDeparture, s.state, phase);
-        if (s.stage == Stage::Descent) p.divisions = divisions(kDescent, s.state, phase);
-        out.push_back(std::move(p));
-    }
+    for (const StageView& s : stages) out.push_back({s.name, s.state});
     return out;
+}
+
+PillMarker pillMarker(const std::vector<StageView>& stages, std::string_view phase, bool boardingStarted) {
+    PillMarker m;
+    const auto current = std::find_if(stages.begin(), stages.end(),
+                                      [](const StageView& s) { return s.state == StageState::Current; });
+    if (current == stages.end()) return m;
+    m.section = static_cast<int>(current->stage);
+    const std::vector<Part>& parts = kParts[static_cast<std::size_t>(m.section)];
+    m.parts = static_cast<int>(parts.size());
+    if (current->stage == Stage::PreDeparture) {
+        m.part = boardingStarted ? 1 : 0;
+    } else {
+        for (std::size_t i = 0; i < parts.size(); ++i) {
+            const auto& ph = parts[i].phases;
+            if (std::find(ph.begin(), ph.end(), phase) != ph.end()) m.part = static_cast<int>(i);
+        }
+    }
+    m.label = parts[static_cast<std::size_t>(m.part)].label;
+    return m;
 }
 
 }  // namespace blocktime

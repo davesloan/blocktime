@@ -1486,7 +1486,7 @@ TEST(RecorderBridge, GsxServicesBeforeBlockOut) {
     EXPECT_FALSE(b.showingFlight());
     const QVariantList lines = stage(b, 0)["lines"].toList();
     ASSERT_EQ(lines.size(), 1);
-    EXPECT_EQ(lines[0].toMap()["text"].toString(), "Refuelling");
+    EXPECT_EQ(lines[0].toMap()["text"].toString(), "Refueling");
     EXPECT_TRUE(lines[0].toMap()["checks"].toList().isEmpty());
 }
 
@@ -1884,7 +1884,7 @@ TEST_F(Debrief, SummaryHasDebrief) {
     const QStringList landing = d["landingLines"].toStringList();
     ASSERT_EQ(landing.size(), 2);
     EXPECT_TRUE(landing[0].startsWith(QString::fromUtf8("591 fpm · 1.47 G · no bounce · VREF +0 · wind 330/9"))) << landing[0].toStdString();
-    EXPECT_EQ(landing[1], QString::fromUtf8("2.7 m off the centreline, 0.6° off the heading (information)"));
+    EXPECT_EQ(landing[1], QString::fromUtf8("2.7 m off the centerline, 0.6° off the heading (information)"));
     EXPECT_EQ(d["reviewState"].toString(), "missing");
 }
 
@@ -2142,7 +2142,9 @@ TEST(RecorderBridge, StatusLinesFollowEvents) {
     EXPECT_FALSE(lines[0].toMap()["time"].toString().isEmpty());  // local h:mm AP
     EXPECT_EQ(lines[1].toMap()["text"].toString(), "Pushback and startup");
     EXPECT_EQ(b.pill()[1].toMap()["state"].toString(), "current");
-    EXPECT_EQ(b.pill()[1].toMap()["divisions"].toList()[0].toString(), "current");
+    EXPECT_EQ(b.pillMarker()["section"].toInt(), 1);
+    EXPECT_EQ(b.pillMarker()["parts"].toInt(), 3);
+    EXPECT_EQ(b.pillMarker()["label"].toString(), "Pushback");
     EXPECT_TRUE(b.checklist().isEmpty());
     EXPECT_DOUBLE_EQ(b.lastSample().latitudeDeg, 0.0);
 
@@ -2181,6 +2183,9 @@ PlannedFlightView headerView() {
 
 const char* kHeaderFlight = "2026-11-25T20:22:00.000Z";
 
+// The header shows times in Dave's local time, "1:22 PM".
+QString localText(const char* iso) { return QDateTime::fromString(iso, Qt::ISODateWithMs).toLocalTime().toString("h:mm AP"); }
+
 DashboardHeader::SettledFlight noSettledFlight() {
     return [](const QString&) { return std::optional<PlannedFlightView>{}; };
 }
@@ -2199,12 +2204,10 @@ TEST(DashboardHeader, FromPlannedFlight) {
     EXPECT_EQ(h.citiesText(), "San Diego to Las Vegas");
     EXPECT_EQ(h.clockText(), "1:05");
     EXPECT_TRUE(h.clockIsPlan());
-    EXPECT_EQ(h.blockOutText(), "--:--");
-    EXPECT_TRUE(h.blockInText().startsWith("~"));
-    EXPECT_EQ(h.originLine(), QString::fromUtf8("N814SX · B737-BBJ2 · Gate 41"));
+    EXPECT_EQ(h.originLine(), "Departing soon");
     EXPECT_EQ(h.originIcao(), "KSAN");
     EXPECT_EQ(h.destinationName(), "Harry Reid International Airport");
-    EXPECT_EQ(h.destinationLine(), "");
+    EXPECT_TRUE(h.destinationLine().startsWith("Arriving ~")) << h.destinationLine().toStdString();
     EXPECT_DOUBLE_EQ(h.progress(), 0.0);
 }
 
@@ -2217,6 +2220,7 @@ TEST(DashboardHeader, InFlight) {
     out.flightId = kHeaderFlight;
     out.time = *parseUtc(kHeaderFlight);
     b.applyBlockEvent(out);
+    EXPECT_EQ(h.originLine(), "Departing soon");  // until it leaves the runway (D-184)
     b.applyFlightEvent("liftoff", {{"time", "2026-11-25T20:31:00Z"}, {"runway", "27"}});
     b.applyFlightEvent("phase_changed", {{"phase", "cruise"}, {"time", "2026-11-25T20:48:00Z"}, {"alt_ft", 33000},
                                          {"flight_level", true}});
@@ -2227,10 +2231,7 @@ TEST(DashboardHeader, InFlight) {
     s.groundSpeedKt = 452;
     b.applySample(s);
     EXPECT_FALSE(h.clockIsPlan());
-    EXPECT_NE(h.blockOutText(), "--:--");
-    EXPECT_TRUE(h.originLine().startsWith("Off ")) << h.originLine().toStdString();
-    EXPECT_TRUE(h.originLine().endsWith(QString::fromUtf8(" · rwy 27"))) << h.originLine().toStdString();
-    EXPECT_EQ(h.markerText(), QString::fromUtf8("FL330 · 452 kt"));
+    EXPECT_EQ(h.originLine(), "Departed " + localText(kHeaderFlight));  // the block out time
     EXPECT_GT(h.progress(), 0.4);
     EXPECT_LT(h.progress(), 0.6);
     const QRegularExpression distance(QString::fromUtf8(R"(^\d+ NM flown · \d+ NM to go$)"));
@@ -2240,8 +2241,7 @@ TEST(DashboardHeader, InFlight) {
     EXPECT_DOUBLE_EQ(shares[static_cast<int>(h.progress() * 100)].toDouble(), 1.0);
     EXPECT_EQ(b.statusLines()[0].toMap()["text"].toString(), "Cruising at FL330");
 
-    b.applyFlightEvent("arrival_gate", {{"result", "assigned"}, {"gate", "Gate C11"}, {"si_gate", "C11"}});
-    EXPECT_EQ(h.destinationLine(), "Gate C11");
+    EXPECT_TRUE(h.destinationLine().startsWith("Arriving ~")) << h.destinationLine().toStdString();
 }
 
 TEST(DashboardHeader, SummaryAtStartupUsesSettledFlight) {
@@ -2265,8 +2265,8 @@ TEST(DashboardHeader, SummaryAtStartupUsesSettledFlight) {
     // Settled before this session: no block events, so no clock or times, and the whole route flown (review finding 2).
     EXPECT_FALSE(h.clockIsPlan());
     EXPECT_EQ(h.clockText(), "--:--");
-    EXPECT_EQ(h.blockOutText(), "--:--");
-    EXPECT_EQ(h.blockInText(), "--:--");
+    EXPECT_EQ(h.originLine(), "Departed");
+    EXPECT_EQ(h.destinationLine(), "Arrived");
     EXPECT_DOUBLE_EQ(h.progress(), 1.0);
 }
 
@@ -2364,10 +2364,10 @@ TEST(DashboardHeader, SettlingKeepsTheFlight) {
     b.applyBlockEvent(in);
     f.settle(kHeaderFlight);  // the model settles after the bridge's block in, as in the app
     EXPECT_TRUE(h.visible());
-    EXPECT_TRUE(h.originLine().startsWith("Off ")) << h.originLine().toStdString();
+    EXPECT_EQ(h.originLine(), "Departed " + localText(kHeaderFlight));
     EXPECT_DOUBLE_EQ(h.progress(), 1.0);
     const QVariantList shares = h.arcShares();
     EXPECT_TRUE(std::any_of(shares.begin(), shares.end(), [](const QVariant& v) { return v.toDouble() >= 0; }));
-    EXPECT_EQ(h.destinationLine(), "Gate C11");
+    EXPECT_EQ(h.destinationLine(), "Arrived " + localText("2026-11-25T21:22:00.000Z") + QString::fromUtf8(" · Gate C11"));
     EXPECT_FALSE(h.clockIsPlan());
 }

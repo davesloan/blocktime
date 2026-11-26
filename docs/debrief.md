@@ -223,7 +223,7 @@ Checks    ✗ Beacon on before pushback          163 s after block out        �
           ✓ Taxi speed                         25 kt
           ...
 Landing   591 fpm · 1.47 G · no bounce · pitch 5.1° · bank 0.8° · VREF +0 · wind 330/9 (8 kt cross)   ★★★☆☆ −8
-          2.7 m off the centreline, 0.6° off the heading (information)
+          2.7 m off the centerline, 0.6° off the heading (information)
 ```
 
 The money lines and the map stay as they are; the layout is the builder's within Theme.qml (D-150). **As built

@@ -9,8 +9,6 @@
 
 #include <QTimeZone>
 
-#include <nlohmann/json.hpp>
-
 #include "header_text.h"
 #include "status_lines.h"
 
@@ -77,8 +75,6 @@ void DashboardHeader::refreshFlight() {
         arc_.reset();
         airborne_ = false;
         liftoff_ = blockIn_ = QDateTime();
-        liftoffRunway_.clear();
-        arrivalGate_.clear();
         parking_.clear();
         if (settledBefore_) progress_.finish();  // its summary: the whole route was flown
         StatusContext c;
@@ -104,8 +100,6 @@ void DashboardHeader::resetFlight() {
     arc_.reset();
     airborne_ = false;
     liftoff_ = blockIn_ = QDateTime();
-    liftoffRunway_.clear();
-    arrivalGate_.clear();
     parking_.clear();
 }
 
@@ -118,18 +112,9 @@ void DashboardHeader::onSample() {
 }
 
 void DashboardHeader::onFlightEvent(const QString& type, const QVariantMap& data) {
-    if (type == "liftoff") {
-        airborne_ = true;
-        liftoff_ = fromIso(data.value("time").toString());
-        liftoffRunway_ = data.value("runway").toString();
-    } else if (type == "arrival_gate") {
-        const nlohmann::json d{{"result", data.value("result").toString().toStdString()},
-                               {"gate", data.value("gate").toString().toStdString()},
-                               {"si_gate", data.value("si_gate").toString().toStdString()}};
-        arrivalGate_ = q(arrivalGateName(d));
-    } else {
-        return;
-    }
+    if (type != "liftoff") return;
+    airborne_ = true;
+    liftoff_ = fromIso(data.value("time").toString());
     emit changed();
 }
 
@@ -139,7 +124,7 @@ void DashboardHeader::onBlockEvent(const QString& type) {
     } else if (type == "block_in") {
         progress_.finish();
         airborne_ = false;
-        blockIn_ = QDateTime::fromMSecsSinceEpoch(static_cast<qint64>(bridge_.nowMs()), QTimeZone::UTC);
+        blockIn_ = bridge_.blockInTime();  // the block in event's time: the brake set
         parking_ = bridge_.blockInParking();
     }
     updateTimer();
@@ -180,20 +165,13 @@ QString DashboardHeader::clockText() const {
     return planBlockS() > 0 ? q(durationText(std::chrono::seconds(planBlockS()), false)) : QStringLiteral("--:--");
 }
 
-QString DashboardHeader::blockOutText() const {
-    const QDateTime out = bridge_.blockOutTime();
-    return (bridge_.flightOpen() || blockIn_.isValid()) && out.isValid() ? localText(out) : QStringLiteral("--:--");
-}
-
-QString DashboardHeader::blockInText() const {
-    if (blockIn_.isValid()) return localText(blockIn_);
-    if (settledBefore_) return QStringLiteral("--:--");
+QString DashboardHeader::blockInEstimateText() const {
     std::optional<TimePoint> out;
     if (bridge_.flightOpen() && bridge_.blockOutTime().isValid()) {
         out = TimePoint(std::chrono::milliseconds(bridge_.blockOutTime().toMSecsSinceEpoch()));
     }
     const auto estimate = blockInEstimate(out, bridge_.now(), planBlockS());
-    if (!estimate) return QStringLiteral("--:--");
+    if (!estimate) return {};
     const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(estimate->time_since_epoch()).count();
     return "~" + localText(QDateTime::fromMSecsSinceEpoch(ms, QTimeZone::UTC));
 }
@@ -203,27 +181,24 @@ QString DashboardHeader::originName() const { return flight_ ? q(flight_->origin
 
 QString DashboardHeader::originLine() const {
     if (!flight_) return {};
-    if (liftoff_.isValid()) {
-        QString line = "Off " + localText(liftoff_);
-        if (!liftoffRunway_.isEmpty()) line += QString::fromUtf8(" · rwy ") + liftoffRunway_;
-        return line;
-    }
-    QString line = q(flight_->registration) + QString::fromUtf8(" · ") + q(flight_->typeCode);
-    if (!flight_->loadInParking.empty()) line += QString::fromUtf8(" · ") + q(flight_->loadInParking);
-    return line;
+    if (settledBefore_) return QStringLiteral("Departed");  // no block events this session
+    if (!liftoff_.isValid() && !blockIn_.isValid()) return QStringLiteral("Departing soon");
+    const QDateTime out = bridge_.blockOutTime();
+    return out.isValid() ? "Departed " + localText(out) : QStringLiteral("Departed");
 }
 
 QString DashboardHeader::destinationIcao() const { return flight_ ? q(flight_->destination) : QString(); }
 QString DashboardHeader::destinationName() const { return flight_ ? q(flight_->destinationName) : QString(); }
-QString DashboardHeader::destinationLine() const { return !parking_.isEmpty() ? parking_ : arrivalGate_; }
-
-QString DashboardHeader::markerText() const {
-    if (!bridge_.hasSample()) return {};
-    const int alt = static_cast<int>(std::lround(bridge_.altitudeFt()));
-    const int ta = effectiveTransitionFt(flight_ && flight_->plan ? flight_->plan->originTransitionAltitudeFt : 0);
-    const int tl = effectiveTransitionFt(flight_ && flight_->plan ? flight_->plan->destinationTransitionLevelFt : 0);
-    const bool fl = isFlightLevel(bridge_.phaseCode(), alt, ta, tl);
-    return q(altitudeText(alt, fl)) + QString::fromUtf8(" · ") + QString::number(std::lround(bridge_.gsKt())) + " kt";
+QString DashboardHeader::destinationLine() const {
+    if (!flight_) return {};
+    if (settledBefore_) return QStringLiteral("Arrived");
+    if (blockIn_.isValid()) {
+        QString line = "Arrived " + localText(blockIn_);
+        if (!parking_.isEmpty()) line += QString::fromUtf8(" · ") + parking_;
+        return line;
+    }
+    const QString estimate = blockInEstimateText();
+    return estimate.isEmpty() ? QString() : "Arriving " + estimate;
 }
 
 QString DashboardHeader::distanceText() const {

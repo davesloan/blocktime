@@ -22,6 +22,36 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-26 — Milestone 12: the header reworked with Dave (D-184, D-185)
+
+**Done:**
+- Three rounds of mockups with Dave (`docs/images/dashboard-header-v2.html`, steps through a flight with Next), then
+  built into the app: one top line (airline centred, `XLY 8` and the clock level with it), a flat arc between the
+  airplanes with no text above the marker, `Flight 8` and the cities under the arc, `Departing soon` / `Departed
+  10:43 AM` and `Arriving ~12:24 PM` / `Arrived 12:24 PM · Gate 4` under the airports, the pill green / cyan with a
+  raised red marker sliding through sub-phases, and status lines that roll on a change. About 130 px shorter.
+- Arrival now starts at touchdown (Landing and Taxi in moved from Descent), in `FlightStages` and the pill.
+- `pillMarker()` replaces the pill's divisions (`phase_pill.h`); `FlightStages::boardingStarted()` moves Pre-Flight
+  from Preparing to Boarding; RecorderBridge has `pillMarker` and `blockInTime()`.
+- The header's block in time is now the event's (the brake set), so the final clock matches the summary's block time.
+- US spelling on screen: Refueling, centerline (stored names unchanged).
+- Noted for later: the pill and status lines may leave the header on a summary (`docs/dashboard.md`).
+
+**Working / verified:**
+- 739 tests pass in debug and release, no warnings, qmllint clean apart from ReplayBar's old unused-import Info.
+- Grabs of Dave's KSAN → KSJC replay at taxi out, cruise, approach, landing and block in, and `--demo`, match the
+  mockup (`docs/images/dashboard-header-v2-*.png`).
+- The status lines' push / in-place / rebuild logic checked in a throwaway QML harness.
+
+**Unverified or broken:**
+- The roll and slide animations weren't seen in the app (grabs are stills and the replay opens paused). Dave: replay
+  a flight at 10× and watch the status lines roll and the marker slide.
+- The real app's settle → summary cycle with the new destination line (a test covers it).
+- D-185 (Claude's smaller calls) and D-183 wait on Dave.
+
+**Next step:**
+- Dave tries the header (replay at 10×, `--demo`), then closes milestone 12: push `main` (D-121).
+
 ## 2026-11-25 — Milestone 12 built: the dashboard header (version 0.13.0)
 
 **Done:**

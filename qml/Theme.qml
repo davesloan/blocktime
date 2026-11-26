@@ -87,31 +87,60 @@ QtObject {
     readonly property int summaryMapMinHeight: 240
     readonly property int checkMarkWidth: 18     // the debrief's ✓ / ✗ column
 
-    // The dashboard header (docs/dashboard.md, D-151, D-152, D-182)
+    // The dashboard header (docs/dashboard.md, D-151, D-152, D-182, D-184; mockup docs/images/dashboard-header-v2.html)
     readonly property int headerPadding: 20
-    readonly property int fontSizeHeaderIcao: 46        // "XLY": larger than the airport codes
-    readonly property int fontSizeHeaderFlight: 38      // "1231"
+    readonly property int fontSizeHeaderIcao: 24        // "XLY 8": just under the airline name
     readonly property int fontSizeHeaderAirline: 26     // "Soxxly Airlines"
+    readonly property int headerAirlineHeight: 34       // its line: "XLY 8" and the clock centre on it
     readonly property int fontSizeAirportCode: 36       // "KSAN"
     readonly property int fontSizeHeaderClock: 18       // the block clock pill
     readonly property int fontSizeStatus: 19            // the current status line
     readonly property int fontSizeAirportIcon: 26       // the departure and arrival glyphs
     readonly property int headerClockPillHeight: 30
-    readonly property int arcRowHeight: 200
+    readonly property int headerTopHeight: 184          // the identity line, the arc and the airports
+    readonly property int airportBlockTop: 62           // the airplane glyph's top
+    readonly property int routeMidTop: 93               // "Flight 8", the cities and the distance, below the arc
+    readonly property int arcRise: 28                   // the arc's peak above its ends: kept flat
+    readonly property int arcGlyphGap: 6                // between an airplane glyph and the marker at the arc's end
     readonly property int arcWidth: 5                   // the flown part of the arc
     readonly property int arcDotSize: 3                 // the dashed part still to fly
     readonly property int arcMarkerSize: 20
     readonly property int arcMarkerBorder: 3
-    readonly property int airportBlockWidth: 210
+    readonly property int airportBlockWidth: 240
     readonly property int phasePillHeight: 30
-    readonly property int phasePillGap: 2               // between sections and divisions
-    readonly property int phaseDivisionHeight: 5        // the current section's strip of phases
+    readonly property int phasePillGap: 2               // between sections
+    readonly property color phaseDone: "#06B6D4"        // a section flown (cyan); the current one is `good`
+    readonly property color textOnGood: "#052E16"
+    readonly property color textOnDone: "#083344"
+    // The pill's marker: a red square with a pointed top, raised (a gradient, a white edge, a shine and a shadow),
+    // its point in the pill; the sub-phase under it.
+    readonly property int pillMarkerWidth: 14
+    readonly property int pillMarkerHeight: 15
+    readonly property int pillMarkerOverlap: 6
+    readonly property int pillMarkerRowHeight: 32       // the marker and its label
+    readonly property color pillMarkerTop: "#FCA5A5"
+    readonly property color pillMarkerBottom: "#B91C1C"
+    readonly property color pillMarkerEdge: "#FFFFFF"
+    readonly property color pillMarkerShadow: "#B3000000"
+    // The status lines: three slots, newest on top; a new line rolls in and the others drop, smaller and greyer.
+    readonly property int statusBlockHeight: 76
+    readonly property int statusSlot1Y: 32               // the line before (the newest is at 0)
+    readonly property int statusSlot2Y: 53               // the one before that
+    readonly property int statusLeaveY: 70               // where the oldest fades out
+    readonly property int fontSizeStatusLeaving: 11      // the newest is fontSizeStatus, then fontSizeFeed, fontSizeSmall
+    readonly property int statusEnterY: -12
+    readonly property int statusEnterAngle: 80          // rolled back about its top edge as it comes in
+    // Animations: short and only on a change (no continuous animation, CLAUDE.md).
+    readonly property int statusRollMs: 600
+    readonly property int statusFadeMs: 450
+    readonly property int pillMarkerMoveMs: 450
+    readonly property int pillColorMs: 400
+    readonly property real bounceOvershoot: 1.4
     // The flown arc's colours by altitude, fading smoothly (not in bands): ground, a third, two thirds, cruise
     readonly property color arcGround: "#EF4444"
     readonly property color arcLow: "#EAB308"
     readonly property color arcHigh: "#22C55E"
     readonly property color arcCruise: "#3B82F6"
-    readonly property color textOnWarn: "#3A2A00"       // the pill's section in progress
     readonly property int checkPointsWidth: 36   // the debrief's "−6" column
 
     // Window

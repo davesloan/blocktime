@@ -81,9 +81,9 @@ TEST(StatusLines, GsxSharesOneLine) {
     gsx(s, "catering", "performing");
     EXPECT_EQ(texts(s), Texts{"Catering in progress"});
     gsx(s, "refuelling", "performing");
-    EXPECT_EQ(texts(s), Texts{"Catering in progress · Refuelling in progress"});
+    EXPECT_EQ(texts(s), Texts{"Catering in progress · Refueling in progress"});
     gsx(s, "catering", "completed");
-    EXPECT_EQ(texts(s), Texts{"Catering complete · Refuelling in progress"});
+    EXPECT_EQ(texts(s), Texts{"Catering complete · Refueling in progress"});
 }
 
 TEST(StatusLines, DepartureSequence) {

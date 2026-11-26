@@ -1,0 +1,282 @@
+<!doctype html>
+<!-- BlockTime: mockup of the dashboard header's second version (milestone 12 tweaks). Open in Edge; Next steps the
+     flight on so the pill, chevron, arc and status-line roll can be seen moving. Not part of the app. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BlockTime header v2 mockup</title>
+<style>
+  :root {
+    --bg: #0E1116; --surface: #161B22; --raised: #1C222B; --border: #262D37;
+    --text: #E6EAF0; --text2: #8B95A3; --muted: #5B6573;
+    --good: #22C55E; --done: #06B6D4; --bad: #EF4444; --accent: #3B82F6;
+    --onGood: #052E16; --onDone: #083344;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Segoe UI Variable", "Segoe UI", sans-serif; }
+  .page { width: 1100px; padding: 20px; }
+  .page.narrow { width: 900px; }  /* Live at the narrowest window: 1100 px less the sidebar */
+
+  .controls { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 13px; color: var(--text2); }
+  .controls button { background: var(--raised); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+                     height: 32px; padding: 0 14px; font: inherit; cursor: pointer; }
+  .controls label { display: flex; align-items: center; gap: 6px; margin-left: 12px; cursor: pointer; }
+  .controls .step { margin-left: auto; }
+
+  .card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+          padding: 20px; }
+  .top { position: relative; height: 184px; }
+
+  .airline { position: absolute; left: 0; right: 0; top: 0; text-align: center; font-size: 26px; font-weight: 600;
+             line-height: 34px; }
+  .ident { position: absolute; left: 0; top: 2px; font-size: 24px; font-weight: 700; line-height: 30px; }
+  .clock { position: absolute; right: 0; top: 2px; border: 1px solid var(--text2); border-radius: 15px; height: 30px;
+           padding: 0 14px; line-height: 28px; font-family: Consolas, monospace; font-size: 18px; }
+  .clock.plan { border-color: var(--muted); color: var(--text2); }
+
+  .airport { position: absolute; top: 62px; width: 240px; }
+  .airport.right { right: 0; text-align: right; }
+  .glyph { font-family: "Segoe Fluent Icons"; font-size: 26px; color: var(--text2); display: inline-block; height: 28px; }
+  .code { font-size: 36px; font-weight: 700; line-height: 42px; }
+  .name { font-size: 12px; color: var(--text2); line-height: 17px; white-space: nowrap; overflow: hidden;
+          text-overflow: ellipsis; }
+  .line { font-size: 13px; color: var(--text); line-height: 18px; }
+
+  .mid { position: absolute; left: 0; right: 0; top: 93px; text-align: center; }
+  .mid .flight { font-size: 14px; color: var(--text2); line-height: 20px; }
+  .mid .cities { font-size: 14px; color: var(--muted); line-height: 20px; }
+  .mid .dist { font-size: 14px; color: var(--text2); line-height: 20px; margin-top: 4px; }
+
+  svg.arc { position: absolute; left: 0; top: 0; width: 100%; height: 184px; overflow: visible; pointer-events: none; }
+  .markertext { position: absolute; transform: translate(-50%, -100%); font-size: 14px; font-weight: 600;
+                white-space: nowrap; }
+
+  .pill { position: relative; display: flex; gap: 2px; height: 30px; margin-top: 4px; }
+  .sec { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600;
+         background: var(--raised); color: var(--muted); transition: background .4s, color .4s; }
+  .sec:first-child { border-radius: 15px 0 0 15px; }
+  .sec:last-child { border-radius: 0 15px 15px 0; }
+  .sec.current { background: var(--good); color: var(--onGood); }
+  .sec.done { background: var(--done); color: var(--onDone); }
+
+  /* The marker: a square with a pointed top, its point 6 px into the pill. Flat (red, a 1 px white edge) or raised. */
+  .chev { position: relative; height: 34px; margin-top: -6px; }
+  .chevmark .raised { display: none; }
+  .raisedOn .chevmark .flat { display: none; }
+  .raisedOn .chevmark .raised { display: block; filter: drop-shadow(0 1.5px 1.5px rgba(0, 0, 0, .7)); }
+  .chevmark { position: absolute; top: 0; transform: translateX(-50%); transition: left .45s cubic-bezier(.34,1.4,.64,1);
+              text-align: center; }
+  .chevmark svg { display: block; margin: 0 auto; overflow: visible; height: 15px; }  /* squished, as built */
+  .chevmark .sub { font-size: 12px; color: var(--text2); margin-top: 1px; white-space: nowrap; height: 16px; }
+
+  .status { position: relative; height: 76px; margin-top: 6px; perspective: 400px; }
+  .sl { position: absolute; left: 0; right: 0; text-align: center; white-space: nowrap; transform-origin: 50% 0;
+        transition: top .6s cubic-bezier(.34,1.56,.64,1), font-size .45s ease, color .45s ease, opacity .45s ease,
+                    transform .5s cubic-bezier(.34,1.56,.64,1); }
+  .sl.s0 { top: 0; font-size: 19px; font-weight: 600; color: var(--text); }
+  .sl.s1 { top: 32px; font-size: 13px; color: var(--text2); }
+  .sl.s2 { top: 53px; font-size: 12px; color: var(--muted); }
+  .sl.s3 { top: 70px; font-size: 11px; color: var(--muted); opacity: 0; }
+  .sl.enter { top: -12px; opacity: 0; transform: rotateX(80deg); font-size: 19px; font-weight: 600; }
+  .noanim .sl, .noanim .chevmark, .noanim .sec { transition: none !important; }
+
+  .below { margin-top: 16px; height: 60px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+           color: var(--muted); font-size: 11px; letter-spacing: 1.2px; padding: 14px 16px; }
+</style>
+</head>
+<body>
+<div class="page" id="page">
+  <div class="controls">
+    <button id="back">◀ Back</button>
+    <button id="next">Next ▶</button>
+    <label><input type="checkbox" id="showMarkerText"> Altitude and speed above the marker</label>
+    <label><input type="checkbox" id="narrow"> Narrowest window</label>
+    <label><input type="checkbox" id="raised" checked> Raised marker</label>
+    <span class="step" id="stepLabel"></span>
+  </div>
+
+  <div class="card raisedOn" id="card">
+    <div class="top" id="top">
+      <div class="airline">Soxxly Airlines</div>
+      <div class="ident">XLY 8</div>
+      <div class="clock" id="clock"></div>
+
+      <div class="airport">
+        <span class="glyph" id="glyphLeft" style="transform: rotate(-45deg)">&#xE709;</span>
+        <div class="code">KSAN</div>
+        <div class="name">San Diego International Airport</div>
+        <div class="line" id="originLine"></div>
+      </div>
+      <div class="airport right">
+        <span class="glyph" id="glyphRight" style="transform: rotate(45deg)">&#xE709;</span>
+        <div class="code">KSJC</div>
+        <div class="name">Mineta San Jose International Airport</div>
+        <div class="line" id="destLine"></div>
+      </div>
+
+      <div class="mid">
+        <div class="flight">Flight 8</div>
+        <div class="cities">San Diego to San Jose</div>
+        <div class="dist" id="dist"></div>
+      </div>
+
+      <svg class="arc" id="arc"></svg>
+      <div class="markertext" id="markerText"></div>
+    </div>
+
+    <div class="pill" id="pill"></div>
+    <div class="chev">
+      <div class="chevmark" id="chev">
+        <svg class="flat" width="14" height="18" viewBox="0 0 14 18" preserveAspectRatio="none">
+          <path d="M7 0.5 L13.5 6.5 L13.5 17.5 L0.5 17.5 L0.5 6.5 Z" fill="#EF4444" stroke="#FFFFFF" stroke-width="1"
+                stroke-linejoin="round"/></svg>
+        <svg class="raised" width="14" height="18" viewBox="0 0 14 18" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#FCA5A5"/><stop offset=".45" stop-color="#EF4444"/>
+              <stop offset="1" stop-color="#B91C1C"/></linearGradient>
+          </defs>
+          <path d="M7 0.5 L13.5 6.5 L13.5 17.5 L0.5 17.5 L0.5 6.5 Z" fill="url(#rg)" stroke="#FFFFFF" stroke-width="1"
+                stroke-linejoin="round"/>
+          <path d="M2 7.2 L7 2.6 L12 7.2" fill="none" stroke="#FFFFFF" stroke-opacity=".55" stroke-width="1"
+                stroke-linejoin="round"/></svg>
+        <div class="sub" id="sub"></div>
+      </div>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="below">PLANNED FLIGHT / FLIGHT SUMMARY, THEN THE TILES (UNCHANGED)</div>
+</div>
+
+<script>
+const SECTIONS = [
+  ["Pre-Flight", ["Preparing", "Boarding"]],
+  ["Departure", ["Pushback", "Taxiing", "Takeoff"]],
+  ["Climb", ["Climbing"]],
+  ["Cruise", ["Cruising"]],
+  ["Descent", ["Descending", "Approach"]],
+  ["Arrival", ["Landing", "Taxiing", "At Gate"]],
+];
+// [section, sub-phase, status line, its time, progress, marker text, clock, block-in estimate (null once parked)]
+const STEPS = [
+  [0, 0, "Preparing aircraft for flight", "10:20 AM", 0, "", "Plan 1:44", "~12:27 PM"],
+  [0, 1, "Boarding passengers", "10:31 AM", 0, "", "Plan 1:44", "~12:27 PM"],
+  [1, 0, "Pushback (GSX)", "10:43 AM", 0, "", "0:00:12", "~12:27 PM"],
+  [1, 1, "Taxiing to runway 27", "10:47 AM", 0, "", "0:04:31", "~12:27 PM"],
+  [1, 2, "Takeoff roll", "10:52 AM", 0, "", "0:08:55", "~12:27 PM"],
+  [2, 0, "Climbing to FL400", "10:53 AM", 0.05, "8,400 ft · 288 kt", "0:10:20", "~12:27 PM"],
+  [3, 0, "Cruising at FL400", "11:08 AM", 0.35, "FL400 · 416 kt", "0:30:04", "~12:26 PM"],
+  [3, 0, "200 nm from destination", "11:35 AM", 0.46, "FL400 · 421 kt", "0:52:40", "~12:25 PM"],
+  [4, 0, "Descending from FL400", "11:50 AM", 0.76, "FL310 · 455 kt", "1:07:18", "~12:24 PM"],
+  [4, 1, "Final approach, runway 30L", "12:12 PM", 0.96, "2,400 ft · 160 kt", "1:29:02", "~12:24 PM"],
+  [5, 0, "Landed on runway 30L", "12:16 PM", 0.995, "Ground · 128 kt", "1:33:10", "~12:24 PM"],
+  [5, 1, "Taxiing to Gate 4", "12:17 PM", 1, "", "1:34:30", "~12:24 PM"],
+  [5, 2, "Parked at Gate 4", "12:24 PM", 1, "", "1:41", null],
+  [5, 2, "Deboarding (GSX)", "12:27 PM", 1, "", "1:41", null],
+];
+const TOTAL_NM = 368;
+let step = 6;
+
+const $ = id => document.getElementById(id);
+
+// The arc runs between the two airplanes, its ends inset so the marker (radius 10) never touches a glyph.
+const Y_ENDS = 76, RISE = 28, MARKER_R = 10, GAP = 6;
+function ends() {
+  const box = $("top").getBoundingClientRect(), l = $("glyphLeft").getBoundingClientRect(),
+        r = $("glyphRight").getBoundingClientRect();
+  return [l.right - box.left + GAP + MARKER_R, r.left - box.left - GAP - MARKER_R];
+}
+function pointAt(t) {
+  const [x0, x2] = ends(), xc = (x0 + x2) / 2, yc = Y_ENDS - 2 * RISE, u = 1 - t;
+  return [u * u * x0 + 2 * u * t * xc + t * t * x2, u * u * Y_ENDS + 2 * u * t * yc + t * t * Y_ENDS];
+}
+function share(t) { return t < 0.1 ? t / 0.1 : t < 0.75 ? 1 : Math.max(0, 1 - (t - 0.75) / 0.25); }
+function arcColor(s) {
+  const stops = [[0xEF,0x44,0x44],[0xEA,0xB3,0x08],[0x22,0xC5,0x5E],[0x3B,0x82,0xF6]];
+  const x = Math.max(0, Math.min(1, s)) * 3, i = Math.min(2, Math.floor(x)), f = x - i;
+  const c = stops[i].map((a, k) => Math.round(a + (stops[i + 1][k] - a) * f));
+  return `rgb(${c})`;
+}
+function drawArc(p) {
+  let svg = "";
+  for (let t = p; t <= 1.0001; t += 0.02) { const [x, y] = pointAt(t); svg += `<circle cx="${x}" cy="${y}" r="1.5" fill="#5B6573"/>`; }
+  const n = 100;
+  for (let i = 0; i < n && i / n < p; ++i) {
+    const [ax, ay] = pointAt(i / n), [bx, by] = pointAt(Math.min((i + 1) / n, p));
+    svg += `<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="${arcColor(share(i / n))}" stroke-width="5" stroke-linecap="round"/>`;
+  }
+  if (p > 0) { const [x, y] = pointAt(p); svg += `<circle cx="${x}" cy="${y}" r="${MARKER_R - 1.5}" fill="#161B22" stroke="#3B82F6" stroke-width="3"/>`; }
+  $("arc").innerHTML = svg;
+  const mt = $("markerText"), [mx, my] = pointAt(p);
+  mt.style.left = mx + "px"; mt.style.top = (my - 16) + "px";
+  mt.style.display = $("showMarkerText").checked && p > 0 && p < 1 ? "block" : "none";
+}
+
+// The chevron sits in the middle of the current sub-phase's slot; one-slot sections (Climb, Cruise) show no text.
+function drawPill(sec, sub) {
+  $("pill").innerHTML = SECTIONS.map(([name], i) =>
+    `<div class="sec ${i < sec ? "done" : i === sec ? "current" : ""}">${name}</div>`).join("");
+  const pw = $("pill").getBoundingClientRect().width, gap = 2, sw = (pw - gap * 5) / 6;
+  const subs = SECTIONS[sec][1];
+  $("chev").style.left = (sec * (sw + gap) + sw * (sub + 0.5) / subs.length) + "px";
+  $("sub").textContent = subs.length > 1 ? subs[sub] : "";
+}
+
+// The status lines: the newest on top; on a change the new one rolls in and the others drop, smaller and greyer.
+let lines = [];  // {el, i, slot}
+function lineText(i, slot) { const s = STEPS[i]; return slot === 0 ? s[2] : `${s[2]} · ${s[3]}`; }
+function setSlots() {
+  lines.forEach(l => { l.el.className = "sl s" + Math.min(l.slot, 3); l.el.textContent = lineText(l.i, l.slot); });
+}
+function rebuildStatus(upTo) {
+  $("status").innerHTML = ""; lines = [];
+  for (let i = Math.max(0, upTo - 2); i <= upTo; ++i) {
+    const el = document.createElement("div"); $("status").appendChild(el);
+    lines.unshift({ el, i, slot: 0 });
+  }
+  lines.forEach((l, k) => l.slot = k); setSlots();
+}
+function pushStatus(i) {
+  const el = document.createElement("div"); el.className = "sl enter"; el.textContent = STEPS[i][2];
+  $("status").appendChild(el);
+  el.getBoundingClientRect();  // start from the entering state
+  lines.forEach(l => l.slot++);
+  lines.unshift({ el, i, slot: 0 });
+  setSlots();
+  const gone = lines.filter(l => l.slot >= 3); lines = lines.filter(l => l.slot < 3);
+  gone.forEach(l => setTimeout(() => l.el.remove(), 700));
+}
+
+function render(animate) {
+  const s = STEPS[step];
+  $("card").classList.toggle("noanim", !animate);
+  $("clock").textContent = s[6]; $("clock").classList.toggle("plan", s[6].startsWith("Plan"));
+  // Origin: "Departing soon" until liftoff, then the block-out time. Destination: the estimate, then block in and gate.
+  $("originLine").textContent = step >= 5 ? "Departed 10:43 AM" : "Departing soon";
+  $("destLine").textContent = s[7] ? `Arriving ${s[7]}` : "Arrived 12:24 PM · Gate 4";
+  $("dist").textContent = `${Math.round(TOTAL_NM * s[4])} NM flown · ${Math.round(TOTAL_NM * (1 - s[4]))} NM to go`;
+  $("markerText").textContent = s[5];
+  drawArc(s[4]);
+  drawPill(s[0], s[1]);
+  $("stepLabel").textContent = `Step ${step + 1} of ${STEPS.length}`;
+  if (!animate) { rebuildStatus(step); $("card").getBoundingClientRect(); $("card").classList.remove("noanim"); }
+}
+
+$("next").onclick = () => { if (step < STEPS.length - 1) { ++step; render(true); pushStatus(step); } };
+$("back").onclick = () => { if (step > 0) { --step; render(false); } };
+$("showMarkerText").onchange = () => drawArc(STEPS[step][4]);
+$("narrow").onchange = () => { $("page").classList.toggle("narrow", $("narrow").checked); render(false); };
+document.addEventListener("keydown", e => { if (e.key === "ArrowRight") $("next").click(); if (e.key === "ArrowLeft") $("back").click(); });
+const q = new URLSearchParams(location.search);
+if (q.has("step")) step = +q.get("step");
+if (q.has("text")) $("showMarkerText").checked = true;
+$("raised").onchange = () => $("card").classList.toggle("raisedOn", $("raised").checked);
+if (q.has("raised")) { $("raised").checked = true; $("card").classList.add("raisedOn"); }
+if (q.has("narrow")) { $("narrow").checked = true; $("page").classList.add("narrow"); }
+document.fonts.ready.then(() => render(false));
+render(false);
+</script>
+</body>
+</html>

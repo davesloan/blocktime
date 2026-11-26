@@ -40,15 +40,14 @@ class DashboardHeader : public QObject {
     // The plan's block time before block out (clockIsPlan), the running clock, then the final block time.
     Q_PROPERTY(QString clockText READ clockText NOTIFY changed)
     Q_PROPERTY(bool clockIsPlan READ clockIsPlan NOTIFY changed)
-    Q_PROPERTY(QString blockOutText READ blockOutText NOTIFY changed)  // "--:--", then "1:22 PM"
-    Q_PROPERTY(QString blockInText READ blockInText NOTIFY changed)    // "~2:27 PM" until block in
     Q_PROPERTY(QString originIcao READ originIcao NOTIFY changed)
     Q_PROPERTY(QString originName READ originName NOTIFY changed)
-    Q_PROPERTY(QString originLine READ originLine NOTIFY changed)  // the airplane and its gate, then "Off … · rwy 27"
+    // "Departing soon" until liftoff, then "Departed 1:22 PM" (block out; D-184)
+    Q_PROPERTY(QString originLine READ originLine NOTIFY changed)
     Q_PROPERTY(QString destinationIcao READ destinationIcao NOTIFY changed)
     Q_PROPERTY(QString destinationName READ destinationName NOTIFY changed)
-    Q_PROPERTY(QString destinationLine READ destinationLine NOTIFY changed)  // the arrival gate, then where it parked
-    Q_PROPERTY(QString markerText READ markerText NOTIFY changed)            // "FL330 · 452 kt"
+    // "Arriving ~2:27 PM" (the estimate), then at block in "Arrived 2:24 PM · Gate 4" (D-184)
+    Q_PROPERTY(QString destinationLine READ destinationLine NOTIFY changed)
     Q_PROPERTY(QString distanceText READ distanceText NOTIFY changed)        // "127 NM flown · 103 NM to go"
     Q_PROPERTY(double progress READ progress NOTIFY changed)                 // 0..1 along the route
     // AltitudeArc::kPieces numbers: each piece's altitude as a share of the plan's cruise (0..1), -1 not flown.
@@ -68,15 +67,12 @@ public:
     QString citiesText() const;
     QString clockText() const;
     bool clockIsPlan() const;
-    QString blockOutText() const;
-    QString blockInText() const;
     QString originIcao() const;
     QString originName() const;
     QString originLine() const;
     QString destinationIcao() const;
     QString destinationName() const;
     QString destinationLine() const;
-    QString markerText() const;
     QString distanceText() const;
     double progress() const { return progress_.share(); }
     QVariantList arcShares() const;
@@ -89,6 +85,7 @@ private:
     void resetFlight();  // block out and interrupts: the arc, the times and the lines start again
     void onSample();
     void onFlightEvent(const QString& type, const QVariantMap& data);
+    QString blockInEstimateText() const;  // "~2:27 PM", or "" without an estimate
     void onBlockEvent(const QString& type);
     void updateTimer();
     int planBlockS() const;
@@ -105,6 +102,6 @@ private:
     blocktime::AltitudeArc arc_;
     bool airborne_ = false;  // from liftoff to block in
     QDateTime liftoff_, blockIn_;
-    QString liftoffRunway_, arrivalGate_, parking_;
+    QString parking_;
     QTimer timer_;  // once a second, only while a clock or an estimate moves
 };
