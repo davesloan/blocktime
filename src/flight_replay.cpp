@@ -58,7 +58,7 @@ bool replayLogAvailable(const std::filesystem::path& dir, std::string_view fligh
 
 ReplayRoute replayRoute(std::string_view type) {
     static const std::unordered_set<std::string_view> kLogOnly = {
-        "cockpit",          "telemetry_invalid", "paused",           "unpaused",
+        "telemetry_invalid", "paused",           "unpaused",
         "pmdg_data",        "recorder_started",  "recorder_stopped", "sim_disconnected",
         "sim_responsive",   "sim_unresponsive",  "simconnect_exception", "warning",
         "aircraft_loaded",  "block_out_refused", "airport_runways",  "flight_interrupted", "sim_connected"};
@@ -112,16 +112,30 @@ ReplayTimeline::ReplayTimeline(std::vector<LogLine> lines) {
     // Start 15 s before the first event, not on minutes of samples at the gate (D-178); the last sample before that
     // opens the replay, so Live shows the aircraft where it was. Without a sample there, or an event at all, start at
     // the first line that plays, not at a skipped one before it.
+    // Cockpit lines are state, like samples (D-195): they don't count as the first event, and the ones before the
+    // cut are kept at it, in log order, so the lamps open with the cockpit as it was.
+    const auto state = [](const ReplayItem& i) { return i.route == ReplayRoute::Sample || i.type == "cockpit"; };
     std::int64_t shift = items_.front().offsetMs;
-    const auto event = std::find_if(items_.begin(), items_.end(),
-                                    [](const ReplayItem& i) { return i.route != ReplayRoute::Sample; });
+    const auto event = std::find_if(items_.begin(), items_.end(), [&](const ReplayItem& i) { return !state(i); });
     if (event != items_.end()) {
         const std::int64_t cut = event->offsetMs - kLeadInMs;
         const auto after = std::find_if(items_.begin(), event, [&](const ReplayItem& i) { return i.offsetMs > cut; });
-        if (after != items_.begin()) {
-            const auto opening = after - 1;  // the last sample at or before the cut
+        // The last sample at or before the cut opens the replay.
+        auto opening = after;
+        while (opening != items_.begin() && (opening - 1)->route != ReplayRoute::Sample) --opening;
+        if (opening != items_.begin()) {
+            --opening;
+            std::vector<ReplayItem> kept;
+            for (auto i = items_.begin(); i != after; ++i) {
+                if (i->type != "cockpit") continue;
+                i->offsetMs = cut;
+                kept.push_back(std::move(*i));
+            }
             opening->offsetMs = cut;
-            items_.erase(items_.begin(), opening);
+            ReplayItem open = std::move(*opening);
+            items_.erase(items_.begin(), after);
+            items_.insert(items_.begin(), std::move(open));
+            items_.insert(items_.begin(), std::make_move_iterator(kept.begin()), std::make_move_iterator(kept.end()));
             shift = cut;
         }
     }

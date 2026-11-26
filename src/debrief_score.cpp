@@ -16,14 +16,14 @@ namespace blocktime {
 namespace {
 
 // The tolerances (D-160, docs/debrief.md section 2).
-constexpr int kBeaconLateS = 10;
+constexpr int kBeaconLateS = static_cast<int>(kBeaconTolerance.count());
 constexpr int kTaxiMaxKt = 30;
 constexpr int kBaroOffTenths = 10;  // 1 hPa
 constexpr int kOver250S = 10;
-constexpr int kStdLateS = 60;
+constexpr int kStdLateS = static_cast<int>(kStdTolerance.count());
 constexpr int kStableSinkFpm = 1000;
 constexpr int kStableVrefBelowKt = -5, kStableVrefAboveKt = 20;
-constexpr int kStrobesOffS = 180;
+constexpr int kStrobesOffS = static_cast<int>(kStrobesTolerance.count());
 constexpr int kMissedPoints = -6;
 constexpr int kApuGatePoints = -2;  // Dave: only about 2 points, since he may switch it on once parked (D-172, D-173)
 

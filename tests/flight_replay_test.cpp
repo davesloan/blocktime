@@ -5,6 +5,7 @@
 // The replayer: a flight's log lines as a timeline with the sim's pauses taken out, and a clock (milestone 11,
 // docs/replay.md).
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -64,6 +65,9 @@ TEST(FlightReplay, LogAvailable) {
     EXPECT_FALSE(replayLogAvailable(dir, "2026-11-24T23:53:16.837Z"));
 }
 
+// The in-flight panel's lamps read the cockpit lines, in replays too (D-195).
+TEST(FlightReplay, CockpitLinesReachTheBridge) { EXPECT_EQ(replayRoute("cockpit"), ReplayRoute::Flight); }
+
 TEST(FlightReplay, Routes) {
     EXPECT_EQ(replayRoute("telemetry"), ReplayRoute::Sample);
     EXPECT_EQ(replayRoute("block_out"), ReplayRoute::Block);
@@ -72,7 +76,7 @@ TEST(FlightReplay, Routes) {
                           "sim_stopped", "touchdown"}) {
         EXPECT_EQ(replayRoute(t), ReplayRoute::Flight) << t;
     }
-    for (const char* t : {"cockpit", "probe_gsx", "pmdg_data", "paused", "unpaused", "sim_disconnected",
+    for (const char* t : {"probe_gsx", "pmdg_data", "paused", "unpaused", "sim_disconnected",
                           "airport_runways", "block_out_refused", "telemetry_invalid", "recorder_started", "sim_connected"}) {
         EXPECT_EQ(replayRoute(t), ReplayRoute::Skip) << t;
     }
@@ -106,13 +110,28 @@ TEST(FlightReplay, SampleInsideTheFifteenSecondsPlays) {
     EXPECT_EQ(t.timeAt(0), t0 + 9min + 55s);
 }
 
-// The replay starts at the first line it plays, not at a skipped one (a probe or cockpit line), so it opens on
+// The replay starts at the first line it plays, not at a skipped one (a probe or PMDG line), so it opens on
 // something.
 TEST(FlightReplay, OffsetsFromTheFirstPlayedLine) {
-    const ReplayTimeline t({line(0ms, "probe_facility"), line(900ms, "cockpit"), line(2s, "telemetry"),
+    const ReplayTimeline t({line(0ms, "probe_facility"), line(900ms, "pmdg_data"), line(2s, "telemetry"),
                             line(3s, "telemetry")});
     EXPECT_EQ(offsets(t), (std::vector<std::int64_t>{0, 1000}));
     EXPECT_EQ(t.timeAt(0), t0 + 2s);
+}
+
+// Cockpit lines are state, like samples: they don't move the start 15 s before the first event (D-178), and the
+// ones before it are kept at the start, so the lamps open with the cockpit as it was (D-195).
+TEST(FlightReplay, CockpitStateBeforeTheLeadInIsKept) {
+    const ReplayTimeline t({line(0ms, "cockpit", {{"seat_belts", 2}}), line(1min, "telemetry"),
+                            line(9min, "cockpit", {{"seat_belts", 0}}), line(10min, "telemetry"),
+                            line(10min + 20s, "phase_changed", {{"phase", "taxi_out"}})});
+    EXPECT_EQ(t.timeAt(0), t0 + 10min + 5s);
+    ASSERT_EQ(t.items().size(), 4u);
+    EXPECT_EQ(t.items()[0].type, "cockpit");
+    EXPECT_EQ(t.items()[1].type, "cockpit");
+    EXPECT_EQ(t.items()[1].data.value("seat_belts", -1), 0);  // in log order: the latest state wins
+    EXPECT_EQ(t.items()[2].route, ReplayRoute::Sample);
+    EXPECT_EQ(offsets(t), (std::vector<std::int64_t>{0, 0, 0, 15'000}));
 }
 
 TEST(FlightReplay, PausedStretchIsSkipped) {
@@ -185,7 +204,12 @@ TEST(FlightReplay, StrippedFixtureBuildsATimeline) {
     ASSERT_FALSE(t.empty());
     // 15 s before the GSX refuelling request, the first event after the KSFO → KLAS leg's block in (D-177, D-178).
     EXPECT_EQ(t.timeAt(0), *parseUtc("2026-11-24T23:42:21.929Z"));
-    EXPECT_EQ(t.items()[0].route, ReplayRoute::Sample);
+    // The cockpit's state comes first (D-195), then the opening sample.
+    const auto opening = std::find_if(t.items().begin(), t.items().end(),
+                                      [](const ReplayItem& i) { return i.type != "cockpit"; });
+    ASSERT_NE(opening, t.items().end());
+    EXPECT_EQ(opening->route, ReplayRoute::Sample);
+    EXPECT_EQ(opening->offsetMs, 0);
     const auto blockOut = t.offsetOf("block_out");
     ASSERT_TRUE(blockOut);
     EXPECT_GT(*blockOut, 0);

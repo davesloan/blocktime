@@ -35,11 +35,10 @@
 #include <string>
 #include <vector>
 
+#include "cockpit_reading.h"
 #include "flight_events.h"
 
 namespace blocktime {
-
-enum class Family { B737, B777 };
 
 inline constexpr std::array<const char*, 19> kCheckParts = {
     "beacon_late_s",          "belts_off_departure_s",       "taxi_max_kt",          "origin_baro_off_tenths",

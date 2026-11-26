@@ -205,6 +205,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
         if (!data) return;
         if (tracker.flightOpen()) (*data)["flight_id"] = tracker.flightId();
         log.write("cockpit", *data);
+        observer.onFlightEvent("cockpit", *data);  // the in-flight panel's lamps (D-195)
     };
     // Every block event goes through here, so the tracker opens and closes with the flight.
     const auto blockEvent = [&](BlockEvent e, const TelemetrySample* s) {
@@ -218,6 +219,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
             if (auto snap = cockpit.snapshot(std::chrono::system_clock::now())) {
                 (*snap)["flight_id"] = tracker.flightId();
                 log.write("cockpit", *snap);
+                observer.onFlightEvent("cockpit", *snap);
             }
         } else if (const auto* in = std::get_if<BlockIn>(&e)) {
             writeFlightEvents(tracker.onBlockIn(*in, s ? s->indicatedAltitudeFt : 0));

@@ -25,8 +25,6 @@ struct Point {
 };
 using Series = std::vector<Point>;
 
-constexpr double kStdHpa = 1013.2;
-constexpr std::chrono::seconds kTakeoffLightsGrace{10};
 constexpr double kInHgToHpa = 33.8639;
 
 // When the thing happened: data.time if it has one (D-125's readers order by it), else the line's ts.
@@ -115,7 +113,7 @@ public:
             else if (l.type == "landing_runway") runway_ = &l.data;
             else if (l.type == "block_out") {
                 blockOut_ = t;
-                if (l.data.value("aircraft_folder", "").find("777") != std::string::npos) m_.family = Family::B777;
+                m_.family = familyOf(l.data.value("aircraft_folder", ""));
             } else if (l.type == "block_in") {
                 blockIn_ = t;
                 // When the last engine stopped (the block_in line's own time when it doesn't say).
@@ -171,7 +169,7 @@ private:
 
     // The seat belt sign needs PMDG's data on the 737: its plain SimVar never moves (D-159).
     const char* beltsMissing() const {
-        if (cockpit_.empty() || (m_.family == Family::B737 && !pmdg_)) return "no_pmdg_data";
+        if (cockpit_.empty() || !beltsReadable(m_.family, pmdg_)) return "no_pmdg_data";
         return nullptr;
     }
     // So do the 737's landing lights: LIGHT LANDING misses its retractable ones (D-159).
@@ -191,9 +189,7 @@ private:
         if (!to) to = phaseStart("descent");
         if (!to && touchdown_) to = touchdown_->t;
         if (!from || !to) return skip("belts_off_departure_s", "no_marker");
-        put("belts_off_departure_s", secondsWhere(cockpit_, *from, *to, [](const nlohmann::json& d) {
-                return d.value("seat_belts", 0) == 0;
-            }));
+        put("belts_off_departure_s", secondsWhere(cockpit_, *from, *to, [](const nlohmann::json& d) { return !beltsOn(d); }));
     }
 
     void taxi() {
@@ -243,7 +239,8 @@ private:
         const Time by = *t + kTakeoffLightsGrace;
         put("takeoff_strobes", flag(stateAt(telemetry_, by), "strobe") ? 1 : 0);
         if (const char* r = landingLightsMissing()) return skip("takeoff_landing_lights", r);
-        put("takeoff_landing_lights", flag(stateAt(cockpit_, by), "landing_lights") ? 1 : 0);
+        const nlohmann::json* cp = stateAt(cockpit_, by);
+        put("takeoff_landing_lights", cp && landingLightsOn(*cp) ? 1 : 0);
     }
 
     void over250() {
@@ -256,25 +253,21 @@ private:
     void stdLate() {
         const auto ta = marker("transition_altitude");
         if (!ta || altimeter_.empty()) return skip("std_late_s", "no_marker");
-        put("std_late_s", secondsUntil(altimeter_, *ta, end(), [](const nlohmann::json& d) {
-                return std::abs(d.value("capt_mb", 0.0) - kStdHpa) < 0.05 && std::abs(d.value("fo_mb", 0.0) - kStdHpa) < 0.05;
-            }));
+        put("std_late_s", secondsUntil(altimeter_, *ta, end(), [](const nlohmann::json& d) { return altimetersStd(d); }));
     }
 
     void beltsDescent() {
         if (const char* r = beltsMissing()) return skip("belts_off_descent_s", r);
         const auto tl = marker("transition_level", true);
         if (!tl) return skip("belts_off_descent_s", "no_marker");
-        put("belts_off_descent_s", secondsWhere(cockpit_, *tl, end(), [](const nlohmann::json& d) {
-                return d.value("seat_belts", 0) == 0;
-            }));
+        put("belts_off_descent_s", secondsWhere(cockpit_, *tl, end(), [](const nlohmann::json& d) { return !beltsOn(d); }));
     }
 
     void destinationBaro() {
         if (diverted_) return skip("destination_baro_off_tenths", "diverted");
         const auto tl = marker("transition_level", true);
         if (!tl) return skip("destination_baro_off_tenths", "no_marker");
-        if (const auto off = baroOff("destination", *tl + std::chrono::seconds(60))) {
+        if (const auto off = baroOff("destination", *tl + kDestinationBaroDelay)) {
             return put("destination_baro_off_tenths", *off);
         }
         skip("destination_baro_off_tenths", "no_atis");
@@ -285,11 +278,11 @@ private:
         const auto below = marker("below_10000", true);
         if (!below || !touchdown_) return skip("landing_lights_off_s", "no_marker");
         // Only the approach that landed: after a go-around the window starts again (docs/debrief.md section 2).
-        Time from = *below + std::chrono::seconds(60);
+        Time from = *below + kLandingLightsDelay;
         for (const auto& [p, at] : phases_)
             if (p == "go_around" && at <= touchdown_->t) from = std::max(from, at);
         put("landing_lights_off_s", secondsWhere(cockpit_, from, touchdown_->t,
-                                                 [](const nlohmann::json& d) { return !d.value("landing_lights", false); }));
+                                                 [](const nlohmann::json& d) { return !landingLightsOn(d); }));
     }
 
     void stable() {
@@ -306,7 +299,7 @@ private:
         if (!cp) {
             skip("stable_gear_down", "no_pmdg_data");
         } else {
-            put("stable_gear_down", flag(cp, "gear_down") ? 1 : 0);
+            put("stable_gear_down", gearDown(*cp) ? 1 : 0);
         }
         const int flaps = cp ? static_cast<int>(number(cp, "landing_flaps")) : 0;
         const int vref = cp ? static_cast<int>(number(cp, "vref_kt")) : 0;
@@ -344,7 +337,7 @@ private:
 
     // The APU is in PMDG's data only (D-172): a flight without it can't be judged on the APU.
     bool hasApu() const {
-        return std::any_of(cockpit_.begin(), cockpit_.end(), [](const Point& p) { return p.d->contains("apu_switch"); });
+        return std::any_of(cockpit_.begin(), cockpit_.end(), [](const Point& p) { return apuSwitchOn(*p.d).has_value(); });
     }
 
     void apuTransition() {
@@ -352,14 +345,15 @@ private:
         const auto ta = marker("transition_altitude");
         if (!ta) return skip("apu_on_after_transition_s", "no_marker");
         put("apu_on_after_transition_s", secondsUntil(cockpit_, *ta, end(), [](const nlohmann::json& d) {
-                return d.contains("apu_switch") && !d["apu_switch"].get<bool>();
+                return apuSwitchOn(d) == std::optional<bool>(false);
             }));
     }
 
     void apuGate() {
         if (!hasApu()) return skip("apu_on_at_shutdown", "no_pmdg_data");
         if (!shutdown_) return skip("apu_on_at_shutdown", "no_marker");
-        put("apu_on_at_shutdown", flag(stateAt(cockpit_, *shutdown_), "apu_switch") ? 1 : 0);
+        const nlohmann::json* cp = stateAt(cockpit_, *shutdown_);
+        put("apu_on_at_shutdown", cp && apuSwitchOn(*cp).value_or(false) ? 1 : 0);
     }
 
     void landing() {
