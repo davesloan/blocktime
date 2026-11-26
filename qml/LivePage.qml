@@ -98,11 +98,18 @@ Item {
                 recorder: page.recorder
             }
 
-            // The Pre-Flight panel (D-153): from planning until liftoff, right under the header.
+            // The Pre-Flight panel (D-153): from planning until block out (D-194), right under the header.
             PreFlightPanel {
                 Layout.fillWidth: true
                 visible: page.preflight.visible
                 model: page.preflight
+            }
+
+            // The in-flight panel (D-194): from block out to block in, where the Pre-Flight panel was.
+            InFlightPanel {
+                Layout.fillWidth: true
+                visible: page.inflight.visible
+                model: page.inflight
             }
 
             // Only built while it shows, so the map costs nothing the rest of the time.

@@ -183,7 +183,7 @@ QtObject {
     readonly property color readoutFlagText: "#1A1205"    // text on an amber "changed" tag
     readonly property int readoutRadius: 6
     readonly property int readoutWindowRadius: 3
-    readonly property int readoutWindowHeight: 34
+    readonly property int readoutWindowHeight: 30  // mockup v2 (D-203)
     readonly property int readoutGap: 10
     readonly property int fontSizeReadoutTitle: 10
     readonly property real readoutTitleSpacing: 1.4
@@ -194,6 +194,55 @@ QtObject {
     readonly property int squawkDigitWidth: 30
     readonly property int squawkDigitHeight: 36
     readonly property int fontSizeSquawk: 24
+    readonly property color readoutLatestText: "#1A1205"  // LATEST: the placard lit amber (D-203)
+
+    // The in-flight panel (D-194..D-198, D-203; mockup docs/images/dashboard-inflight-v2.html)
+    readonly property int inflightPaddingTop: 12
+    readonly property int inflightPaddingSide: 28
+    readonly property int inflightRowGap: 6
+    readonly property color lampStripRule: "#0AFFFFFF"
+    readonly property int lampWidth: 74
+    readonly property int lampSize: 30          // the bezel; the lens is 4 px inside it
+    readonly property int lampGap: 26
+    readonly property int lampGlow: 16
+    readonly property color lampBezelLight: "#9AA2AC"
+    readonly property color lampBezelDark: "#2C3138"
+    readonly property color lampPlacardText: "#C9CED6"
+    readonly property int fontSizeLampPlacard: 10
+    readonly property real lampPlacardSpacing: 1.2
+    // Each lens's colours (D-179): dark tinted glass when off, an incandescent bulb behind it when lit.
+    readonly property var lampLenses: ({
+        "red":   { off: ["#3B1210", "#1A0807"], on: ["#FFF1D6", "#FF9A72", "#E3301F", "#7D0F09"], glow: "#73FF4028" },
+        "white": { off: ["#2C2D2B", "#141513"], on: ["#FFFFFF", "#FFF4DC", "#E9D9B6", "#8D7E62"], glow: "#59FFECC8" },
+        "amber": { off: ["#3A2808", "#191104"], on: ["#FFF6D0", "#FFD060", "#E89A10", "#7A4A02"], glow: "#73FFAA1E" },
+        "green": { off: ["#10301A", "#07160B"], on: ["#EAFFE0", "#8CF59A", "#22B44A", "#0B4A1C"], glow: "#613CDC64" }
+    })
+    readonly property int lampFlashMs: 1000     // 1 s lit, 1 s dark (D-195); the model's timer
+    // Steam gauges, drawn on a 220-unit face and scaled to gaugeSize
+    readonly property int gaugeSize: 128
+    readonly property color gaugeBezelLight: "#7D8590"
+    readonly property color gaugeBezelDark: "#2A2F36"
+    readonly property color gaugeFace: "#0B0C0D"
+    readonly property color gaugeTick: "#E8E8E8"
+    readonly property color gaugeNumeral: "#F0F0F0"
+    readonly property color gaugeCaption: "#9AA3AF"
+    readonly property color gaugeRedArc: "#C43A2C"
+    readonly property color gaugeBug: "#E0B030"
+    readonly property color gaugeNeedle: "#F4F4F4"
+    readonly property color gaugeHub: "#22262B"
+    readonly property color gaugeHubRing: "#555C66"
+    readonly property color gaugeWindow: "#000000"
+    readonly property color gaugeWindowRing: "#3B4048"
+    readonly property color gaugeGlare: "#29FFFFFF"
+    readonly property color gaugeLabel: "#9AA3AF"
+    readonly property int fontSizeGaugeLabel: 10
+    readonly property int needleGlideMs: 400     // a needle glides to each new value, then rests (D-179)
+    // Flips (D-198): a half-turn about the horizontal axis, in a wave left to right
+    readonly property int flipDurationMs: 500
+    readonly property int flipWaveStepMs: 60
+    // The ATC card's columns: ALTITUDE and APPROACH wide, SPEED narrow (D-203)
+    readonly property var atcColumnWeights: [1.3, 1, 0.6, 1.3]
+    readonly property int readoutColumns: 4
 
     // Window
     readonly property int windowWidth: 1300

@@ -281,6 +281,18 @@ set(BLOCKTIME_QML_FILES
   qml/InstrumentPanel.qml
   qml/Readout.qml
   qml/PreFlightPanel.qml
+  qml/InFlightPanel.qml
+  qml/Lamp.qml
+  qml/FlipCard.qml
+  qml/SteamGauge.qml
+  qml/GaugeScale.qml
+  qml/GaugeArc.qml
+  qml/GaugeNeedle.qml
+  qml/GaugeWindow.qml
+  qml/SpeedGauge.qml
+  qml/AltitudeGauge.qml
+  qml/VsiGauge.qml
+  qml/FuelGauge.qml
   qml/SecondaryButton.qml
   qml/TextInputField.qml
   qml/MoneyLines.qml

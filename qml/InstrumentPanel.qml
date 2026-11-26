@@ -14,9 +14,11 @@ Rectangle {
     id: panel
 
     default property alias content: inner.data
+    property int paddingTop: Theme.panelPaddingTop
+    property int paddingSide: Theme.panelPaddingSide
 
     radius: Theme.panelRadius
-    implicitHeight: inner.childrenRect.height + Theme.panelPaddingTop * 2
+    implicitHeight: inner.childrenRect.height + panel.paddingTop * 2
     gradient: Gradient {
         GradientStop { position: 0; color: Theme.panelInsetTop }
         GradientStop { position: 1; color: Theme.panelInsetBottom }
@@ -68,9 +70,9 @@ Rectangle {
     Item {
         id: inner
 
-        x: Theme.panelPaddingSide
-        y: Theme.panelPaddingTop
-        width: panel.width - 2 * Theme.panelPaddingSide
+        x: panel.paddingSide
+        y: panel.paddingTop
+        width: panel.width - 2 * panel.paddingSide
         height: childrenRect.height
     }
 }
