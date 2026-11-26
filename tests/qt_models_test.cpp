@@ -20,6 +20,8 @@
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QRegularExpression>
 #include <thread>
 
@@ -36,6 +38,7 @@
 #include "flight_settlement.h"
 #include "planned_flight.h"
 #include "planned_flight_model.h"
+#include "preflight_model.h"
 #include "replay_planned_flight.h"
 #include "replay_session.h"
 #include "review_writer.h"
@@ -2493,4 +2496,166 @@ TEST(DashboardHeader, SettlingKeepsTheFlight) {
     EXPECT_TRUE(std::any_of(shares.begin(), shares.end(), [](const QVariant& v) { return v.toDouble() >= 0; }));
     EXPECT_EQ(h.destinationLine(), "Arrived " + localText("2026-11-25T21:22:00.000Z") + QString::fromUtf8(" · Gate C11"));
     EXPECT_FALSE(h.clockIsPlan());
+}
+
+// ---- The Pre-Flight panel (milestone 13, D-153, D-188, D-189) ----
+
+namespace {
+
+// N814SX's KSAN → KSJC leg of 2026-11-25 as planned: runway 27, PADRZ2 IKAYE, 44 passengers.
+PlannedFlightView preflightView(bool withPlan = true) {
+    PlannedFlightView v;
+    v.registration = "N814SX";
+    v.origin = "KSAN";
+    v.destination = "KSJC";
+    v.flightNumber = "8";
+    v.kind = FlightKind::Vip;
+    v.plannedAt = "2026-11-25T18:00:00Z";
+    v.originRunway = "27";
+    v.cabins = {{"economy", 44}};
+    v.holds = {{"forward", 7842, 4}, {"aft", 9803, 5}};
+    v.route = {{32.7336, -117.19}, {37.3626, -121.929}};
+    if (withPlan) {
+        SimbriefPlan p;
+        p.rampFuelLb = 13439;
+        p.cruiseAltitudeFt = 40000;
+        p.originTransitionAltitudeFt = 18000;
+        p.originRunway = "27";
+        p.estBlockS = 4200;
+        v.plan = p;
+        v.brief = blocktime::parsePlanBrief(dataFile("ofp-ksan-ksjc-brief.json"));
+    }
+    return v;
+}
+
+QVariantMap variantOf(const nlohmann::json& j) {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object().toVariantMap();
+}
+
+nlohmann::json ksanClearance() {
+    return {{"flight_id", ""},
+            {"entry",
+             {{"id", 110637058},
+              {"channel", "COM1"},
+              {"ident", "KSAN"},
+              {"position", "CLEARANCE"},
+              {"stamp_zulu", "2026-11-25T18:39:40Z"},
+              {"frequency", "125.9"},
+              {"outgoing_message",
+               "Cleared to Norman Y. Mineta San Jose via the PADRZ2 departure. Then as filed. Climb via the SID. Expect "
+               "FL400 one-zero minutes after departure. Departure on 119.6. Squawk 3166. Expect runway 27"},
+              {"incoming_message", "Ready to copy our IFR clearance."}}}};
+}
+
+std::chrono::system_clock::time_point utc(const char* iso) { return *blocktime::parseUtc(iso); }
+
+}  // namespace
+
+TEST(PreFlightModel, WaitingForPlan) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(preflightView(false), "XLY", Rates{}, b, kReplayFlight);
+    PreFlightModel m(b, f);
+    EXPECT_TRUE(m.visible());
+    EXPECT_FALSE(m.hasPlan());
+    EXPECT_EQ(m.blockFuelText(), "");  // QML draws the dim dash
+    EXPECT_EQ(m.zfwText(), "");
+    EXPECT_EQ(m.cargoText(), "");
+    EXPECT_TRUE(m.holds().isEmpty());
+    ASSERT_EQ(m.passengers().size(), 1);
+    EXPECT_EQ(m.passengers()[0].toMap()["label"].toString(), "Passengers");
+    EXPECT_EQ(m.passengers()[0].toMap()["value"].toString(), "44");
+    EXPECT_EQ(m.runway(), "27");  // the planned flight's runway from New Flight's ATIS
+    EXPECT_EQ(m.sid(), "");
+    EXPECT_FALSE(m.cleared());
+}
+
+TEST(PreFlightModel, LoadSheetAndPlanSid) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    PreFlightModel m(b, f);
+    EXPECT_TRUE(m.hasPlan());
+    EXPECT_EQ(m.blockFuelText(), "13,439 lb");
+    EXPECT_EQ(m.zfwText(), "112,967 lb");
+    EXPECT_EQ(m.cargoText(), "2,420 lb");
+    ASSERT_EQ(m.holds().size(), 2);
+    EXPECT_EQ(m.holds()[0].toMap()["label"].toString(), "Forward");
+    EXPECT_EQ(m.holds()[0].toMap()["value"].toString(), "1,075 lb");
+    EXPECT_EQ(m.holds()[1].toMap()["value"].toString(), "1,345 lb");
+    EXPECT_EQ(m.cruiseText(), "FL400");
+    EXPECT_EQ(m.transitionText(), "18,000");
+    EXPECT_EQ(m.runway(), "27");
+    EXPECT_EQ(m.runwayTag(), "PLAN");
+    EXPECT_EQ(m.headingText(), "275°");
+    EXPECT_EQ(m.conditionText(), "Dry");
+    EXPECT_EQ(m.sid(), "PADRZ2 IKAYE");  // SimBrief's until ATC changes it (D-189)
+    EXPECT_EQ(m.sidTag(), "PLAN");
+    EXPECT_FALSE(m.countdownVisible());
+}
+
+TEST(PreFlightModel, ClearanceAndCountdown) {
+    qtApp();
+    RecorderBridge b;
+    auto now = utc("2026-11-25T18:43:00Z");  // 3:20 after the clearance
+    b.setClock([&now] { return now; });
+    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    PreFlightModel m(b, f);
+    b.applyFlightEvent("atc_exchange", variantOf(ksanClearance()));
+    EXPECT_TRUE(m.cleared());
+    EXPECT_EQ(m.squawk(), "3166");
+    EXPECT_EQ(m.departureFrequency(), "119.6");
+    EXPECT_EQ(m.initialAltitude(), "Climb via SID");
+    EXPECT_EQ(m.sid(), "PADRZ2 IKAYE");
+    EXPECT_EQ(m.sidTag(), "CLEARED");
+    EXPECT_EQ(m.runwayTag(), "ATC");
+    EXPECT_TRUE(m.countdownVisible());
+    EXPECT_EQ(m.countdownText(), "26:40");
+    EXPECT_FALSE(m.countdownUrgent());
+    now = utc("2026-11-25T19:05:00Z");
+    EXPECT_TRUE(m.countdownUrgent());
+
+    blocktime::BlockOut out;
+    out.flightId = kReplayFlight.toStdString();
+    b.applyBlockEvent(out);
+    EXPECT_FALSE(m.countdownVisible());
+    EXPECT_TRUE(m.visible());  // until liftoff: the taxi route comes after the push
+}
+
+TEST(PreFlightModel, AtcChangesTheRunway) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    PreFlightModel m(b, f);
+    auto c = ksanClearance();
+    c["entry"]["outgoing_message"] = "Cleared to San Jose via the BORDR2 departure. Squawk 3166. Expect runway 9";
+    b.applyFlightEvent("atc_exchange", variantOf(c));
+    EXPECT_EQ(m.runway(), "09");
+    EXPECT_TRUE(m.runwayChanged());
+    EXPECT_EQ(m.runwayTag(), "PLAN 27");
+    EXPECT_EQ(m.headingText(), "095°");
+    EXPECT_EQ(m.sid(), "BORDR2");
+    EXPECT_TRUE(m.sidChanged());
+    EXPECT_EQ(m.sidTag(), "PLAN PADRZ2");
+}
+
+TEST(PreFlightModel, HiddenFromLiftoff) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    PreFlightModel m(b, f);
+    b.applyFlightEvent("liftoff", {{"airport", "KSAN"}});
+    EXPECT_FALSE(m.visible());
+}
+
+TEST(PreFlightModel, ReplayHasOne) {
+    qtApp();
+    ReplaySession r(kReplayFixtureDir, kReplayFlight, preflightView(), "XLY", Rates{});
+    ASSERT_NE(r.preflight(), nullptr);
+    EXPECT_TRUE(r.preflight()->visible());
+    ASSERT_TRUE(r.seek("taxi_out"));
+    EXPECT_TRUE(r.preflight()->cleared());
+    EXPECT_EQ(r.preflight()->squawk(), "3166");
+    ASSERT_TRUE(r.seek("climb"));
+    EXPECT_FALSE(r.preflight()->visible());
 }

@@ -23,6 +23,7 @@
 #include "rates.h"
 #include "recorder_bridge.h"
 #include "dashboard_header.h"
+#include "preflight_model.h"
 #include "replay_planned_flight.h"
 
 class ReplaySession : public QObject {
@@ -32,6 +33,7 @@ class ReplaySession : public QObject {
     Q_PROPERTY(RecorderBridge* bridge READ bridge NOTIFY restarted)
     Q_PROPERTY(PlannedFlightDisplay* plannedFlight READ plannedFlight NOTIFY restarted)
     Q_PROPERTY(DashboardHeader* header READ header NOTIFY restarted)
+    Q_PROPERTY(PreFlightModel* preflight READ preflight NOTIFY restarted)
     Q_PROPERTY(double speed READ speed NOTIFY stateChanged)
     Q_PROPERTY(bool paused READ paused NOTIFY stateChanged)
     Q_PROPERTY(bool finished READ finished NOTIFY stateChanged)
@@ -46,6 +48,7 @@ public:
     RecorderBridge* bridge() const { return bridge_; }
     PlannedFlightDisplay* plannedFlight() const { return planned_; }
     DashboardHeader* header() const { return header_; }
+    PreFlightModel* preflight() const { return preflight_; }
     double speed() const { return clock_.speed(); }
     bool paused() const { return clock_.paused(); }
     bool finished() const { return finished_; }
@@ -85,6 +88,7 @@ private:
     RecorderBridge* bridge_ = nullptr;
     ReplayPlannedFlight* planned_ = nullptr;
     DashboardHeader* header_ = nullptr;
+    PreFlightModel* preflight_ = nullptr;
     QTimer timer_;
     QElapsedTimer sinceTick_;
 };

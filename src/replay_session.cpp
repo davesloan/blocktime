@@ -59,6 +59,7 @@ ReplaySession::ReplaySession(std::filesystem::path logDir, QString flightId, std
 void ReplaySession::makeBridge() {
     if (bridge_) bridge_->deleteLater();
     if (header_) header_->deleteLater();
+    if (preflight_) preflight_->deleteLater();
     if (planned_) planned_->deleteLater();
     bridge_ = new RecorderBridge(this);
     bridge_->setReplay();
@@ -66,6 +67,7 @@ void ReplaySession::makeBridge() {
     planned_ = new ReplayPlannedFlight(view_, airlineIcao_, rates_, *bridge_, flightId_, this);
     header_ = new DashboardHeader(*bridge_, *planned_, airlineIcao_, airlineName_,
                                   [view = view_](const QString&) { return view; }, this);
+    preflight_ = new PreFlightModel(*bridge_, *planned_, this);
 }
 
 void ReplaySession::setSpeed(double speed) {
