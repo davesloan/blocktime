@@ -2125,3 +2125,29 @@ TEST(ReplaySession, TimerPlaysUntilPaused) {
     while (std::chrono::steady_clock::now() < until) QCoreApplication::processEvents();
     EXPECT_EQ(r.bridge()->now(), paused);
 }
+
+TEST(RecorderBridge, StatusLinesFollowEvents) {
+    qtApp();
+    RecorderBridge b;
+    EXPECT_EQ(b.statusLines()[0].toMap()["text"].toString(), "Preparing aircraft for flight");
+    blocktime::BlockOut out;
+    out.flightId = "2026-11-25T18:43:04.053Z";
+    b.applyBlockEvent(out);
+    b.applyFlightEvent("phase_changed", phaseEvent("pushback", "18:43:10"));
+    b.applyFlightEvent("liftoff", {{"time", "2026-11-25T18:55:00Z"}, {"runway", "14R"}});
+    const QVariantList lines = b.statusLines();
+    ASSERT_GE(lines.size(), 2);
+    EXPECT_EQ(lines[0].toMap()["text"].toString(), "Departed runway 14R");
+    EXPECT_FALSE(lines[0].toMap()["time"].toString().isEmpty());  // local h:mm AP
+    EXPECT_EQ(lines[1].toMap()["text"].toString(), "Pushback and startup");
+    EXPECT_EQ(b.pill()[1].toMap()["state"].toString(), "current");
+    EXPECT_EQ(b.pill()[1].toMap()["divisions"].toList()[0].toString(), "current");
+    EXPECT_TRUE(b.checklist().isEmpty());
+    EXPECT_DOUBLE_EQ(b.lastSample().latitudeDeg, 0.0);
+
+    blocktime::StatusContext c;
+    c.departureRunway = "14R";
+    b.setStatusContext(c);
+    b.applyFlightEvent("phase_changed", phaseEvent("taxi_out", "18:56:00"));
+    EXPECT_EQ(b.statusLines()[0].toMap()["text"].toString(), "Taxiing to runway 14R");
+}

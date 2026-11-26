@@ -22,6 +22,7 @@
 
 #include "event_feed_model.h"
 #include "flight_stages.h"
+#include "status_lines.h"
 #include "recorder.h"
 
 class RecorderBridge : public QObject {
@@ -64,6 +65,11 @@ class RecorderBridge : public QObject {
     // whose Pre-Flight has the GSX services so far (D-134).
     Q_PROPERTY(bool showingFlight READ showingFlight NOTIFY stagesChanged)
     Q_PROPERTY(bool hasNextLegServices READ hasNextLegServices NOTIFY stagesChanged)
+    // The dashboard header (D-152, D-182): the status lines, newest first [{text, time}] with time in local "h:mm AP"
+    // or ""; the shutdown checklist after block in [{text, done}]; the pill [{name, state, divisions: [state]}].
+    Q_PROPERTY(QVariantList statusLines READ statusLines NOTIFY stagesChanged)
+    Q_PROPERTY(QVariantList checklist READ checklist NOTIFY stagesChanged)
+    Q_PROPERTY(QVariantList pill READ pill NOTIFY stagesChanged)
 
     Q_PROPERTY(EventFeedModel* events READ events CONSTANT)
 
@@ -96,6 +102,13 @@ public:
     QString phase() const { return QString::fromStdString(stages_.phaseLabel()); }
     bool showingFlight() const { return stages_.showingFlight(); }
     bool hasNextLegServices() const { return stages_.hasNextLegServices(); }
+    QVariantList statusLines() const;
+    QVariantList checklist() const;
+    QVariantList pill() const;
+    // What the status lines need from the flight and its plan (DashboardHeader sets it when the flight changes).
+    void setStatusContext(const blocktime::StatusContext& context);
+    // The latest sample as the recorder sent it: the header's route progress reads its position.
+    const blocktime::TelemetrySample& lastSample() const { return lastSample_; }
     // The last flight's Arrival is done with: the stages show the next leg.
     Q_INVOKABLE void showNextLeg();
 
@@ -172,6 +185,10 @@ private:
     void setReleaseRefused(bool refused);
     EventFeedModel events_;
     blocktime::FlightStages stages_;
+    blocktime::StatusLines status_;  // fed everything stages_ is
+    blocktime::TelemetrySample lastSample_{};
+    // One flight, block or GSX event to both the stages and the status lines.
+    void feedStages(std::string_view type, const nlohmann::json& data);
 };
 
 // Runs on the recorder thread. Copies what it gets and posts it to the bridge on the GUI thread.

@@ -21,6 +21,7 @@
 
 #include "airspeed_display.h"
 #include "event_log.h"
+#include "phase_pill.h"
 #include "telemetry_filter.h"
 
 using namespace blocktime;
@@ -98,6 +99,7 @@ void RecorderBridge::applyConnection(ConnectionState state) {
 }
 
 void RecorderBridge::applySample(const TelemetrySample& s) {
+    lastSample_ = s;
     hasSample_ = true;
     altitudeFt_ = s.indicatedAltitudeFt;
     iasKt_ = s.indicatedAirspeedKt;
@@ -118,12 +120,15 @@ void RecorderBridge::applySample(const TelemetrySample& s) {
     emit sampleChanged();
     // The shutdown checklist after block in (D-135); the stages ignore it at any other time.
     const ShutdownChecks checks{enginesRunning_ == 0, parkingBrake_, s.lightBeacon == 0, s.lightStrobe == 0};
-    if (stages_.onShutdownChecks(checks, formatUtc(now()))) emit stagesChanged();
+    const std::string iso = formatUtc(now());
+    const bool stagesMoved = stages_.onShutdownChecks(checks, iso);
+    if (status_.onShutdownChecks(checks, iso) || stagesMoved) emit stagesChanged();
 }
 
 void RecorderBridge::showNextLeg() {
     if (!stages_.showingFlight()) return;
     stages_.showNextLeg();
+    status_.showNextLeg();
     emit stagesChanged();
 }
 
@@ -133,14 +138,14 @@ void RecorderBridge::applyBlockEvent(const BlockEvent& event) {
         [this, &data](const auto& e) {
             using T = std::decay_t<decltype(e)>;
             if constexpr (std::is_same_v<T, BlockOut>) {
-                stages_.onEvent("block_out", data);  // a fresh flight; its pushback follows (D-128)
+                feedStages("block_out", data);  // a fresh flight; its pushback follows (D-128)
                 emit stagesChanged();
                 setReleaseRefused(false);
                 flightOpen_ = true;
                 blockOutTime_ = toQDateTime(e.time);
                 blockOutFuelLb_ = e.fuelLb;
             } else if constexpr (std::is_same_v<T, BlockIn>) {
-                stages_.onEvent("block_in", data);  // the flight stays on Live until the summary goes (D-134)
+                feedStages("block_in", data);  // the flight stays on Live until the summary goes (D-134)
                 emit stagesChanged();
                 flightOpen_ = false;
                 lastFlightSummary_ = QString("Block in %1:%2 · %3 → %4 lb")
@@ -152,7 +157,7 @@ void RecorderBridge::applyBlockEvent(const BlockEvent& event) {
                 setReleaseRefused(true);
             } else {
                 // A recorder_crash at startup closes a flight this app never saw open; the summary still applies.
-                stages_.onEvent("flight_interrupted", data);
+                feedStages("flight_interrupted", data);
                 emit stagesChanged();
                 flightOpen_ = false;
                 lastFlightSummary_ = QString("Interrupted (%1)").arg(QString::fromStdString(e.reason));
@@ -202,13 +207,63 @@ const blocktime::AirportFacilities* RecorderBridge::airport(const QString& icao)
 
 void RecorderBridge::applyFlightEvent(const QString& type, const QVariantMap& data) {
     const QByteArray json = QJsonDocument(QJsonObject::fromVariantMap(data)).toJson(QJsonDocument::Compact);
-    stages_.onEvent(type.toStdString(), nlohmann::json::parse(json.toStdString(), nullptr, false));
+    feedStages(type.toStdString(), nlohmann::json::parse(json.toStdString(), nullptr, false));
     emit stagesChanged();
     emit flightEvent(type, data);
 }
 
+void RecorderBridge::feedStages(std::string_view type, const nlohmann::json& data) {
+    stages_.onEvent(type, data);
+    status_.onEvent(type, data);
+}
+
+void RecorderBridge::setStatusContext(const blocktime::StatusContext& context) {
+    status_.setContext(context);
+    emit stagesChanged();
+}
+
+namespace {
+
+const char* const kStates[] = {"upcoming", "current", "done"};
+
+// "2026-11-25T18:55:00Z" → "10:55 AM" in Dave's time zone; "" for none.
+QString localTime(const std::string& iso) {
+    if (iso.empty()) return {};
+    const QDateTime t = QDateTime::fromString(QString::fromStdString(iso), Qt::ISODateWithMs);
+    return t.isValid() ? t.toLocalTime().toString("h:mm AP") : QString();
+}
+
+}  // namespace
+
+QVariantList RecorderBridge::statusLines() const {
+    QVariantList out;
+    for (const StatusLine& l : status_.lines()) {
+        out.append(QVariantMap{{"text", QString::fromStdString(l.text)}, {"time", localTime(l.startIso)}});
+    }
+    return out;
+}
+
+QVariantList RecorderBridge::checklist() const {
+    QVariantList out;
+    for (const ChecklistItem& c : status_.checklist()) {
+        out.append(QVariantMap{{"text", QString::fromStdString(c.text)}, {"done", c.done}});
+    }
+    return out;
+}
+
+QVariantList RecorderBridge::pill() const {
+    QVariantList out;
+    for (const PillSection& p : pillSections(stages_.view(), stages_.phase())) {
+        QVariantList divisions;
+        for (const StageState s : p.divisions) divisions.append(QString(kStates[static_cast<int>(s)]));
+        out.append(QVariantMap{{"name", QString::fromStdString(p.name)},
+                               {"state", kStates[static_cast<int>(p.state)]},
+                               {"divisions", divisions}});
+    }
+    return out;
+}
+
 QVariantList RecorderBridge::stages() const {
-    static const char* kStates[] = {"upcoming", "current", "done"};
     QVariantList out;
     for (const StageView& v : stages_.view()) {
         QVariantList lines;
