@@ -266,6 +266,9 @@ set(BLOCKTIME_QML_FILES
   qml/TrackDot.qml
   qml/FlightCard.qml
   qml/FlightHeader.qml
+  qml/InstrumentPanel.qml
+  qml/Readout.qml
+  qml/PreFlightPanel.qml
   qml/SecondaryButton.qml
   qml/TextInputField.qml
   qml/MoneyLines.qml

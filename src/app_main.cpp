@@ -46,6 +46,7 @@
 #include "new_flight_model.h"
 #include "planned_flight_model.h"
 #include "dashboard_header.h"
+#include "preflight_model.h"
 #include "qml_hot_reload.h"
 #include "flight_watcher.h"
 #include "qt_planner.h"
@@ -455,6 +456,8 @@ int main(int argc, char* argv[]) {
                            settledFlight);
     }
     DashboardHeader* header = demo ? demoHeader.get() : &*liveHeader;
+    // The Pre-Flight panel (D-153): the planned flight with SayIntentions' ATIS and clearance; --demo's own flight.
+    PreFlightModel preflight(bridge, demo ? static_cast<PlannedFlightDisplay&>(*demoPlanned) : plannedFlight);
     QObject::connect(&reviews, &ReviewWriter::reviewChanged, &flights, &FlightListModel::refreshDebrief);
     // A flight settled: the airplane moved, money was posted and Flights has a new row (D-113).
     QObject::connect(&plannedFlight, &PlannedFlightModel::settled, [&](const QString& logFlightId) {
@@ -486,6 +489,7 @@ int main(int argc, char* argv[]) {
                             {"newFlight", QVariant::fromValue(&newFlight)},
                             {"plannedFlight", QVariant::fromValue(&plannedFlight)},
                             {"dashboard", QVariant::fromValue(header)},
+                            {"preflight", QVariant::fromValue(&preflight)},
                             {"airlineName", QString::fromStdString(airline.airlineName())},
                             {"startPage", startPage},
                             {"mapTileUrl", map.tileUrl},

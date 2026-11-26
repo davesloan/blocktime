@@ -148,6 +148,51 @@ QtObject {
     readonly property color arcCruise: "#3B82F6"
     readonly property int checkPointsWidth: 36   // the debrief's "−6" column
 
+    // The instrument panel below the header (D-179; mockup docs/images/dashboard-preflight-v1.html)
+    readonly property color panelInsetTop: "#0A0D11"
+    readonly property color panelInsetBottom: "#0C0F14"
+    readonly property color panelInsetShade: "#D9000000"  // the inner shadow along the top edge
+    readonly property color panelEdgeLight: "#0DFFFFFF"   // the faint light along the bottom edge
+    readonly property int panelInsetShadeHeight: 10
+    readonly property int panelRadius: 12
+    readonly property int panelPaddingTop: 24
+    readonly property int panelPaddingSide: 30
+    readonly property int panelColumnGap: 22
+    readonly property int screwSize: 11
+    readonly property int screwInset: 9
+    readonly property color screwLight: "#5A626D"
+    readonly property color screwDark: "#23282F"
+    readonly property color screwSlot: "#111418"
+    readonly property color panelTitleBg: "#15191F"       // a group's engraved placard
+    readonly property color panelTitleText: "#C9CED6"
+    readonly property int fontSizePanelTitle: 11
+    readonly property real panelTitleSpacing: 1.8
+    // Radio-stack readouts: amber digits glowing in a dark window
+    readonly property color readoutTop: "#1B2027"
+    readonly property color readoutBottom: "#14181E"
+    readonly property color readoutWindow: "#070605"
+    readonly property color readoutPlacard: "#9AA3AF"
+    readonly property color amber: "#FFB23E"
+    readonly property color amberDim: "#B8762A"           // tags and the holds line
+    readonly property color amberGlow: "#8CFFA028"
+    readonly property color amberBlank: "#3A2A12"         // the dash for a value not known yet
+    readonly property color readoutRed: "#FF5A45"         // the clearance's last 5 minutes
+    readonly property color readoutRedGlow: "#99FF4632"
+    readonly property color readoutFlagText: "#1A1205"    // text on an amber "changed" tag
+    readonly property int readoutRadius: 6
+    readonly property int readoutWindowRadius: 3
+    readonly property int readoutWindowHeight: 34
+    readonly property int readoutGap: 10
+    readonly property int fontSizeReadoutTitle: 10
+    readonly property real readoutTitleSpacing: 1.4
+    readonly property int fontSizeReadout: 22
+    readonly property int fontSizeReadoutText: 17         // words: SID, initial altitude, taxi route
+    readonly property int fontSizeReadoutUnit: 13
+    readonly property int fontSizeReadoutTag: 11
+    readonly property int squawkDigitWidth: 30
+    readonly property int squawkDigitHeight: 36
+    readonly property int fontSizeSquawk: 24
+
     // Window
     readonly property int windowWidth: 1300
     readonly property int windowHeight: 760
