@@ -297,13 +297,15 @@ Rectangle {
             Repeater {
                 id: sections
 
-                model: card.recorder.pill
+                // A fixed count, so the sections stay and their colours fade when a stage changes (a new list each time
+                // would rebuild them in the new colour).
+                model: card.recorder.pill.length
 
                 Item {
                     id: section
 
-                    required property var modelData
                     required property int index
+                    readonly property var modelData: card.recorder.pill[index]
 
                     readonly property bool first: index === 0
                     readonly property bool last: index === sections.count - 1
@@ -361,11 +363,13 @@ Rectangle {
             Item {
                 id: marker
 
-                x: markerRow.at.section * (pill.sectionWidth + Theme.phasePillGap)
-                   + pill.sectionWidth * (markerRow.at.part + 0.5) / markerRow.at.parts
+                // In sections (2.5: the middle of the third), so a window resize moves it without a slide.
+                property real position: markerRow.at.section + (markerRow.at.part + 0.5) / markerRow.at.parts
+
+                x: position * pill.sectionWidth + Math.min(Math.floor(position), 5) * Theme.phasePillGap
                 height: parent.height
 
-                Behavior on x {
+                Behavior on position {
                     enabled: markerRow.ready
                     NumberAnimation {
                         duration: Theme.pillMarkerMoveMs
@@ -389,7 +393,7 @@ Rectangle {
                         const h = Theme.pillMarkerHeight - 1
                         const left = (width - w) / 2
                         const topY = 0.5
-                        const shoulder = topY + h * 0.36
+                        const shoulder = topY + h * Theme.pillMarkerShoulder
                         const outline = () => {
                             ctx.beginPath()
                             ctx.moveTo(left + w / 2, topY)
@@ -404,8 +408,8 @@ Rectangle {
                         fill.addColorStop(0.45, Theme.bad)
                         fill.addColorStop(1, Theme.pillMarkerBottom)
                         ctx.shadowColor = Theme.pillMarkerShadow
-                        ctx.shadowOffsetY = 1.5
-                        ctx.shadowBlur = 3
+                        ctx.shadowOffsetY = Theme.pillMarkerShadowOffset
+                        ctx.shadowBlur = Theme.pillMarkerShadowBlur
                         outline()
                         ctx.fillStyle = fill
                         ctx.fill()
@@ -416,7 +420,7 @@ Rectangle {
                         outline()
                         ctx.stroke()
                         // The shine along the point.
-                        ctx.globalAlpha = 0.55
+                        ctx.globalAlpha = Theme.pillMarkerShineOpacity
                         ctx.beginPath()
                         ctx.moveTo(left + 1.5, shoulder + 0.7)
                         ctx.lineTo(left + w / 2, topY + 2.1)
@@ -485,7 +489,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.topMargin: Theme.gap6
             implicitHeight: Theme.statusBlockHeight
-            onSourceChanged: sync()
+            onSourceChanged: Qt.callLater(status.sync)  // a burst (a replay seek) becomes one rebuild
             Component.onCompleted: sync()
 
             ListModel {
@@ -495,7 +499,7 @@ Rectangle {
             Timer {
                 id: leaving
 
-                interval: Theme.statusRollMs + 100
+                interval: Theme.statusRemoveMs
                 onTriggered: {
                     for (let i = lines.count - 1; i >= 0; --i)
                         if (lines.get(i).place >= 3) lines.remove(i)
@@ -528,7 +532,7 @@ Rectangle {
                     font.pixelSize: at <= 0 ? Theme.fontSizeStatus : at === 1 ? Theme.fontSizeFeed
                                   : at === 2 ? Theme.fontSizeSmall : Theme.fontSizeStatusLeaving
                     font.weight: at <= 0 ? Font.DemiBold : Font.Normal
-                    Component.onCompleted: if (entering) Qt.callLater(() => line.arrived = true)
+                    Component.onCompleted: if (entering) Qt.callLater(() => { if (line) line.arrived = true })
 
                     transform: Rotation {
                         origin.x: line.width / 2

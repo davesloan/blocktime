@@ -76,7 +76,7 @@ public:
     std::vector<StageView> view() const;  // always six; before any event, Pre-Flight is Current
     // The phase with its sub-state: "Climb — level at 11,000 ft", "Cruise — step climb"; "" before block out.
     std::string phaseLabel() const;
-    // The recorder's current phase code ("taxi_out"); "" before block out. The pill's divisions (D-182).
+    // The recorder's current phase code ("taxi_out"); "" before block out. The pill's marker (pillMarker, D-184).
     const std::string& phase() const { return phase_; }
 
 private:

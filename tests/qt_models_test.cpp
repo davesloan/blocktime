@@ -1490,6 +1490,23 @@ TEST(RecorderBridge, GsxServicesBeforeBlockOut) {
     EXPECT_TRUE(lines[0].toMap()["checks"].toList().isEmpty());
 }
 
+TEST(RecorderBridge, PillMarkerFollowsBoardingAndTouchdown) {
+    qtApp();
+    RecorderBridge b;
+    EXPECT_EQ(b.pillMarker()["label"].toString(), "Preparing");
+    b.applyFlightEvent("gsx_service",
+                       {{"service", "boarding"}, {"state", "performing"}, {"time", "2026-11-23T09:30:00.000Z"}});
+    EXPECT_EQ(b.pillMarker()["section"].toInt(), 0);
+    EXPECT_EQ(b.pillMarker()["label"].toString(), "Boarding");
+    b.applyFlightEvent("phase_changed", phaseEvent("approach", "11:00:00"));
+    EXPECT_EQ(b.pillMarker()["section"].toInt(), 4);
+    b.applyFlightEvent("phase_changed", phaseEvent("landing", "11:10:00"));  // Arrival from touchdown (D-184)
+    EXPECT_EQ(b.pillMarker()["section"].toInt(), 5);
+    EXPECT_EQ(b.pillMarker()["part"].toInt(), 0);
+    EXPECT_EQ(b.pillMarker()["label"].toString(), "Landing");
+    EXPECT_EQ(b.pill()[4].toMap()["state"].toString(), "done");
+}
+
 TEST(RecorderBridge, ArrivalStaysUntilShowNextLeg) {
     qtApp();
     RecorderBridge b;
@@ -2292,6 +2309,31 @@ TEST(DashboardHeader, InterruptResetsTheArc) {
     b.applyBlockEvent(gone);
     EXPECT_DOUBLE_EQ(h.progress(), 0.0);
     for (const QVariant& v : h.arcShares()) EXPECT_DOUBLE_EQ(v.toDouble(), -1.0);
+}
+
+TEST(DashboardHeader, NextFlightStartsOver) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(headerView(), "XLY", Rates{}, b, kHeaderFlight);
+    DashboardHeader h(b, f, "XLY", "Soxxly Airlines", noSettledFlight());
+    BlockOut out;
+    out.flightId = kHeaderFlight;
+    out.time = *parseUtc(kHeaderFlight);
+    b.applyBlockEvent(out);
+    b.applyFlightEvent("liftoff", {{"time", "2026-11-25T20:31:00Z"}, {"runway", "27"}});
+    BlockIn in;
+    in.flightId = kHeaderFlight;
+    in.time = out.time + std::chrono::hours(1);
+    in.parking = "Gate C11";
+    b.applyBlockEvent(in);
+    ASSERT_TRUE(h.destinationLine().startsWith("Arrived ")) << h.destinationLine().toStdString();
+    BlockOut next;  // the same airframe flies again before the summary changes the flight
+    next.flightId = "2026-11-25T22:00:00.000Z";
+    next.time = *parseUtc("2026-11-25T22:00:00.000Z");
+    b.applyBlockEvent(next);
+    EXPECT_EQ(h.originLine(), "Departing soon");
+    EXPECT_TRUE(h.destinationLine().startsWith("Arriving ~")) << h.destinationLine().toStdString();
+    EXPECT_TRUE(b.blockInTime().isNull());
 }
 
 // The recorder logs phase_changed arrived in the same instant as block_in, after it; the replay plays it too, so the

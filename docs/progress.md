@@ -38,10 +38,14 @@ Newest entries at the top. Add an entry at the end of every working session.
 - Noted for later: the pill and status lines may leave the header on a summary (`docs/dashboard.md`).
 
 **Working / verified:**
-- 739 tests pass in debug and release, no warnings, qmllint clean apart from ReplayBar's old unused-import Info.
+- 741 tests pass in debug and release, no warnings, qmllint clean apart from ReplayBar's old unused-import Info.
 - Grabs of Dave's KSAN → KSJC replay at taxi out, cruise, approach, landing and block in, and `--demo`, match the
   mockup (`docs/images/dashboard-header-v2-*.png`).
 - The status lines' push / in-place / rebuild logic checked in a throwaway QML harness.
+- A fresh code review found nothing Important; its minors that show on screen were fixed (a seek no longer
+  animates, the pill's colour fade works, no marker slide on resize), with two more tests (741 in all).
+  Left as notes: a touchdown logged before the landing phase puts the Landed stage line in Arrival a moment early
+  (nothing shows stage lines now); on a summary shown at app start the pill reads Pre-Flight (the "for later" idea).
 
 **Unverified or broken:**
 - The roll and slide animations weren't seen in the app (grabs are stills and the replay opens paused). Dave: replay

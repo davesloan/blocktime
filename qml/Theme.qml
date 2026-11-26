@@ -122,6 +122,10 @@ QtObject {
     readonly property color pillMarkerBottom: "#B91C1C"
     readonly property color pillMarkerEdge: "#FFFFFF"
     readonly property color pillMarkerShadow: "#B3000000"
+    readonly property real pillMarkerShadowOffset: 1.5
+    readonly property real pillMarkerShadowBlur: 3
+    readonly property real pillMarkerShoulder: 0.36     // where the point meets the sides, as a share of the height
+    readonly property real pillMarkerShineOpacity: 0.55
     // The status lines: three slots, newest on top; a new line rolls in and the others drop, smaller and greyer.
     readonly property int statusBlockHeight: 76
     readonly property int statusSlot1Y: 32               // the line before (the newest is at 0)
@@ -133,6 +137,7 @@ QtObject {
     // Animations: short and only on a change (no continuous animation, CLAUDE.md).
     readonly property int statusRollMs: 600
     readonly property int statusFadeMs: 450
+    readonly property int statusRemoveMs: 700           // a line that faded out is dropped after the roll
     readonly property int pillMarkerMoveMs: 450
     readonly property int pillColorMs: 400
     readonly property real bounceOvershoot: 1.4

@@ -2890,6 +2890,9 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
     start reads just `Departed` and `Arrived` (no block events in this session).
   - The status lines animate only when a new line is pushed on top; a line changing in place and a rebuild (the page
     opening, a replay seek) are set without animation. The newest line's in-place changes (level-offs, GSX) don't roll.
+  - Code review (2026-11-26): status line changes are handled once per event-loop turn, so a replay seek's burst of
+    lines rebuilds without animation; the pill keeps its six sections (a fixed count) so their colours fade; the
+    marker animates its position in sections, so a window resize moves it without a slide.
   - The marker is 14 × 15 px (Dave: a tad shorter than the mockup's 18); it doesn't slide when the page first opens.
   - Theme values for the status slots are plain numbers, not lists: indexing a `list<int>` in a binding makes Qt's QML
     compiler emit C++ with a C4864 warning in the release build.
