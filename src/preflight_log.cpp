@@ -22,8 +22,19 @@ std::string field(const nlohmann::json& data, const char* key) {
     return it != data.end() && it->is_string() ? it->get<std::string>() : std::string();
 }
 
-// "30L,30R" → "30L".
-std::string firstRunway(const std::string& list) { return normalizeRunway(list.substr(0, list.find(','))); }
+// The ATIS's departing runway: the plan's when the list has it ("30L,30R" with a plan of 30R keeps 30R, D-189), else
+// the first ("30L").
+std::string atisRunway(const std::string& list, const std::string& planRunway) {
+    std::string first;
+    for (std::size_t start = 0; start <= list.size();) {
+        const std::size_t comma = std::min(list.find(',', start), list.size());
+        const std::string runway = normalizeRunway(list.substr(start, comma - start));
+        if (!runway.empty() && runway == planRunway) return runway;
+        if (first.empty()) first = runway;
+        start = comma + 1;
+    }
+    return first;
+}
 
 }  // namespace
 
@@ -82,7 +93,7 @@ DepartureView departureView(const PlannedFlightView& flight, const PreFlightLog&
     if (d.planRunway.empty()) d.planRunway = normalizeRunway(flight.originRunway);
     const nlohmann::json* atis = log.atis();
     d.runway = log.atcRunway();
-    if (d.runway.empty() && atis) d.runway = firstRunway(field(*atis, "departing"));
+    if (d.runway.empty() && atis) d.runway = atisRunway(field(*atis, "departing"), d.planRunway);
     if (d.runway.empty()) d.runway = d.planRunway;
     d.runwayChanged = !d.runway.empty() && !d.planRunway.empty() && d.runway != d.planRunway;
 

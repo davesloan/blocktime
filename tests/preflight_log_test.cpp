@@ -198,6 +198,17 @@ TEST(DepartureView, PlanThenAtis) {
     EXPECT_FALSE(d.headingDeg.has_value());  // not in the takeoff report
 }
 
+// Review finding: the plan's 30R is among the ATIS's "30L,30R", so it stays, unflagged (D-189).
+TEST(DepartureView, ParallelRunwayInTheAtisKeepsThePlans) {
+    PlannedFlightView v = plannedKsan();
+    v.plan->originRunway = "30R";
+    PreFlightLog log = logFor(v);
+    log.onEvent("atis", atis("30L,30R"));
+    const DepartureView d = departureView(v, log);
+    EXPECT_EQ(d.runway, "30R");
+    EXPECT_FALSE(d.runwayChanged);
+}
+
 TEST(DepartureView, AtcRunwayWins) {
     const PlannedFlightView v = plannedKsan();
     PreFlightLog log = logFor(v);

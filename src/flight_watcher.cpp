@@ -191,6 +191,11 @@ void FlightWatcher::updatePreFlight() {
         return;
     }
     origin_ = preFlightOrigin_;
+    // Log the history and the ATIS again: a turnaround's origin is the last leg's destination, whose ATIS letter is
+    // often unchanged since the descent, and after an interrupt the clearance is still valid. The panel only takes the
+    // origin's messages since planning, and the debrief dedupes by entry id and letter (review, milestone 13).
+    comms_.reset();
+    atis_.reset();
     fetchAtc();
     atcTimer_.start();
     fetchAtis(origin_, QStringLiteral("origin"));

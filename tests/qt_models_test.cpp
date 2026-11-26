@@ -1454,6 +1454,41 @@ TEST(FlightWatcher, NoPreFlightAfterBlockIn) {
     EXPECT_EQ(r.planner.wxCalls.back(), "KPDX");
 }
 
+// Review finding: a turnaround's origin is the last leg's destination, whose ATIS letter is often unchanged since the
+// descent; the gate must log it again, or the panel stays without wind, OAT and altimeter.
+TEST(FlightWatcher, TurnaroundLogsTheNextOriginsAtisAgain) {
+    WatcherRig r;
+    r.bridge.applyConnection(blocktime::ConnectionState::Connected);
+    r.blockOut();
+    r.planner.wxBody = R"({"airports":[{"airport":"KPDX","current":"B","atis":"Portland information Bravo"}]})";
+    r.flight("phase_changed", {{"phase", "descent"}});
+    blocktime::BlockIn in;
+    in.flightId = "2026-11-23T22:51:08.969Z";
+    r.bridge.applyBlockEvent(in);
+    const auto before = r.pushed("atis").size();
+    r.watcher->setPreFlightOrigin("KPDX");  // the next leg, from the same airport
+    const auto atis = r.pushed("atis");
+    ASSERT_EQ(atis.size(), before + 1);
+    EXPECT_EQ(atis.back().data["role"], "origin");
+    EXPECT_EQ(atis.back().data["flight_id"], "");
+}
+
+// Review finding: after an interrupt the flight is still planned and the clearance still valid; the gate logs the
+// history again so the panel (which starts over at the interrupt) gets the clearance back.
+TEST(FlightWatcher, InterruptLogsTheHistoryAgainAtTheGate) {
+    WatcherRig r;
+    r.bridge.applyConnection(blocktime::ConnectionState::Connected);
+    r.watcher->setPreFlightOrigin("KBFI");
+    r.blockOut();
+    const auto before = r.pushed("atc_exchange").size();
+    blocktime::FlightInterrupted interrupted;
+    interrupted.flightId = "2026-11-23T22:51:08.969Z";
+    r.bridge.applyBlockEvent(interrupted);
+    const auto exchanges = r.pushed("atc_exchange");
+    ASSERT_GT(exchanges.size(), before);
+    EXPECT_EQ(exchanges.back().data["flight_id"], "");
+}
+
 TEST(FlightWatcher, AtcEveryPollAndOnceAtBlockIn) {
     WatcherRig r;
     r.blockOut();
