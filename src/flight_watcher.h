@@ -34,7 +34,7 @@ public:
     FlightWatcher(Planner& planner, RecorderBridge& bridge, const blocktime::FlightTargetSlot& target,
                   blocktime::AppEventQueue& queue, QObject* parent = nullptr);
 
-    // 60 s and 10 min in the app; tests use a few milliseconds.
+    // 30 s and 5 min in the app (D-200); tests use a few milliseconds.
     void setIntervals(std::chrono::milliseconds atc, std::chrono::milliseconds atis);
     // The arrival gate (milestone 9, D-141): SayIntentions' flightJSON is polled this often (30 s in the app) from
     // block out until the gate is settled or block in.

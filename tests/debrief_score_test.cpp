@@ -90,7 +90,7 @@ TEST(DebriefScore, KlasKsanScores62) {
     EXPECT_EQ(check(s, "Beacon on before pushback").state, CheckState::Missed);
     EXPECT_EQ(check(s, "Beacon on before pushback").detail, "2 min 43 s late");
     EXPECT_EQ(check(s, "Beacon on before pushback").points, -6);
-    EXPECT_EQ(check(s, "Seat belt sign, taxi to 10,000 ft").state, CheckState::Missed);
+    EXPECT_EQ(check(s, "Seat belt sign, taxi to transition altitude").state, CheckState::Missed);
     EXPECT_EQ(check(s, "250 kt below 10,000 ft").state, CheckState::Missed);
     EXPECT_EQ(check(s, "STD by the transition altitude").state, CheckState::Missed);
     EXPECT_EQ(check(s, "STD by the transition altitude").detail, "1 min 51 s after the transition altitude");
@@ -168,8 +168,8 @@ TEST(DebriefScore, NotCheckedCountsNeitherWay) {
     skipPart(m, "belts_off_departure_s", "no_pmdg_data");
     skipPart(m, "origin_baro_off_tenths", "no_atis");
     const ScoredFlight s = scoreFlight(m);
-    EXPECT_EQ(check(s, "Seat belt sign, taxi to 10,000 ft").state, CheckState::NotChecked);
-    EXPECT_EQ(check(s, "Seat belt sign, taxi to 10,000 ft").detail, "No PMDG data");
+    EXPECT_EQ(check(s, "Seat belt sign, taxi to transition altitude").state, CheckState::NotChecked);
+    EXPECT_EQ(check(s, "Seat belt sign, taxi to transition altitude").detail, "No PMDG data");
     EXPECT_EQ(check(s, "Origin altimeter").detail, "No ATIS logged");
     EXPECT_EQ(check(s, "Origin altimeter").points, 0);
     EXPECT_EQ(s.score, 100);

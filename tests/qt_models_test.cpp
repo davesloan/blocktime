@@ -1721,6 +1721,24 @@ TEST(RecorderBridge, BeaconOnKeepsReadyAway) {
     EXPECT_EQ(stage(b, 5)["lines"].toList().size(), 1);  // Parked only
 }
 
+// D-200: the destination ATIS from 200 nm out, for the cruise panel's DEST ATIS and the arrival readouts.
+TEST(FlightWatcher, DestinationAtisFrom200Nm) {
+    WatcherRig r;
+    r.blockOut();
+    r.flight("liftoff");
+    r.planner.wxCalls.clear();
+    r.planner.wxBody = R"({"airports":[{"airport":"KPDX","current":"B","atis":"Portland information Bravo"}]})";
+    r.flight("flight_marker", {{"marker", "within_200nm"}});
+    ASSERT_EQ(r.planner.wxCalls.size(), 1);
+    EXPECT_EQ(r.planner.wxCalls.front(), "KPDX");
+    const auto atis = r.pushed("atis");
+    ASSERT_EQ(atis.size(), 2u);
+    EXPECT_EQ(atis[1].data["role"], "destination");
+    r.planner.wxCalls.clear();
+    r.flight("phase_changed", {{"phase", "descent"}});  // already polling: no extra call
+    EXPECT_TRUE(r.planner.wxCalls.isEmpty());
+}
+
 TEST(FlightWatcher, DestinationStartsAtApproachWithoutADescent) {
     WatcherRig r;
     r.blockOut();

@@ -79,7 +79,7 @@ public:
             const int v = at("beacon_late_s");
             return std::pair{v <= kBeaconLateS, v == 0 ? std::string("On before pushback") : duration(v) + " late"};
         });
-        add(s, "Seat belt sign, taxi to 10,000 ft", {"belts_off_departure_s"},
+        add(s, "Seat belt sign, taxi to transition altitude", {"belts_off_departure_s"},
             [&] { return offFor("belts_off_departure_s"); });
         add(s, "Taxi speed", {"taxi_max_kt"}, [&] {
             const int v = at("taxi_max_kt");

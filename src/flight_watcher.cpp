@@ -13,7 +13,7 @@ using namespace std::chrono_literals;
 FlightWatcher::FlightWatcher(Planner& planner, RecorderBridge& bridge, const blocktime::FlightTargetSlot& target,
                              blocktime::AppEventQueue& queue, QObject* parent)
     : QObject(parent), planner_(planner), bridge_(bridge), target_(target), queue_(queue) {
-    setIntervals(60s, 5min);  // the ATIS about every 5 minutes (D-118, D-188)
+    setIntervals(30s, 5min);  // ATC every 30 s (D-200), the ATIS about every 5 minutes (D-118, D-188)
     setGateInterval(30s);
     connect(&atcTimer_, &QTimer::timeout, this, &FlightWatcher::fetchAtc);
     connect(&gateTimer_, &QTimer::timeout, this, &FlightWatcher::pollGate);
@@ -79,9 +79,11 @@ void FlightWatcher::onFlightEvent(const QString& type, const QVariantMap& data) 
     // liftoff and touchdown are the cues; the phase changes cover a flight where either wasn't logged.
     if (type == "liftoff" || (type == "phase_changed" && phase == "climb")) {
         originTimer_.stop();
-    } else if (type == "phase_changed" && (phase == "descent" || phase == "approach") && !destination_.isEmpty() &&
-               !destinationTimer_.isActive() && !destinationDone_) {
-        // Top of descent, or Approach straight from Cruise when no descent was confirmed (D-124).
+    } else if (((type == "flight_marker" && data.value("marker").toString() == "within_200nm") ||
+                (type == "phase_changed" && (phase == "descent" || phase == "approach"))) &&
+               !destination_.isEmpty() && !destinationTimer_.isActive() && !destinationDone_) {
+        // 200 nm out (D-200), else top of descent, or Approach straight from Cruise when no descent was confirmed
+        // (D-124).
         fetchAtis(destination_, QStringLiteral("destination"));
         destinationTimer_.start();
     } else if (type == "touchdown" || (type == "phase_changed" && phase == "landing")) {

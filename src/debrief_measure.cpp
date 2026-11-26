@@ -187,7 +187,7 @@ private:
     void beltsDeparture() {
         if (const char* r = beltsMissing()) return skip("belts_off_departure_s", r);
         const auto from = phaseStart("taxi_out");
-        auto to = marker("above_10000");
+        auto to = marker("transition_altitude");  // D-200 (it was above_10000)
         if (!to) to = phaseStart("descent");
         if (!to && touchdown_) to = touchdown_->t;
         if (!from || !to) return skip("belts_off_departure_s", "no_marker");

@@ -142,6 +142,20 @@ TEST(DebriefMeasure, NoAtisSkipsAltimeters) {
     EXPECT_TRUE(value(m, "std_late_s"));
 }
 
+// D-200: check 2 runs from taxi out to the transition altitude, not 10,000 ft. On this leg above_10000 is at
+// 00:08:13 and transition_altitude at 00:11:04, with the belts on from 00:09:28: 40 s off in between now count.
+TEST(DebriefMeasure, BeltsWindowEndsAtTransitionAltitude) {
+    const auto base = measureFlight(fixture(), false);
+    nlohmann::json off = {{"pmdg", true}, {"seat_belts", 0}, {"landing_lights", false}, {"gear_down", false},
+                          {"landing_flaps", 0}, {"vref_kt", 0}, {"autopilot", true}};
+    nlohmann::json on = off;
+    on["seat_belts"] = 2;
+    auto lines = with(fixture(), "2026-11-25T00:10:00.000Z", "cockpit", off);
+    lines = with(std::move(lines), "2026-11-25T00:10:40.000Z", "cockpit", on);
+    const auto m = measureFlight(lines, false);
+    EXPECT_EQ(*value(m, "belts_off_departure_s"), *value(base, "belts_off_departure_s") + 40);
+}
+
 TEST(DebriefMeasure, LowFlightSkipsTenThousandChecks) {
     const auto m = measureFlight(without(fixture(), [](const LogLine& l) { return l.type == "flight_marker"; }), false);
     expectEveryPartOnce(m);

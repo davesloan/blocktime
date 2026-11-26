@@ -10,7 +10,8 @@
 // off inside a window; a value never reached counts to block in.
 // - beacon_late_s: seconds from the earlier of block out and the engine start (the start after the engines were last
 //   all off) until the beacon is on; 0 if it already was.
-// - belts_off_departure_s: seat belt sign off from taxi out to the above_10000 marker (or the descent, or touchdown).
+// - belts_off_departure_s: seat belt sign off from taxi out to the transition_altitude marker (or the descent, or
+//   touchdown; D-200, it was above_10000).
 // - taxi_max_kt: the highest ground speed on the ground during taxi out and taxi in.
 // - origin_baro_off_tenths: at the takeoff roll, the larger of the two altimeters' distance from the origin ATIS then
 //   in force (or the one before it, whichever is closer), in tenths of hPa.

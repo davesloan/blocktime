@@ -705,6 +705,23 @@ TEST_F(Settlement, WritesMeasurementsInTheTransaction) {
     EXPECT_EQ(m.landing->offCentrelineDm, 27);
 }
 
+// D-160, D-200: check 2's window moved to the transition altitude for new flights; a stored measurement is never
+// measured again, so an old flight keeps the value it was settled with.
+TEST_F(Settlement, StoredMeasurementIsNotRemeasured) {
+    copyFixture(dir_, planDelivery());
+    std::string error;
+    ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
+    // As an older BlockTime would have measured it (to 10,000 ft).
+    ASSERT_TRUE(db_.exec("UPDATE flight_check_value SET value = 0 WHERE part = 'belts_off_departure_s'", &error))
+        << error;
+    EXPECT_FALSE(settleIfFlown(db_, dir_, Rates{}, &error).has_value());  // already settled
+    const FlightMeasurements m = loadMeasurements(db_).at(kFixtureFlight);
+    const auto it = std::find_if(m.values.begin(), m.values.end(),
+                                 [](const CheckValue& v) { return v.part == "belts_off_departure_s"; });
+    ASSERT_NE(it, m.values.end());
+    EXPECT_EQ(it->value, 0);
+}
+
 TEST_F(Settlement, SkipsAreStoredWithTheirReason) {
     const std::int64_t id = planDelivery();
     writeLog({blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});

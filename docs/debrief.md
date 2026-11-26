@@ -104,7 +104,7 @@ passes it are below. All tolerances are Claude's proposals (D-160) and are meant
 | # | Check | Measured | Passes when |
 |---|---|---|---|
 | 1 | Beacon on before pushback | seconds the beacon came on after the earlier of block out and the first engine start | ≤ 10 s |
-| 2 | Seat belt sign on from taxi to 10,000 ft | seconds it was off between the start of taxi out and `above_10000` | 0 |
+| 2 | Seat belt sign on from taxi to the transition altitude | seconds it was off between the start of taxi out and `transition_altitude` (D-200; flights settled before 0.15.0 were measured to `above_10000` and keep it, D-160) | 0 |
 | 3 | Taxi speed | highest ground speed in taxi out and taxi in | ≤ 30 kt |
 | 4 | Origin altimeter | at the takeoff roll, both altimeters' difference from the latest origin ATIS (or the one before it), tenths of hPa | ≤ 10 (1 hPa) |
 | 5 | Lights for takeoff | strobes and landing lights 10 s into the takeoff roll (as built: lights switched on as thrust comes up count) | both on |
@@ -219,7 +219,7 @@ Debrief   A tidy flight from the runway onward, with the misses bunched where wo
           ATC (information): levelled at FL360 as cleared; "maintain 5,300" came while passing 5,262…
 
 Checks    ✗ Beacon on before pushback          163 s after block out        −6
-          ✗ Seat belt sign, taxi to 10,000 ft  off 13 min                   −6
+          ✗ Seat belt sign, taxi to trans. alt off 13 min                   −6
           ✓ Taxi speed                         25 kt
           ...
 Landing   591 fpm · 1.47 G · no bounce · pitch 5.1° · bank 0.8° · VREF +0 · wind 330/9 (8 kt cross)   ★★★☆☆ −8
@@ -267,7 +267,7 @@ The spike's KLAS → KSAN log becomes a trimmed test fixture, so the checks are 
 ## Calls made by Claude (for Dave to confirm)
 
 - Every tolerance in the checks table, the star bands and the score's points (D-160, D-158). Tunable at no cost.
-- Seat belts as one check from taxi to 10,000 ft, so one slip isn't counted twice.
+- Seat belts as one check from taxi to the transition altitude (10,000 ft until D-200), so one slip isn't counted twice.
 - AUTO on the 737's seat belt selector counts as on (Dave never uses it on the 737, and on the 777 only in a
   freighter, 2026-11-24).
 - Measurements stored and scores computed on display (D-160), and no score numbers in Claude's text.
