@@ -2943,7 +2943,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-188 — Milestone 13's design calls (Claude)
 - Date: 2026-11-26
-- Status: Proposed
+- Status: Accepted (confirmed by Dave on 2026-11-26)
 - Decided by: Claude
 - Area: app
 - Decision:
@@ -2988,7 +2988,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-190 — Milestone 13's smaller calls while building
 - Date: 2026-11-26
-- Status: Proposed
+- Status: Accepted (confirmed by Dave on 2026-11-26)
 - Decided by: Claude
 - Area: app
 - Decision:

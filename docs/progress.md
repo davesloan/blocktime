@@ -29,7 +29,7 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 **Unverified:**
 - The items in the entry below: the collapse click, the gate polling on a real flight, and SayIntentions' wording
-  beyond the fixtures. D-188 and D-190 are still Proposed until Dave confirms them.
+  beyond the fixtures. Dave confirmed D-188 and D-190 (now Accepted).
 
 **Next step:**
 - In a new session (D-121): the brainstorm for the in-flight panels, the predictions (TOD, the block-in estimate) and
