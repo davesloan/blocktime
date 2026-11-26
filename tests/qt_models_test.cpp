@@ -2287,3 +2287,30 @@ TEST(DashboardHeader, InterruptResetsTheArc) {
     EXPECT_DOUBLE_EQ(h.progress(), 0.0);
     for (const QVariant& v : h.arcShares()) EXPECT_DOUBLE_EQ(v.toDouble(), -1.0);
 }
+
+// The recorder logs phase_changed arrived in the same instant as block_in, after it; the replay plays it too, so the
+// header's pill reaches Arrival (milestone 12).
+TEST(ReplaySession, BlockInPlaysWhatCameWithIt) {
+    qtApp();
+    const fs::path dir = fs::temp_directory_path() / "blocktime-replay-arrived";
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    std::ifstream in(kReplayFixtureDir / "events-2026-11-25.jsonl");
+    std::ofstream out(dir / "events-2026-11-25.jsonl");
+    std::string line;
+    while (std::getline(in, line)) {
+        out << line << "\n";
+        if (line.find("\"type\":\"block_in\"") != std::string::npos) {
+            const std::string ts = line.substr(7, 24);  // {"ts":"2026-11-25T20:01:45.912Z"
+            out << R"({"ts":")" << ts << R"(","type":"phase_changed","data":{"alt_ft":55,"flight_id":")"
+                << kReplayFlight.toStdString() << R"(","flight_level":false,"phase":"arrived","previous":"taxi_in",)"
+                << R"("time":")" << ts << "\"}}\n";
+        }
+    }
+    out.close();
+    ReplaySession r(dir, kReplayFlight, std::nullopt, "XLY", Rates{});
+    ASSERT_TRUE(r.seek("block_in"));
+    EXPECT_TRUE(r.finished());
+    EXPECT_EQ(r.bridge()->pill()[5].toMap()["state"].toString(), "current");
+    EXPECT_EQ(r.bridge()->pill()[4].toMap()["state"].toString(), "done");
+}

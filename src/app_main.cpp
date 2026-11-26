@@ -45,6 +45,7 @@
 #include "ledger_model.h"
 #include "new_flight_model.h"
 #include "planned_flight_model.h"
+#include "dashboard_header.h"
 #include "qml_hot_reload.h"
 #include "flight_watcher.h"
 #include "qt_planner.h"
@@ -58,6 +59,37 @@ namespace {
 void copySimString(char* dst, std::size_t cap, std::string_view src) {
     std::memset(dst, 0, cap);
     std::memcpy(dst, src.data(), std::min(src.size(), cap - 1));
+}
+
+// --demo's made-up flight for the dashboard header: KBFI → KSAN along a rough route down the coast.
+std::vector<blocktime::RoutePoint> demoRoute() {
+    return {{47.53, -122.302}, {45.59, -122.6}, {42.37, -122.87}, {38.7, -121.6}, {35.4, -119.0}, {32.7336, -117.19}};
+}
+
+blocktime::PlannedFlightView demoFlightView() {
+    blocktime::PlannedFlightView v;
+    v.registration = "N737BT";
+    v.typeCode = "B737-800";
+    v.origin = "KBFI";
+    v.originName = "Boeing Field King County International Airport";
+    v.originCity = "Seattle";
+    v.destination = "KSAN";
+    v.destinationName = "San Diego International Airport";
+    v.destinationCity = "San Diego";
+    v.flightNumber = "1231";
+    v.loadInParking = "Gate 4";
+    v.originRunway = "14R";
+    v.plannedAt = "2026-11-25T18:00:00Z";
+    v.route = demoRoute();
+    blocktime::SimbriefPlan p;
+    p.requestId = "demo";
+    p.cruiseAltitudeFt = 35000;
+    p.estBlockS = 8700;
+    p.originTransitionAltitudeFt = 18000;
+    p.destinationTransitionLevelFt = 18000;
+    p.originRunway = "14R";
+    v.plan = p;
+    return v;
 }
 
 // Made-up cruise values for --demo. Nothing is written to any log.
@@ -115,6 +147,19 @@ void fillDemo(RecorderBridge& bridge) {
     bridge.applyFlightEvent("level_off_ended", {{"phase", "climb"}, {"time", at(12min)}, {"alt_ft", 5000}, {"flight_level", false}});
     bridge.applyFlightEvent("flight_marker", {{"marker", "above_10000"}, {"time", at(14min)}, {"alt_ft", 10000}});
     bridge.applyFlightEvent("flight_marker", {{"marker", "transition_altitude"}, {"time", at(17min)}, {"alt_ft", 18000}});
+    // Samples down the demo route to a little past halfway, climbing to FL350, for the header's arc (D-182).
+    const std::vector<blocktime::RoutePoint> route = demoRoute();
+    constexpr int kSteps = 55;
+    for (int i = 1; i <= kSteps; ++i) {
+        const double along = i / 100.0 * static_cast<double>(route.size() - 1);  // 0.55 of the way at the end
+        const auto leg = static_cast<std::size_t>(along);
+        const double f = along - static_cast<double>(leg);
+        blocktime::TelemetrySample p = s;
+        p.latitudeDeg = route[leg].lat + (route[leg + 1].lat - route[leg].lat) * f;
+        p.longitudeDeg = route[leg].lon + (route[leg + 1].lon - route[leg].lon) * f;
+        p.indicatedAltitudeFt = std::min(35003.0, 35003.0 * i / 18.0);
+        bridge.applySample(p);
+    }
     phase("cruise", 31min, 35000, true);
 }
 
@@ -200,11 +245,13 @@ int runReplay(const ReplayOptions& options, const std::filesystem::path& logDir,
     if (flightId == "last") flightId = QString::fromStdString(blocktime::latestFlightId(db).value_or(""));
     const auto config = blocktime::loadAirlineConfig(paths.airlineConfig, nullptr);
     const QString airlineIcao = config ? QString::fromStdString(config->identity.icaoCode) : QString();
+    const QString airlineName = config ? QString::fromStdString(config->identity.name) : QString();
     const blocktime::Rates rates = blocktime::loadRates(blocktime::defaultRatesFile(), nullptr).value_or(blocktime::Rates{});
 
     FlightListModel flights(db, logDir, airlineIcao);
     flights.reload();
-    ReplaySession replay(logDir, flightId, blocktime::flownFlightView(db, flightId.toStdString()), airlineIcao, rates);
+    ReplaySession replay(logDir, flightId, blocktime::flownFlightView(db, flightId.toStdString()), airlineIcao, rates,
+                         airlineName);
     replay.setSpeed(options.speed);
     if (!options.at.isEmpty() && !replay.seek(options.at)) {
         std::cerr << "Replay: the flight has no " << options.at.toStdString() << std::endl;
@@ -317,7 +364,16 @@ int main(int argc, char* argv[]) {
         }
     } stopAndJoin{stop, worker};
 
+    // --demo's header shows a made-up flight of its own (the demo has no planned flight), built before the feed.
+    std::unique_ptr<ReplayPlannedFlight> demoPlanned;
+    std::unique_ptr<DashboardHeader> demoHeader;
     if (demo) {
+        const auto demoConfig = blocktime::loadAirlineConfig(blocktime::defaultAirlinePaths().airlineConfig, nullptr);
+        const QString icao = demoConfig ? QString::fromStdString(demoConfig->identity.icaoCode) : QStringLiteral("XLY");
+        const QString name = demoConfig ? QString::fromStdString(demoConfig->identity.name) : QStringLiteral("Demo");
+        demoPlanned = std::make_unique<ReplayPlannedFlight>(demoFlightView(), icao, blocktime::Rates{}, bridge, "demo");
+        demoHeader =
+            std::make_unique<DashboardHeader>(bridge, *demoPlanned, icao, name, DashboardHeader::SettledFlight{});
         fillDemo(bridge);
     } else if (instance->acquired()) {
         worker = std::jthread([&] {
@@ -388,6 +444,17 @@ int main(int argc, char* argv[]) {
     NewFlightModel newFlight(planningDb, airlineIcao, blocktime::defaultRatesFile(), planner);
     PlannedFlightModel plannedFlight(planningDb, airlineIcao, planner, bridge, flightTarget, logDir,
                                      blocktime::defaultRatesFile());
+    // The dashboard header (D-151, D-180): the planned flight, kept once settled; a summary already showing at startup
+    // comes from the database. --demo shows its own.
+    std::optional<DashboardHeader> liveHeader;
+    if (!demo) {
+        const auto settledFlight = [&planningDb](const QString& id) {
+            return blocktime::flownFlightView(planningDb, id.toStdString());
+        };
+        liveHeader.emplace(bridge, plannedFlight, airlineIcao, QString::fromStdString(airline.airlineName()),
+                           settledFlight);
+    }
+    DashboardHeader* header = demo ? demoHeader.get() : &*liveHeader;
     QObject::connect(&reviews, &ReviewWriter::reviewChanged, &flights, &FlightListModel::refreshDebrief);
     // A flight settled: the airplane moved, money was posted and Flights has a new row (D-113).
     QObject::connect(&plannedFlight, &PlannedFlightModel::settled, [&](const QString& logFlightId) {
@@ -408,6 +475,7 @@ int main(int argc, char* argv[]) {
                             {"ledger", QVariant::fromValue(&ledger)},
                             {"newFlight", QVariant::fromValue(&newFlight)},
                             {"plannedFlight", QVariant::fromValue(&plannedFlight)},
+                            {"dashboard", QVariant::fromValue(header)},
                             {"airlineName", QString::fromStdString(airline.airlineName())},
                             {"startPage", startPage},
                             {"mapTileUrl", map.tileUrl},

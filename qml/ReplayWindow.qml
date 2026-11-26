@@ -94,6 +94,7 @@ ApplicationWindow {
             visible: window.replay.error === ""
             recorder: window.replay.bridge
             plannedFlight: window.replay.plannedFlight
+            dashboard: window.replay.header
             flights: window.flights
             reviews: null
             replaying: true

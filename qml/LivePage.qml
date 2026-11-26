@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// The live flight screen: "Not recording" when the sim doesn't match the plan (design.md §13.4), the planned flight
+// The live flight screen: "Not recording" when the sim doesn't match the plan (design.md §13.4), the dashboard header
+// (docs/dashboard.md, D-180), the planned flight
 // before and during departure (§13.3), the summary after block in (§13.7), the flight panel and the event feed. The
 // page scrolls when the window is too short for all of it; the scroll bar shows only then.
 
@@ -18,6 +19,7 @@ Item {
 
     required property RecorderBridge recorder
     required property PlannedFlightDisplay plannedFlight
+    required property DashboardHeader dashboard
     required property FlightListModel flights
     required property ReviewWriter reviews
     required property string mapTileUrl
@@ -86,6 +88,14 @@ Item {
                 font.pixelSize: Theme.fontSizeBody
             }
 
+            // The dashboard header (D-151): while a flight is planned, open or showing its summary (D-154, D-180).
+            FlightHeader {
+                Layout.fillWidth: true
+                visible: page.dashboard.visible
+                header: page.dashboard
+                recorder: page.recorder
+            }
+
             // Only built while it shows, so the map costs nothing the rest of the time.
             Loader {
                 Layout.fillWidth: true
@@ -114,26 +124,13 @@ Item {
                 flight: page.plannedFlight
             }
 
-            // Three columns (D-139): Flight progress, the flight panel, the event log.
+            // The flight tiles and the event log (D-180: the feed stays until developer mode exists). The header's
+            // pill and status lines replace the old stages column.
             RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.minimumHeight: Math.max(flightPanel.implicitHeight, progress.implicitHeight)
+                Layout.minimumHeight: flightPanel.implicitHeight
                 spacing: Theme.spacing
-
-                // The six stages across the gate (design.md §13.5, D-134): the flight from block out until its summary
-                // is dismissed, otherwise the next leg with its GSX services so far.
-                FlightProgress {
-                    id: progress
-
-                    Layout.alignment: Qt.AlignTop
-                    Layout.fillWidth: false
-                    Layout.preferredWidth: Theme.sideColumnWidth
-                    Layout.maximumWidth: Theme.sideColumnWidth
-                    visible: page.recorder.showingFlight ? (page.recorder.flightOpen || page.showSummary)
-                        : (page.plannedFlight.hasFlight || page.recorder.hasNextLegServices)
-                    recorder: page.recorder
-                }
 
                 FlightPanel {
                     id: flightPanel

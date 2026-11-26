@@ -160,7 +160,7 @@ std::optional<std::int64_t> ReplayTimeline::offsetOf(std::string_view at) const 
 
 ReplayTimeline loadReplay(const std::filesystem::path& dir, std::string_view flightId) {
     // Not from the previous leg's arrival, when it ended inside the 30 minutes before block out.
-    return ReplayTimeline(loadFlightEvents(replayLogFiles(dir, flightId), flightId, true));
+    return ReplayTimeline(loadFlightEvents(replayLogFiles(dir, flightId), flightId, true, true));
 }
 
 std::int64_t ReplayClock::advance(std::chrono::milliseconds wall) {

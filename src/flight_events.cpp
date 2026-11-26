@@ -6,6 +6,7 @@
 
 #include <deque>
 #include <fstream>
+#include <optional>
 
 #include "event_log.h"
 
@@ -19,10 +20,11 @@ std::vector<LogLine> loadFlightEvents(const std::filesystem::path& logDir, std::
 }
 
 std::vector<LogLine> loadFlightEvents(const std::vector<std::filesystem::path>& files, std::string_view logFlightId,
-                                      bool startAfterOtherFlights) {
+                                      bool startAfterOtherFlights, bool withBlockInInstant) {
     std::deque<LogLine> leadIn;  // the last kFlightLeadIn of lines before block out
     std::vector<LogLine> flight;
     bool open = false;
+    std::optional<std::chrono::system_clock::time_point> blockedIn;  // withBlockInInstant: block in's instant
     for (const auto& file : files) {
         std::ifstream in(file, std::ios::binary);
         std::string text;
@@ -33,6 +35,11 @@ std::vector<LogLine> loadFlightEvents(const std::vector<std::filesystem::path>& 
             if (!ts) continue;
             LogLine line{*ts, j.value("type", ""), j.value("data", nlohmann::json::object())};
             const std::string id = line.data.is_object() ? line.data.value("flight_id", "") : "";
+            if (blockedIn) {
+                if (line.ts != *blockedIn) return flight;
+                if (id.empty() || id == logFlightId) flight.push_back(std::move(line));
+                continue;
+            }
             if (!id.empty() && id != logFlightId) {
                 if (startAfterOtherFlights && !open && (line.type == "block_in" || line.type == "flight_interrupted")) {
                     leadIn.clear();
@@ -51,11 +58,13 @@ std::vector<LogLine> loadFlightEvents(const std::vector<std::filesystem::path>& 
                 continue;
             }
             const bool end = line.type == "block_in" && id == logFlightId;
+            const auto at = line.ts;
             flight.push_back(std::move(line));
-            if (end) return flight;
+            if (end && !withBlockInInstant) return flight;
+            if (end) blockedIn = at;
         }
     }
-    return {};
+    return blockedIn ? flight : std::vector<LogLine>{};
 }
 
 }  // namespace blocktime

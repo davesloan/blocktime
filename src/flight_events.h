@@ -36,7 +36,9 @@ std::vector<LogLine> loadFlightEvents(const std::filesystem::path& logDir, std::
                                       std::size_t maxFiles = kOpenFlightLookbackFiles);
 // The same over the given day files, oldest first. With `startAfterOtherFlights` the lead-in starts no earlier than
 // another flight's block_in or flight_interrupted (the replay, which shouldn't open on the previous leg's arrival).
+// With `withBlockInInstant` the lines logged in the same instant after block_in come too: the recorder logs
+// phase_changed arrived there (the replay, whose pill reaches Arrival; milestone 12).
 std::vector<LogLine> loadFlightEvents(const std::vector<std::filesystem::path>& files, std::string_view logFlightId,
-                                      bool startAfterOtherFlights = false);
+                                      bool startAfterOtherFlights = false, bool withBlockInInstant = false);
 
 }  // namespace blocktime

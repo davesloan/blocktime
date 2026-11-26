@@ -32,8 +32,9 @@ QString dayText(const QString& flightId) {
 }  // namespace
 
 ReplaySession::ReplaySession(std::filesystem::path logDir, QString flightId, std::optional<PlannedFlightView> view,
-                             QString airlineIcao, Rates rates, QObject* parent)
+                             QString airlineIcao, Rates rates, QString airlineName, QObject* parent)
     : QObject(parent), view_(std::move(view)), flightId_(std::move(flightId)), airlineIcao_(std::move(airlineIcao)),
+      airlineName_(std::move(airlineName)),
       rates_(rates) {
     timeline_ = loadReplay(logDir, flightId_.toStdString());
     if (timeline_.empty()) error_ = "The log for " + dayText(flightId_) + " is no longer on this PC";
@@ -57,11 +58,14 @@ ReplaySession::ReplaySession(std::filesystem::path logDir, QString flightId, std
 
 void ReplaySession::makeBridge() {
     if (bridge_) bridge_->deleteLater();
+    if (header_) header_->deleteLater();
     if (planned_) planned_->deleteLater();
     bridge_ = new RecorderBridge(this);
     bridge_->setReplay();
     bridge_->setClock([this] { return timeline_.timeAt(feeding_ ? *feeding_ : clock_.offset()); });
     planned_ = new ReplayPlannedFlight(view_, airlineIcao_, rates_, *bridge_, flightId_, this);
+    header_ = new DashboardHeader(*bridge_, *planned_, airlineIcao_, airlineName_,
+                                  [view = view_](const QString&) { return view; }, this);
 }
 
 void ReplaySession::setSpeed(double speed) {
@@ -123,6 +127,13 @@ void ReplaySession::feedUpTo(std::int64_t offsetMs) {
         feed(item);
         feeding_.reset();
         if (item.type == "block_in") {
+            // What the recorder logged in the same instant comes with it: phase_changed arrived (milestone 12).
+            while (next_ < items.size() && items[next_].offsetMs == item.offsetMs) {
+                const ReplayItem& same = items[next_++];
+                feeding_ = same.offsetMs;
+                feed(same);
+                feeding_.reset();
+            }
             finished_ = true;
             updateTimer();
             emit stateChanged();

@@ -86,6 +86,32 @@ QtObject {
     readonly property int summaryHeight: 520
     readonly property int summaryMapMinHeight: 240
     readonly property int checkMarkWidth: 18     // the debrief's ✓ / ✗ column
+
+    // The dashboard header (docs/dashboard.md, D-151, D-152, D-182)
+    readonly property int headerPadding: 20
+    readonly property int fontSizeHeaderIcao: 46        // "XLY": larger than the airport codes
+    readonly property int fontSizeHeaderFlight: 38      // "1231"
+    readonly property int fontSizeHeaderAirline: 26     // "Soxxly Airlines"
+    readonly property int fontSizeAirportCode: 36       // "KSAN"
+    readonly property int fontSizeHeaderClock: 18       // the block clock pill
+    readonly property int fontSizeStatus: 19            // the current status line
+    readonly property int fontSizeAirportIcon: 26       // the departure and arrival glyphs
+    readonly property int headerClockPillHeight: 30
+    readonly property int arcRowHeight: 200
+    readonly property int arcWidth: 5                   // the flown part of the arc
+    readonly property int arcDotSize: 3                 // the dashed part still to fly
+    readonly property int arcMarkerSize: 20
+    readonly property int arcMarkerBorder: 3
+    readonly property int airportBlockWidth: 210
+    readonly property int phasePillHeight: 30
+    readonly property int phasePillGap: 2               // between sections and divisions
+    readonly property int phaseDivisionHeight: 5        // the current section's strip of phases
+    // The flown arc's colours by altitude, fading smoothly (not in bands): ground, a third, two thirds, cruise
+    readonly property color arcGround: "#EF4444"
+    readonly property color arcLow: "#EAB308"
+    readonly property color arcHigh: "#22C55E"
+    readonly property color arcCruise: "#3B82F6"
+    readonly property color textOnWarn: "#3A2A00"       // the pill's section in progress
     readonly property int checkPointsWidth: 36   // the debrief's "−6" column
 
     // Window

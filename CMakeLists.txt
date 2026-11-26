@@ -254,7 +254,7 @@ set(BLOCKTIME_QML_FILES
   qml/RouteMap.qml
   qml/TrackDot.qml
   qml/FlightCard.qml
-  qml/FlightProgress.qml
+  qml/FlightHeader.qml
   qml/SecondaryButton.qml
   qml/TextInputField.qml
   qml/MoneyLines.qml

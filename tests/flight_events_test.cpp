@@ -90,3 +90,17 @@ TEST(FlightEvents, OpenFlightIsEmpty) {
     EXPECT_TRUE(loadFlightEvents(dir, "D").empty());
     EXPECT_TRUE(loadFlightEvents(dir, "nope").empty());
 }
+
+TEST(FlightEvents, BlockInInstantOnlyWhenAsked) {
+    const auto dir = tempLogDir("instant");
+    const auto file = dir / "events-2026-11-24.jsonl";
+    writeLines(file,
+               {R"({"ts":"2026-11-24T10:10:00.000Z","type":"block_out","data":{"flight_id":"B"}})",
+                R"({"ts":"2026-11-24T11:00:00.000Z","type":"block_in","data":{"flight_id":"B"}})",
+                R"({"ts":"2026-11-24T11:00:00.000Z","type":"phase_changed","data":{"flight_id":"B","phase":"arrived"}})",
+                R"({"ts":"2026-11-24T11:00:01.000Z","type":"telemetry","data":{"on_ground":true}})"});
+    EXPECT_EQ(loadFlightEvents(dir, "B").size(), 2u);  // the debrief and settling: up to block in
+    const auto replay = loadFlightEvents({file}, "B", true, true);
+    ASSERT_EQ(replay.size(), 3u);
+    EXPECT_EQ(replay[2].type, "phase_changed");
+}

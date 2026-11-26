@@ -22,6 +22,7 @@
 #include "planned_flight.h"
 #include "rates.h"
 #include "recorder_bridge.h"
+#include "dashboard_header.h"
 #include "replay_planned_flight.h"
 
 class ReplaySession : public QObject {
@@ -30,6 +31,7 @@ class ReplaySession : public QObject {
     QML_UNCREATABLE("Created by the app")
     Q_PROPERTY(RecorderBridge* bridge READ bridge NOTIFY restarted)
     Q_PROPERTY(PlannedFlightDisplay* plannedFlight READ plannedFlight NOTIFY restarted)
+    Q_PROPERTY(DashboardHeader* header READ header NOTIFY restarted)
     Q_PROPERTY(double speed READ speed NOTIFY stateChanged)
     Q_PROPERTY(bool paused READ paused NOTIFY stateChanged)
     Q_PROPERTY(bool finished READ finished NOTIFY stateChanged)
@@ -39,10 +41,11 @@ class ReplaySession : public QObject {
 public:
     // `view` is the settled flight as planned (flownFlightView); nullopt shows no planned flight.
     ReplaySession(std::filesystem::path logDir, QString flightId, std::optional<blocktime::PlannedFlightView> view,
-                  QString airlineIcao, blocktime::Rates rates, QObject* parent = nullptr);
+                  QString airlineIcao, blocktime::Rates rates, QString airlineName = {}, QObject* parent = nullptr);
 
     RecorderBridge* bridge() const { return bridge_; }
     PlannedFlightDisplay* plannedFlight() const { return planned_; }
+    DashboardHeader* header() const { return header_; }
     double speed() const { return clock_.speed(); }
     bool paused() const { return clock_.paused(); }
     bool finished() const { return finished_; }
@@ -77,10 +80,11 @@ private:
     std::optional<std::int64_t> feeding_;  // the offset of the line being fed: the bridge's clock while it is
     bool finished_ = false;
     std::optional<blocktime::PlannedFlightView> view_;
-    QString flightId_, airlineIcao_, title_, error_;
+    QString flightId_, airlineIcao_, airlineName_, title_, error_;
     blocktime::Rates rates_;
     RecorderBridge* bridge_ = nullptr;
     ReplayPlannedFlight* planned_ = nullptr;
+    DashboardHeader* header_ = nullptr;
     QTimer timer_;
     QElapsedTimer sinceTick_;
 };
