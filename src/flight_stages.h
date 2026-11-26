@@ -46,6 +46,13 @@ struct ShutdownChecks {
     bool operator==(const ShutdownChecks&) const = default;
 };
 
+// Shared with the dashboard's status lines (StatusLines).
+std::string serviceName(const std::string& service);  // "refuelling" → "Refuelling"
+bool anyRunning(const std::vector<ServiceSpan>& spans);
+bool anyCompleted(const std::vector<ServiceSpan>& spans);
+// The shutdown checklist (D-135): engines, brake, deboarding (only after GSX deboarding), beacon, strobes.
+std::vector<ChecklistItem> shutdownChecklist(const ShutdownChecks& checks, const std::vector<ServiceSpan>& arrival);
+
 struct StageView {
     Stage stage;
     std::string name;

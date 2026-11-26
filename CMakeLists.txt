@@ -106,6 +106,7 @@ add_library(blocktime-core STATIC
   src/route_progress.cpp
   src/header_text.cpp
   src/phase_pill.cpp
+  src/status_lines.cpp
   src/debrief_measure.cpp
   src/debrief_score.cpp
   src/debrief_store.cpp
@@ -208,6 +209,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/route_progress_test.cpp
     tests/header_text_test.cpp
     tests/phase_pill_test.cpp
+    tests/status_lines_test.cpp
     tests/debrief_measure_test.cpp
     tests/debrief_score_test.cpp
     tests/debrief_review_test.cpp)

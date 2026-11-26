@@ -42,6 +42,8 @@ std::string phaseName(std::string_view phase) {
     return "";
 }
 
+}  // namespace
+
 std::string serviceName(const std::string& service) {
     if (service == "catering") return "Catering";
     if (service == "refuelling") return "Refuelling";
@@ -56,6 +58,18 @@ bool anyRunning(const std::vector<ServiceSpan>& spans) {
 bool anyCompleted(const std::vector<ServiceSpan>& spans) {
     return std::any_of(spans.begin(), spans.end(), [](const ServiceSpan& s) { return !s.running; });
 }
+
+std::vector<ChecklistItem> shutdownChecklist(const ShutdownChecks& c, const std::vector<ServiceSpan>& arrival) {
+    std::vector<ChecklistItem> out;
+    out.push_back({"Engines off", c.enginesOff});
+    out.push_back({"Parking brake set", c.parkingBrakeSet});
+    if (!arrival.empty()) out.push_back({"Deboarding complete", anyCompleted(arrival)});
+    out.push_back({"Beacon off", c.beaconOff});
+    out.push_back({"Strobes off", c.strobeOff});
+    return out;
+}
+
+namespace {
 
 std::string hhmmZ(const std::string& iso) { return iso.size() >= 16 ? iso.substr(11, 5) + "Z" : iso; }
 
@@ -174,14 +188,8 @@ void FlightStages::updateReady(const std::string& iso) {
 }
 
 StageLine FlightStages::readyLine() const {
-    const ShutdownChecks c = checks_.value_or(ShutdownChecks{});
-    StageLine l{"Ready for shutdown or turnaround", hhmmZ(readyIso_), "", false, {}};
-    l.checks.push_back({"Engines off", c.enginesOff});
-    l.checks.push_back({"Parking brake set", c.parkingBrakeSet});
-    if (!gsx_.arrival().empty()) l.checks.push_back({"Deboarding complete", anyCompleted(gsx_.arrival())});
-    l.checks.push_back({"Beacon off", c.beaconOff});
-    l.checks.push_back({"Strobes off", c.strobeOff});
-    return l;
+    return StageLine{"Ready for shutdown or turnaround", hhmmZ(readyIso_), "", false,
+                     shutdownChecklist(checks_.value_or(ShutdownChecks{}), gsx_.arrival())};
 }
 
 bool FlightStages::onShutdownChecks(const ShutdownChecks& c, const std::string& iso) {
