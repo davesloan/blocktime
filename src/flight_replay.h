@@ -47,7 +47,8 @@ public:
     ReplayTimeline() = default;
     // The flight's lines in log order, as loadFlightEvents gives them. Skip lines are dropped, and so is deboarding
     // before block out (the previous flight's); `paused` / `unpaused` shape the offsets first: a line inside a paused
-    // stretch gets the stretch's start.
+    // stretch gets the stretch's start. The timeline starts 15 s before the first event, on the last sample before it
+    // (D-178).
     explicit ReplayTimeline(std::vector<LogLine> lines);
 
     const std::vector<ReplayItem>& items() const { return items_; }

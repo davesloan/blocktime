@@ -79,11 +79,31 @@ TEST(FlightReplay, Routes) {
 }
 
 TEST(FlightReplay, OffsetsFromTheFirstLine) {
-    const ReplayTimeline t({line(0ms, "telemetry"), line(1s, "telemetry"), line(61s, "phase_changed")});
-    EXPECT_EQ(offsets(t), (std::vector<std::int64_t>{0, 1000, 61000}));
-    EXPECT_EQ(t.durationMs(), 61000);
-    EXPECT_EQ(t.items()[2].route, ReplayRoute::Flight);
+    const ReplayTimeline t({line(0ms, "telemetry"), line(1s, "telemetry"), line(3s, "telemetry")});
+    EXPECT_EQ(offsets(t), (std::vector<std::int64_t>{0, 1000, 3000}));
+    EXPECT_EQ(t.durationMs(), 3000);
     EXPECT_TRUE(t.items()[0].data.is_null());  // samples keep only the parsed sample
+}
+
+// The minutes at the gate before anything happens are skipped (D-178): the replay starts 15 s before the first event,
+// on the last sample before that, so Live opens with the aircraft where it was.
+TEST(FlightReplay, StartsFifteenSecondsBeforeTheFirstEvent) {
+    const ReplayTimeline t({line(0ms, "telemetry"), line(5min, "telemetry"), line(10min, "telemetry"),
+                            line(20min, "gsx_service", {{"service", "refuelling"}, {"state", "requested"}}),
+                            line(21min, "telemetry"), line(30min, "block_out", {{"flight_id", "F"}})});
+    EXPECT_EQ(offsets(t), (std::vector<std::int64_t>{0, 15'000, 75'000, 615'000}));
+    EXPECT_EQ(t.items()[0].ts, t0 + 10min);
+    EXPECT_EQ(t.items()[1].route, ReplayRoute::Flight);
+    EXPECT_EQ(t.timeAt(0), t0 + 19min + 45s);
+    EXPECT_EQ(t.timeAt(15'000), t0 + 20min);
+}
+
+// A sample inside the 15 s plays as it came.
+TEST(FlightReplay, SampleInsideTheFifteenSecondsPlays) {
+    const ReplayTimeline t({line(0ms, "telemetry"), line(10min, "telemetry"),
+                            line(10min + 10s, "phase_changed", {{"phase", "taxi_out"}})});
+    EXPECT_EQ(offsets(t), (std::vector<std::int64_t>{0, 5'000, 15'000}));
+    EXPECT_EQ(t.timeAt(0), t0 + 9min + 55s);
 }
 
 // The replay starts at the first line it plays, not at a skipped one (a probe or cockpit line), so it opens on
@@ -124,10 +144,11 @@ TEST(FlightReplay, OffsetOfPhaseAndTime) {
                             line(15min, "phase_changed", {{"phase", "takeoff"}}),
                             line(16min, "phase_changed", {{"phase", "climb"}}), line(50min, "telemetry"),
                             line(70min, "block_in", {{"flight_id", "F"}})});
-    EXPECT_EQ(t.offsetOf("climb"), 16 * 60'000);
-    EXPECT_EQ(t.offsetOf("block_out"), 10 * 60'000);
-    EXPECT_EQ(t.offsetOf("block_in"), 70 * 60'000);
-    EXPECT_EQ(t.offsetOf("0:30"), 40 * 60'000);
+    // The replay starts 15 s before block out, the first event.
+    EXPECT_EQ(t.offsetOf("block_out"), 15'000);
+    EXPECT_EQ(t.offsetOf("climb"), 15'000 + 6 * 60'000);
+    EXPECT_EQ(t.offsetOf("block_in"), 15'000 + 60 * 60'000);
+    EXPECT_EQ(t.offsetOf("0:30"), 15'000 + 30 * 60'000);
     EXPECT_FALSE(t.offsetOf("nonsense"));
     EXPECT_FALSE(t.offsetOf("cruise"));
 }
@@ -144,7 +165,8 @@ TEST(FlightReplay, StartsAfterThePreviousFlightsBlockIn) {
         << R"({"ts":"2026-11-25T00:52:00.000Z","type":"block_in","data":{"flight_id":"2026-11-24T23:53:16.837Z","time":"2026-11-25T00:52:00.000Z"}})" << "\n";
     const ReplayTimeline t = loadReplay(dir, "2026-11-24T23:53:16.837Z");
     ASSERT_EQ(t.items().size(), 3u);
-    EXPECT_EQ(t.items().front().ts, *parseUtc("2026-11-24T23:31:00.000Z"));
+    EXPECT_EQ(t.items().front().ts, *parseUtc("2026-11-24T23:31:00.000Z"));  // the gate, as the opening sample
+    EXPECT_EQ(t.timeAt(0), *parseUtc("2026-11-24T23:53:12.961Z"));          // 15 s before block out
 }
 
 // Deboarding before block out is the previous flight's (D-137); on Live it showed on that flight's Arrival.
@@ -161,6 +183,9 @@ TEST(FlightReplay, DeboardingBeforeBlockOutIsSkipped) {
 TEST(FlightReplay, StrippedFixtureBuildsATimeline) {
     const ReplayTimeline t = loadReplay(kStrippedFixtureDir, "2026-11-24T23:53:16.837Z");
     ASSERT_FALSE(t.empty());
+    // 15 s before the GSX refuelling request, the first event after the KSFO → KLAS leg's block in (D-177, D-178).
+    EXPECT_EQ(t.timeAt(0), *parseUtc("2026-11-24T23:42:21.929Z"));
+    EXPECT_EQ(t.items()[0].route, ReplayRoute::Sample);
     const auto blockOut = t.offsetOf("block_out");
     ASSERT_TRUE(blockOut);
     EXPECT_GT(*blockOut, 0);

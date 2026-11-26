@@ -16,6 +16,8 @@ namespace blocktime {
 
 namespace {
 
+constexpr std::int64_t kLeadInMs = 15'000;  // how long before the first event the replay starts (D-178)
+
 std::string dayOf(std::string_view flightId) { return std::string(flightId.substr(0, 10)); }
 
 std::int64_t ms(std::chrono::system_clock::duration d) {
@@ -106,9 +108,24 @@ ReplayTimeline::ReplayTimeline(std::vector<LogLine> lines) {
         }
         items_.push_back(std::move(item));
     }
-    // Start at the first line that plays, not at a skipped one before it.
-    if (items_.empty() || items_.front().offsetMs == 0) return;
-    const std::int64_t shift = items_.front().offsetMs;
+    if (items_.empty()) return;
+    // Start 15 s before the first event, not on minutes of samples at the gate (D-178); the last sample before that
+    // opens the replay, so Live shows the aircraft where it was. Without a sample there, or an event at all, start at
+    // the first line that plays, not at a skipped one before it.
+    std::int64_t shift = items_.front().offsetMs;
+    const auto event = std::find_if(items_.begin(), items_.end(),
+                                    [](const ReplayItem& i) { return i.route != ReplayRoute::Sample; });
+    if (event != items_.end()) {
+        const std::int64_t cut = event->offsetMs - kLeadInMs;
+        const auto after = std::find_if(items_.begin(), event, [&](const ReplayItem& i) { return i.offsetMs > cut; });
+        if (after != items_.begin()) {
+            const auto opening = after - 1;  // the last sample at or before the cut
+            opening->offsetMs = cut;
+            items_.erase(items_.begin(), opening);
+            shift = cut;
+        }
+    }
+    if (shift == 0) return;
     start_ += std::chrono::milliseconds(shift);
     for (ReplayItem& i : items_) i.offsetMs -= shift;
     for (Pause& p : pauses_) p.offsetMs -= shift;

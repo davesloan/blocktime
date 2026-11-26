@@ -2743,3 +2743,17 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   carry none. On the day, Live showed both on that leg's Arrival (D-134, D-137).
 - Alternatives considered: tagging telemetry and GSX lines with a flight id in the recorder (changes the log format
   for every reader); starting every replay at block out (Pre-Departure wouldn't replay).
+
+## D-178 — A replay starts 15 seconds before the flight's first event
+- Date: 2026-11-25
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: The replay starts 15 s before the first line that isn't telemetry (a GSX service, a phase, block out, ATC),
+  on the last telemetry sample before that point, so Live opens with the aircraft where it was. The minutes of samples
+  at the gate before it are dropped. With no sample before that point, or no event at all, it starts at the first line
+  that plays (D-177). `--at` offsets count from the new start; the debrief's lead-in is unchanged.
+- Why: Dave's KLAS → KSAN replay had 12 minutes at the gate with nothing happening before the GSX refuelling request;
+  at 1× it looked stuck. A telemetry line is a full sample, so one is enough to set the scene.
+- Alternatives considered: fast-forwarding the quiet stretch at 10× (still a wait, and a second speed rule); starting
+  at block out (Pre-Departure's GSX services wouldn't replay).

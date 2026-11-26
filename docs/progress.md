@@ -57,11 +57,13 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 **Fixed after Dave's first try (D-177):** the KLAS → KSAN replay opened on the previous leg's final approach and
 showed its deboarding under Pre-Departure; it now starts at the gate after that leg's block in. `--grab` without `--at`
-now shows the replay's opening instead of an empty Live.
+now shows the replay's opening instead of an empty Live. Then, at Dave's suggestion (D-178), a replay starts 15 s
+before the flight's first event (on KLAS → KSAN, the GSX refuelling request at 23:42:36), skipping the quiet minutes at
+the gate.
 
 **Known minor issues from the code review (left for now, D-174):**
-- A lead-in that starts mid-pause plays the paused part (up to 30 min of a frozen gate; 3 min at 10×).
-- At 1× the first minutes at the gate can look still: the log has telemetry only when something changes.
+- A lead-in that starts mid-pause plays the paused part (up to 30 min of a frozen gate; 3 min at 10×), unless an event
+  comes after the pause ends (D-178 then starts 15 s before it).
 - A sim disconnect in the lead-in isn't replayed as `sim_stopped`, so GSX services Live dropped that day keep showing.
 - `--replay last` with no settled flight, or a mistyped id, says "The log for  is no longer on this PC".
 - `--at H:MM` counts time after block out without the pauses, so after a pause it lands later than the block clock
