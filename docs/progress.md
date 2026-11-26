@@ -22,6 +22,94 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-26 — Milestone 13 built: the Pre-Flight panel and the collapsing header (version 0.14.0)
+
+**Done:**
+- Dave approved the mockup (`docs/images/dashboard-preflight-v1.html`), then the plan's tasks 2–9 were built tests
+  first, one commit each:
+  - ATC's words through D-168's plain form; the clearance (SID, initial altitude, squawk, departure frequency,
+    expected runway) and the taxi route read from them; the 30-minute countdown;
+  - wind, temperature, precipitation and the altimeter from the ATIS and its METAR;
+  - the plan's SID and transition, ZFW, cargo and takeoff runways from the stored OFP (no migration), and the load
+    sheet with cargo split into the holds;
+  - `PreFlightLog`: only the origin's messages since planning, block in starts over; SimBrief's runway and SID until
+    ATC changes them (D-189);
+  - SayIntentions polled at the gate (a flight planned, the sim connected), so the clearance shows before pushback;
+    the ATIS every 5 minutes;
+  - `PreFlightModel` and `qml/PreFlightPanel.qml` (with `InstrumentPanel` and `Readout`, ready for the in-flight
+    panels), on Live and in the replay window;
+  - the header collapses to the pill bar with a click, remembered in `%LOCALAPPDATA%\BlockTime\BlockTime.ini`.
+- The 737-800 BCF's holds in `config/catalog.yaml` come from Dave's `simbrief.ps1`.
+- Smaller calls in D-190 (Proposed).
+- A fresh code review found nothing Critical and two Important issues, both fixed with tests:
+  - after a turnaround the gate never re-logged the new origin's ATIS (the last leg's destination, often the same
+    letter since the descent); the same applied to the clearance after an interrupt;
+  - a plan of 30R with an ATIS of "30L,30R" was flagged as changed to 30L.
+- Its five Minor findings are deferred (below).
+
+**Working / verified:**
+- 792 tests pass in debug and release with no warnings (741 at the start). qmllint reports nothing new.
+- Grabs of Dave's KSAN → KSJC replay, expanded and collapsed:
+  - taxi out: the whole panel with the real values (13,439 lb, ZFW 112,967 lb, 44 passengers, cargo 2,420 lb as
+    1,075 forward and 1,345 aft, FL400 / 18,000, runway 27 at 275°, Dry, Calm, 19 °C, 30.09 inHg, ATIS L,
+    `PADRZ2 IKAYE` cleared, squawk 3166, 119.6, taxi `A, A7, B, B1`);
+  - cruise: the panel gone and the header collapsed to one row.
+  - Built still: `docs/images/dashboard-preflight-built.png`.
+- Collapsed, the panel fits above the fold in a 760 px window.
+
+**Unverified or broken:**
+- **The click that collapses and expands the header**, and the ini being written: there is no input in an offscreen
+  grab. Reading the ini is verified.
+- **Polling at the gate on a real flight**: the clearance should appear within a minute of the readback, before
+  pushback. Dave's older logs carry the clearance only from block out, so their replays show it from there.
+- **SayIntentions' wording** beyond the two fixtures, for example "climb and maintain", "radar vectors" or a foreign
+  ATIS. Missing pieces show a dash; fix from the log.
+- **Deferred minors from the review** (D-174: fix if they get in the way):
+  - after a settlement failure, or a restart mid-flight, the panel and the gate polling come back for the flight
+    just flown;
+  - with no SimBrief plan, a cleared SID is tagged CHANGED;
+  - a clearance with no `stamp_zulu` is dropped;
+  - the screw slot in `InstrumentPanel.qml` uses three literal sizes instead of Theme tokens;
+  - one `runwayTag` branch can't be reached.
+- `%LOCALAPPDATA%\BlockTime\catalog.yaml` still has the BCF estimates. Copy the repo's three hold lines there if
+  wanted (no BCF is leased).
+
+**What Dave should see (no sim needed):**
+1. Open BlockTime with a flight planned. The Pre-Flight panel is under the header: passengers right away, then block
+   fuel, ZFW, cargo by hold, FL and transition altitude once the SimBrief plan is imported. The runway and SID show
+   SimBrief's, tagged PLAN.
+2. Click the pill: the header shrinks to `KSAN ( pill ) KSJC`, the marker and one line. Click again to expand it.
+   Restart BlockTime: it opens the way you left it.
+3. Flights → KSAN → KSJC → Replay. At the gate the panel shows the plan. From block out it shows the clearance with
+   squawk 3166, then the taxi route. At liftoff it's gone.
+
+**On your next flight you should see:**
+- With the sim connected at the gate, the ATIS letter, wind, OAT and altimeter within a minute.
+- After the clearance readback, within a minute: the squawk, the departure frequency, `Climb via SID` and the
+  countdown (amber, red in the last 5 minutes).
+- If ATC changes the runway or the SID, the amber `PLAN …` flag.
+- After pushback, the countdown gone and the taxi route showing.
+- At liftoff, the panel gone.
+
+**Decisions for Dave:**
+- D-188 (Proposed), Claude's design calls:
+  - polling SayIntentions at the gate;
+  - the panel shows until liftoff;
+  - the runway order (ATC, then the ATIS, then the plan) and the heading from the plan's takeoff report;
+  - wind from the spoken ATIS;
+  - the plan's extras read from the stored OFP;
+  - the collapse remembered in an ini file.
+- D-190 (Proposed), smaller calls while building:
+  - tags on the readouts;
+  - the glow as a text outline;
+  - an instant collapse;
+  - cruise and transition altitude as two readouts;
+  - no hold split when SimBrief's cargo exceeds the holds.
+
+**Next step:**
+- Dave tries it (the steps above, then a real flight), confirms D-188 and D-190, and closes milestone 13: push `main`
+  (D-121). Then the brainstorm for the in-flight panels, the predictions and the frequencies (`roadmap.md`, "Then").
+
 ## 2026-11-26 — Milestone 13 planned: the Pre-Flight panel and the collapsing header (docs only)
 
 **Done:**

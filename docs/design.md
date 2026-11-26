@@ -431,6 +431,9 @@ Arrival starts at touchdown (D-184; until then Landing and Taxi in were under De
   lines below are still built (FlightStages) and the stored phase times are unchanged, but Live no longer lists them.
   The first stage is called **Pre-Flight** (was Pre-Departure). The bullets about the card below describe it as it
   was until milestone 12.
+- **Milestone 13 (D-153, D-187, D-188, D-189):** below the header, from planning until liftoff, the **Pre-Flight panel**
+  shows the load sheet, the departure conditions and the clearance in the instrument panel look (`docs/dashboard.md`,
+  "Pre-Flight panel (D-153)"). The header collapses to the pill bar with a click.
 - **Built in milestone 7** (D-128): Live's Flight progress card, from the recorder's events. "Landed" carries the
   landing runway and the touchdown rate.
 - **Milestone 9:**

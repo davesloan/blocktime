@@ -2985,3 +2985,27 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   ATIS's departing runway still replaces the plan's when they differ (D-153, D-188), before ATC names one.
 - Why: Dave sets up the FMC from the plan before calling for clearance; the panel only needs to flag what ATC changes.
 - Alternatives considered: no SID until the clearance comes (the plan's first draft).
+
+## D-190 — Milestone 13's smaller calls while building
+- Date: 2026-11-26
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision:
+  - **Tags on the readouts** say where a value came from: `PLAN`, `ATIS`, `ATC` or `CLEARED`, or an amber flag naming
+    the plan's value (`PLAN 27`, `PLAN PADRZ2`) when ATC or the ATIS changed it. The countdown's tag says `CALL FOR A
+    NEW ONE` in its last 5 minutes.
+  - **The glow** on the amber digits is a translucent text outline, not a shader blur: the software renderer the
+    offscreen grabs use draws nothing for shader layers, and a layer per readout costs GPU memory.
+  - **The collapse is instant**, with no height animation; the marker doesn't slide when the pill narrows.
+  - **The FMC line** is two readouts, CRUISE and TRANS ALT, as in the approved mockup. Cruise reads as a flight level
+    at or above the origin's transition altitude, else in feet.
+  - **Cargo over the holds' capacity** (holds that are still catalog estimates) shows SimBrief's total without the
+    split, since `splitHolds` assumes the cargo fits.
+  - **An interrupted flight resumes the gate's polling** (it's still planned, and Dave may push again); block in stops
+    it until the next leg is planned.
+  - **The load sheet** lives in `src/load_sheet.h`, apart from `plan_brief.h`, to keep `planned_flight.h` free of an
+    include cycle.
+- Why: Small choices with plausible alternatives, made while building to the approved mockup.
+- Alternatives considered: a MultiEffect glow (invisible in the grabs); a slide animation for the collapse; one FMC
+  text line (`FL400 · Trans alt 18,000`, the plan's first wording).

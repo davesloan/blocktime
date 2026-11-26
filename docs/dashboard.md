@@ -2,7 +2,7 @@
 
 The design for the **Live Flight Screen**, called **the dashboard** for short, from the brainstorm with Dave on
 2026-11-24. It is the first piece of "deepening the live flight" (`roadmap.md`, after the MVP) and replaces today's
-three-column Live (D-139) when it's built. The header and status lines are built (milestone 12, version 0.13.0); the panels below it aren't yet. Decisions D-150 to D-154 and D-179; built in milestones 12 and 13 (D-163), checked with replays
+three-column Live (D-139) when it's built. The header and status lines are built (milestone 12, version 0.13.0), and so are the Pre-Flight panel and the collapsing header (milestone 13, version 0.14.0); the in-flight panels aren't yet. Decisions D-150 to D-154 and D-179; built in milestones 12 and 13 (D-163), checked with replays
 (`replay.md`). Nothing on the dashboard reads the wall clock (D-166).
 
 Only the header, the pre-flight panel and the cruise draft are designed. The panels for departure, climb, descent,
@@ -366,6 +366,22 @@ in-flight panels' brainstorm. Until then, only the clearance's departure frequen
   and the destination code in one row, the marker with its label, and the current status line. It's remembered across
   restarts.
 
+**As built (milestone 13, 0.14.0):** to the approved mockup `images/dashboard-preflight-v1.html` (stills
+`images/dashboard-preflight-v1.png`, `-changed.png`), on Live and in the replay window; the app's own look at taxi with
+the header collapsed is `images/dashboard-preflight-built.png`.
+- Code: `PreFlightLog` (`src/preflight_log.h`: what the origin's ATC and ATIS said since planning, and the departure and
+  clearance views), `loadSheet` (`src/load_sheet.h`), `parsePlanBrief` (`src/plan_brief.h`: the OFP's SID,
+  transition, ZFW, cargo and takeoff runways), the ATC readers (`src/atc_message.h`, D-168; `src/clearance.h`), the
+  condition readers (`src/departure_conditions.h`), `PreFlightModel` and `qml/PreFlightPanel.qml`, with
+  `qml/InstrumentPanel.qml` and `qml/Readout.qml` ready for the in-flight panels.
+- Each readout's tag says where a value came from: `PLAN`, `ATIS`, `ATC` or `CLEARED`, or an amber flag `PLAN 27` /
+  `PLAN PADRZ2` when ATC or the ATIS changed the plan's (D-189). The countdown says `CALL FOR A NEW ONE` in its last 5
+  minutes.
+- The readouts' glow is a translucent outline, not a blur: it draws on every renderer, including the software one the
+  offscreen grabs use.
+- In logs from before 0.14.0 the clearance was logged at block out, so a replay of an older flight shows it only from
+  block out.
+
 ### Cruise (draft)
 
 Altitude, ground speed (with IAS), top of descent (distance and local time), fuel against plan, the frequency now, and
@@ -397,7 +413,8 @@ page switches to the summary at block in (D-134, `design.md` section 13.7); this
 - **The header on a summary** (Dave, 2026-11-26, for later): once the flight is over, the pill and the status lines
   may be better gone from the header entirely, leaving the identity row and the coloured arc above the Flight
   Summary. Not decided; revisit with the summary panel.
-- How it fits on Dave's screen at the gate: if the header pushes the pre-flight cards below the fold, the arc could
-  shrink before block out.
+- ~~How it fits on Dave's screen at the gate~~: answered by the collapsing header (D-187, milestone 13). Collapsed, the
+  Pre-Flight panel fits above the fold on a 760 px window.
+
 - Docs to change when it's built: `design.md` section 13.5 (stage name, the progress card) and 13.7 (block in), and
   D-134, D-135 and D-139, which these supersede in part.

@@ -283,7 +283,9 @@ For the flight analysis (D-040). None of it can be fetched after the flight, so 
 - **At the gate (milestone 13, D-188):** while a flight is planned, the sim is connected and no flight is open, the
   ATC log and the origin's ATIS are polled the same way, logged with `flight_id` "", so the Pre-Flight panel has the
   clearance before pushback. Block out logs the whole history and the ATIS again with the flight id, so the debrief
-  keeps them even when the clearance came more than 30 minutes before block out.
+  keeps them even when the clearance came more than 30 minutes before block out. Starting the gate's polling (a new
+  leg planned, or after an interrupt) logs the history and the origin's ATIS again too: a turnaround's origin is the
+  last leg's destination, whose ATIS letter is often unchanged since the descent.
 - **Altimeter:** `KOHLSMAN SETTING MB:1/2` and `KOHLSMAN SETTING STD:1/2`, change-based. PMDG's SDK has no baro value.
   Whether PMDG drives these SimVars is checked first (`docs/notes/probe-flight.md`).
 - **Ownership:** the web calls are the app's (the recorder reports sim facts), but the results go into the same event
