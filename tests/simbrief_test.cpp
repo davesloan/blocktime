@@ -8,6 +8,7 @@
 
 #include <gtest/gtest.h>
 
+#include "geo.h"
 #include "simbrief.h"
 
 using namespace blocktime;
@@ -158,4 +159,25 @@ TEST(SimBrief, RouteWithRunways) {  // what Navigraph Charts takes: KBFI/14R ..r
     EXPECT_EQ(routeWithRunways(p), "KBFI/14R DCT KSAN");
     p.route.clear();
     EXPECT_EQ(routeWithRunways(p), "KBFI/14R KSAN");
+}
+
+TEST(Simbrief, NavlogFromStoredPlan) {
+    const std::vector<RoutePoint> route = parseNavlog(fixture("ofp-ksan-ksjc-navlog.json"));
+    ASSERT_GT(route.size(), 3u);
+    constexpr double kNm = 1852.0;
+    EXPECT_LT(distanceMeters(route.front().lat, route.front().lon, 32.73, -117.19) / kNm, 30);
+    EXPECT_LT(distanceMeters(route.back().lat, route.back().lon, 37.36, -121.93) / kNm, 30);
+}
+
+TEST(Simbrief, NavlogUnderFix) {
+    const auto route = parseNavlog(R"({"navlog":{"fix":[{"pos_lat":"1.5","pos_long":"2.5"}]}})");
+    ASSERT_EQ(route.size(), 1u);
+    EXPECT_DOUBLE_EQ(route[0].lat, 1.5);
+    EXPECT_DOUBLE_EQ(route[0].lon, 2.5);
+}
+
+TEST(Simbrief, NavlogMissingIsEmpty) {
+    EXPECT_TRUE(parseNavlog("{}").empty());
+    EXPECT_TRUE(parseNavlog("not json").empty());
+    EXPECT_TRUE(parseNavlog(R"({"navlog":[{"pos_lat":"x","pos_long":"2"}]})").empty());
 }

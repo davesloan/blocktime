@@ -11,6 +11,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace blocktime {
 
@@ -33,6 +34,15 @@ struct SimbriefPlan {
     int cruiseAltitudeFt = 0, estBlockS = 0, rampFuelLb = 0, enrouteBurnLb = 0, estLandingWeightLb = 0,
         originTransitionAltitudeFt = 0, destinationTransitionLevelFt = 0;
 };
+
+// A point on the planned route, in degrees.
+struct RoutePoint {
+    double lat = 0, lon = 0;
+};
+
+// The fixes of a plan's navlog, in order (D-182). Dave's stored plans have `navlog` as an array of fixes; `{"fix":
+// [...]}` is read too. Fixes whose position doesn't parse are skipped; no navlog or bad JSON gives none.
+std::vector<RoutePoint> parseNavlog(std::string_view ofpJson);
 
 // Reads the fields BlockTime uses. On failure, *error is SimBrief's own status ("Error: Unknown UserID"), "SimBrief
 // plan has no <path>", or "SimBrief's answer wasn't a plan".

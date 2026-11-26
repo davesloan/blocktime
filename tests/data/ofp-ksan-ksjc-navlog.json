@@ -1,0 +1,115 @@
+{
+  "destination": {
+    "icao_code": "KSJC"
+  },
+  "general": {
+    "initial_altitude": "40000"
+  },
+  "navlog": [
+    {
+      "ident": "WNFLD",
+      "pos_lat": "32.798008",
+      "pos_long": "-117.315969",
+      "stage": "CLB"
+    },
+    {
+      "ident": "KERNL",
+      "pos_lat": "32.929667",
+      "pos_long": "-117.520306",
+      "stage": "CLB"
+    },
+    {
+      "ident": "GYWNN",
+      "pos_lat": "33.063456",
+      "pos_long": "-117.729231",
+      "stage": "CLB"
+    },
+    {
+      "ident": "PADRZ",
+      "pos_lat": "33.193889",
+      "pos_long": "-117.861944",
+      "stage": "CLB"
+    },
+    {
+      "ident": "IKAYE",
+      "pos_lat": "34.143056",
+      "pos_long": "-119.010278",
+      "stage": "CLB"
+    },
+    {
+      "ident": "TOC",
+      "pos_lat": "34.190529",
+      "pos_long": "-119.066769",
+      "stage": "CLB"
+    },
+    {
+      "ident": "TESEA",
+      "pos_lat": "35.171919",
+      "pos_long": "-120.256353",
+      "stage": "CRZ"
+    },
+    {
+      "ident": "SCTRR",
+      "pos_lat": "35.526608",
+      "pos_long": "-120.581858",
+      "stage": "CRZ"
+    },
+    {
+      "ident": "TOD",
+      "pos_lat": "35.863519",
+      "pos_long": "-120.846736",
+      "stage": "CRZ"
+    },
+    {
+      "ident": "TROXX",
+      "pos_lat": "36.008081",
+      "pos_long": "-120.961222",
+      "stage": "DSC"
+    },
+    {
+      "ident": "SILCN",
+      "pos_lat": "36.353644",
+      "pos_long": "-121.290786",
+      "stage": "DSC"
+    },
+    {
+      "ident": "VLLEY",
+      "pos_lat": "36.498853",
+      "pos_long": "-121.430831",
+      "stage": "DSC"
+    },
+    {
+      "ident": "GUUYY",
+      "pos_lat": "36.737000",
+      "pos_long": "-121.531403",
+      "stage": "DSC"
+    },
+    {
+      "ident": "WLSSN",
+      "pos_lat": "36.925028",
+      "pos_long": "-121.611369",
+      "stage": "DSC"
+    },
+    {
+      "ident": "GSTEE",
+      "pos_lat": "37.062486",
+      "pos_long": "-121.669731",
+      "stage": "DSC"
+    },
+    {
+      "ident": "KLIDE",
+      "pos_lat": "37.164175",
+      "pos_long": "-121.713050",
+      "stage": "DSC"
+    },
+    {
+      "ident": "KSJC",
+      "pos_lat": "37.362994",
+      "pos_long": "-121.928619",
+      "stage": "DSC"
+    }
+  ],
+  "origin": {
+    "icao_code": "KSAN"
+  }
+}

@@ -252,9 +252,12 @@ std::optional<PlannedFlightView> readFlightView(db::Database& db, const ViewTabl
                        std::string("SELECT request_id, generated_at, route, origin_runway, destination_runway,"
                                    " cruise_altitude_ft, est_block_s, ramp_fuel_lb, enroute_burn_lb,"
                                    " est_landing_weight_lb, origin_transition_altitude_ft,"
-                                   " destination_transition_level_ft FROM ") + t.plan + " WHERE " + t.key + " = ?");
+                                   " destination_transition_level_ft, ofp_json FROM ") + t.plan + " WHERE " + t.key +
+                           " = ?");
     plan.bind(1, v.id);
+    v.route.push_back({q.real(18), q.real(19)});
     if (plan.next()) {
+        for (const RoutePoint& p : parseNavlog(plan.text(12))) v.route.push_back(p);
         SimbriefPlan p;
         p.requestId = plan.text(0);
         p.generatedAt = plan.text(1);
@@ -274,6 +277,7 @@ std::optional<PlannedFlightView> readFlightView(db::Database& db, const ViewTabl
         p.units = "lbs";
         v.plan = p;
     }
+    v.route.push_back({q.real(20), q.real(21)});
     return v;
 }
 

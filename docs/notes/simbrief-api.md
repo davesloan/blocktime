@@ -66,3 +66,11 @@ All values are strings, in the OFP's units (`params.units`, `lbs` or `kgs`).
 The fixture has `params.user_id` 857341 but `aircraft.internal_id` `80_1722530034323`, so the first part of an
 airframe id isn't reliably the pilot's id (it may have been a copied airframe). The second part looks like a creation
 time in Unix milliseconds. BlockTime takes the pilot id from settings, never from the airframe id.
+
+## The navlog (milestone 12, D-182)
+
+The dashboard's route arc follows the plan's navlog. In the OFPs BlockTime stores (`ofp_json`), `navlog` is an
+**array of fixes**; SimBrief's documentation shows `navlog.fix`, so `parseNavlog` reads both. Each fix has `ident`,
+`pos_lat` and `pos_long` (strings, degrees), `stage` (`CLB`, `CRZ`, `DSC`), and more that BlockTime doesn't read. The
+list includes the `TOC` and `TOD` pseudo-fixes and ends with the destination airport itself (KSAN → KSJC, 17 fixes:
+`tests/data/ofp-ksan-ksjc-navlog.json`, cut down to those four fields).

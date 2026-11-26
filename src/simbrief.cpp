@@ -61,6 +61,19 @@ std::optional<std::chrono::sys_seconds> instant(const std::string& s) {
     return t;
 }
 
+// A navlog position: a string ("32.798008") or a number.
+std::optional<double> degrees(const json& fix, const char* key) {
+    const auto f = fix.find(key);
+    if (f == fix.end()) return std::nullopt;
+    if (f->is_number()) return f->get<double>();
+    if (!f->is_string()) return std::nullopt;
+    const std::string& s = f->get_ref<const std::string&>();
+    double value = 0;
+    const auto [end, ec] = std::from_chars(s.data(), s.data() + s.size(), value);
+    if (ec != std::errc() || end != s.data() + s.size()) return std::nullopt;
+    return value;
+}
+
 }  // namespace
 
 std::string dispatchUrl(const DispatchRequest& r) {
@@ -75,6 +88,27 @@ std::string dispatchUrl(const DispatchRequest& r) {
 
 std::string ofpFetchUrl(std::string_view userId) {
     return "https://www.simbrief.com/api/xml.fetcher.php?userid=" + percentEncode(userId) + "&json=v2&client=BlockTime";
+}
+
+std::vector<RoutePoint> parseNavlog(std::string_view ofpJson) {
+    const json root = json::parse(ofpJson, nullptr, false);
+    std::vector<RoutePoint> out;
+    if (!root.is_object()) return out;
+    const auto nav = root.find("navlog");
+    if (nav == root.end()) return out;
+    const json* fixes = &*nav;
+    if (nav->is_object()) {
+        const auto f = nav->find("fix");
+        if (f == nav->end()) return out;
+        fixes = &*f;
+    }
+    if (!fixes->is_array()) return out;
+    for (const json& fix : *fixes) {
+        if (!fix.is_object()) continue;
+        const auto lat = degrees(fix, "pos_lat"), lon = degrees(fix, "pos_long");
+        if (lat && lon) out.push_back({*lat, *lon});
+    }
+    return out;
 }
 
 std::optional<SimbriefPlan> parseOfp(std::string_view body, std::string* error) {

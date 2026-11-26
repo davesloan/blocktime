@@ -283,3 +283,22 @@ TEST(Planned, ViewHasCities) {
     EXPECT_EQ(f->originCity, "Boeing Field");  // no city: the airport's name
     EXPECT_EQ(f->destinationCity, "San Diego");
 }
+
+TEST(Planned, ViewHasRoute) {
+    db::Database db = test::testAirline();
+    std::string error;
+    const auto id = createPlannedFlight(db, vipToKsan(db), &error);
+    ASSERT_TRUE(id.has_value()) << error;
+    auto f = currentPlannedFlight(db);
+    ASSERT_EQ(f->route.size(), 2u);  // no plan: the two airports
+    EXPECT_NEAR(f->route[0].lat, 47.53, 1e-6);
+    EXPECT_NEAR(f->route[1].lat, 32.7336, 1e-6);
+
+    const std::string ofp = R"({"navlog":[{"pos_lat":"45.0","pos_long":"-121.0"},{"pos_lat":"40.0","pos_long":"-119.0"}]})";
+    ASSERT_TRUE(storeSimbriefPlan(db, *id, fixturePlan(), ofp, "2026-11-23T14:05:00Z", &error)) << error;
+    f = currentPlannedFlight(db);
+    ASSERT_EQ(f->route.size(), 4u);  // origin, two fixes, destination
+    EXPECT_NEAR(f->route[1].lat, 45.0, 1e-6);
+    EXPECT_NEAR(f->route[2].lon, -119.0, 1e-6);
+    EXPECT_NEAR(f->route[3].lon, -117.19, 1e-6);
+}

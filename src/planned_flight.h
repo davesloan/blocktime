@@ -88,6 +88,8 @@ struct PlannedFlightView {
     // Where the airplane last parked ("Gate E7"), if its latest flight ended at this origin; "" otherwise (D-148).
     std::string loadInParking;
     std::optional<SimbriefPlan> plan;
+    // The origin, the plan's navlog fixes, then the destination; only the two airports without a plan (D-182).
+    std::vector<RoutePoint> route;
 };
 
 std::optional<PlannedFlightView> currentPlannedFlight(db::Database& db);
