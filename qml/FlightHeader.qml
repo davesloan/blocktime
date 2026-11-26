@@ -5,13 +5,16 @@
 // The dashboard's header (docs/dashboard.md, D-151, D-152, D-180, D-182, D-184; mockup docs/images/
 // dashboard-header-v2.html): the flight and the airline with the block clock, a flat arc between the two airplanes
 // coloured by altitude, the phase pill with its marker, and three status lines, with the shutdown checklist after block
-// in. Data from DashboardHeader (the flight) and RecorderBridge (the lines, checklist, pill and marker).
+// in. Data from DashboardHeader (the flight) and RecorderBridge (the lines, checklist, pill and marker). A click on the
+// pill or the marker collapses it to the pill with the airports beside it and the current line (D-187), remembered in
+// %LOCALAPPDATA%\BlockTime\BlockTime.ini.
 
 pragma ComponentBehavior: Bound
 
 import QtQuick
 import BlockTime  // explicit, so hot reload from the source folder still sees the module (D-055)
 import QtQuick.Layouts
+import QtCore
 
 Rectangle {
     id: card
@@ -19,11 +22,25 @@ Rectangle {
     required property DashboardHeader header
     required property RecorderBridge recorder
 
+    // Collapsed (D-187): the pill with the airports' codes beside it, the marker, and only the current status line.
+    property bool collapsed: false
+    // Room beside the pill for the codes when collapsed; the marker row takes the same margins, so it stays aligned.
+    readonly property real codeSpace: collapsed
+                                      ? Math.max(originCode.implicitWidth, destinationCode.implicitWidth) + Theme.gap14
+                                      : 0
+    readonly property int padTop: collapsed ? Theme.gap14 : Theme.headerPadding
+    readonly property int padBottom: collapsed ? Theme.gap10 : Theme.headerPadding
+
     color: Theme.surface
     radius: Theme.radius
     border.color: Theme.border
     border.width: Theme.borderWidth
-    implicitHeight: column.implicitHeight + 2 * Theme.headerPadding
+    implicitHeight: column.implicitHeight + padTop + padBottom
+
+    Settings {
+        category: "dashboard"
+        property alias headerCollapsed: card.collapsed
+    }
 
     // A share of the plan's cruise altitude (0..1) as the arc's colour, fading between Theme's four stops.
     function arcColor(share: real): color {
@@ -40,13 +57,17 @@ Rectangle {
         id: column
 
         anchors.fill: parent
-        anchors.margins: Theme.headerPadding
+        anchors.leftMargin: Theme.headerPadding
+        anchors.rightMargin: Theme.headerPadding
+        anchors.topMargin: card.padTop
+        anchors.bottomMargin: card.padBottom
         spacing: 0
 
         // 1. The airline with the flight and the clock level with it, the airports, and the arc between the airplanes.
         Item {
             id: top
 
+            visible: !card.collapsed
             Layout.fillWidth: true
             implicitHeight: Theme.headerTopHeight
 
@@ -289,6 +310,8 @@ Rectangle {
 
             Layout.fillWidth: true
             Layout.topMargin: Theme.gap4
+            Layout.leftMargin: card.codeSpace
+            Layout.rightMargin: card.codeSpace
             Layout.preferredHeight: Theme.phasePillHeight
             spacing: Theme.phasePillGap
 
@@ -357,6 +380,8 @@ Rectangle {
 
             Layout.fillWidth: true
             Layout.topMargin: -Theme.pillMarkerOverlap
+            Layout.leftMargin: card.codeSpace
+            Layout.rightMargin: card.codeSpace
             implicitHeight: Theme.pillMarkerRowHeight
             Component.onCompleted: Qt.callLater(() => markerRow.ready = true)
 
@@ -487,8 +512,10 @@ Rectangle {
             }
 
             Layout.fillWidth: true
-            Layout.topMargin: Theme.gap6
-            implicitHeight: Theme.statusBlockHeight
+            Layout.topMargin: card.collapsed ? 0 : Theme.gap6
+            // Collapsed, only the current line's slot shows.
+            implicitHeight: card.collapsed ? Theme.statusCollapsedHeight : Theme.statusBlockHeight
+            clip: card.collapsed
             onSourceChanged: Qt.callLater(status.sync)  // a burst (a replay seek) becomes one rebuild
             Component.onCompleted: sync()
 
@@ -578,7 +605,7 @@ Rectangle {
         Row {
             Layout.alignment: Qt.AlignHCenter
             Layout.topMargin: Theme.gap6
-            visible: card.recorder.checklist.length > 0
+            visible: !card.collapsed && card.recorder.checklist.length > 0
             spacing: Theme.spacing
 
             Repeater {
@@ -596,5 +623,37 @@ Rectangle {
                 }
             }
         }
+    }
+
+    // Collapsed: the airports' codes level with the pill, at the card's edges.
+    component PillCode: Text {
+        y: column.y + pill.y + (pill.height - height) / 2
+        visible: card.collapsed
+        color: Theme.textPrimary
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSizeCollapsedCode
+        font.weight: Font.Bold
+    }
+    PillCode {
+        id: originCode
+
+        x: column.x
+        text: card.header.originIcao
+    }
+    PillCode {
+        id: destinationCode
+
+        x: column.x + column.width - width
+        text: card.header.destinationIcao
+    }
+
+    // A click anywhere on the pill or its marker collapses or expands the header (D-187).
+    MouseArea {
+        x: column.x + pill.x
+        y: column.y + pill.y
+        width: pill.width
+        height: markerRow.y + markerRow.height - pill.y
+        cursorShape: Qt.PointingHandCursor
+        onClicked: card.collapsed = !card.collapsed
     }
 }

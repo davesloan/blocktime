@@ -16,6 +16,7 @@
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
 #include <QQuickStyle>
+#include <QSettings>
 #include <QStringList>
 #include <QStyleHints>
 #include <QTimer>
@@ -294,6 +295,12 @@ int main(int argc, char* argv[]) {
     QGuiApplication app(argc, argv);
     QGuiApplication::setApplicationName("BlockTime");
     QGuiApplication::setApplicationVersion(BLOCKTIME_VERSION);
+    // QML's own preferences (the dashboard header collapsed, D-187) in %LOCALAPPDATA%\BlockTime\BlockTime.ini, next to
+    // the rest of BlockTime's data rather than in the registry (D-188).
+    QGuiApplication::setOrganizationName("BlockTime");
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                       QString::fromStdWString(blocktime::defaultSettingsFile().parent_path().parent_path().wstring()));
     // Dark only: this also gives the window a dark Windows title bar (D-054).
     QGuiApplication::styleHints()->setColorScheme(Qt::ColorScheme::Dark);
 

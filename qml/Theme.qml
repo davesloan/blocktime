@@ -133,6 +133,8 @@ QtObject {
     readonly property int statusLeaveY: 70               // where the oldest fades out
     readonly property int fontSizeStatusLeaving: 11      // the newest is fontSizeStatus, then fontSizeFeed, fontSizeSmall
     readonly property int statusEnterY: -12
+    readonly property int statusCollapsedHeight: 26     // the collapsed header's one line (D-187)
+    readonly property int fontSizeCollapsedCode: 22     // "KSAN" beside the collapsed pill
     readonly property int statusEnterAngle: 80          // rolled back about its top edge as it comes in
     // Animations: short and only on a change (no continuous animation, CLAUDE.md).
     readonly property int statusRollMs: 600
