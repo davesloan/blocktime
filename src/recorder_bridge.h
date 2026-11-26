@@ -61,7 +61,7 @@ class RecorderBridge : public QObject {
     Q_PROPERTY(QVariantList stages READ stages NOTIFY stagesChanged)
     Q_PROPERTY(QString phase READ phase NOTIFY stagesChanged)
     // The stages show the flight from block out until showNextLeg() (the summary was dismissed), else the next leg,
-    // whose Pre-Departure has the GSX services so far (D-134).
+    // whose Pre-Flight has the GSX services so far (D-134).
     Q_PROPERTY(bool showingFlight READ showingFlight NOTIFY stagesChanged)
     Q_PROPERTY(bool hasNextLegServices READ hasNextLegServices NOTIFY stagesChanged)
 

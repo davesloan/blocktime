@@ -7,7 +7,7 @@
 // stage lists its sub-events with their start and end times. Arrival's gate comes with milestone 9.
 //
 // Milestone 8 (D-134..D-136, D-138): GSX's services, through a GsxTimeline fed gsx_service, block and sim session
-// events. Until block out the view is the next leg: Pre-Departure with the services so far. From block out (or the
+// events. Until block out the view is the next leg: Pre-Flight with the services so far. From block out (or the
 // first phase) until showNextLeg() the view is the flight: the services it took at block out, then its deboarding
 // and "Ready for shutdown or turnaround" with the shutdown checklist.
 
@@ -64,9 +64,11 @@ public:
     bool showingFlight() const { return showingFlight_; }
     bool hasNextLegServices() const { return !gsx_.nextLeg().empty(); }
 
-    std::vector<StageView> view() const;  // always six; before any event, Pre-Departure is Current
+    std::vector<StageView> view() const;  // always six; before any event, Pre-Flight is Current
     // The phase with its sub-state: "Climb — level at 11,000 ft", "Cruise — step climb"; "" before block out.
     std::string phaseLabel() const;
+    // The recorder's current phase code ("taxi_out"); "" before block out. The pill's divisions (D-182).
+    const std::string& phase() const { return phase_; }
 
 private:
     struct Line {

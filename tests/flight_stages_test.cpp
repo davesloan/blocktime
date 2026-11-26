@@ -35,7 +35,7 @@ TEST(FlightStages, SixStagesBeforeAnything) {
     FlightStages s;
     const auto v = s.view();
     ASSERT_EQ(v.size(), 6u);
-    const std::vector<std::string> names{"Pre-Departure", "Departure", "Climb", "Cruise", "Descent", "Arrival"};
+    const std::vector<std::string> names{"Pre-Flight", "Departure", "Climb", "Cruise", "Descent", "Arrival"};
     for (std::size_t i = 0; i < 6; ++i) {
         EXPECT_EQ(v[i].name, names[i]);
         EXPECT_TRUE(v[i].lines.empty());

@@ -14,7 +14,7 @@ namespace blocktime {
 
 namespace {
 
-constexpr const char* kStageNames[] = {"Pre-Departure", "Departure", "Climb", "Cruise", "Descent", "Arrival"};
+constexpr const char* kStageNames[] = {"Pre-Flight", "Departure", "Climb", "Cruise", "Descent", "Arrival"};
 
 Stage stageOf(std::string_view phase) {
     if (phase == "pushback" || phase == "taxi_out" || phase == "takeoff") return Stage::Departure;
