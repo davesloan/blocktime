@@ -100,6 +100,7 @@ private:
 
     std::optional<blocktime::PlannedFlightView> flight_;
     std::string flightKey_;  // what makes it a different flight
+    bool settledBefore_ = false;  // a summary read from the database at startup: no block events this session
     blocktime::RouteProgress progress_{{}};
     blocktime::AltitudeArc arc_;
     bool airborne_ = false;  // from liftoff to block in

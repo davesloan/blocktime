@@ -55,15 +55,24 @@ DashboardHeader::DashboardHeader(RecorderBridge& bridge, PlannedFlightDisplay& p
 
 void DashboardHeader::refreshFlight() {
     std::optional<PlannedFlightView> next = planned_.view();
-    if (!next && planned_.state() == "summary") {
-        // The flight just settled is the one already held; at startup it comes from the database.
-        if (!flight_ && settledFlight_) next = settledFlight_(planned_.summaryFlightId());
-        else next = flight_;
+    bool settledBefore = false;  // a summary from the database: this session saw none of its block events
+    if (!next) {
+        // No flight on show: settling (PlannedFlightModel reloads before it sets the summary), the summary itself, or
+        // nothing planned. The flight held stays (visible() hides it); only a different flight replaces it. At startup
+        // with a summary showing, it comes from the database.
+        if (flight_ || planned_.state() != "summary" || !settledFlight_) {
+            updateTimer();
+            emit changed();
+            return;
+        }
+        next = settledFlight_(planned_.summaryFlightId());
+        settledBefore = next.has_value();
     }
     const std::string key = keyOf(next);
     if (key != flightKey_) {
         flightKey_ = key;
         flight_ = std::move(next);
+        settledBefore_ = settledBefore;
         progress_ = RouteProgress(flight_ ? flight_->route : std::vector<RoutePoint>{});
         arc_.reset();
         airborne_ = false;
@@ -71,6 +80,7 @@ void DashboardHeader::refreshFlight() {
         liftoffRunway_.clear();
         arrivalGate_.clear();
         parking_.clear();
+        if (settledBefore_) progress_.finish();  // its summary: the whole route was flown
         StatusContext c;
         if (flight_) {
             c.destinationCity = flight_->destinationCity;
@@ -89,6 +99,7 @@ void DashboardHeader::refreshFlight() {
 }
 
 void DashboardHeader::resetFlight() {
+    settledBefore_ = false;
     progress_.reset();
     arc_.reset();
     airborne_ = false;
@@ -154,7 +165,9 @@ QString DashboardHeader::citiesText() const {
     return flight_ ? q(flight_->originCity) + " to " + q(flight_->destinationCity) : QString();
 }
 
-bool DashboardHeader::clockIsPlan() const { return !bridge_.flightOpen() && !blockIn_.isValid(); }
+bool DashboardHeader::clockIsPlan() const {
+    return !bridge_.flightOpen() && !blockIn_.isValid() && !settledBefore_;
+}
 
 QString DashboardHeader::clockText() const {
     const QDateTime out = bridge_.blockOutTime();
@@ -163,6 +176,7 @@ QString DashboardHeader::clockText() const {
         return q(durationText(std::chrono::seconds(s), true));
     }
     if (blockIn_.isValid() && out.isValid()) return q(durationText(std::chrono::seconds(out.secsTo(blockIn_)), false));
+    if (settledBefore_) return QStringLiteral("--:--");  // no block events this session
     return planBlockS() > 0 ? q(durationText(std::chrono::seconds(planBlockS()), false)) : QStringLiteral("--:--");
 }
 
@@ -173,6 +187,7 @@ QString DashboardHeader::blockOutText() const {
 
 QString DashboardHeader::blockInText() const {
     if (blockIn_.isValid()) return localText(blockIn_);
+    if (settledBefore_) return QStringLiteral("--:--");
     std::optional<TimePoint> out;
     if (bridge_.flightOpen() && bridge_.blockOutTime().isValid()) {
         out = TimePoint(std::chrono::milliseconds(bridge_.blockOutTime().toMSecsSinceEpoch()));

@@ -2262,6 +2262,12 @@ TEST(DashboardHeader, SummaryAtStartupUsesSettledFlight) {
     EXPECT_EQ(asked, kHeaderFlight);
     EXPECT_TRUE(h.visible());
     EXPECT_EQ(h.citiesText(), "San Diego to Las Vegas");
+    // Settled before this session: no block events, so no clock or times, and the whole route flown (review finding 2).
+    EXPECT_FALSE(h.clockIsPlan());
+    EXPECT_EQ(h.clockText(), "--:--");
+    EXPECT_EQ(h.blockOutText(), "--:--");
+    EXPECT_EQ(h.blockInText(), "--:--");
+    EXPECT_DOUBLE_EQ(h.progress(), 1.0);
 }
 
 TEST(DashboardHeader, InterruptResetsTheArc) {
@@ -2313,4 +2319,55 @@ TEST(ReplaySession, BlockInPlaysWhatCameWithIt) {
     EXPECT_TRUE(r.finished());
     EXPECT_EQ(r.bridge()->pill()[5].toMap()["state"].toString(), "current");
     EXPECT_EQ(r.bridge()->pill()[4].toMap()["state"].toString(), "done");
+}
+
+namespace {
+
+// The real PlannedFlightModel's order at settling: reload() empties the flight (state "") before the summary id is
+// set; ReplayPlannedFlight goes to the summary in one step.
+class SettlingDisplay : public PlannedFlightDisplay {
+public:
+    explicit SettlingDisplay(PlannedFlightView v) : PlannedFlightDisplay("XLY", true, nullptr) { flight_ = std::move(v); }
+    QString state() const override {
+        if (!summaryFlightId_.isEmpty()) return QStringLiteral("summary");
+        return flight_ ? QStringLiteral("flying") : QString();
+    }
+    void settle(const QString& id) {
+        flight_.reset();
+        emit changed();  // reload()
+        summaryFlightId_ = id;
+        emit changed();
+    }
+};
+
+}  // namespace
+
+TEST(DashboardHeader, SettlingKeepsTheFlight) {
+    qtApp();
+    RecorderBridge b;
+    SettlingDisplay f(headerView());
+    DashboardHeader h(b, f, "XLY", "Soxxly Airlines", noSettledFlight());
+    BlockOut out;
+    out.flightId = kHeaderFlight;
+    out.time = *parseUtc(kHeaderFlight);
+    b.applyBlockEvent(out);
+    b.applyFlightEvent("liftoff", {{"time", "2026-11-25T20:31:00Z"}, {"runway", "27"}});
+    TelemetrySample s{};
+    s.latitudeDeg = 34.4;
+    s.longitudeDeg = -116.17;
+    s.indicatedAltitudeFt = 33000;
+    b.applySample(s);
+    BlockIn in;
+    in.flightId = kHeaderFlight;
+    in.time = out.time + std::chrono::hours(1);
+    in.parking = "Gate C11";
+    b.applyBlockEvent(in);
+    f.settle(kHeaderFlight);  // the model settles after the bridge's block in, as in the app
+    EXPECT_TRUE(h.visible());
+    EXPECT_TRUE(h.originLine().startsWith("Off ")) << h.originLine().toStdString();
+    EXPECT_DOUBLE_EQ(h.progress(), 1.0);
+    const QVariantList shares = h.arcShares();
+    EXPECT_TRUE(std::any_of(shares.begin(), shares.end(), [](const QVariant& v) { return v.toDouble() >= 0; }));
+    EXPECT_EQ(h.destinationLine(), "Gate C11");
+    EXPECT_FALSE(h.clockIsPlan());
 }
