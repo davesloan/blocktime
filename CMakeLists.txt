@@ -112,7 +112,8 @@ add_library(blocktime-core STATIC
   src/debrief_store.cpp
   src/debrief_review.cpp
   src/atc_message.cpp
-  src/clearance.cpp)
+  src/clearance.cpp
+  src/departure_conditions.cpp)
 target_include_directories(blocktime-core PUBLIC src)
 find_package(yaml-cpp CONFIG REQUIRED)
 target_link_libraries(blocktime-core PUBLIC blocktime-options nlohmann_json::nlohmann_json unofficial::sqlite3::sqlite3
@@ -216,7 +217,8 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/debrief_score_test.cpp
     tests/debrief_review_test.cpp
     tests/atc_message_test.cpp
-    tests/clearance_test.cpp)
+    tests/clearance_test.cpp
+    tests/departure_conditions_test.cpp)
   target_link_libraries(blocktime-tests PRIVATE blocktime-core GTest::gtest_main)
   # Tests read the repo's config files (config/catalog.yaml, config/airline.example.yaml).
   target_compile_definitions(blocktime-tests PRIVATE BLOCKTIME_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
