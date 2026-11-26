@@ -396,6 +396,10 @@ Designed with Dave on 2026-11-26 from the mockup `images/dashboard-inflight-v1.h
 of the KSAN → KSJC leg. ATC's words in it are real; the times, gauge values and the lamps left wrong are made up. Dave
 approved its direction. What changed after it is marked **(after v1)** below, so milestone 14 starts with a v2 mockup.
 
+**Approved: mockup v2** (`images/dashboard-inflight-v2.html`, stills `images/dashboard-inflight-v2.png`, `-approach.png`,
+`-final.png`; Dave, 2026-11-26, D-203). It is laid out for Live at the smallest window (1100 × 760, so 900 px beside the
+sidebar). What v2 changed is folded into the sections below and marked **(v2)**.
+
 **Why.** Two different readers:
 - **The panel is Dave's.** In flight he wants to know what to set in the MCP altitude window ("I never know what to
   set when they say climb via the SID"), what ATC last cleared him for, which switch the debrief will mark down, and
@@ -432,17 +436,23 @@ One inset panel (D-179), top to bottom:
 │   (BEACON) (STROBE) (LANDING) (SEAT BELTS) (APU) (ALT STD) (GEAR DN)            │
 │ ─────────────────────────────────────────────────────────────────────────────── │
 │   [ SPEED ]        [ ALTITUDE ]       [ VERTICAL SPEED ]     [ FUEL ]           │
-│                                                                                 │
-│   ATC                                   <PHASE>                                 │
-│   [ ALTITUDE      ] [ ROUTE / HEADING ] [ readout ] [ readout ]                 │
-│   [ SPEED         ] [ APPROACH        ] [ readout ] [ readout ]  (…)            │
+│   ATC                                                                           │
+│   [ ALTITUDE       ] [ ROUTE / HEADING ] [ SPEED ] [ APPROACH       ]           │
+│   <PHASE>                                                                       │
+│   [ SOULS ] [ FUEL REMAINING ] [ readout ] [ readout ]                          │
+│   [ readout ] [ readout ] …  (four a row)                                       │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- The lamp strip across the top, the four gauges under it, then the ATC card on the left and the phase's readouts on
-  the right, each a 2-column grid of radio-stack readouts (`qml/Readout.qml`).
-- **(after v1)** The arrival ATIS needs seven readouts (below), so the readout block must hold more than v1's four:
-  how is the v2 mockup's call. With the header collapsed, the panel should fit a 760 px window as Pre-Flight does.
+- **(v2)** The lamp strip across the top, the four gauges under it, the ATC card across the panel, then the phase's
+  readouts under it, four a row (APPROACHES takes two). Side by side, the 900 px panel cut off "DESCEND VIA SILCN6".
+- **(v2)** The ATC card's columns are uneven (ALTITUDE and APPROACH wide, SPEED narrow). Before the takeoff roll
+  ALTITUDE and ROUTE stand where they will be airborne and TAXI takes the APPROACH column, with SPEED's place empty.
+  After touchdown TAXI and HOLD SHORT take the first two.
+- **(v2)** Every readout's aside (a qualifier, a source tag or the time of the call) is on its title row, so the amber
+  window holds only the value. The Pre-Flight panel's readouts change to match (one `Readout.qml`).
+- With the header collapsed, the panel fits a 760 px window in every phase (the arrival ATIS, the tallest, ends near
+  715 px).
 
 #### Lamps (D-195)
 
@@ -486,11 +496,24 @@ Steam gauges as in D-179 (black faces, metal bezels, a needle that glides to eac
   40 kt, both ways (takeoff roll and landing rollout); the switch flips the gauge (below). An amber bug marks **VREF**
   (the `cockpit` event's `vref_kt`) from the Approach phase to touchdown, and the plan's cruise speed in cruise
   (milestone 15, with the other plan values).
-- **Altitude.** A pointer for hundreds, a drum for the altitude, and the altimeter setting in a small window: `STD`,
-  or the value in the unit the altimeters use.
+- **Altitude (D-202).** Three hands on a 0–9 dial, read like a clock, with no drum:
+  - a short, wide hand for the ten thousands, like the hour hand (at FL370 it points just past 3);
+  - a long hand for the thousands, like the minute hand (at FL370 it points at 7);
+  - a long, skinny hand for the hundreds, like the second hand: one turn per 1,000 ft, so it sweeps in a climb and
+    rests in cruise.
+
+  The altimeter setting stays in a small window: `STD`, or the value in the unit the altimeters use.
+- **(v2) Radio altitude** (Dave, D-203). Below 2,000 ft above the ground (`alt_agl_ft`) the altitude gauge flips to a
+  radio altitude dial, 0 to 3,000 ft, with the bottom 500 ft over half the dial so the flare is readable, numbered
+  0–30 and `FT × 100` along the bottom of the circle. It flips back above 3,000 ft, so terrain under an approach
+  can't make it flicker between 2,000 and 3,000 ft. It starts on the radio face at block out (on the ground). A
+  go-around flips it back to the altimeter at once, and the radio face returns at the next `final_approach` marker
+  (or by the 2,000 ft rule once the airplane has been above 3,000 ft). The setting window is on both faces.
 - **Vertical speed.** 0 at nine o'clock, ±6,000 fpm, as in D-179's sketch.
-- **Fuel.** Total fuel in lb, with a red low-fuel arc. Milestone 15 adds the amber bug at the plan's fuel for this
-  point and a `+200` / `−300` window against it.
+- **Fuel.** Total fuel in lb, from 0 to the block-out fuel rounded up to 6,000 lb, with a red low-fuel arc up to
+  SimBrief's final reserve. **(v2)** A window shows the pounds (`7,410`). Milestone 15 adds the amber bug at the
+  plan's fuel for this point; its `+200` / `−300` against the plan needs another place, since the window now holds the
+  pounds.
 
 #### The ATC card (D-197)
 
@@ -498,12 +521,13 @@ The gist of what ATC cleared, not ATC's words, so Dave knows what to set. Read f
 (ATC's side, `outgoing_message`) through D-168's plain form, from every airport and center on the flight.
 
 **Slots.** Each slot changes only when ATC changes it, and shows the time given or a qualifier on its right (the
-readout's aside). A `LATEST` tag marks every slot the last transmission changed: one call can change three ("Turn left
+readout's aside). **LATEST** marks every slot the last transmission changed (**(v2)** the slot's placard lit amber,
+like an annunciator, instead of a separate tag): one call can change three ("Turn left
 heading 320. Descend and maintain 2,700 until established on the localizer. Cleared for the ILS runway 30L approach.").
 
 | Where | Slots |
 |---|---|
-| Block out to the takeoff roll | TAXI (`A, A7, B, B1`, aside `RWY 27`), ALTITUDE (the clearance's initial altitude), ROUTE (the cleared SID, matched to the plan's full form as on Pre-Flight) |
+| Block out to the takeoff roll | ALTITUDE (the clearance's initial altitude), ROUTE (the cleared SID, matched to the plan's full form as on Pre-Flight), TAXI (`A, A7, B, B1`, aside `RWY 27`) |
 | Airborne | ALTITUDE, ROUTE or HEADING, SPEED, APPROACH |
 | From touchdown | TAXI (`K`, aside `TERMINAL A GATE 4`), HOLD SHORT (`30R`) |
 
@@ -527,13 +551,23 @@ What each slot shows, from the KSAN → KSJC log (`tests/data/flight-ksan-ksjc`)
   13's readers.
 - **ATC is fetched every 30 s from block out to block in** (D-200; it was every 60 s), so a clearance reaches the card
   within half a minute. `FlightWatcher` fetches the whole history each time; a whole flight is about 50 exchanges.
-- Left to the builder: what a go-around does to the APPROACH slot, "direct" and "resume own navigation" (most likely
-  the ROUTE slot coming back), and how long `LATEST` stays (v1: until the next transmission that changes a slot).
+- Settled in D-201: a go-around clears APPROACH; "proceed direct KLIDE" sets ROUTE `DIRECT KLIDE` and "resume own
+  navigation" `OWN NAV`; "cross runway 30R" sets HOLD SHORT `CROSS 30R`; LATEST stays until the next transmission
+  that changes a slot.
 
 #### Phase readouts (D-194)
 
-The readouts on the right change with the phase. **(M15)** marks what needs the predictions; milestone 14 leaves
-those out and shows what it has.
+The readouts change with the phase. **(M15)** marks what needs the predictions; milestone 14 leaves those out and
+shows what it has.
+
+**(v2) In every phase, first** (Dave, D-203: what ATC asks for in an emergency). They never move or flip at a phase
+change:
+- **SOULS:** passengers plus crew, with `44 PAX + 5 CREW` beside it. The crew is what BlockTime pays for
+  (`design.md` section 10): the pilots for the plan's block time and the flight attendants for the seats installed
+  (×3 on the executive BBJ2, none on a freighter).
+- **FUEL REMAINING:** hours and minutes at the plan's own average burn: fuel on board ÷ (SimBrief's ENDURANCE for its
+  takeoff fuel, `times.endurance` against `fuel.plan_ramp − fuel.taxi`; about 4,820 lb/h on KSAN → KSJC). It counts
+  down with the fuel and never jumps with thrust. Without a SimBrief plan it shows a dash.
 
 | Phase | Readouts |
 |---|---|
@@ -541,7 +575,7 @@ those out and shows what it has.
 | Climb | CRUISE level; TOP OF CLIMB, TOP OF DESCENT, LANDING **(M15)** |
 | Cruise | DEST ATIS (letter and runways: the destination ATIS is fetched from the `within_200nm` marker, D-200, not from top of descent); TOP OF DESCENT (distance and local time), LANDING (time and the plan's), FUEL AT LANDING (and the plan's) **(M15)** |
 | Descent and Approach | **The arrival ATIS** (below) and the plan against ATC: the STAR and the landing runway with the amber `PLAN …` flag when ATC's differ (as D-189 on Pre-Flight) |
-| Short final (the `final_approach` marker, 1,000 ft AGL, to touchdown) | HEIGHT above the ground (`alt_agl_ft`), WIND (the tower's from the landing clearance, else the ATIS's), RUNWAY, VREF (with the landing flaps) |
+| Short final (the `final_approach` marker, 1,000 ft AGL, to touchdown) | WIND (the tower's from the landing clearance, else the ATIS's), RUNWAY, VREF (with the landing flaps). **(v2)** No HEIGHT: the radio altitude dial shows it |
 | Arrival (touchdown to block in) | LANDING: the stars and the touchdown rate (D-158's rating, as soon as the touchdown and bounces are logged), GATE |
 
 **The arrival ATIS (after v1).** The destination ATIS gives everything the PMDG EFB's landing calculation asks for and
@@ -550,7 +584,7 @@ DPTG RWYS 30L, 30R. WIND VRB AT 4 … TEMP 17 … ALTIM 30.19. ILS RWY 30L AND R
 
 | Readout | Example |
 |---|---|
-| ATIS | `JULIET` |
+| ATIS | `JULIETT` |
 | RUNWAYS | `30L 30R` (arriving) |
 | APPROACHES | `ILS 30L · RNAV-Z 30R` |
 | WIND | `VRB 04` |
@@ -560,8 +594,8 @@ DPTG RWYS 30L, 30R. WIND VRB AT 4 … TEMP 17 … ALTIM 30.19. ILS RWY 30L AND R
 
 Visibility, clouds, dew point and the remarks are left out: they change nothing Dave sets.
 
-**The ATIS letter as a word (D-193), everywhere:** `JULIET`, not `J`, on this panel and on Pre-Flight, in the ICAO
-alphabet (Alfa, Bravo, … Golf, … Zulu).
+**The ATIS letter as a word (D-193), everywhere:** `JULIETT`, not `J`, on this panel and on Pre-Flight, in the ICAO
+alphabet with its own spelling (ALFA, BRAVO, … JULIETT, … XRAY, … ZULU; Dave, D-201).
 
 #### Flips (D-198)
 

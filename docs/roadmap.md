@@ -197,6 +197,8 @@ Also the ATIS letter as its word (D-193) and the departure frequency off the Pre
 first, with what changed after v1. Also (D-200): ATC fetched every 30 s from block out, the destination ATIS from
 200 nm out, and debrief check 2 ending at the transition altitude for new flights. Checked on replays; no sim test.
 
+**Plan:** `docs/plans/2026-11-26-milestone-14-inflight-panel.md` (D-201).
+
 ### Milestone 15 — The predictions and the passenger header
 
 The header's `Arrival 12:35 PM` with `On time` / `Early ~4m` / `Delayed ~4m` under it, measured from block out

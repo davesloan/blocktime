@@ -3094,7 +3094,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-196 — The in-flight gauges
 - Date: 2026-11-26
-- Status: Accepted
+- Status: Accepted (the altitude gauge superseded by D-202)
 - Decided by: Dave + Claude
 - Area: design
 - Decision: Speed (D-194's switch; an amber bug at VREF from Approach to touchdown and at the plan's cruise speed in
@@ -3163,3 +3163,105 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   should agree on Dave's rule: belts on to at least the transition altitude.
 - Alternatives considered: every 20 s (Claude's pick) or keeping 60 s; fetching from cruise level-off; leaving check
   2 at 10,000 ft with the lamp disagreeing.
+
+## D-201 — Milestone 14's calls made while planning
+- Date: 2026-11-26
+- Status: Accepted (confirmed by Dave, 2026-11-26, who changed the ATIS words to ICAO's spelling and is fine with no
+  lamp windows after block in, since the Flight Summary shows from there)
+- Decided by: Claude
+- Area: app, design
+- Decision (plan `docs/plans/2026-11-26-milestone-14-inflight-panel.md`):
+  - **One ATC interval of 30 s**, at the gate too (D-188 used the same interval; D-200 named block out to block in).
+  - **No lamp windows after block in.** The panel hides at block in (D-154), so the beacon "until the engines are off"
+    and the APU "off until the last engine stops" could never show; they aren't built.
+  - **The ATC card:**
+    - `LATEST` stays until the next transmission that changes a slot (v1's rule).
+    - A repeated exchange (same id) replaces the old one, and the card is rebuilt in ATC's time order.
+    - A go-around clears APPROACH.
+    - "Proceed direct KLIDE" sets ROUTE `DIRECT KLIDE`; "resume own navigation" sets `OWN NAV`.
+    - "Cross runway 30R" sets HOLD SHORT to `CROSS 30R`.
+    - "Cleared for takeoff", frequency changes and traffic calls change nothing.
+    - The clearance's "Expect FL400 one-zero minutes" is ALTITUDE's aside `EXP FL400 +10 MIN`, also under an initial
+      altitude (`5,000`).
+  - **The readouts:**
+    - Milestone 15's readouts aren't shown, not even as dashes; a readout of this milestone with no value shows a
+      dash, so the grid doesn't jump.
+    - Climb shows only CRUISE; Cruise adds DEST ATIS from `within_200nm`.
+    - Arrival covers Descent, Approach and a go-around.
+    - LANDING RWY is ATC's approach runway, else the ATIS's first arriving, else the plan's.
+    - v1's TOUCHDOWN distance is dropped (not in the spec).
+  - **The gauges:**
+    - The fuel gauge runs from 0 to the block-out fuel rounded up to 6,000 lb, with its red arc up to SimBrief's final
+      reserve (`fuel.reserve`); no plan, no arc.
+    - The altitude gauge's window shows `STD` when both altimeters are on STD, else the captain's setting in the unit
+      of the latest ATIS.
+  - **Shared with the debrief:**
+    - The lamps read the cockpit through one shared set of functions and constants (`cockpit_reading.h`), so they
+      agree with the debrief by construction.
+    - The landing stars on the panel come from the debrief's own `landingFacts` / `landingStars`, at the `bounces`
+      event.
+    - `cockpit` lines now reach the bridge on Live and in replays.
+  - **Words:** the ATIS words in ICAO's own spelling: `ALFA`, `JULIETT`, `XRAY` (Dave: changed from the spec's
+    `JULIET`).
+  - **Check 2's label:** it becomes "taxi to transition altitude" and shows on old flights too. Only the measurement
+    is per flight (D-160).
+- Why: Each is what the spec leaves to the builder, or the least work that keeps the panel and the debrief in
+  agreement.
+- Alternatives considered: separate intervals for the gate and the flight; building the after-block-in windows
+  anyway; `LATEST` fading after a time; a fixed fuel scale per type.
+
+## D-202 — The altimeter has three hands, read like a clock
+- Date: 2026-11-26
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: design
+- Decision: The in-flight panel's altitude gauge has a 0–9 dial and three hands:
+  - a short, wide hand for the ten thousands (hour hand);
+  - a long hand for the thousands (minute hand);
+  - a long, skinny hand for the hundreds (second hand), one turn per 1,000 ft.
+
+  So 37,000 ft is the short hand just past 3 and the long hand at 7. No drum. The altimeter setting window stays.
+  Supersedes D-196's "pointer, drum".
+- Why: Dave didn't like the mockups' pointer and drum, and wanted to read large altitudes from the hands. Two hands
+  were Dave's idea; the hundreds hand was his question and Claude's pick. It's the hand that visibly moves in a climb
+  or descent, and it rests in cruise, so it costs nothing then. It's how the classic three-pointer altimeter works,
+  with the hands mapped the way Dave reads a clock. The exact number is on the PMDG's own display, so a dial that's
+  fun to read is enough.
+- Alternatives considered: two hands only (coarse below 1,000 ft, the last part of the approach); the pointer and
+  drum (D-196); a digital window beside the hands.
+
+## D-203 — The approved in-flight mockup v2: emergency readouts, radio altitude, and the layout for 900 px
+- Date: 2026-11-26
+- Status: Accepted
+- Decided by: Dave + Claude (Dave approved the mockup and every call in it)
+- Area: design
+- Decision (mockup `docs/images/dashboard-inflight-v2.html`, `docs/dashboard.md` "The in-flight panel", marked (v2)):
+  - **Emergency readouts (Dave).** In every phase, first: SOULS and FUEL REMAINING.
+    - SOULS is passengers plus crew, with `44 PAX + 5 CREW` beside it. The crew is the count BlockTime pays for
+      (`design.md` section 10).
+    - FUEL REMAINING is hours and minutes at the plan's own average burn: fuel on board × SimBrief's ENDURANCE ÷ its
+      takeoff fuel (`fuel.plan_ramp − fuel.taxi`). It only counts down, and it shows a dash without a plan.
+    - The fuel gauge gets a window with the pounds.
+  - **Radio altitude (Dave; the scale is Claude's).** The altitude gauge flips to a 0–3,000 ft radio altitude dial
+    below 2,000 ft above the ground, and back above 3,000 ft.
+    - It starts on the radio face at block out.
+    - A go-around flips it back at once; the radio face returns at the next `final_approach` marker, or by the
+      2,000 ft rule after a climb above 3,000 ft.
+    - The bottom 500 ft takes half the dial, with `FT × 100` along the bottom of the circle.
+    - The setting window is on both faces. The short-final HEIGHT readout is dropped.
+  - **Layout for Live at the smallest window (Claude).** Live is 900 px wide beside the sidebar at 1100 × 760.
+    - The ATC card runs across the panel in uneven columns (ALTITUDE and APPROACH wide, SPEED narrow). Before the
+      takeoff roll it reads ALTITUDE, ROUTE, an empty place, TAXI.
+    - The readouts sit under it, four a row; APPROACHES takes two.
+    - Every readout's aside moves to its title row, Pre-Flight's too.
+    - LATEST is the slot's placard lit amber instead of a separate tag.
+- Why: Dave needs souls on board and fuel remaining at hand for declaring an emergency in any phase.
+  - Fuel at the present burn swung from 11 hours at idle to 2 in the climb, which means nothing in the moment. The
+    plan's average burn is a realistic mix for a diversion, and it errs short in cruise.
+  - A radio altitude dial is how airliners show height on approach. The 1,000 ft gap stops terrain from flipping it
+    back and forth.
+  - Side by side at 900 px, the ATC slots cut off "DESCEND VIA SILCN6".
+- Alternatives considered:
+  - fuel remaining at the present burn, or never going back up (it would freeze at the climb's figure);
+  - a linear 0–3 dial (the flare unreadable);
+  - the ATC card beside the readouts, with tags in the windows.

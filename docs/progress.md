@@ -22,6 +22,34 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-26 — Milestone 14 planned: the in-flight panel (docs only)
+
+**Done:**
+- Plan `docs/plans/2026-11-26-milestone-14-inflight-panel.md`, eleven tasks:
+  1. the v2 mockup first;
+  2. D-200 (ATC every 30 s, the destination ATIS from 200 nm, check 2 to the transition altitude);
+  3. the Pre-Flight changes (hides at block out, the ATIS word, no departure frequency);
+  4. one shared cockpit reading, with `cockpit` lines reaching the bridge and replays;
+  5. `LampBoard`;
+  6. the ATC phrase readers;
+  7. `AtcCard`;
+  8. the phase readouts and the arrival ATIS;
+  9. `InFlightModel`;
+  10. the QML panel;
+  11. close.
+- Found while planning: `cockpit` lines only go to the log today. The recorder doesn't pass them to the app, and the
+  replay skips them, so the lamps need Task 4 first.
+- Claude's calls in D-201. Dave confirmed them all, with one change: the ATIS words in ICAO's spelling (`JULIETT`).
+  He's fine with no lamp windows after block in, since the Flight Summary shows from there.
+- Dave reworked the altitude gauge (D-202): three hands on a 0–9 dial, read like a clock. A short hand for the ten
+  thousands, a long one for the thousands and a skinny one for the hundreds; no drum.
+
+- Task 1 done: Dave approved mockup v2 (`docs/images/dashboard-inflight-v2.html`) with his additions: souls on
+  board and fuel remaining in every phase, the pounds on the fuel gauge, and a radio altitude face (D-203).
+
+**Next step:**
+- Milestone 14, Tasks 2 to 11 (being built in the same session).
+
 ## 2026-11-26 — The in-flight brainstorm: milestones 14–16 designed (docs only)
 
 **Done:**
