@@ -76,6 +76,8 @@ public:
     QString notice() const { return notice_; }
     QString summaryFlightId() const { return summaryFlightId_; }
     bool readOnly() const { return readOnly_; }
+    // The flight on show, for the dashboard header; empty once settled (the summary) or with nothing planned.
+    const std::optional<blocktime::PlannedFlightView>& view() const { return flight_; }
 
 signals:
     void changed();

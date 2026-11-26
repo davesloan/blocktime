@@ -26,6 +26,7 @@
 #include <gtest/gtest.h>
 
 #include "app_event_queue.h"
+#include "dashboard_header.h"
 #include "event_feed_model.h"
 #include "flight_watcher.h"
 #include "fleet_table_model.h"
@@ -2150,4 +2151,139 @@ TEST(RecorderBridge, StatusLinesFollowEvents) {
     b.setStatusContext(c);
     b.applyFlightEvent("phase_changed", phaseEvent("taxi_out", "18:56:00"));
     EXPECT_EQ(b.statusLines()[0].toMap()["text"].toString(), "Taxiing to runway 14R");
+}
+
+namespace {
+
+// KSAN → KLAS, planned with a SimBrief plan: block 1:05 at FL330, parked at Gate 41.
+PlannedFlightView headerView() {
+    PlannedFlightView v;
+    v.registration = "N814SX";
+    v.typeCode = "B737-BBJ2";
+    v.origin = "KSAN";
+    v.originName = "San Diego International Airport";
+    v.originCity = "San Diego";
+    v.destination = "KLAS";
+    v.destinationName = "Harry Reid International Airport";
+    v.destinationCity = "Las Vegas";
+    v.flightNumber = "1231";
+    v.loadInParking = "Gate 41";
+    v.route = {{32.7336, -117.19}, {36.08, -115.152}};
+    SimbriefPlan p;
+    p.cruiseAltitudeFt = 33000;
+    p.estBlockS = 3900;
+    p.originTransitionAltitudeFt = 18000;
+    p.destinationTransitionLevelFt = 18000;
+    p.originRunway = "27";
+    v.plan = p;
+    return v;
+}
+
+const char* kHeaderFlight = "2026-11-25T20:22:00.000Z";
+
+DashboardHeader::SettledFlight noSettledFlight() {
+    return [](const QString&) { return std::optional<PlannedFlightView>{}; };
+}
+
+}  // namespace
+
+TEST(DashboardHeader, FromPlannedFlight) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(headerView(), "XLY", Rates{}, b, kHeaderFlight);
+    DashboardHeader h(b, f, "XLY", "Soxxly Airlines", noSettledFlight());
+    EXPECT_TRUE(h.visible());
+    EXPECT_EQ(h.airlineIcao(), "XLY");
+    EXPECT_EQ(h.flightNumber(), "1231");
+    EXPECT_EQ(h.flightText(), "Flight 1231");
+    EXPECT_EQ(h.citiesText(), "San Diego to Las Vegas");
+    EXPECT_EQ(h.clockText(), "1:05");
+    EXPECT_TRUE(h.clockIsPlan());
+    EXPECT_EQ(h.blockOutText(), "--:--");
+    EXPECT_TRUE(h.blockInText().startsWith("~"));
+    EXPECT_EQ(h.originLine(), QString::fromUtf8("N814SX · B737-BBJ2 · Gate 41"));
+    EXPECT_EQ(h.originIcao(), "KSAN");
+    EXPECT_EQ(h.destinationName(), "Harry Reid International Airport");
+    EXPECT_EQ(h.destinationLine(), "");
+    EXPECT_DOUBLE_EQ(h.progress(), 0.0);
+}
+
+TEST(DashboardHeader, InFlight) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(headerView(), "XLY", Rates{}, b, kHeaderFlight);
+    DashboardHeader h(b, f, "XLY", "Soxxly Airlines", noSettledFlight());
+    BlockOut out;
+    out.flightId = kHeaderFlight;
+    out.time = *parseUtc(kHeaderFlight);
+    b.applyBlockEvent(out);
+    b.applyFlightEvent("liftoff", {{"time", "2026-11-25T20:31:00Z"}, {"runway", "27"}});
+    b.applyFlightEvent("phase_changed", {{"phase", "cruise"}, {"time", "2026-11-25T20:48:00Z"}, {"alt_ft", 33000},
+                                         {"flight_level", true}});
+    TelemetrySample s{};
+    s.latitudeDeg = 34.4;
+    s.longitudeDeg = -116.17;
+    s.indicatedAltitudeFt = 33000;
+    s.groundSpeedKt = 452;
+    b.applySample(s);
+    EXPECT_FALSE(h.clockIsPlan());
+    EXPECT_NE(h.blockOutText(), "--:--");
+    EXPECT_TRUE(h.originLine().startsWith("Off ")) << h.originLine().toStdString();
+    EXPECT_TRUE(h.originLine().endsWith(QString::fromUtf8(" · rwy 27"))) << h.originLine().toStdString();
+    EXPECT_EQ(h.markerText(), QString::fromUtf8("FL330 · 452 kt"));
+    EXPECT_GT(h.progress(), 0.4);
+    EXPECT_LT(h.progress(), 0.6);
+    const QRegularExpression distance(QString::fromUtf8(R"(^\d+ NM flown · \d+ NM to go$)"));
+    EXPECT_TRUE(distance.match(h.distanceText()).hasMatch()) << h.distanceText().toStdString();
+    const QVariantList shares = h.arcShares();
+    ASSERT_EQ(shares.size(), 100);
+    EXPECT_DOUBLE_EQ(shares[static_cast<int>(h.progress() * 100)].toDouble(), 1.0);
+    EXPECT_EQ(b.statusLines()[0].toMap()["text"].toString(), "Cruising at FL330");
+
+    b.applyFlightEvent("arrival_gate", {{"result", "assigned"}, {"gate", "Gate C11"}, {"si_gate", "C11"}});
+    EXPECT_EQ(h.destinationLine(), "Gate C11");
+}
+
+TEST(DashboardHeader, SummaryAtStartupUsesSettledFlight) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(headerView(), "XLY", Rates{}, b, kHeaderFlight);
+    BlockIn in;
+    in.flightId = kHeaderFlight;
+    in.time = *parseUtc(kHeaderFlight);
+    b.applyBlockEvent(in);  // the summary shows and the display holds no flight
+    ASSERT_EQ(f.state(), "summary");
+    ASSERT_FALSE(f.hasFlight());
+    QString asked;
+    DashboardHeader h(b, f, "XLY", "Soxxly Airlines", [&asked](const QString& id) {
+        asked = id;
+        return std::optional<PlannedFlightView>(headerView());
+    });
+    EXPECT_EQ(asked, kHeaderFlight);
+    EXPECT_TRUE(h.visible());
+    EXPECT_EQ(h.citiesText(), "San Diego to Las Vegas");
+}
+
+TEST(DashboardHeader, InterruptResetsTheArc) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(headerView(), "XLY", Rates{}, b, kHeaderFlight);
+    DashboardHeader h(b, f, "XLY", "Soxxly Airlines", noSettledFlight());
+    BlockOut out;
+    out.flightId = kHeaderFlight;
+    out.time = *parseUtc(kHeaderFlight);
+    b.applyBlockEvent(out);
+    b.applyFlightEvent("liftoff", {{"time", "2026-11-25T20:31:00Z"}, {"runway", "27"}});
+    TelemetrySample s{};
+    s.latitudeDeg = 34.4;
+    s.longitudeDeg = -116.17;
+    s.indicatedAltitudeFt = 20000;
+    b.applySample(s);
+    ASSERT_GT(h.progress(), 0.0);
+    FlightInterrupted gone;
+    gone.flightId = kHeaderFlight;
+    gone.reason = "sim_quit";
+    b.applyBlockEvent(gone);
+    EXPECT_DOUBLE_EQ(h.progress(), 0.0);
+    for (const QVariant& v : h.arcShares()) EXPECT_DOUBLE_EQ(v.toDouble(), -1.0);
 }

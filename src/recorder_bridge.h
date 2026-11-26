@@ -109,6 +109,10 @@ public:
     void setStatusContext(const blocktime::StatusContext& context);
     // The latest sample as the recorder sent it: the header's route progress reads its position.
     const blocktime::TelemetrySample& lastSample() const { return lastSample_; }
+    // The recorder's phase code ("cruise"; "" before block out), for the header's flight-level rule.
+    const std::string& phaseCode() const { return stages_.phase(); }
+    // Where the last block in parked ("Gate C11"), for the header's destination line; "" before one.
+    QString blockInParking() const { return blockInParking_; }
     // The last flight's Arrival is done with: the stages show the next leg.
     Q_INVOKABLE void showNextLeg();
 
@@ -187,6 +191,7 @@ private:
     blocktime::FlightStages stages_;
     blocktime::StatusLines status_;  // fed everything stages_ is
     blocktime::TelemetrySample lastSample_{};
+    QString blockInParking_;
     // One flight, block or GSX event to both the stages and the status lines.
     void feedStages(std::string_view type, const nlohmann::json& data);
 };

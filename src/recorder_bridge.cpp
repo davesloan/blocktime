@@ -138,6 +138,7 @@ void RecorderBridge::applyBlockEvent(const BlockEvent& event) {
         [this, &data](const auto& e) {
             using T = std::decay_t<decltype(e)>;
             if constexpr (std::is_same_v<T, BlockOut>) {
+                blockInParking_.clear();
                 feedStages("block_out", data);  // a fresh flight; its pushback follows (D-128)
                 emit stagesChanged();
                 setReleaseRefused(false);
@@ -145,6 +146,7 @@ void RecorderBridge::applyBlockEvent(const BlockEvent& event) {
                 blockOutTime_ = toQDateTime(e.time);
                 blockOutFuelLb_ = e.fuelLb;
             } else if constexpr (std::is_same_v<T, BlockIn>) {
+                blockInParking_ = QString::fromStdString(e.parking);
                 feedStages("block_in", data);  // the flight stays on Live until the summary goes (D-134)
                 emit stagesChanged();
                 flightOpen_ = false;
