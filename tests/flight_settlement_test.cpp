@@ -516,6 +516,9 @@ TEST_F(Settlement, FlownFlightViewMatchesThePlan) {
     EXPECT_EQ(flown->originName, planned.originName);
     EXPECT_EQ(flown->destination, "KSAN");
     EXPECT_EQ(flown->destinationName, planned.destinationName);
+    EXPECT_EQ(flown->originCity, planned.originCity);
+    EXPECT_EQ(flown->destinationCity, planned.destinationCity);
+    EXPECT_FALSE(flown->destinationCity.empty());
     EXPECT_EQ(flown->flightNumber, "8");
     EXPECT_EQ(flown->kind, FlightKind::Vip);
     EXPECT_EQ(flown->seatsInstalled, planned.seatsInstalled);

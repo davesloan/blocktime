@@ -217,6 +217,7 @@ Imported from OurAirports, joined with an airport time zone dataset on the ICAO 
 | `longitude` | REAL | −180..180 |
 | `elevation_ft` | INTEGER | |
 | `country_code` | TEXT | ISO 3166-1 alpha-2 |
+| `city` | TEXT | OurAirports' `municipality` (`San Diego`); `''` when it has none, and the airport's name stands in for it. The dashboard's "San Diego to Las Vegas" (migration 9, D-181) |
 | `time_zone` | TEXT | IANA name (`America/Los_Angeles`); airports without one aren't imported |
 | `longest_runway_ft` | INTEGER | > 0; the longest open, paved runway. New Flight's runway check (design.md §4) compares the airplane's minimum runway with it. Runway layouts for phases and gates come from the sim (D-074, D-079) |
 
@@ -550,3 +551,8 @@ fails if the flight already has one.
 Migration 8 adds two `check_part` rows, `apu_on_after_transition_s` and `apu_on_at_shutdown` (D-172, D-173). No table
 changes. Flights measured before it have neither part, valued or skipped, and show both checks as "Not measured on
 this flight".
+
+## Milestone 12's airport city (migration 9)
+
+Migration 9 adds `airport.city` (D-181), empty until `blocktime-import` runs again; the dashboard shows the airport's
+name for an empty city.

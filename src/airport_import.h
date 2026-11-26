@@ -23,6 +23,7 @@ struct ImportedAirport {
     std::string icao, name, country, timeZone;
     double latitude, longitude;
     int elevationFt, longestRunwayFt;
+    std::string city;  // OurAirports' municipality; "" when it has none (D-181)
 };
 
 // Why airports were left out. Checked in this order, so each airport counts once.

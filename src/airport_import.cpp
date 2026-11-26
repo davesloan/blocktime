@@ -114,7 +114,7 @@ AirportImport filterAirports(std::istream& airportsCsv, std::istream& runwaysCsv
     const Header airportHeader = readHeader(airports);
     const auto ac = findColumns(airportHeader,
                                 {"id", "type", "name", "latitude_deg", "longitude_deg", "elevation_ft", "iso_country",
-                                 "gps_code"},
+                                 "gps_code", "municipality"},
                                 "airports.csv", result.error);
     if (!ac) return result;
     const auto icaoColumn = airportHeader.find("icao_code");  // newer files only
@@ -155,7 +155,7 @@ AirportImport filterAirports(std::istream& airportsCsv, std::istream& runwaysCsv
             continue;
         }
         result.airports.push_back(ImportedAirport{icao, field(row, (*ac)[2]), country, tz, *latitude, *longitude,
-                                                  *elevation, runway->second});
+                                                  *elevation, runway->second, field(row, (*ac)[8])});
     }
     // An ICAO code can appear twice in OurAirports; keep the one with the longest runway.
     std::map<std::string, ImportedAirport> unique;
@@ -177,11 +177,11 @@ bool writeAirports(db::Database& db, const std::vector<ImportedAirport>& airport
         return false;
     }
     db::Statement upsert(db,
-                         "INSERT INTO airport (icao_code, name, latitude, longitude, elevation_ft, country_code,"
-                         " time_zone, longest_runway_ft) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                         "INSERT INTO airport (icao_code, name, latitude, longitude, elevation_ft, country_code, city,"
+                         " time_zone, longest_runway_ft) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
                          " ON CONFLICT (icao_code) DO UPDATE SET name = excluded.name, latitude = excluded.latitude,"
                          " longitude = excluded.longitude, elevation_ft = excluded.elevation_ft,"
-                         " country_code = excluded.country_code, time_zone = excluded.time_zone,"
+                         " country_code = excluded.country_code, city = excluded.city, time_zone = excluded.time_zone,"
                          " longest_runway_ft = excluded.longest_runway_ft");
     for (const ImportedAirport& a : airports) {
         upsert.reset();
@@ -191,8 +191,9 @@ bool writeAirports(db::Database& db, const std::vector<ImportedAirport>& airport
         upsert.bind(4, a.longitude);
         upsert.bind(5, static_cast<std::int64_t>(a.elevationFt));
         upsert.bind(6, a.country);
-        upsert.bind(7, a.timeZone);
-        upsert.bind(8, static_cast<std::int64_t>(a.longestRunwayFt));
+        upsert.bind(7, a.city);
+        upsert.bind(8, a.timeZone);
+        upsert.bind(9, static_cast<std::int64_t>(a.longestRunwayFt));
         if (!upsert.run()) {
             if (error) *error = a.icao + ": " + upsert.error();
             return false;

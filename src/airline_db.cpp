@@ -351,6 +351,11 @@ constexpr const char* kMigration8 = R"sql(
 INSERT INTO check_part (code) VALUES ('apu_on_after_transition_s'), ('apu_on_at_shutdown');
 )sql";
 
+// D-181: the dashboard's "San Diego to Las Vegas". Filled by blocktime-import from OurAirports' municipality.
+constexpr const char* kMigration9 = R"sql(
+ALTER TABLE airport ADD COLUMN city TEXT NOT NULL DEFAULT '';
+)sql";
+
 #undef BT_INSTANT
 #undef BT_DATE
 
@@ -361,7 +366,7 @@ struct Migration {
 
 constexpr std::array kMigrations{Migration{2, kMigration2}, Migration{3, kMigration3}, Migration{4, kMigration4},
                                  Migration{5, kMigration5}, Migration{6, kMigration6}, Migration{7, kMigration7},
-                                 Migration{8, kMigration8}};
+                                 Migration{8, kMigration8}, Migration{9, kMigration9}};
 
 constexpr int kFirstRealSchemaVersion = 2;  // what a clobbered milestone 4 airline really is (D-098)
 

@@ -272,3 +272,14 @@ TEST(Planned, NoLoadInParkingAfterAMove) {
     flownTo(db, "parked-nowhere", "KBFI", "2026-11-22T12:00:00Z", "");
     EXPECT_EQ(currentPlannedFlight(db)->loadInParking, "");
 }
+
+TEST(Planned, ViewHasCities) {
+    db::Database db = test::testAirline();
+    ASSERT_TRUE(db.exec("UPDATE airport SET city = 'San Diego' WHERE icao_code = 'KSAN'"));
+    std::string error;
+    ASSERT_TRUE(createPlannedFlight(db, vipToKsan(db), &error).has_value()) << error;
+    const auto f = currentPlannedFlight(db);
+    ASSERT_TRUE(f.has_value());
+    EXPECT_EQ(f->originCity, "Boeing Field");  // no city: the airport's name
+    EXPECT_EQ(f->destinationCity, "San Diego");
+}

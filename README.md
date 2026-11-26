@@ -300,6 +300,9 @@ Then import them:
 It prints how many airports it kept and why the rest were left out. To refresh the data later, run both steps again:
 airports are updated in place and never deleted. `--db <file>` imports into another database file.
 
+**After updating to 0.13.0, run the import once more** (the files you already downloaded are enough): it fills in
+each airport's city for the dashboard's header (D-181).
+
 ## Changing the UI
 
 The QML is in `qml/`, and every colour and size is in `qml/Theme.qml`. Run the **debug** build:

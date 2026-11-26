@@ -63,12 +63,12 @@ protected:
 
 }  // namespace
 
-TEST(AirlineDb, EmptyDatabaseMigratesToVersion8) {
+TEST(AirlineDb, EmptyDatabaseMigratesToVersion9) {
     db::Database d = db::Database::openInMemory();
     std::string error;
     EXPECT_TRUE(migrateAirlineDatabase(d, &error)) << error;
-    EXPECT_EQ(d.userVersion(), 8);
-    EXPECT_EQ(kAirlineSchemaVersion, 8);
+    EXPECT_EQ(d.userVersion(), 9);
+    EXPECT_EQ(kAirlineSchemaVersion, 9);
 }
 
 TEST(AirlineDb, ForeignKeysAreOn) {
@@ -468,7 +468,7 @@ TEST(AirlineDb, Migration8AddsTheApuParts) {
     db::Database d = db::Database::openInMemory();
     std::string error;
     ASSERT_TRUE(migrateAirlineDatabaseTo(d, 7, &error)) << error;
-    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 8, &error)) << error;
     EXPECT_EQ(d.userVersion(), 8);
     db::Statement q(d, "SELECT COUNT(*) FROM check_part WHERE code IN ('apu_on_after_transition_s',"
                        " 'apu_on_at_shutdown')");
@@ -477,4 +477,18 @@ TEST(AirlineDb, Migration8AddsTheApuParts) {
     db::Statement all(d, "SELECT COUNT(*) FROM check_part");
     ASSERT_TRUE(all.next());
     EXPECT_EQ(all.integer(0), 19);
+}
+
+TEST(AirlineDb, Migration9AddsCity) {
+    db::Database d = db::Database::openInMemory();
+    std::string error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 8, &error)) << error;
+    ASSERT_TRUE(d.exec("INSERT INTO airport (icao_code, name, latitude, longitude, elevation_ft, country_code,"
+                       " time_zone, longest_runway_ft) VALUES ('KSAN', 'San Diego International', 32.73, -117.19,"
+                       " 17, 'US', 'America/Los_Angeles', 9401)"));
+    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    EXPECT_EQ(d.userVersion(), 9);
+    db::Statement q(d, "SELECT city FROM airport WHERE icao_code = 'KSAN'");
+    ASSERT_TRUE(q.next()) << q.error();
+    EXPECT_EQ(q.text(0), "");
 }

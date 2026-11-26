@@ -74,6 +74,8 @@ std::optional<std::int64_t> createPlannedFlight(db::Database& db, const NewPlann
 struct PlannedFlightView {
     std::int64_t id = 0;
     std::string registration, typeCode, airframeId, origin, originName, destination, destinationName, flightNumber;
+    // The airports' cities, or their names when OurAirports has no city (D-181).
+    std::string originCity, destinationCity;
     FlightKind kind = FlightKind::Passenger;
     std::string family, role;
     int seatsInstalled = 0, cruiseSpeedKt = 0;

@@ -207,7 +207,8 @@ std::optional<PlannedFlightView> readFlightView(db::Database& db, const ViewTabl
                     " o.name, d.icao_code, d.name, f.flight_number, f.kind, t.family, t.role, t.cruise_speed_kt,"
                     " f.cargo_lb, f.fuel_price_cents_per_100lb, f.planned_at, COALESCE(f.origin_runway, ''),"
                     " COALESCE(f.destination_runway, ''), o.latitude, o.longitude, d.latitude, d.longitude,"
-                    " a.airplane_id, COALESCE(" + t.parking + ", '')"
+                    " a.airplane_id, COALESCE(" + t.parking + ", ''), IIF(o.city = '', o.name, o.city),"
+                    " IIF(d.city = '', d.name, d.city)"
                     " FROM " + t.flight + " f JOIN airplane a USING (airplane_id)"
                     " JOIN aircraft_type t USING (aircraft_type_id)"
                     " JOIN airport o ON o.airport_id = f.origin_airport_id"
@@ -236,6 +237,8 @@ std::optional<PlannedFlightView> readFlightView(db::Database& db, const ViewTabl
     v.destinationRunway = q.text(17);
     v.distanceNm = distanceMeters(q.real(18), q.real(19), q.real(20), q.real(21)) / kMetresPerNm;
     v.loadInParking = q.text(23);
+    v.originCity = q.text(24);
+    v.destinationCity = q.text(25);
     const std::int64_t airplaneId = q.integer(22);
     for (const Cabin& c : cabinsOf(db, airplaneId)) v.seatsInstalled += c.seats;
     v.limits = airplaneLimits(db, airplaneId).value_or(AirplaneLimits{});

@@ -156,3 +156,25 @@ TEST(AirportImport, PavedSurfaces) {
     for (const char* s : {"ASP", "asphalt", "CONC", "PEM", "BIT", "Asphalt/Concrete"}) EXPECT_TRUE(isPavedSurface(s)) << s;
     for (const char* s : {"GRS", "TURF", "GRAVEL", "WATER", ""}) EXPECT_FALSE(isPavedSurface(s)) << s;
 }
+
+TEST(AirportImport, ReadsMunicipality) {
+    const AirportImport result = run(kAirportsHeader + airport(1, "large_airport", "San Diego", "KSAN", "KSAN"),
+                                     kRunwaysHeader + runway(1, "9401", "ASP", 0),
+                                     R"({"KSAN": {"tz": "America/Los_Angeles"}})");
+    ASSERT_EQ(result.error, "");
+    const ImportedAirport* ksan = find(result, "KSAN");
+    ASSERT_NE(ksan, nullptr);
+    EXPECT_EQ(ksan->city, "Somewhere");
+
+    db::Database d = db::Database::openInMemory();
+    std::string error;
+    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    ImportedAirport a = *ksan;
+    a.city = "San Diego";
+    ASSERT_TRUE(writeAirports(d, {a}, "2026-11-22T10:00:00Z", &error)) << error;
+    a.city = "San Diego CA";
+    ASSERT_TRUE(writeAirports(d, {a}, "2026-11-23T10:00:00Z", &error)) << error;
+    db::Statement q(d, "SELECT city FROM airport WHERE icao_code = 'KSAN'");
+    ASSERT_TRUE(q.next()) << q.error();
+    EXPECT_EQ(q.text(0), "San Diego CA");
+}
