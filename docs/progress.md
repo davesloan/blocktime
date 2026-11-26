@@ -22,6 +22,25 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-25 — Milestone 11 closed: flight replay
+
+**Done:**
+- Dave tried replays of his own flights and closed milestone 11 (2026-11-25). Two fixes came from his tries: a replay
+  starts after the previous leg's block in (D-177) and 15 s before the flight's first event (D-178).
+
+**Working / verified:**
+- 686 tests pass in the debug and release builds, with no warnings. Grabs of the KLAS → KSAN replay open at the gate in
+  Pre-Departure with nothing from the previous leg.
+
+**Unverified or broken:**
+- The known minor issues in the entry below stay open (D-174: fixed if they get in the way).
+- D-176 (the smaller calls made while building) is still Proposed, waiting on Dave.
+
+**Next step:**
+- Milestone 12, the dashboard header and status lines (`docs/dashboard.md`, D-151, D-152, D-154), in a new session
+  (D-121): write its plan first, and settle the Proposed calls in D-151 (the line under the identity row, the arc's
+  marker by distance flown, equal-width pill sections). Check each panel with `--replay … --at … --grab`.
+
 ## 2026-11-25 — Milestone 11 built: flight replay as its own process (version 0.12.0)
 
 **Done:**

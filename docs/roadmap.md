@@ -154,6 +154,9 @@ Deepening the live flight comes first. Order agreed with Dave on 2026-11-24; eac
 
 ### Milestone 11 — Flight replay
 
+**Built in 0.12.0** (`docs/plans/2026-11-25-milestone-11-replay.md`, D-175..D-178); closed by Dave on 2026-11-25 after
+trying replays of his own flights.
+
 `docs/replay.md`, D-164, D-166, D-167, D-175. A Replay button on every Flight Summary opens a second, read-only
 BlockTime window that plays the flight on Live at 1×, 2×, 3× or 10×, through a second `RecorderBridge` fed from the
 log. The test bench for the milestones below, and a `--replay … --at … --grab` command so Claude Code can check panels
