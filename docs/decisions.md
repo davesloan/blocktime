@@ -2296,7 +2296,8 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-153 — The Pre-Flight panel
 - Date: 2026-11-24
-- Status: Accepted (after the MVP); the clearance card depends on what SayIntentions exposes (to probe)
+- Status: Accepted (after the MVP); the clearance card depends on what SayIntentions exposes (to probe). The current
+  and next frequency superseded by D-187 (moved to the in-flight panels' brainstorm)
 - Decided by: Dave + Claude
 - Area: design
 - Decision: Builds on D-118. At the gate the dashboard shows a load sheet (block fuel as the total, ZFW, passengers by
@@ -2918,3 +2919,69 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   (SQLite's WAL files sync separately from the database, two writers give conflicted copies, and the event log would
   re-upload on every write during a flight; read-only snapshots were possible, but Dave chose local only); a separate
   MCP exe.
+
+## D-187 — Milestone 13's scope: the collapsing header, no frequency readout, a short FMC line, a mockup first
+- Date: 2026-11-26
+- Status: Accepted
+- Decided by: Dave
+- Area: design
+- Decision:
+  - **The dashboard header collapses and expands** when Dave clicks anywhere in the pill bar. Collapsed, it shows the
+    pill with its marker and sub-phase label, the origin's ICAO code on the pill's left, the destination's on its
+    right, and only the current status line under it.
+  - **No frequency readout in milestone 13** beyond the clearance's departure frequency. D-153's "current and next
+    frequency, all flight long" moves to the in-flight panels' brainstorm (supersedes that part of D-153).
+  - **The FMC line** under the load sheet has only the cruise level and the transition altitude. No flight number,
+    cost index or reserves.
+  - **The Pre-Flight panel starts as an HTML mockup** for Dave's approval, as milestone 12's header did (D-184).
+- Why: The collapse keeps the Pre-Flight panel on screen at the gate (`dashboard.md`'s open item about fitting below
+  the fold). No documented SayIntentions endpoint gives "now" and "next" (`notes/sayintentions-api.md`). Dave reads
+  the other FMC inputs off the uplinked plan.
+- Alternatives considered: now/next from ATC's own words in the Pre-Flight panel, with or without logging
+  `getCurrentFrequencies` as a probe; the full FMC line (flight number, cost index, reserves); a collapsed header with
+  no marker, or a marker without its label; building straight in QML and reviewing on replays.
+
+## D-188 — Milestone 13's design calls (Claude)
+- Date: 2026-11-26
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision:
+  - **SayIntentions is polled at the gate.** ATC (every minute) and the origin's ATIS are polled while a flight is
+    planned, the sim is connected and no flight is open, not only from block out. Lines logged before block out carry
+    `flight_id` "". Block out still re-logs the whole history with the flight id, as today. The ATIS is polled every
+    5 minutes (D-118), not 10, at both airports.
+  - **The panel shows from planning until liftoff**, since ground gives the taxi route after pushback. The clearance
+    countdown hides at block out.
+  - **Only the origin's messages since planning count:** an exchange from another airport, or with ATC's time before
+    the flight was planned, is ignored, and block in starts over. This keeps a turnaround or a restart from showing the
+    last leg's clearance.
+  - **The runway shown** is ATC's latest (the taxi instruction's, else the clearance's `Expect runway`), else the
+    ATIS's first departing runway, else the plan's. It's marked as changed when it differs from the plan's. The
+    **heading** is the magnetic course from the plan's takeoff report (`tlr.takeoff.runway`).
+  - **Conditions:** wind from the spoken ATIS (magnetic in the US), else the METAR. Temperature from the METAR. The
+    runway condition is the plan's TLR surface (`dry`), or Wet when the METAR reports precipitation.
+  - **The plan's extras** (SID and transition, ZFW, cargo, takeoff runways) are read from the stored OFP when the
+    view loads. No migration: the OFP is kept verbatim (D-078's exception), as the navlog already is (D-182).
+  - **Cargo** is SimBrief's `weights.cargo` (bags and freight), split with `splitHolds` at the airplane's hold ratios.
+    `config/catalog.yaml`'s 737-800 BCF holds take the max-load distribution from Dave's own `simbrief.ps1` (main deck
+    34,960, forward 4,892, aft 6,108 lb) in place of estimates.
+  - **The collapsed header is remembered** across restarts in `%LOCALAPPDATA%\BlockTime\BlockTime.ini` (QtCore
+    `Settings`), shared with the replay window.
+- Why: The clearance comes a few minutes before pushback (3 minutes on KSAN → KSJC), so polling from block out showed
+  it only after the push. ATC's runway is the one that will be used. The magnetic course is what goes on the MCP's
+  heading bug. Reading the OFP needs no schema change, and the plan is already stored whole.
+- Alternatives considered: the clearance only after block out; a magnetic heading from the sim's runway (true, and
+  the magnetic variation isn't read); converting the METAR's true wind; new `simbrief_plan` columns; a collapsed
+  header for the session only.
+
+## D-189 — SimBrief's SID and runway show until ATC changes them
+- Date: 2026-11-26
+- Status: Accepted
+- Decided by: Dave
+- Area: design
+- Decision: From the start, the Pre-Flight panel shows the SID and runway SimBrief planned. When ATC changes the
+  runway or the SID, the panel follows ATC, marked as changed. If ATC doesn't change them, SimBrief's stay. The
+  ATIS's departing runway still replaces the plan's when they differ (D-153, D-188), before ATC names one.
+- Why: Dave sets up the FMC from the plan before calling for clearance; the panel only needs to flag what ATC changes.
+- Alternatives considered: no SID until the clearance comes (the plan's first draft).

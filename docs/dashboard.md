@@ -326,8 +326,9 @@ nothing. All weights in pounds. No centre of gravity.
 - **Passengers**, split by class when the airplane has more than one.
 - **Cargo**, split into the holds at the configuration's ratios, summing to SimBrief's cargo figure. A freighter shows
   only the cargo.
-- Claude's suggestion, not yet agreed: a small line with the other FMC inputs from the plan (flight number for the RTE
-  page, cost index, cruise level, reserves, transition altitude), useful when the plan isn't uplinked.
+- A small line with the **cruise level and the transition altitude** (`FL400 · Trans alt 18,000`; Dave, D-187: not
+  the flight number, cost index or reserves).
+- Cargo is SimBrief's `weights.cargo` (bags and freight together), split with the airplane's hold ratios (D-188).
 
 **Departure** (the EFB's inputs; ATIS polled about every 5 minutes, D-118)
 - **Runway:** the plan's at first, then the ATIS's from SayIntentions, which may differ. When it differs from the plan,
@@ -337,6 +338,9 @@ nothing. All weights in pounds. No centre of gravity.
 - **Altimeter** in the unit the ATIS gives (inHg in the US, hPa elsewhere).
 
 **Clearance** (once SayIntentions gives the pre-departure clearance)
+- **SID and runway before the clearance** (Dave, D-189): the panel shows SimBrief's SID (`PADRZ2 IKAYE`) and runway
+  from the start. When ATC changes either, the panel follows ATC, marked as changed. If ATC doesn't change them,
+  SimBrief's stay.
 - **SID:** SayIntentions leaves off the transition, so match its SID name against the plan's and show the plan's full
   form: SayIntentions says `via the ZOOO4 departure`, the plan has `ZOOO4 MTBAL`, the dashboard shows `ZOOO4 MTBAL`.
   If SayIntentions gives a SID the plan doesn't have, show it and mark it as changed (reprogram the FMC).
@@ -348,7 +352,19 @@ nothing. All weights in pounds. No centre of gravity.
   amber, then red in the last 5 minutes.)
 
 **Frequencies, all flight long.** Always the frequency Dave should be on now and the one he'll need next: clearance and
-ground at the gate, ground and tower after block out, and so on.
+ground at the gate, ground and tower after block out, and so on. **Not in milestone 13** (D-187): it moves to the
+in-flight panels' brainstorm. Until then, only the clearance's departure frequency shows.
+
+**Milestone 13's calls** (D-187, D-188; plan `plans/2026-11-26-milestone-13-preflight-panel.md`):
+- The panel shows from planning until liftoff, right under the header. The countdown hides at block out.
+- ATC and the origin's ATIS are polled at the gate (the ATIS every 5 minutes), so the clearance shows before
+  pushback.
+- The runway shown is ATC's latest (taxi or `Expect runway`), else the ATIS's, else the plan's. The heading is the
+  plan's TLR magnetic course. The wind comes from the spoken ATIS, else the METAR. The condition is the plan's TLR
+  surface, or Wet with precipitation in the METAR.
+- **The header collapses** with a click anywhere in the pill bar (D-187). Collapsed, it shows the origin code, the pill
+  and the destination code in one row, the marker with its label, and the current status line. It's remembered across
+  restarts.
 
 ### Cruise (draft)
 

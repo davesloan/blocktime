@@ -173,12 +173,17 @@ mockups (D-184) and closed by him on 2026-11-26 after trying it on replays.
 ### Milestone 13 — The Pre-Flight panel
 
 `docs/dashboard.md`, D-153: the load sheet, departure data and the clearance, in the instrument panel look (D-179). The clearance is read from the logged
-`atc_exchange` lines (D-163), through one plain ATC form (D-168).
+`atc_exchange` lines (D-163), through one plain ATC form (D-168), polled at the gate so it shows before pushback
+(D-188). Also the header collapsing to the pill bar with a click (D-187). Mockup first. No frequency readout yet
+(D-187).
+
+**Plan:** `docs/plans/2026-11-26-milestone-13-preflight-panel.md`.
 
 ### Then
 
 A brainstorm for the departure, climb, cruise, descent, short final and arrival panels, the predictions (D-120: TOD,
-the block-in estimate), and developer mode.
+the block-in estimate), the current and next frequency all flight long (D-153, moved here by D-187), and developer
+mode.
 
 **Every panel below the header uses the instrument panel look** (D-179, `docs/dashboard.md`): an inset panel with
 steam gauges for values that move, glass indicator lamps for what the debrief scores, and radio-stack readouts for

@@ -22,6 +22,29 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-26 — Milestone 13 planned: the Pre-Flight panel and the collapsing header (docs only)
+
+**Done:**
+- Plan `docs/plans/2026-11-26-milestone-13-preflight-panel.md`, ten tasks: the mockup first, then the ATC plain form
+  (D-168), clearance and taxi parsing, the ATIS/METAR readers, the plan's extras and the load sheet, `PreFlightLog`,
+  polling SayIntentions at the gate, `PreFlightModel`, the panel in QML, the header collapse, then close.
+- Dave's answers (D-187): the header collapses with a click in the pill bar, keeping the marker and its label; no
+  frequency readout yet (moved to the in-flight brainstorm); the FMC line has only the cruise level and transition
+  altitude; mockup first.
+- Claude's calls in D-188 (Proposed), the main ones:
+  - poll ATC and the origin's ATIS from planning, not block out; the clearance came 3 minutes before block out on
+    KSAN → KSJC, so today it only reaches the log after the push;
+  - the panel shows until liftoff, for the taxi route;
+  - the runway is ATC's, then the ATIS's, then the plan's, with the heading from the plan's TLR;
+  - the collapse is remembered in an ini file.
+- Found: Dave's stored OFPs have `general.sid_ident` / `sid_trans` (`PADRZ2` / `IKAYE`) and a takeoff report with
+  each runway's magnetic course, so the full SID and the heading need no guessing. Dave's `simbrief.ps1` confirms the
+  4:5 belly split already in the catalog, and gives the BCF's hold figures.
+
+**Next step:**
+- Dave reviews the plan and D-188. Then milestone 13 starts with Task 1, the mockup, in a new session (D-121) or this
+  one.
+
 ## 2026-11-26 — Questions answered: network use, MCP, ATC comms, frequencies (docs only)
 
 **Done:**
