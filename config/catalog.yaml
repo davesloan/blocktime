@@ -126,10 +126,10 @@ airframes:
   - name: 737-800 BCF Freighter
     type: 737-800 BCF
     limits: { min_runway_ft: 7000, mlw_lb: 146300, passenger_weight_lb: 190, bag_weight_lb: 55, max_payload_lb: 52000 }   # estimate
-    holds:
-      - { hold: main_deck, max_lb: 40000, ratio: 20 }   # estimate
-      - { hold: forward, max_lb: 7500, ratio: 4 }       # estimate
-      - { hold: aft, max_lb: 9500, ratio: 5 }           # estimate
+    holds:   # the 737-800BCF max-load distribution from Dave's simbrief.ps1, used as the ratios too (D-188)
+      - { hold: main_deck, max_lb: 34960, ratio: 34960 }
+      - { hold: forward, max_lb: 4892, ratio: 4892 }
+      - { hold: aft, max_lb: 6108, ratio: 6108 }
 
   - name: 777-200ER Standard
     type: 777-200ER

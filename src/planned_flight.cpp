@@ -242,6 +242,7 @@ std::optional<PlannedFlightView> readFlightView(db::Database& db, const ViewTabl
     const std::int64_t airplaneId = q.integer(22);
     for (const Cabin& c : cabinsOf(db, airplaneId)) v.seatsInstalled += c.seats;
     v.limits = airplaneLimits(db, airplaneId).value_or(AirplaneLimits{});
+    v.holds = holdsOf(db, airplaneId);
 
     db::Statement cabins(db, std::string("SELECT cabin_class, passengers FROM ") + t.cabins + " WHERE " + t.key +
                                  " = ? ORDER BY CASE cabin_class WHEN 'first' THEN 0 WHEN 'business' THEN 1 ELSE 2 END");
@@ -258,6 +259,7 @@ std::optional<PlannedFlightView> readFlightView(db::Database& db, const ViewTabl
     v.route.push_back({q.real(18), q.real(19)});
     if (plan.next()) {
         for (const RoutePoint& p : parseNavlog(plan.text(12))) v.route.push_back(p);
+        v.brief = parsePlanBrief(plan.text(12));
         SimbriefPlan p;
         p.requestId = plan.text(0);
         p.generatedAt = plan.text(1);

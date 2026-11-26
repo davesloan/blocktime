@@ -74,3 +74,22 @@ The dashboard's route arc follows the plan's navlog. In the OFPs BlockTime store
 `pos_lat` and `pos_long` (strings, degrees), `stage` (`CLB`, `CRZ`, `DSC`), and more that BlockTime doesn't read. The
 list includes the `TOC` and `TOD` pseudo-fixes and ends with the destination airport itself (KSAN → KSJC, 17 fixes:
 `tests/data/ofp-ksan-ksjc-navlog.json`, cut down to those four fields).
+
+## The Pre-Flight panel's fields (milestone 13, D-188)
+
+Read from the stored OFP (`ofp_json`) by `parsePlanBrief`; checked in Dave's KSAN → KSJC plan of 2026-11-25
+(`tests/data/ofp-ksan-ksjc-brief.json`, cut down to these fields).
+
+| What | Field | Example |
+|---|---|---|
+| SID and its transition | `general.sid_ident`, `general.sid_trans` | `PADRZ2`, `IKAYE` (the route string starts `PADRZ2 IKAYE …`) |
+| STAR (not read yet) | `general.star_ident`, `general.star_trans` | `SILCN6`, `TROXX` |
+| ZFW | `weights.est_zfw` | `112967` |
+| Cargo | `weights.cargo` | `2420`: bags and freight together (44 bags × 55 lb, `freight_added` 0) |
+| Block fuel | `fuel.plan_ramp` | `13439` (already a `simbrief_plan` column) |
+| Takeoff runways | `tlr.takeoff.runway[]`: `identifier`, `magnetic_course` (also `true_course`, lengths, V-speeds) | `27` → `275` |
+| Planned surface | `tlr.takeoff.conditions.surface_condition` | `dry` |
+
+- The takeoff report lists every runway at the origin, not only the planned one, so a runway ATC changes still has a
+  magnetic course. Plans made without the TLR have no `tlr`; older fixtures (`ofp_v2_min.json`) have none of these.
+- Other fields seen and not used: `general.costindex` (`30`), `fuel.reserve`, `fuel.alternate_burn`, `weights.pax_count`.

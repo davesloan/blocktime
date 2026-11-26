@@ -18,6 +18,7 @@
 #include "flight_match.h"
 #include "loads.h"
 #include "money.h"
+#include "plan_brief.h"
 #include "pricing.h"
 #include "simbrief.h"
 #include "sqlite_db.h"
@@ -88,8 +89,11 @@ struct PlannedFlightView {
     // Where the airplane last parked ("Gate E7"), if its latest flight ended at this origin; "" otherwise (D-148).
     std::string loadInParking;
     std::optional<SimbriefPlan> plan;
+    // The plan's extras from its stored OFP, set with `plan` (D-188).
+    std::optional<PlanBrief> brief;
     // The origin, the plan's navlog fixes, then the destination; only the two airports without a plan (D-182).
     std::vector<RoutePoint> route;
+    std::vector<Hold> holds;  // the airplane's, for the load sheet (D-153)
 };
 
 std::optional<PlannedFlightView> currentPlannedFlight(db::Database& db);

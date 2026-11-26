@@ -528,6 +528,9 @@ TEST_F(Settlement, FlownFlightViewMatchesThePlan) {
     EXPECT_EQ(flown->cabins[0].passengers, 40);
     EXPECT_EQ(flown->cargoLb, 0);
     EXPECT_DOUBLE_EQ(flown->distanceNm, planned.distanceNm);
+    EXPECT_TRUE(flown->brief.has_value());  // the Pre-Flight panel on a replay (D-188)
+    EXPECT_EQ(flown->holds.size(), planned.holds.size());
+    EXPECT_FALSE(flown->holds.empty());
     EXPECT_EQ(flown->fuelPriceCentsPer100Lb, 4100);
     EXPECT_EQ(flown->plannedAt, kPlannedAt);
     EXPECT_EQ(flown->originRunway, "14R");

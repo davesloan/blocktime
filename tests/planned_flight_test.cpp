@@ -284,6 +284,27 @@ TEST(Planned, ViewHasCities) {
     EXPECT_EQ(f->destinationCity, "San Diego");
 }
 
+TEST(Planned, ViewHasBriefAndHolds) {
+    db::Database db = test::testAirline();
+    std::string error;
+    const auto id = createPlannedFlight(db, vipToKsan(db), &error);
+    ASSERT_TRUE(id.has_value()) << error;
+    auto f = currentPlannedFlight(db);
+    EXPECT_FALSE(f->brief.has_value());  // no plan yet
+    ASSERT_EQ(f->holds.size(), 2u);      // N814SX's: forward then aft
+    EXPECT_EQ(f->holds[0].hold, "forward");
+    EXPECT_EQ(f->holds[0].ratio, 4);
+    EXPECT_EQ(f->holds[1].hold, "aft");
+
+    ASSERT_TRUE(storeSimbriefPlan(db, *id, fixturePlan(), fixture("ofp-ksan-ksjc-brief.json"), "2026-11-23T14:05:00Z",
+                                  &error))
+        << error;
+    f = currentPlannedFlight(db);
+    ASSERT_TRUE(f->brief.has_value());
+    EXPECT_EQ(f->brief->sid, "PADRZ2");
+    EXPECT_EQ(f->brief->zfwLb, 112967);
+}
+
 TEST(Planned, ViewHasRoute) {
     db::Database db = test::testAirline();
     std::string error;
