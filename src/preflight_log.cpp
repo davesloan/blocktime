@@ -122,18 +122,14 @@ DepartureView departureView(const PlannedFlightView& flight, const PreFlightLog&
 ClearanceView clearanceView(const PlannedFlightView& flight, const PreFlightLog& log) {
     ClearanceView c;
     const std::string planSid = flight.brief ? flight.brief->sid : std::string();
-    if (!planSid.empty()) {
-        c.sid = planSid;
-        if (!flight.brief->sidTransition.empty()) c.sid += " " + flight.brief->sidTransition;
-    }
+    const std::string planTransition = flight.brief ? flight.brief->sidTransition : std::string();
+    bool changed = false;
+    c.sid = planSidForm("", planSid, planTransition, &changed);
     if (log.taxi()) c.taxiRoute = log.taxi()->route;
     const auto& clearance = log.clearance();
     if (!clearance) return c;
     c.received = true;
-    if (!clearance->sid.empty() && clearance->sid != planSid) {
-        c.sid = clearance->sid;
-        c.sidChanged = true;
-    }
+    c.sid = planSidForm(clearance->sid, planSid, planTransition, &c.sidChanged);
     c.initialAltitude = clearance->initialAltitude;
     c.squawk = clearance->squawk;
     c.departureFrequency = clearance->departureFrequency;

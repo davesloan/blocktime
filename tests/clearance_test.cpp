@@ -25,6 +25,39 @@ TEST(Clearance, KsanPadrz2) {
     EXPECT_EQ(c->runway, "27");
 }
 
+// The ATC card's ALTITUDE aside before the first altitude clearance (D-197): "EXP FL400 +10 MIN".
+TEST(Clearance, ExpectLevel) {
+    const auto c = parseClearance(
+        "Cleared to Norman Y. Mineta San Jose via the PADRZ2 departure. Then as filed. Climb via the SID. Expect FL400 "
+        "one-zero minutes after departure. Departure on 119.6. Squawk 3166. Expect runway 27");
+    ASSERT_TRUE(c.has_value());
+    EXPECT_EQ(c->expectLevel, "FL400");
+    EXPECT_EQ(c->expectMinutes, 10);
+    const auto five = parseClearance("Cleared to San Jose. Climb and maintain 5,000. Expect flight level 350 five "
+                                     "minutes after departure. Squawk 1234");
+    ASSERT_TRUE(five.has_value());
+    EXPECT_EQ(five->expectLevel, "FL350");
+    EXPECT_EQ(five->expectMinutes, 5);
+    const auto none = parseClearance("Cleared to San Jose as filed. Squawk 1234");
+    ASSERT_TRUE(none.has_value());
+    EXPECT_EQ(none->expectLevel, "");
+    EXPECT_EQ(none->expectMinutes, 0);
+}
+
+// SimBrief's full SID while ATC's matches it (D-189); ATC's own, marked changed, when it doesn't.
+TEST(Clearance, PlanSidForm) {
+    bool changed = true;
+    EXPECT_EQ(planSidForm("PADRZ2", "PADRZ2", "IKAYE", &changed), "PADRZ2 IKAYE");
+    EXPECT_FALSE(changed);
+    EXPECT_EQ(planSidForm("", "PADRZ2", "IKAYE", &changed), "PADRZ2 IKAYE");
+    EXPECT_FALSE(changed);
+    EXPECT_EQ(planSidForm("PADRZ2", "PADRZ2", "", &changed), "PADRZ2");
+    EXPECT_EQ(planSidForm("BORDR2", "PADRZ2", "IKAYE", &changed), "BORDR2");
+    EXPECT_TRUE(changed);
+    EXPECT_EQ(planSidForm("", "", "", &changed), "");
+    EXPECT_FALSE(changed);
+}
+
 TEST(Clearance, KlasRadyr2) {
     const auto c = parseClearance(
         "Cleared to San Diego via the RADYR2 departure. Then as filed. Climb via the SID. Expect FL360 one-zero minutes "

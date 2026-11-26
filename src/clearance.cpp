@@ -5,6 +5,8 @@
 #include "clearance.h"
 
 #include <format>
+#include <cctype>
+#include <cstdlib>
 #include <regex>
 
 #include "money.h"
@@ -40,6 +42,28 @@ std::string initialAltitude(const std::string& words) {
     return formatNumber(std::stoll(digits)) + " ft";
 }
 
+// "one-zero" → 10, "five" → 5, "10" → 10; 0 when it can't be read.
+int spokenNumber(const std::string& words) {
+    static const char* kDigits[] = {"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "niner"};
+    if (!words.empty() && std::isdigit(static_cast<unsigned char>(words[0]))) return std::atoi(words.c_str());
+    if (words == "ten") return 10;
+    if (words == "nine") return 9;
+    int n = 0;
+    std::size_t start = 0;
+    while (start <= words.size()) {
+        const std::size_t dash = words.find('-', start);
+        const std::string digit = words.substr(start, dash == std::string::npos ? std::string::npos : dash - start);
+        int d = -1;
+        for (int i = 0; i < 10; ++i)
+            if (digit == kDigits[i] || (i == 9 && digit == "nine")) d = i;
+        if (d < 0) return 0;
+        n = n * 10 + d;
+        if (dash == std::string::npos) break;
+        start = dash + 1;
+    }
+    return n;
+}
+
 }  // namespace
 
 std::optional<Clearance> parseClearance(std::string_view atcWords) {
@@ -52,6 +76,16 @@ std::optional<Clearance> parseClearance(std::string_view atcWords) {
     c.initialAltitude = initialAltitude(words);
     c.departureFrequency = capture(words, R"(departure on (\d{3}\.\d{1,3}))");
     c.runway = normalizeRunway(capture(words, R"(expect runway (\w+))"));
+    std::smatch expect;
+    if (std::regex_search(words, expect,
+                          std::regex(R"(\bexpect (flight level |FL ?)(\d+)(?: ([\w-]+) minutes? after departure)?)", kIcase))) {
+        c.expectLevel = "FL" + expect[2].str();
+        if (expect[3].matched) {
+            std::string spoken = expect[3].str();
+            for (char& ch : spoken) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            c.expectMinutes = spokenNumber(spoken);
+        }
+    }
     return c;
 }
 
@@ -72,6 +106,18 @@ Countdown clearanceCountdown(TimePoint clearedAt, TimePoint now) {
     const auto left = clearedAt + kClearanceValidity - now;
     const long long s = std::max<long long>(0, duration_cast<seconds>(left).count());
     return Countdown{std::format("{}:{:02}", s / 60, s % 60), left <= minutes(5), left <= seconds(0)};
+}
+
+std::string planSidForm(std::string_view atcSid, std::string_view planSid, std::string_view planTransition,
+                        bool* changed) {
+    *changed = false;
+    if (!atcSid.empty() && atcSid != planSid) {
+        *changed = true;
+        return std::string(atcSid);
+    }
+    std::string form(planSid);
+    if (!form.empty() && !planTransition.empty()) form += " " + std::string(planTransition);
+    return form;
 }
 
 }  // namespace blocktime

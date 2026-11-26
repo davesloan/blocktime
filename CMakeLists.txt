@@ -113,6 +113,7 @@ add_library(blocktime-core STATIC
   src/debrief_score.cpp
   src/debrief_store.cpp
   src/debrief_review.cpp
+  src/atc_instructions.cpp
   src/atc_message.cpp
   src/clearance.cpp
   src/departure_conditions.cpp
@@ -223,6 +224,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/debrief_measure_test.cpp
     tests/debrief_score_test.cpp
     tests/debrief_review_test.cpp
+    tests/atc_instructions_test.cpp
     tests/atc_message_test.cpp
     tests/clearance_test.cpp
     tests/departure_conditions_test.cpp

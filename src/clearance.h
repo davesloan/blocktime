@@ -22,10 +22,17 @@ struct Clearance {
     std::string departureFrequency;  // "119.6", as spoken
     std::string squawk;              // "3166"
     std::string runway;              // "Expect runway 8L" → "08L"; ""
+    std::string expectLevel;         // "Expect FL400 one-zero minutes after departure" → "FL400"; ""
+    int expectMinutes = 0;           // 10; 0 when not said
 };
 
 // ATC's words. nullopt unless they contain "cleared to" and a squawk.
 std::optional<Clearance> parseClearance(std::string_view atcWords);
+
+// The plan's full form "PADRZ2 IKAYE" when ATC's SID has the plan's name (or ATC named none, D-189); else ATC's own,
+// and *changed is set.
+std::string planSidForm(std::string_view atcSid, std::string_view planSid, std::string_view planTransition,
+                        bool* changed);
 
 struct TaxiInstruction {
     std::string runway;  // normalized, "27"
