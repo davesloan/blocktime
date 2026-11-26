@@ -2711,8 +2711,8 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-176 — Replay's smaller calls while building
 - Date: 2026-11-25
-- Status: Proposed
-- Decided by: Claude
+- Status: Accepted (Dave, 2026-11-25)
+- Decided by: Claude, accepted by Dave
 - Area: app
 - Decision:
   - The replay's QML-facing planned flight is a base class, `PlannedFlightDisplay`, holding the properties and their

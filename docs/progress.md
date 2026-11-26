@@ -34,7 +34,7 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 **Unverified or broken:**
 - The known minor issues in the entry below stay open (D-174: fixed if they get in the way).
-- D-176 (the smaller calls made while building) is still Proposed, waiting on Dave.
+- D-176 (the smaller calls made while building) accepted by Dave.
 
 **Next step:**
 - Milestone 12, the dashboard header and status lines (`docs/dashboard.md`, D-151, D-152, D-154), in a new session
