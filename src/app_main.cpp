@@ -47,6 +47,7 @@
 #include "new_flight_model.h"
 #include "planned_flight_model.h"
 #include "dashboard_header.h"
+#include "inflight_model.h"
 #include "preflight_model.h"
 #include "qml_hot_reload.h"
 #include "flight_watcher.h"
@@ -465,6 +466,11 @@ int main(int argc, char* argv[]) {
     DashboardHeader* header = demo ? demoHeader.get() : &*liveHeader;
     // The Pre-Flight panel (D-153): the planned flight with SayIntentions' ATIS and clearance; --demo's own flight.
     PreFlightModel preflight(bridge, demo ? static_cast<PlannedFlightDisplay&>(*demoPlanned) : plannedFlight);
+    // The in-flight panel (D-194): block out to block in. SOULS counts the crew at rates.yaml's VIP multiple (D-203).
+    const blocktime::Rates liveRates =
+        blocktime::loadRates(blocktime::defaultRatesFile(), nullptr).value_or(blocktime::Rates{});
+    InFlightModel inflight(bridge, demo ? static_cast<PlannedFlightDisplay&>(*demoPlanned) : plannedFlight,
+                           static_cast<int>(liveRates.vipFlightAttendantsTimes));
     QObject::connect(&reviews, &ReviewWriter::reviewChanged, &flights, &FlightListModel::refreshDebrief);
     // A flight settled: the airplane moved, money was posted and Flights has a new row (D-113).
     QObject::connect(&plannedFlight, &PlannedFlightModel::settled, [&](const QString& logFlightId) {
@@ -497,6 +503,7 @@ int main(int argc, char* argv[]) {
                             {"plannedFlight", QVariant::fromValue(&plannedFlight)},
                             {"dashboard", QVariant::fromValue(header)},
                             {"preflight", QVariant::fromValue(&preflight)},
+                            {"inflight", QVariant::fromValue(&inflight)},
                             {"airlineName", QString::fromStdString(airline.airlineName())},
                             {"startPage", startPage},
                             {"mapTileUrl", map.tileUrl},

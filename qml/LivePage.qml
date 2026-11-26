@@ -21,6 +21,7 @@ Item {
     required property PlannedFlightDisplay plannedFlight
     required property DashboardHeader dashboard
     required property PreFlightModel preflight
+    required property InFlightModel inflight
     required property FlightListModel flights
     required property ReviewWriter reviews
     required property string mapTileUrl

@@ -38,6 +38,7 @@
 #include "flight_settlement.h"
 #include "planned_flight.h"
 #include "planned_flight_model.h"
+#include "inflight_model.h"
 #include "preflight_model.h"
 #include "replay_planned_flight.h"
 #include "replay_session.h"
@@ -2724,4 +2725,166 @@ TEST(PreFlightModel, ReplayHasOne) {
     EXPECT_EQ(r.preflight()->squawk(), "3166");
     ASSERT_TRUE(r.seek("climb"));
     EXPECT_FALSE(r.preflight()->visible());
+}
+
+// ---- The in-flight panel (milestone 14, D-194..D-198, D-203) ----
+
+namespace {
+
+blocktime::TelemetrySample sampleOf(bool onGround, double gsKt, double iasKt, double aglFt = 0, double fuelLb = 13420) {
+    blocktime::TelemetrySample s{};
+    s.onGround = onGround ? 1 : 0;
+    s.groundSpeedKt = gsKt;
+    s.indicatedAirspeedKt = iasKt;
+    s.altitudeAglFt = aglFt;
+    s.fuelTotalLb = fuelLb;
+    s.numEngines = 2;
+    s.engCombustion[0] = s.engCombustion[1] = 1;
+    return s;
+}
+
+void blockOutOf(RecorderBridge& b) {
+    blocktime::BlockOut out;
+    out.flightId = kReplayFlight.toStdString();
+    out.fuelLb = 13420;
+    b.applyBlockEvent(out);
+}
+
+}  // namespace
+
+TEST(InFlightModel, VisibleFromBlockOutToBlockIn) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    InFlightModel m(b, f, 3);
+    EXPECT_FALSE(m.visible());
+    blockOutOf(b);
+    EXPECT_TRUE(m.visible());
+    blocktime::BlockIn in;
+    in.flightId = kReplayFlight.toStdString();
+    b.applyBlockEvent(in);
+    EXPECT_FALSE(m.visible());
+}
+
+TEST(InFlightModel, SpeedFaceSwitchesAt40Kt) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    InFlightModel m(b, f, 3);
+    blockOutOf(b);
+    b.applySample(sampleOf(true, 39, 30));
+    EXPECT_EQ(m.speedFace(), "gs");
+    EXPECT_DOUBLE_EQ(m.speedKt(), 39);
+    b.applySample(sampleOf(true, 41, 38));  // the takeoff roll
+    EXPECT_EQ(m.speedFace(), "ias");
+    EXPECT_DOUBLE_EQ(m.speedKt(), 38);
+    b.applySample(sampleOf(false, 160, 150));
+    EXPECT_EQ(m.speedFace(), "ias");
+    b.applySample(sampleOf(true, 39, 35));  // the landing rollout
+    EXPECT_EQ(m.speedFace(), "gs");
+}
+
+TEST(InFlightModel, VrefBugOnlyOnApproach) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    InFlightModel m(b, f, 3);
+    blockOutOf(b);
+    b.applyFlightEvent("cockpit", variantOf({{"pmdg", true}, {"seat_belts", 2}, {"vref_kt", 129}, {"landing_flaps", 40}}));
+    b.applyFlightEvent("phase_changed", variantOf({{"phase", "climb"}}));
+    EXPECT_DOUBLE_EQ(m.vrefBugKt(), -1);
+    b.applyFlightEvent("phase_changed", variantOf({{"phase", "approach"}}));
+    EXPECT_DOUBLE_EQ(m.vrefBugKt(), 129);
+    b.applyFlightEvent("touchdown", variantOf({{"time", "2026-11-25T19:58:59.431Z"}, {"vs_fpm", -100.0}}));
+    EXPECT_DOUBLE_EQ(m.vrefBugKt(), -1);
+}
+
+TEST(InFlightModel, FlashRunsOnlyWhileWrong) {
+    qtApp();
+    RecorderBridge b;
+    auto now = utc("2026-11-25T18:43:04Z");
+    b.setClock([&now] { return now; });
+    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    InFlightModel m(b, f, 3);
+    m.setFlashInterval(std::chrono::milliseconds(5));
+    int flashes = 0;
+    QObject::connect(&m, &InFlightModel::flashChanged, [&flashes] { ++flashes; });
+    blocktime::TelemetrySample beaconOn = sampleOf(true, 0, 0);
+    beaconOn.lightBeacon = 1;
+    b.applySample(beaconOn);
+    blockOutOf(b);
+    now += std::chrono::seconds(30);
+    b.applySample(beaconOn);
+    QElapsedTimer t;
+    t.start();
+    while (t.elapsed() < 60) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+    EXPECT_EQ(flashes, 0);
+    EXPECT_TRUE(m.flashOn());
+    b.applySample(sampleOf(true, 0, 0));  // the beacon off, 30 s after block out: wrong
+    t.restart();
+    while (t.elapsed() < 60) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+    EXPECT_GT(flashes, 1);
+}
+
+TEST(InFlightModel, AltitudeFaceFollowsTheSamples) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    InFlightModel m(b, f, 3);
+    blockOutOf(b);
+    EXPECT_EQ(m.altitudeFace(), "radio");
+    b.applySample(sampleOf(false, 250, 250, 3100));
+    EXPECT_EQ(m.altitudeFace(), "altimeter");
+    b.applySample(sampleOf(false, 180, 180, 1900));
+    EXPECT_EQ(m.altitudeFace(), "radio");
+    EXPECT_DOUBLE_EQ(m.aglFt(), 1900);
+    b.applyFlightEvent("phase_changed", variantOf({{"phase", "go_around"}}));
+    EXPECT_EQ(m.altitudeFace(), "altimeter");
+    b.applySample(sampleOf(false, 180, 180, 1500));
+    EXPECT_EQ(m.altitudeFace(), "altimeter");
+    b.applyFlightEvent("flight_marker", variantOf({{"marker", "final_approach"}}));
+    EXPECT_EQ(m.altitudeFace(), "radio");
+}
+
+TEST(InFlightModel, FuelText) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    InFlightModel m(b, f, 3);
+    blockOutOf(b);
+    b.applySample(sampleOf(false, 250, 250, 20000, 7412.6));
+    EXPECT_EQ(m.fuelText(), "7,410");
+    EXPECT_DOUBLE_EQ(m.fuelScaleLb(), 18000);  // 13,420 at block out, rounded up to 6,000 lb
+}
+
+TEST(InFlightModel, KsanKsjcReplay) {
+    qtApp();
+    ReplaySession r(kReplayFixtureDir, kReplayFlight, preflightView(), "XLY", Rates{});
+    ASSERT_NE(r.inflight(), nullptr);
+    // 19:53:04Z: the approach call (ATC's 19:50:26, logged at the 19:51:15 fetch) and the traffic call after it.
+    ASSERT_TRUE(r.seek("1:10"));
+    const InFlightModel& m = *r.inflight();
+    EXPECT_TRUE(m.visible());
+    EXPECT_EQ(m.phaseTitle(), "ARRIVAL");
+    int latest = 0;
+    for (const QVariant& s : m.atcSlots()) latest += s.toMap()["latest"].toBool() ? 1 : 0;
+    EXPECT_EQ(latest, 3);
+    bool julietT = false;
+    for (const QVariant& rd : m.readouts()) {
+        const QVariantMap map = rd.toMap();
+        if (map["title"].toString() == "ATIS") julietT = map["value"].toString() == "JULIETT";
+    }
+    EXPECT_TRUE(julietT);
+    EXPECT_EQ(m.readouts()[0].toMap()["title"].toString(), "SOULS");
+}
+
+TEST(InFlightModel, FirstFillIsNotAChange) {
+    qtApp();
+    ReplaySession r(kReplayFixtureDir, kReplayFlight, preflightView(), "XLY", Rates{});
+    QCoreApplication::processEvents();
+    EXPECT_TRUE(r.inflight()->animate());
+    ASSERT_TRUE(r.seek("cruise"));
+    EXPECT_FALSE(r.inflight()->animate());  // a seek is a rebuild: nothing flips
+    QCoreApplication::processEvents();
+    EXPECT_TRUE(r.inflight()->animate());
 }

@@ -422,7 +422,7 @@ The phrases. The first eleven rows are from the KSAN → KSJC log, word for word
       void onGoAround(std::string time);    // clears APPROACH (D-201)
       // Departure: ALTITUDE, ROUTE, TAXI (v2: ALTITUDE and ROUTE where they'll be airborne; the QML leaves SPEED's
       // place empty). Airborne: ALTITUDE, ROUTE (or HEADING), SPEED, APPROACH. Arrival: TAXI, HOLD SHORT.
-      std::vector<AtcSlot> slots(CardStage stage) const;
+      std::vector<AtcSlot> slotsFor(CardStage stage) const;  // not slots(): a Qt macro
   };
   ```
 - The card is rebuilt from scratch on every message and go-around: apply every kept message in `time` order, then the
@@ -697,7 +697,7 @@ Not the needles, times or distances.
   - `cruise`;
   - `0:42`: descend via, ARRIVAL readouts with `JULIETT`;
   - `0:58`: EXP ILS 30L;
-  - `1:08`: the three `LATEST` slots;
+  - `1:10`: the three `LATEST` slots (ATC lines reach the log at the next fetch, a minute late in this 0.11.0 log);
   - `1:15`: short final, the radio altitude face;
   - `taxi_in`: TAXI `K`, HOLD SHORT.
   

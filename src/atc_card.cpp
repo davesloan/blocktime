@@ -115,7 +115,7 @@ void AtcCard::rebuild() {
     }
 }
 
-std::vector<AtcSlot> AtcCard::slots(CardStage stage) const {
+std::vector<AtcSlot> AtcCard::slotsFor(CardStage stage) const {
     const auto pick = [this](std::initializer_list<Slot> list) {
         std::vector<AtcSlot> out;
         for (Slot s : list) out.push_back(slots_[index(s)]);

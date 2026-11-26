@@ -20,6 +20,7 @@ ApplicationWindow {
     required property PlannedFlightModel plannedFlight
     required property DashboardHeader dashboard
     required property PreFlightModel preflight
+    required property InFlightModel inflight
     required property string airlineName
     property int startPage: 0  // --page; a developer option with --grab
     // Map settings from app_main (D-059). The tile URL holds the CARTO key: never shown or logged.
@@ -123,6 +124,7 @@ ApplicationWindow {
                     plannedFlight: window.plannedFlight
                     dashboard: window.dashboard
                     preflight: window.preflight
+                    inflight: window.inflight
                     flights: window.flights
                     reviews: window.reviews
                     mapTileUrl: window.mapTileUrl

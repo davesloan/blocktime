@@ -60,6 +60,7 @@ void ReplaySession::makeBridge() {
     if (bridge_) bridge_->deleteLater();
     if (header_) header_->deleteLater();
     if (preflight_) preflight_->deleteLater();
+    if (inflight_) inflight_->deleteLater();
     if (planned_) planned_->deleteLater();
     bridge_ = new RecorderBridge(this);
     bridge_->setReplay();
@@ -68,6 +69,7 @@ void ReplaySession::makeBridge() {
     header_ = new DashboardHeader(*bridge_, *planned_, airlineIcao_, airlineName_,
                                   [view = view_](const QString&) { return view; }, this);
     preflight_ = new PreFlightModel(*bridge_, *planned_, this);
+    inflight_ = new InFlightModel(*bridge_, *planned_, static_cast<int>(rates_.vipFlightAttendantsTimes), this);
 }
 
 void ReplaySession::setSpeed(double speed) {
@@ -112,6 +114,7 @@ bool ReplaySession::seek(const QString& at) {
     const auto offset = timeline_.offsetOf(at.toStdString());
     if (!offset) return false;
     clock_.seek(*offset);
+    inflight_->catchUp();  // a burst: the panel rebuilds without flips (D-198)
     feedUpTo(*offset);
     return true;
 }

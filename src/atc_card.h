@@ -41,7 +41,7 @@ public:
     void onTouchdown(std::string time);    // clears TAXI and HOLD SHORT: the taxi in is a new one
     // Departure: ALTITUDE, ROUTE, TAXI. Airborne: ALTITUDE, ROUTE (or HEADING), SPEED, APPROACH. Arrival: TAXI,
     // HOLD SHORT.
-    std::vector<AtcSlot> slots(CardStage stage) const;
+    std::vector<AtcSlot> slotsFor(CardStage stage) const;
     // For the arrival and short-final readouts (D-194): the last descend-via STAR with ATC's transition
     // ("SILCN6 TROXX"), the runway of the last approach or landing clearance ("30L"), and the landing clearance's
     // wind ("360° / 4 kt"). "" until ATC says them.
