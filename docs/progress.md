@@ -22,6 +22,23 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-26 — Milestone 12 closed (0.13.0)
+
+**Done:**
+- Dave tried the reworked header on replays and approved it. He confirmed every proposed decision: D-160, D-161,
+  D-162 (milestone 10), D-183 and D-185 are now Accepted.
+- `main` pushed to `origin` (D-121).
+
+**Unverified:**
+- On Dave's next real flight he should see the header through a whole flight: `Departing soon` until liftoff, the
+  marker sliding through the sub-phases, Arrival turning green at touchdown, then at block in `Arrived … · Gate …`
+  with the summary below and the arc still coloured. The real app's settle → summary cycle hasn't run end to end.
+
+**Next step:**
+- Milestone 13, the Pre-Flight panel (`docs/roadmap.md`, D-153), in a new session (D-121), starting from this
+  entry. For later: the pill and status lines may leave the header on a summary (`docs/dashboard.md`, "Open before
+  building").
+
 ## 2026-11-26 — Milestone 12: the header reworked with Dave (D-184, D-185)
 
 **Done:**

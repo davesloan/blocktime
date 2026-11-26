@@ -167,8 +167,8 @@ itself. No sim test needed.
 `docs/dashboard.md`, D-151, D-152, D-154: the identity row, the route arc, the phase pill, the three status lines and
 the header staying at block in. Block-in time shows the plan's until the predictions exist. Checked on replays.
 
-**Built in 0.13.0** (`docs/plans/2026-11-25-milestone-12-dashboard-header.md`, D-180..D-183): checked on replays of
-Dave's flights; waits for Dave to try it.
+**Built in 0.13.0** (`docs/plans/2026-11-25-milestone-12-dashboard-header.md`, D-180..D-185); reworked with Dave from
+mockups (D-184) and closed by him on 2026-11-26 after trying it on replays.
 
 ### Milestone 13 — The Pre-Flight panel
 

@@ -2429,7 +2429,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-160 — Measurements are stored; scores are computed when shown
 - Date: 2026-11-24
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-26)
 - Decided by: Claude (following Dave's point about tuning)
 - Area: app, data
 - Decision:
@@ -2449,7 +2449,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-161 — How the review is written
 - Date: 2026-11-24
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-26)
 - Decided by: Claude
 - Area: app
 - Decision:
@@ -2468,7 +2468,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-162 — Milestone 10's build calls
 - Date: 2026-11-24
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-26)
 - Decided by: Claude
 - Area: app, recorder, data
 - Decision:
@@ -2825,7 +2825,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-183 — Milestone 12's smaller calls while building
 - Date: 2026-11-25
-- Status: Proposed; the pill's strip, the marker's label and the startup summary's blank block times superseded by D-184
+- Status: Accepted (confirmed by Dave, 2026-11-26); the pill's strip, the marker's label and the startup summary's blank block times superseded by D-184
 - Decided by: Claude
 - Area: app
 - Decision:
@@ -2878,7 +2878,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-185 — Smaller calls while building D-184
 - Date: 2026-11-26
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-26)
 - Decided by: Claude
 - Area: app
 - Decision:
