@@ -211,3 +211,12 @@ TEST(Pricing, RatesAreUsed) {
 }
 
 TEST(Pricing, EstimatedBlockHours) { EXPECT_DOUBLE_EQ(estimatedBlockHours(900, 450), 2.5); }
+
+// SOULS on the in-flight panel (D-203): the crew BlockTime pays for (design.md section 10).
+TEST(Pricing, CrewFor) {
+    EXPECT_EQ(crewFor("executive", false, 48, 1.1, 3), 5);   // the BBJ2: 2 pilots, 1 × 3 flight attendants
+    EXPECT_EQ(crewFor("airliner", false, 162, 1.1, 3), 6);   // 2 pilots, 4 flight attendants
+    EXPECT_EQ(crewFor("freighter", false, 0, 1.1, 3), 2);    // pilots only
+    EXPECT_EQ(crewFor("airliner", false, 162, 9.0, 3), 7);   // 3 pilots over 8 hours
+    EXPECT_EQ(crewFor("airliner", true, 162, 1.1, 3), 2);    // a delivery flies the pilots only
+}

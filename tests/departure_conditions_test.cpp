@@ -97,3 +97,25 @@ TEST(PhoneticWord, Letters) {
     EXPECT_EQ(phoneticWord("JJ"), "");
     EXPECT_EQ(phoneticWord("7"), "");
 }
+
+// The arrival ATIS readouts (D-193), from the logged KSJC ATIS.
+TEST(AtisReaders, ApproachesAndRunways) {
+    const char* ksjc = "NORMAN Y. MINETA SAN JOSE INTL ARPT, INFO JULIET. 1853Z. ARVG AND DPTG RWYS 30L, 30R. WIND VRB AT "
+                       "4. VIS 10. TEMP 17, DP 12. ALTIM 30.19. ILS RWY 30L AND RNAV-Z RWY 30R APCHS IN USE. VISUAL APCHS "
+                       "IN USE.";
+    EXPECT_EQ(atisApproaches(ksjc), "ILS 30L · RNAV-Z 30R");
+    EXPECT_EQ(atisApproaches("SWEETWATER VISUAL RWY 27 APCH IN USE."), "");
+    EXPECT_EQ(runwayList("30L,30R"), "30L 30R");
+    EXPECT_EQ(runwayList("27"), "27");
+    EXPECT_EQ(runwayList(""), "");
+}
+
+// The tower's wind in a landing clearance (the short-final WIND readout).
+TEST(AtisWind, TowerWords) {
+    const auto w = atisWind("San Jose Tower, Runway 30L, Winds 360 at 4. Cleared to land.");
+    ASSERT_TRUE(w.has_value());
+    EXPECT_EQ(windText(*w), "360° / 4 kt");
+    const auto calm = atisWind("Lindbergh Tower, Runway 27, Winds calm. RNAV WNFLD, cleared for takeoff.");
+    ASSERT_TRUE(calm.has_value());
+    EXPECT_TRUE(calm->calm);
+}

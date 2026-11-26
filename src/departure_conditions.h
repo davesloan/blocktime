@@ -33,5 +33,10 @@ bool metarPrecipitation(std::string_view metar);
 std::string altimeterText(std::string_view altimeter);
 // "J" → "JULIETT", "a" → "ALFA": the ICAO word, in ICAO's spelling (D-193, D-201). "" for anything else.
 std::string phoneticWord(std::string_view letter);
+// The approaches an ATIS has in use: "ILS RWY 30L AND RNAV-Z RWY 30R APCHS IN USE" → "ILS 30L · RNAV-Z 30R"; ""
+// without one. Visual approaches are left out.
+std::string atisApproaches(std::string_view atisText);
+// The ATIS's runway list: "30L,30R" → "30L 30R".
+std::string runwayList(std::string_view atisRunways);
 
 }  // namespace blocktime

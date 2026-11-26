@@ -9,6 +9,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "loads.h"
@@ -50,6 +51,10 @@ Preview pricePreview(const PriceInput& in, const Rates& rates);
 
 int pilotsFor(double blockHours);          // 2; 3 over 8 hours; 4 over 12
 int flightAttendantsFor(int seatsInstalled);  // FAA minimum: 1 per 50 seats or part, none under 20
+// The crew BlockTime pays for (design.md section 10), for SOULS on the in-flight panel (D-203): the pilots for the
+// block time, plus the flight attendants for the seats (× vipAttendantsTimes on an executive airplane). A freighter
+// or a delivery flies the pilots only.
+int crewFor(std::string_view role, bool delivery, int seatsInstalled, double blockHours, int vipAttendantsTimes);
 double estimatedBlockHours(double distanceNm, int cruiseSpeedKt);  // before a plan: distance / speed + 30 min
 
 }  // namespace blocktime

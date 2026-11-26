@@ -1,36 +1,47 @@
 {
-    "general":  {
-                    "sid_ident":  "PADRZ2",
-                    "sid_trans":  "IKAYE",
-                    "initial_altitude":  "40000"
-                },
-    "origin":  {
-                   "icao_code":  "KSAN",
-                   "trans_alt":  "18000"
-               },
-    "weights":  {
-                    "est_zfw":  "112967",
-                    "cargo":  "2420",
-                    "pax_count":  "44"
-                },
-    "fuel":  {
-                 "plan_ramp":  "13439"
-             },
-    "tlr":  {
-                "takeoff":  {
-                                "conditions":  {
-                                                   "surface_condition":  "dry"
-                                               },
-                                "runway":  [
-                                               {
-                                                   "identifier":  "09",
-                                                   "magnetic_course":  "95"
-                                               },
-                                               {
-                                                   "identifier":  "27",
-                                                   "magnetic_course":  "275"
-                                               }
-                                           ]
-                            }
-            }
+  "general": {
+    "sid_ident": "PADRZ2",
+    "sid_trans": "IKAYE",
+    "initial_altitude": "40000",
+    "star_ident": "SILCN6",
+    "star_trans": "TROXX"
+  },
+  "origin": {
+    "icao_code": "KSAN",
+    "trans_alt": "18000"
+  },
+  "weights": {
+    "est_zfw": "112967",
+    "cargo": "2420",
+    "pax_count": "44"
+  },
+  "fuel": {
+    "plan_ramp": "13439",
+    "taxi": "500",
+    "reserve": "3139"
+  },
+  "tlr": {
+    "takeoff": {
+      "conditions": {
+        "surface_condition": "dry"
+      },
+      "runway": [
+        {
+          "identifier": "09",
+          "magnetic_course": "95"
+        },
+        {
+          "identifier": "27",
+          "magnetic_course": "275"
+        }
+      ]
+    }
+  },
+  "destination": {
+    "icao_code": "KSJC",
+    "plan_rwy": "30L"
+  },
+  "times": {
+    "endurance": "02:41:00"
+  }
 }

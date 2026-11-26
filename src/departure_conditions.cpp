@@ -40,7 +40,7 @@ std::optional<Wind> atisWind(std::string_view atisText) {
     const std::string text(atisText);
     std::smatch m;
     if (!std::regex_search(text, m,
-                           std::regex(R"(\bWIND (CALM|VRB AT (\d+)|(\d{3}) AT (\d+)(?: GUSTS? (\d+))?))", kIcase))) {
+                           std::regex(R"(\bWINDS? (CALM|VRB AT (\d+)|(\d{3}) AT (\d+)(?: GUSTS? (\d+))?))", kIcase))) {
         return std::nullopt;
     }
     Wind w;
@@ -116,6 +116,31 @@ std::string phoneticWord(std::string_view letter) {
     const char c = static_cast<char>(std::toupper(static_cast<unsigned char>(letter[0])));
     if (c < 'A' || c > 'Z') return "";
     return kWords[c - 'A'];
+}
+
+std::string atisApproaches(std::string_view atisText) {
+    const std::string text(atisText);
+    static const std::regex approach(R"(\b(ILS|LOC|RNAV(?:-[A-Z])?|GPS|VOR) (?:RWY|RUNWAY) (\w+))", kIcase);
+    std::string out;
+    for (std::sregex_iterator it(text.begin(), text.end(), approach), end; it != end; ++it) {
+        std::string type = (*it)[1].str();
+        for (char& c : type) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        out += (out.empty() ? "" : " · ") + type + " " + (*it)[2].str();
+    }
+    return out;
+}
+
+std::string runwayList(std::string_view atisRunways) {
+    std::string out;
+    for (char c : atisRunways) {
+        if (c == ',' || c == ' ') {
+            if (!out.empty() && out.back() != ' ') out += ' ';
+        } else {
+            out += c;
+        }
+    }
+    while (!out.empty() && out.back() == ' ') out.pop_back();
+    return out;
 }
 
 }  // namespace blocktime

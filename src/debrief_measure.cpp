@@ -358,25 +358,11 @@ private:
 
     void landing() {
         if (!touchdown_) return;
-        const nlohmann::json& d = *touchdown_->d;
-        LandingFacts f;
-        f.vsFpm = whole(std::abs(d.value("vs_fpm", 0.0)));
-        f.gHundredths = whole(d.value("g", 0.0) * 100);
-        f.bounces = bounces_;
-        f.iasKt = whole(d.value("ias_kt", 0.0));
-        f.headingTrueDeg = whole(d.value("heading_true_deg", 0.0));
-        f.windDirDeg = whole(d.value("wind_dir_deg", 0.0));
-        f.windKt = whole(d.value("wind_kt", 0.0));
-        if (d.contains("sim_pitch_deg")) f.simPitchTenths = whole(d["sim_pitch_deg"].get<double>() * 10);
-        if (d.contains("bank_deg")) f.bankTenths = whole(d["bank_deg"].get<double>() * 10);
+        std::optional<int> vref;
         if (const nlohmann::json* cp = stateAt(cockpit_, touchdown_->t); pmdg_ && cp && number(cp, "vref_kt") > 0) {
-            f.vrefKt = whole(number(cp, "vref_kt"));
+            vref = whole(number(cp, "vref_kt"));
         }
-        if (runway_ && runway_->contains("off_centreline_m")) {
-            f.offCentrelineDm = whole(number(runway_, "off_centreline_m") * 10);
-            f.offHeadingTenths = whole(number(runway_, "off_heading_deg") * 10);
-        }
-        m_.landing = f;
+        m_.landing = landingFacts(*touchdown_->d, bounces_, vref, runway_);
     }
 
     bool diverted_;
@@ -426,6 +412,26 @@ std::optional<Clock::time_point> flightStart(const std::vector<LogLine>& lines) 
 
 FlightMeasurements measureFlight(const std::vector<LogLine>& lines, bool diverted) {
     return Measurer(lines, diverted).run();
+}
+
+LandingFacts landingFacts(const nlohmann::json& d, int bounces, std::optional<int> vrefKt,
+                          const nlohmann::json* landingRunway) {
+    LandingFacts f;
+    f.vsFpm = whole(std::abs(d.value("vs_fpm", 0.0)));
+    f.gHundredths = whole(d.value("g", 0.0) * 100);
+    f.bounces = bounces;
+    f.iasKt = whole(d.value("ias_kt", 0.0));
+    f.headingTrueDeg = whole(d.value("heading_true_deg", 0.0));
+    f.windDirDeg = whole(d.value("wind_dir_deg", 0.0));
+    f.windKt = whole(d.value("wind_kt", 0.0));
+    if (d.contains("sim_pitch_deg")) f.simPitchTenths = whole(d["sim_pitch_deg"].get<double>() * 10);
+    if (d.contains("bank_deg")) f.bankTenths = whole(d["bank_deg"].get<double>() * 10);
+    f.vrefKt = vrefKt;
+    if (landingRunway && landingRunway->contains("off_centreline_m")) {
+        f.offCentrelineDm = whole(number(landingRunway, "off_centreline_m") * 10);
+        f.offHeadingTenths = whole(number(landingRunway, "off_heading_deg") * 10);
+    }
+    return f;
 }
 
 }  // namespace blocktime

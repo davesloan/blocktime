@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -25,9 +26,18 @@ struct PlanBrief {
     int cargoLb = 0;                 // weights.cargo: bags and freight together (2,420 = 44 bags x 55 lb)
     std::vector<PlanRunway> runways; // tlr.takeoff.runway[]: identifier, magnetic_course
     std::string surface;             // tlr.takeoff.conditions.surface_condition, "dry"; "" without a TLR
+    std::string star, starTransition;  // general.star_ident "SILCN6", general.star_trans "TROXX"
+    std::string landingRunway;       // destination.plan_rwy, normalized "30L"
+    int reserveLb = 0;               // fuel.reserve: the fuel gauge's red arc
+    int rampLb = 0, taxiLb = 0;      // fuel.plan_ramp, fuel.taxi: the takeoff fuel ENDURANCE is for
+    int enduranceS = 0;              // times.endurance: seconds, or "HH:MM:SS" as Dave's stored OFPs have it
 };
 
 // Missing fields stay empty or 0; anything that isn't JSON gives an empty brief.
 PlanBrief parsePlanBrief(std::string_view ofpJson);
+
+// Fuel on board at the plan's own burn: fuelLb × enduranceS / (rampLb − taxiLb), in whole minutes (D-203). nullopt
+// when the plan lacks any of the three.
+std::optional<int> fuelRemainingMinutes(int fuelLb, const PlanBrief& plan);
 
 }  // namespace blocktime

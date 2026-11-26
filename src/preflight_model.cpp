@@ -115,13 +115,7 @@ QString PreFlightModel::transitionText() const {
                : QString();
 }
 
-QString PreFlightModel::runwayTag() const {
-    if (departure_.runway.empty()) return {};
-    if (departure_.runwayChanged) return "PLAN " + q(departure_.planRunway);
-    if (!log_.atcRunway().empty()) return QStringLiteral("ATC");
-    if (log_.atis() && departure_.runway != departure_.planRunway) return QStringLiteral("ATIS");
-    return departure_.planRunway.empty() ? QStringLiteral("ATIS") : QStringLiteral("PLAN");
-}
+QString PreFlightModel::runwayTag() const { return q(departure_.runwayTag); }
 
 QString PreFlightModel::headingText() const {
     return departure_.headingDeg ? QString::fromStdString(std::format("{:03}°", *departure_.headingDeg)) : QString();

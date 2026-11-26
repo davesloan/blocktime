@@ -166,3 +166,15 @@ TEST(AtcCard, NewPlanStartsOver) {
     c.setFlight("2026-11-25T20:30:00Z", kPlan);
     EXPECT_EQ(c.slots(CardStage::Airborne)[0].value, "");
 }
+
+// What the arrival and short-final readouts take from the card (D-194).
+TEST(AtcCard, ArrivalFacts) {
+    const AtcCard c = fixtureUntil("2026-11-25T20:01:00Z");
+    EXPECT_EQ(c.star(), "SILCN6 TROXX");
+    EXPECT_EQ(c.approachRunway(), "30L");
+    EXPECT_EQ(c.landingWind(), "360° / 4 kt");
+    const AtcCard early = fixtureUntil("2026-11-25T19:00:00Z");
+    EXPECT_EQ(early.star(), "");
+    EXPECT_EQ(early.approachRunway(), "");
+    EXPECT_EQ(early.landingWind(), "");
+}

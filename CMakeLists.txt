@@ -108,11 +108,13 @@ add_library(blocktime-core STATIC
   src/phase_pill.cpp
   src/status_lines.cpp
   src/cockpit_reading.cpp
+  src/inflight_readouts.cpp
   src/lamps.cpp
   src/debrief_measure.cpp
   src/debrief_score.cpp
   src/debrief_store.cpp
   src/debrief_review.cpp
+  src/altitude_face.cpp
   src/atc_card.cpp
   src/atc_instructions.cpp
   src/atc_message.cpp
@@ -221,10 +223,12 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/phase_pill_test.cpp
     tests/status_lines_test.cpp
     tests/cockpit_reading_test.cpp
+    tests/inflight_readouts_test.cpp
     tests/lamps_test.cpp
     tests/debrief_measure_test.cpp
     tests/debrief_score_test.cpp
     tests/debrief_review_test.cpp
+    tests/altitude_face_test.cpp
     tests/atc_card_test.cpp
     tests/atc_instructions_test.cpp
     tests/atc_message_test.cpp

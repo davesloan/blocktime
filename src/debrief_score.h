@@ -35,6 +35,9 @@ struct ScoredFlight {
 
 ScoredFlight scoreFlight(const FlightMeasurements& m);
 
+// The landing's 0-5 stars (D-158), as scoreFlight gives them; the in-flight panel's LANDING readout uses it.
+int landingStars(const LandingFacts& f, Family family);
+
 struct Averages {
     std::optional<double> score, scoreLast10, stars, starsLast10;  // nullopt with no flight (or no landing)
 };

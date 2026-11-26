@@ -118,3 +118,30 @@ TEST(LoadSheet, CargoOverCapacity) {
     EXPECT_EQ(s.cargoLb, 20000);
     EXPECT_TRUE(s.holds.empty());
 }
+
+// The arrival readouts' plan values (D-194) and FUEL REMAINING's endurance (D-203), from Dave's stored OFP.
+TEST(PlanBrief, StarAndLandingRunway) {
+    const PlanBrief b = parsePlanBrief(fixture("ofp-ksan-ksjc-brief.json"));
+    EXPECT_EQ(b.star, "SILCN6");
+    EXPECT_EQ(b.starTransition, "TROXX");
+    EXPECT_EQ(b.landingRunway, "30L");
+    EXPECT_EQ(b.reserveLb, 3139);
+    EXPECT_EQ(b.rampLb, 13439);
+    EXPECT_EQ(b.taxiLb, 500);
+    EXPECT_EQ(b.enduranceS, 2 * 3600 + 41 * 60);
+}
+
+TEST(PlanBrief, EnduranceInSeconds) {
+    EXPECT_EQ(parsePlanBrief(R"({"times": {"endurance": "9660"}})").enduranceS, 9660);
+}
+
+// Fuel on board at the plan's own average burn: 13,420 lb × 2:41 / 12,939 lb ≈ 2:47.
+TEST(PlanBrief, FuelRemaining) {
+    const PlanBrief b = parsePlanBrief(fixture("ofp-ksan-ksjc-brief.json"));
+    EXPECT_EQ(fuelRemainingMinutes(13420, b), std::optional<int>(167));
+    EXPECT_EQ(fuelRemainingMinutes(7190, b), std::optional<int>(89));
+    PlanBrief noEndurance = b;
+    noEndurance.enduranceS = 0;
+    EXPECT_FALSE(fuelRemainingMinutes(13420, noEndurance).has_value());
+    EXPECT_FALSE(fuelRemainingMinutes(13420, PlanBrief{}).has_value());
+}

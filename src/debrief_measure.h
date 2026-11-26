@@ -81,6 +81,11 @@ struct FlightMeasurements {
 
 FlightMeasurements measureFlight(const std::vector<LogLine>& lines, bool diverted);
 
+// The landing's facts from its lines (the touchdown's data, the bounces, VREF, the landing runway), shared with the
+// in-flight panel's LANDING readout so its stars are the debrief's.
+LandingFacts landingFacts(const nlohmann::json& touchdown, int bounces, std::optional<int> vrefKt,
+                          const nlohmann::json* landingRunway);
+
 // When the flight starts for the debrief: the engine start before block out (the start after the engines were last
 // all off, since the lead-in can reach the previous leg), else block out. nullopt without a block_out.
 std::optional<std::chrono::system_clock::time_point> flightStart(const std::vector<LogLine>& lines);

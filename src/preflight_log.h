@@ -52,6 +52,7 @@ private:
 struct DepartureView {
     std::string runway, planRunway;  // runway: ATC's, else the ATIS's first departing, else the plan's
     bool runwayChanged = false;      // both set and different
+    std::string runwayTag;           // where it came from: "ATC", "ATIS", "PLAN", or "PLAN 27" when it changed
     std::optional<int> headingDeg;   // the takeoff report's magnetic course for `runway`
     std::string condition;           // "Wet" with precipitation in the METAR, else the plan's surface ("Dry"); ""
     std::string wind, temperature, altimeter, atisLetter;  // "" before an ATIS; temperature "19 °C"

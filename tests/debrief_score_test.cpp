@@ -258,3 +258,22 @@ TEST(DebriefScore, PartsAddedLaterAreNotChecked) {
     EXPECT_EQ(check(s, "APU on at the gate").detail, "Not measured on this flight");
     EXPECT_EQ(s.score, 100);
 }
+
+// The in-flight panel's LANDING stars are the debrief's (D-158): the same facts and the same rule.
+TEST(DebriefScore, LandingStarsMatchScoreFlight) {
+    const auto lines = loadFlightEvents(BLOCKTIME_SOURCE_DIR "/tests/data/flight-klas-ksan", "2026-11-24T23:53:16.837Z");
+    const FlightMeasurements m = measureFlight(lines, false);
+    ASSERT_TRUE(m.landing.has_value());
+    const nlohmann::json* touchdown = nullptr;
+    const nlohmann::json* runway = nullptr;
+    int bounces = 0;
+    for (const LogLine& l : lines) {
+        if (l.type == "touchdown") touchdown = &l.data;
+        if (l.type == "landing_runway") runway = &l.data;
+        if (l.type == "bounces") bounces = l.data.value("bounces", 0);
+    }
+    ASSERT_NE(touchdown, nullptr);
+    const LandingFacts f = landingFacts(*touchdown, bounces, m.landing->vrefKt, runway);
+    EXPECT_EQ(f.vsFpm, m.landing->vsFpm);
+    EXPECT_EQ(landingStars(f, m.family), scoreFlight(m).stars.value());
+}

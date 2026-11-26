@@ -42,6 +42,12 @@ public:
     // Departure: ALTITUDE, ROUTE, TAXI. Airborne: ALTITUDE, ROUTE (or HEADING), SPEED, APPROACH. Arrival: TAXI,
     // HOLD SHORT.
     std::vector<AtcSlot> slots(CardStage stage) const;
+    // For the arrival and short-final readouts (D-194): the last descend-via STAR with ATC's transition
+    // ("SILCN6 TROXX"), the runway of the last approach or landing clearance ("30L"), and the landing clearance's
+    // wind ("360° / 4 kt"). "" until ATC says them.
+    const std::string& star() const { return star_; }
+    const std::string& approachRunway() const { return approachRunway_; }
+    const std::string& landingWind() const { return landingWind_; }
 
 private:
     void rebuild();
@@ -52,6 +58,7 @@ private:
     std::map<long long, AtcMessage> messages_;  // by SayIntentions' id
     std::vector<std::string> goArounds_, touchdowns_;
     std::array<AtcSlot, 6> slots_{};  // by Slot
+    std::string star_, approachRunway_, landingWind_;
 };
 
 }  // namespace blocktime

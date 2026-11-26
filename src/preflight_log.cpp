@@ -96,6 +96,11 @@ DepartureView departureView(const PlannedFlightView& flight, const PreFlightLog&
     if (d.runway.empty() && atis) d.runway = atisRunway(field(*atis, "departing"), d.planRunway);
     if (d.runway.empty()) d.runway = d.planRunway;
     d.runwayChanged = !d.runway.empty() && !d.planRunway.empty() && d.runway != d.planRunway;
+    if (d.runway.empty()) d.runwayTag = "";
+    else if (d.runwayChanged) d.runwayTag = "PLAN " + d.planRunway;
+    else if (!log.atcRunway().empty()) d.runwayTag = "ATC";
+    else if (atis && d.runway != d.planRunway) d.runwayTag = "ATIS";
+    else d.runwayTag = d.planRunway.empty() ? "ATIS" : "PLAN";
 
     if (flight.brief) {
         const auto& runways = flight.brief->runways;

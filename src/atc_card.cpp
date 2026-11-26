@@ -5,8 +5,10 @@
 #include "atc_card.h"
 
 #include <algorithm>
+#include <regex>
 #include <tuple>
 
+#include "departure_conditions.h"
 #include "event_log.h"
 
 namespace blocktime {
@@ -50,6 +52,9 @@ void AtcCard::onTouchdown(std::string time) {
 
 void AtcCard::rebuild() {
     for (int i = 0; i < 6; ++i) slots_[i] = AtcSlot{kTitles[i], "", "", "", false};
+    star_.clear();
+    approachRunway_.clear();
+    landingWind_.clear();
 
     // Everything in ATC's time order: messages, then go-arounds and touchdowns at their times.
     enum class Kind { Message, GoAround, Touchdown };
@@ -85,6 +90,20 @@ void AtcCard::rebuild() {
         const auto changes = readInstructions(step.message->atc, plan_);
         if (changes.empty()) continue;  // LATEST stays on the last call that changed something
         for (AtcSlot& s : slots_) s.latest = false;
+        const bool descendVia = std::any_of(changes.begin(), changes.end(), [](const SlotChange& c) {
+            return c.slot == Slot::Altitude && c.value.starts_with("DESCEND VIA ");
+        });
+        for (const SlotChange& c : changes) {
+            if (descendVia && c.slot == Slot::Route) star_ = c.value;
+            if (c.slot == Slot::Approach && !c.value.empty()) {
+                std::smatch m;
+                if (std::regex_search(c.value, m, std::regex(R"(\b(\d{2}[LRC]?)\b)"))) approachRunway_ = m[1].str();
+                if (c.value.starts_with("CLEARED TO LAND")) {
+                    const auto wind = atisWind(step.message->atc);
+                    landingWind_ = wind ? windText(*wind) : "";
+                }
+            }
+        }
         for (const SlotChange& c : changes) {
             AtcSlot& s = slots_[index(c.slot)];
             s.title = c.title;

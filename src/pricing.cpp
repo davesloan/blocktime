@@ -95,4 +95,12 @@ Preview pricePreview(const PriceInput& in, const Rates& r) {
     return p;
 }
 
+int crewFor(std::string_view role, bool delivery, int seatsInstalled, double blockHours, int vipAttendantsTimes) {
+    int crew = pilotsFor(blockHours);
+    if (!delivery && role != "freighter") {
+        crew += flightAttendantsFor(seatsInstalled) * (role == "executive" ? vipAttendantsTimes : 1);
+    }
+    return crew;
+}
+
 }  // namespace blocktime

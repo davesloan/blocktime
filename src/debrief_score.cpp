@@ -40,6 +40,11 @@ constexpr int kVrefSpreadKt = 10;
 constexpr int kGCapTwo = 170, kGCapOne = 200;  // hundredths of G
 constexpr int kLandingPoints[] = {-30, -20, -14, -8, -4, 0};  // by stars, 0-5
 
+int crosswindKt(const LandingFacts& f) {
+    const double off = (f.windDirDeg - f.headingTrueDeg) * std::numbers::pi / 180.0;
+    return static_cast<int>(std::lround(std::abs(f.windKt * std::sin(off))));
+}
+
 std::string duration(int s) {
     if (s < 60) return std::format("{} s", s);
     if (s % 60 == 0) return std::format("{} min", s / 60);
@@ -205,25 +210,8 @@ private:
     void landing(ScoredFlight& s) const {
         if (!m_.landing) return;
         const LandingFacts& f = *m_.landing;
-        int stars = 0;
-        for (int i = 0; i < 5; ++i) {
-            if (f.vsFpm <= kStarBandsFpm[i]) {
-                stars = 5 - i;
-                break;
-            }
-        }
-        const double off = (f.windDirDeg - f.headingTrueDeg) * std::numbers::pi / 180.0;
-        const int cross = static_cast<int>(std::lround(std::abs(f.windKt * std::sin(off))));
-        s.crosswindKt = cross;
-        if (cross >= kCrosswindKt) stars = std::min(5, stars + 1);
-        stars -= f.bounces;
-        if (f.bankTenths && std::abs(*f.bankTenths) > kBankTenths) --stars;
-        const int pitchMax = m_.family == Family::B777 ? kPitchMaxTenths777 : kPitchMaxTenths737;
-        if (const auto pitch = pitchUpTenths(f); pitch && (*pitch < 0 || *pitch > pitchMax)) --stars;
-        if (f.vrefKt && std::abs(f.iasKt - *f.vrefKt) > kVrefSpreadKt) --stars;
-        if (f.gHundredths >= kGCapOne) stars = std::min(stars, 1);
-        else if (f.gHundredths >= kGCapTwo) stars = std::min(stars, 2);
-        stars = std::clamp(stars, 0, 5);
+        s.crosswindKt = crosswindKt(f);
+        const int stars = landingStars(f, m_.family);
         s.stars = stars;
         s.landingPoints = kLandingPoints[stars];
     }
@@ -267,6 +255,25 @@ std::string starsText(int stars) {
     std::string out;
     for (int i = 0; i < 5; ++i) out += i < stars ? "★" : "☆";
     return out;
+}
+
+int landingStars(const LandingFacts& f, Family family) {
+    int stars = 0;
+    for (int i = 0; i < 5; ++i) {
+        if (f.vsFpm <= kStarBandsFpm[i]) {
+            stars = 5 - i;
+            break;
+        }
+    }
+    if (crosswindKt(f) >= kCrosswindKt) stars = std::min(5, stars + 1);
+    stars -= f.bounces;
+    if (f.bankTenths && std::abs(*f.bankTenths) > kBankTenths) --stars;
+    const int pitchMax = family == Family::B777 ? kPitchMaxTenths777 : kPitchMaxTenths737;
+    if (const auto pitch = pitchUpTenths(f); pitch && (*pitch < 0 || *pitch > pitchMax)) --stars;
+    if (f.vrefKt && std::abs(f.iasKt - *f.vrefKt) > kVrefSpreadKt) --stars;
+    if (f.gHundredths >= kGCapOne) stars = std::min(stars, 1);
+    else if (f.gHundredths >= kGCapTwo) stars = std::min(stars, 2);
+    return std::clamp(stars, 0, 5);
 }
 
 }  // namespace blocktime
