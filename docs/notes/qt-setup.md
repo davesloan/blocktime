@@ -115,3 +115,11 @@ UI test 2, release, `--demo`, 10 s per page:
 
 Dave's limit is read in Task Manager (its Memory column is the private working set). Working set and private bytes
 also count the shared Qt DLLs and committed but unused memory, so they read about 2.5 times higher.
+
+**Grabs from a script (milestone 12):**
+- PowerShell's `&` doesn't wait for a GUI program: `& BlockTime.exe --grab …` returns at once and the window grabs on
+  its own 6 s later. Use `Start-Process -FilePath … -ArgumentList … -Wait -NoNewWindow` to wait for the PNG.
+- On the laptop the Qt kit is 6.12.1, so the plugin path is `C:\Qt\6.12.1\msvc2022_64\plugins\platforms`.
+- `--replay` reads the database without migrating it. On a database older than the build (before Dave first runs the
+  new version), the flight's view can't be read; grab against a scratch copy that the app has opened once.
+- `QT_FORCE_STDERR_LOGGING=1` sends QML errors to `errors.log`, which shows why a grab produced no window.

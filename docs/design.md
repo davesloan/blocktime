@@ -417,13 +417,18 @@ as they happen, each with its start and end time. The same records go into the f
 
 | Stage | Recorder phases | Sub-events (examples) |
 |---|---|---|
-| Pre-Departure | At gate | Catering, Fuel loading, Boarding (GSX) |
+| Pre-Flight | At gate | Catering, Fuel loading, Boarding (GSX) |
 | Departure | Pushback, Taxi out, Takeoff | Pushback (GSX), Taxiing to runway, Takeoff roll, Takeoff |
 | Climb | Climb | Departed runway 30, Level-offs, Above 10,000 ft, Passed transition altitude |
 | Cruise | Cruise | Cruising at FL350, Step climb to FL370, 200 nm from destination |
 | Descent | Descent, Approach, Landing, Taxi in | Top of descent, Passed transition level, Level-offs, Below 10,000 ft, Final approach, Short final, Landed, Taxiing to gate |
 | Arrival | Arrived | Parked at Gate E7, Deboarding (GSX), Ready for shutdown or turnaround |
 
+- **Milestone 12 (D-150, D-152, D-180):** the dashboard header replaces the Flight progress card on Live. The six
+  stages show as its phase pill, and what happens as three status lines under it (`docs/dashboard.md`); the stage
+  lines below are still built (FlightStages) and the stored phase times are unchanged, but Live no longer lists them.
+  The first stage is called **Pre-Flight** (was Pre-Departure). The bullets about the card below describe it as it
+  was until milestone 12.
 - **Built in milestone 7** (D-128): Live's Flight progress card, from the recorder's events. "Landed" carries the
   landing runway and the touchdown rate.
 - **Milestone 9:**
@@ -492,6 +497,9 @@ spot only for:
 
 ### 13.7 After the flight
 
+- **Milestone 12 (D-154):** at block in the dashboard header stays at the top of Live, filled in (block in time,
+  final block time, the whole arc coloured, Arrival in progress), with "Parked at …" and the shutdown checklist under
+  its status lines; the flight summary appears below it in place of the planned flight.
 - At block in, the app switches by itself to the **flight summary**: score and Claude's evaluation (section 14),
   each income and expense line, and the total gained or lost. Plus the route map. **Built in milestone 6** (the flight
   number and route, the airplane, block out and in, block time, fuel used, the money lines with their total, and the

@@ -22,6 +22,67 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-25 — Milestone 12 built: the dashboard header (version 0.13.0)
+
+**Done:**
+- **Planning with Dave** (on his laptop, no sim): his idea for the panels below the header, an inset instrument
+  panel with steam gauges and glass indicator lamps, was mocked up, approved and recorded for later (D-179,
+  `docs/dashboard.md`, mockup in `docs/images/`). Then milestone 12's design: the feed stays beside the tiles until
+  developer mode (D-180, Dave), airports get a city (D-181), and route progress, the pill's divisions and every
+  status line's wording (D-182). A builder check's findings were folded into the spec before Dave approved it.
+- **Plan** `docs/plans/2026-11-25-milestone-12-dashboard-header.md`, ten tasks, executed inline, tests first:
+  - migration 9: `airport.city`, filled by `blocktime-import` from OurAirports' municipality;
+  - the stored OFP's navlog as the route (stored plans have `navlog` as an array, `notes/simbrief-api.md`), with a
+    cut-down copy of Dave's KSAN → KSJC plan as a fixture;
+  - `RouteProgress` (forward-searching projection, never backwards) and `AltitudeArc`;
+  - one shared flight-level rule (`header_text.h`), the pill's sections, Pre-Departure renamed Pre-Flight;
+  - `StatusLines`, fed with everything `FlightStages` gets, plus the shutdown checklist;
+  - `RecorderBridge.statusLines/checklist/pill`, a `DashboardHeader` object, `qml/FlightHeader.qml` on Live and in
+    the replay window. The stages column (`FlightProgress.qml`) is gone; the feed stays.
+  - The replay now plays the `arrived` phase logged in the same instant as block in, so its pill reaches Arrival.
+- Smaller calls in **D-183 (Proposed)**.
+
+**Working / verified:**
+- 736 tests pass in the debug and release builds, with no warnings; qmllint reports nothing new (one Info in
+  `ReplayBar.qml` is from milestone 11).
+- Grabs on a scratch copy of Dave's data (after running the import on it): `--demo` in cruise, and Dave's KSAN →
+  KSJC leg replayed at the gate, taxi out, climb, cruise, approach and block in. Cities, block clock, the arc
+  coloured red → green → blue by altitude, distances adding up to the route, the pill and the status lines all read
+  as designed; at block in every stage is green, Arrival is current and the checklist shows.
+- Code review (fresh reviewer): two Important findings fixed with tests. On a real flight, settling wiped the
+  summary's arc and "Off … · rwy" line (the model reloads with no flight before the summary); a summary shown at
+  startup read as a flight not yet flown.
+
+**Unverified or deferred:**
+- The real app's settle → summary → At Gate Turnaround / Done for now cycle on a real flight (covered by a test with
+  the model's order, not run end to end).
+- Known minor issues (D-174, fix if they get in the way): the marker can run ahead when vectors cut a corner within
+  three legs of a route that doubles back; the arc repaints on every header change, including once a second at the
+  gate; without a plan the marker says FL350 while the cruise line says 35,000 ft.
+- How the header fits on Dave's screen at the gate: it pushes the planned flight and tiles down, so Live scrolls.
+
+**What Dave should see (no sim needed):**
+1. Update, then run `blocktime-import` once (README, "After updating to 0.13.0"): it fills in the airports' cities.
+2. Open BlockTime: with a flight planned, Live opens with the header: `XLY 1231`, your airline, `San Diego to Las
+   Vegas` (your cities), `Plan 1:05` and `Block in ~…`, the dotted arc, Pre-Flight in progress and "Preparing
+   aircraft for flight".
+3. Flights → a recent flight → **Replay**, at 10×: the GSX line, then Pushback and startup, Taxiing to runway …, the
+   arc filling in colour behind the marker with its altitude and speed, Climbing to FL…, Cruising, Descending into …,
+   Final approach, Landed, Taxiing to …, Parked at … with the checklist.
+4. `BlockTime.exe --demo` shows the header in cruise on a made-up Seattle → San Diego flight.
+
+**On your next flight you should see:** the same header live, the block clock running from block out, and at block in
+the header staying put with the summary below it (arc still coloured, "Off … · rwy" kept).
+
+**Decisions for Dave:**
+- **D-183 (Proposed):** the calls made while building. The two you'll notice: a step climb's line starts as "Leaving
+  FL370" (the recorder doesn't say which way yet) instead of "Step climb", and gate names read as they are
+  ("Taxiing to Gate C11", not "Taxiing to gate Gate C11").
+
+**Next step:**
+- Dave tries the steps above and closes milestone 12; then milestone 13, the Pre-Flight panel in the instrument
+  panel look (D-153, D-179), in a new session.
+
 ## 2026-11-25 — Milestone 11 closed: flight replay
 
 **Done:**

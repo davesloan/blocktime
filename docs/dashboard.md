@@ -2,7 +2,7 @@
 
 The design for the **Live Flight Screen**, called **the dashboard** for short, from the brainstorm with Dave on
 2026-11-24. It is the first piece of "deepening the live flight" (`roadmap.md`, after the MVP) and replaces today's
-three-column Live (D-139) when it's built. Nothing here is built yet. Decisions D-150 to D-154 and D-179; built in milestones 12 and 13 (D-163), checked with replays
+three-column Live (D-139) when it's built. The header and status lines are built (milestone 12, version 0.13.0); the panels below it aren't yet. Decisions D-150 to D-154 and D-179; built in milestones 12 and 13 (D-163), checked with replays
 (`replay.md`). Nothing on the dashboard reads the wall clock (D-166).
 
 Only the header, the pre-flight panel and the cruise draft are designed. The panels for departure, climb, descent,
@@ -187,6 +187,7 @@ it's `unconfirmed`, otherwise SayIntentions' gate, shown as the name reads (`Gat
 A fixed set: Pre-Flight, Climb, Cruise and Arrival have none; Departure has pushback, taxi out and takeoff; Descent has
 descent, approach, landing and taxi in (a go-around counts as approach). Inside the current stage, finished divisions
 are green, the current one yellow and the rest grey, so the bar shows progress through Departure and Descent too.
+As built, they're a thin strip along the bottom of the current section, so its label stays on one colour.
 
 ### Every status line (D-182)
 
@@ -201,14 +202,14 @@ are green, the current one yellow and the rest grey, so the bar shows progress t
 | Phase climb | `Climbing to FL370` (the plan's cruise level; `Climbing` without a plan) |
 | `level_off` in the climb, descent, approach or go-around | `Level at FL240`, in place of the current line; `level_off_ended` puts that line back, also in place |
 | Phase cruise | `Cruising at FL370` |
-| `step_climb`, then its end | `Step climb` (the event knows only the level it left), then `Cruising at FL390` in place; a step down reads `Step descent`, then `Cruising at FL350` |
+| `step_climb`, then its end | `Leaving FL370` (the event knows only the level it left, not which way: a ruling while building), then `Cruising at FL390` (or `FL350` after a step down) in place |
 | Phase descent | `Descending into Las Vegas` (the destination's city) |
 | Phase approach | `Approach into Las Vegas` |
 | Final approach (the event the stages' `Final approach, runway …` line uses) | `Final approach, runway 26L` |
 | Phase go-around | `Go-around` |
 | `touchdown` | `Landed on runway 26L` (the final approach's runway; `Landed` without one) |
 | `landing_runway` | corrects that line's runway in place, wherever it now is: in the recorded flights it comes with taxi in, after it |
-| Phase taxi in | `Taxiing to gate C11` (the arrival gate; `Taxiing to gate` without one) |
+| Phase taxi in | `Taxiing to Gate C11`: the gate's name as it reads (`Taxiing to Terminal A Gate 4`, `Taxiing to Parking 70`), since BlockTime's spot names include the word; `Taxiing to gate` without one |
 | `block_in` | `Parked at Gate C11` (block in's spot as it reads; `Parked` without one), with the shutdown checklist under the lines |
 | GSX deboarding | `Deboarding in progress`, then `Deboarding complete`, in place |
 | Ready (D-135, unchanged: deboarding completes, or without GSX the checks pass) | `Ready for next flight` |

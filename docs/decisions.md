@@ -1978,7 +1978,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-134 — The Flight progress card spans the gate
 - Date: 2026-11-24
-- Status: Accepted
+- Status: Accepted; superseded in part by D-152, D-154 and D-180 (milestone 12: the header's pill and status lines replace the card on Live)
 - Decided by: Dave
 - Area: app
 - Decision: Live's Flight progress card no longer shows only between block out and block in. Before block out it
@@ -1991,7 +1991,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-135 — The shutdown checklist reads plain SimVars only
 - Date: 2026-11-24
-- Status: Accepted
+- Status: Accepted; superseded in part by D-154 and D-182 (milestone 12: "Ready for next flight" in the status lines, the checklist under them; the trigger is unchanged)
 - Decided by: Dave
 - Area: app, recorder
 - Decision: "Ready for shutdown or turnaround" lists engines off, parking brake set, deboarding complete (only when GSX
@@ -2061,7 +2061,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-139 — Live in three columns
 - Date: 2026-11-24
-- Status: Accepted
+- Status: Accepted; superseded in part by D-180 (milestone 12: the stages column goes; the tiles and the feed stay under the header)
 - Decided by: Dave
 - Area: app
 - Decision: In milestone 9, the Flight progress card moves out of the full width into Live's row, so the row has
@@ -2822,3 +2822,28 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Alternatives considered: distance from the track flown (the "to go" part still needs the route); straight-line
   progress always (disagrees with the route's distance); colours by absolute altitude (a short low flight would never
   reach blue).
+
+## D-183 — Milestone 12's smaller calls while building
+- Date: 2026-11-25
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision:
+  - A step's status line starts as "Leaving FL370" (`step_climb` carries only the level it left, so "Step climb" or
+    "Step descent" can't be known yet), then reads "Cruising at FL390" in place.
+  - Gate names are used as they read: "Taxiing to Gate C11", "Taxiing to Terminal A Gate 4", "Parked at Parking 70"
+    (BlockTime's spot names include the word "Gate").
+  - The pill's divisions are a 5 px strip under the current section, so its label stays on one colour; the other
+    sections show no divisions.
+  - The arc is a Canvas repainted when the shares or the progress change; the marker's position on the curve follows
+    the share of distance flown (close to, not exactly, arc length). Its altitude label hides once parked.
+  - The previous status lines show their start time in local time. The header keeps its flight through settling (the
+    model reloads with no flight first). A summary shown at app start (no block events in
+    this session) has a blank clock and block times and the whole route flown.
+  - The replay plays the lines logged in the same instant as block in (the `arrived` phase), through an opt-in on the
+    log reader; the debrief and settling still stop at block in.
+  - `--demo` shows a made-up KBFI → KSAN flight in the header, with samples down a rough route.
+  - The shutdown checklist is drawn inline under the status lines, not with the debrief's CheckList.
+- Why: Each came up while building or checking the replay screenshots; none changes what Dave approved in D-182.
+- Alternatives considered: "Step climb" for both directions; "Taxiing to gate Gate C11"; full-height divisions (the
+  label split across colours); Qt Quick Shapes for the arc (a Shape can't take a Repeater of paths).
