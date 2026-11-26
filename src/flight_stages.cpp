@@ -8,6 +8,8 @@
 #include <cmath>
 #include <format>
 
+#include "header_text.h"
+
 namespace blocktime {
 
 namespace {
@@ -38,14 +40,6 @@ std::string phaseName(std::string_view phase) {
     if (phase == "taxi_in") return "Taxi in";
     if (phase == "arrived") return "Arrived";
     return "";
-}
-
-// 11000 → "11,000 ft"; with a flight level, 35000 → "FL350".
-std::string altitude(int ft, bool flightLevel) {
-    if (flightLevel) return std::format("FL{:03}", (ft + 50) / 100);
-    std::string digits = std::to_string(std::abs(ft));
-    for (int i = static_cast<int>(digits.size()) - 3; i > 0; i -= 3) digits.insert(static_cast<std::size_t>(i), ",");
-    return (ft < 0 ? "-" : "") + digits + " ft";
 }
 
 std::string serviceName(const std::string& service) {
@@ -137,7 +131,7 @@ void FlightStages::onPhase(const std::string& phase, const std::string& iso, int
     } else if (phase == "takeoff") {
         phaseLine_ = add(Stage::Departure, "Takeoff roll", iso, true);
     } else if (phase == "cruise") {
-        cruiseLine_ = add(Stage::Cruise, "Cruising at " + altitude(altFt, flightLevel), iso, true);
+        cruiseLine_ = add(Stage::Cruise, "Cruising at " + altitudeText(altFt, flightLevel), iso, true);
     } else if (phase == "descent") {
         add(Stage::Descent, "Top of descent", iso, false);
     } else if (phase == "approach") {
@@ -228,9 +222,11 @@ void FlightStages::onEvent(std::string_view type, const nlohmann::json& d) {
         close(levelLine_, iso);
         levelFt_ = integer(d, "alt_ft");
         levelFl_ = flag(d, "flight_level");
-        levelLine_ = add(stageOf(str(d, "phase")), "Level at " + altitude(levelFt_, levelFl_), iso, true);
+        levelLine_ = add(stageOf(str(d, "phase")), "Level at " + altitudeText(levelFt_, levelFl_), iso, true);
     } else if (type == "level_off_ended") {
-        if (levelLine_) lines_[*levelLine_].text = "Level at " + altitude(integer(d, "alt_ft"), flag(d, "flight_level"));
+        if (levelLine_) {
+            lines_[*levelLine_].text = "Level at " + altitudeText(integer(d, "alt_ft"), flag(d, "flight_level"));
+        }
         close(levelLine_, iso);
     } else if (type == "step_climb") {
         close(cruiseLine_, iso);
@@ -238,7 +234,7 @@ void FlightStages::onEvent(std::string_view type, const nlohmann::json& d) {
         stepLine_ = add(Stage::Cruise, "Step climb", iso, true);
     } else if (type == "step_climb_ended") {
         const int alt = integer(d, "alt_ft");
-        const std::string level = altitude(alt, flag(d, "flight_level"));
+        const std::string level = altitudeText(alt, flag(d, "flight_level"));
         if (stepLine_) lines_[*stepLine_].text = (alt >= stepFromFt_ ? "Step climb to " : "Descended to ") + level;
         close(stepLine_, iso);
         cruiseLine_ = add(Stage::Cruise, "Cruising at " + level, iso, true);
@@ -317,7 +313,7 @@ std::string FlightStages::phaseLabel() const {
     std::string label = phaseName(phase_);
     if (levelLine_ && lines_[*levelLine_].running &&
         (phase_ == "climb" || phase_ == "descent" || phase_ == "approach")) {
-        label += " — level at " + altitude(levelFt_, levelFl_);
+        label += " — level at " + altitudeText(levelFt_, levelFl_);
     } else if (stepLine_ && lines_[*stepLine_].running && phase_ == "cruise") {
         label += " — step climb";
     }

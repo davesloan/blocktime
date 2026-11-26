@@ -9,6 +9,7 @@
 #include <variant>
 
 #include "event_log.h"
+#include "header_text.h"
 
 namespace blocktime {
 
@@ -16,7 +17,6 @@ namespace {
 
 double round1(double x) { return std::round(x * 10.0) / 10.0; }
 
-bool climbing(Phase p) { return p == Phase::Takeoff || p == Phase::Climb || p == Phase::Cruise; }
 bool descending(Phase p) { return p == Phase::Descent || p == Phase::Approach || p == Phase::GoAround; }
 
 AltimeterSample rounded(const AltimeterSample& a) { return {round1(a.captMb), round1(a.foMb), a.captStd, a.foStd}; }
@@ -48,9 +48,7 @@ std::vector<AirportRunways> FlightTracker::runwayList() const {
 bool FlightTracker::flightLevel(Phase phase, int altFt) const {
     if (!detector_) return false;
     const PhasePlan& p = detector_->plan();
-    if (climbing(phase)) return p.transitionAltitudeFt > 0 && altFt >= p.transitionAltitudeFt;
-    if (descending(phase)) return p.transitionLevelFt > 0 && altFt >= p.transitionLevelFt;
-    return false;
+    return isFlightLevel(phaseCode(phase), altFt, p.transitionAltitudeFt, p.transitionLevelFt);
 }
 
 LogEvent FlightTracker::toLog(const PhaseEvent& e) const {
