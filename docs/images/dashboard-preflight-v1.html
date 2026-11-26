@@ -1,0 +1,353 @@
+<!doctype html>
+<!-- BlockTime: the Pre-Flight panel mockup (milestone 13, D-153, D-179, D-187, D-189). Real numbers from Dave's
+     KSAN → KSJC leg of 2026-11-25 (XLY 8, N814SX); step 6 is made up. Click the pill to collapse the header. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Dashboard mockup: Pre-Flight panel</title>
+<style>
+  :root {
+    --bg: #0E1116; --surface: #161B22; --raised: #1C222B; --border: #262D37;
+    --text: #E6EAF0; --text2: #8B95A3; --muted: #5B6573;
+    --good: #22C55E; --done: #06B6D4; --bad: #EF4444; --warn: #E0B030;
+    --onGood: #052E16; --onDone: #083344;
+    --amber: #FFB23E; --amberDim: #B8762A; --amberGlow: rgba(255,160,40,.55);
+    --red: #FF5A45; --redGlow: rgba(255,70,50,.6);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Segoe UI Variable", "Segoe UI", sans-serif; }
+  .page { width: 1100px; padding: 20px; }
+  .page.narrow { width: 900px; }
+
+  .controls { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 13px; color: var(--text2); }
+  .controls button { background: var(--raised); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+                     height: 32px; padding: 0 14px; font: inherit; cursor: pointer; }
+  .controls label { display: flex; align-items: center; gap: 6px; margin-left: 12px; cursor: pointer; }
+  .controls .step { margin-left: auto; color: var(--text); }
+
+  /* ---------- the header, as built in milestone 12 (static here), and collapsed ---------- */
+  .card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+          padding: 20px; }
+  .top { position: relative; height: 184px; }
+  .airline { position: absolute; left: 0; right: 0; top: 0; text-align: center; font-size: 26px; font-weight: 600;
+             line-height: 34px; }
+  .ident { position: absolute; left: 0; top: 2px; font-size: 24px; font-weight: 700; line-height: 30px; }
+  .clock { position: absolute; right: 0; top: 2px; border: 1px solid var(--muted); border-radius: 15px; height: 30px;
+           padding: 0 14px; line-height: 28px; font-family: Consolas, monospace; font-size: 18px; color: var(--text2); }
+  .airport { position: absolute; top: 62px; width: 240px; }
+  .airport.right { right: 0; text-align: right; }
+  .glyph { font-family: "Segoe Fluent Icons"; font-size: 26px; color: var(--text2); display: inline-block; height: 28px; }
+  .code { font-size: 36px; font-weight: 700; line-height: 42px; }
+  .name { font-size: 12px; color: var(--text2); line-height: 17px; white-space: nowrap; overflow: hidden;
+          text-overflow: ellipsis; }
+  .line { font-size: 13px; color: var(--text); line-height: 18px; }
+  .mid { position: absolute; left: 0; right: 0; top: 93px; text-align: center; }
+  .mid .flight { font-size: 14px; color: var(--text2); line-height: 20px; }
+  .mid .cities { font-size: 14px; color: var(--muted); line-height: 20px; }
+  .mid .dist { font-size: 14px; color: var(--text2); line-height: 20px; margin-top: 4px; }
+  svg.arc { position: absolute; left: 0; top: 0; width: 100%; height: 184px; overflow: visible; pointer-events: none; }
+
+  .pillrow { display: flex; align-items: center; gap: 14px; }
+  .pillrow .ccode { display: none; font-size: 22px; font-weight: 700; line-height: 30px; }
+  .pill { position: relative; flex: 1; display: flex; gap: 2px; height: 30px; margin-top: 4px; cursor: pointer; }
+  .sec { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600;
+         background: var(--raised); color: var(--muted); }
+  .sec:first-child { border-radius: 15px 0 0 15px; }
+  .sec:last-child { border-radius: 0 15px 15px 0; }
+  .sec.current { background: var(--good); color: var(--onGood); }
+  .sec.done { background: var(--done); color: var(--onDone); }
+  .chev { position: relative; height: 34px; margin-top: -6px; cursor: pointer; }
+  .chevmark { position: absolute; top: 0; transform: translateX(-50%); text-align: center;
+              filter: drop-shadow(0 1.5px 1.5px rgba(0, 0, 0, .7)); }
+  .chevmark svg { display: block; margin: 0 auto; overflow: visible; height: 15px; }
+  .chevmark .sub { font-size: 12px; color: var(--text2); margin-top: 1px; white-space: nowrap; height: 16px; }
+  .status { position: relative; height: 76px; margin-top: 6px; text-align: center; }
+  .s0 { font-size: 19px; font-weight: 600; line-height: 26px; }
+  .s1 { font-size: 13px; color: var(--text2); margin-top: 6px; }
+  .s2 { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .card.collapsed { padding: 14px 20px 10px; }
+  .card.collapsed .top, .card.collapsed .s1, .card.collapsed .s2 { display: none; }
+  .card.collapsed .pillrow .ccode { display: block; margin-top: 4px; }
+  .card.collapsed .status { height: auto; margin-top: 2px; }
+
+  /* ---------- the inset instrument panel (D-179) ---------- */
+  .panel { position: relative; margin-top: 14px; border-radius: 12px; padding: 24px 30px 26px;
+           background: linear-gradient(180deg, #0A0D11 0%, #0C0F14 100%);
+           box-shadow: inset 0 4px 10px rgba(0,0,0,.85), inset 0 1px 2px rgba(0,0,0,.9),
+                       inset 0 -1px 0 rgba(255,255,255,.035), 0 1px 0 rgba(255,255,255,.05); }
+  .screw { position: absolute; width: 11px; height: 11px; border-radius: 50%;
+           background: radial-gradient(circle at 35% 30%, #5a626d, #23282f 70%);
+           box-shadow: 0 1px 1px rgba(0,0,0,.8), inset 0 0 1px rgba(255,255,255,.15); }
+  .screw::after { content: ""; position: absolute; left: 2px; right: 2px; top: 5px; height: 1.5px; background: #111418;
+                  transform: rotate(35deg); }
+  .screw.tl { left: 9px; top: 9px; } .screw.tr { right: 9px; top: 9px; }
+  .screw.bl { left: 9px; bottom: 9px; } .screw.br { right: 9px; bottom: 9px; }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr 1.15fr; gap: 22px; }
+  .group { display: flex; flex-direction: column; gap: 10px; }
+  .gtitle { align-self: flex-start; white-space: nowrap; font-size: 11px; letter-spacing: .16em; color: #C9CED6;
+            font-weight: 700; background: #15191F; border-radius: 3px; padding: 3px 8px;
+            box-shadow: inset 0 1px 1px rgba(0,0,0,.8); margin-bottom: 2px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* a radio-stack readout: a placard over a dark window with amber digits */
+  .radio { background: linear-gradient(180deg, #1b2027, #14181e); border-radius: 6px; padding: 7px 10px 9px;
+           box-shadow: 0 2px 4px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.06); min-width: 0; }
+  .radio .t { font-size: 10px; letter-spacing: .14em; color: #9AA3AF; font-weight: 600; white-space: nowrap; }
+  .window { margin-top: 5px; background: #070605; border-radius: 3px; padding: 4px 9px; min-height: 34px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,.95); display: flex; justify-content: space-between;
+            align-items: baseline; gap: 8px; }
+  .digits { font-family: Consolas, monospace; font-size: 22px; color: var(--amber); letter-spacing: .05em;
+            text-shadow: 0 0 6px var(--amberGlow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .digits small { font-size: 13px; }
+  .digits.text { font-size: 17px; }
+  .digits.blank { color: #3a2a12; text-shadow: none; }
+  .digits.red { color: var(--red); text-shadow: 0 0 7px var(--redGlow); }
+  .aside { font-family: Consolas, monospace; font-size: 11px; color: var(--amberDim); white-space: nowrap;
+           text-shadow: 0 0 4px rgba(255,150,40,.4); }
+  .aside.flag { color: #1a1205; background: var(--amber); border-radius: 2px; padding: 0 4px; text-shadow: none;
+                font-weight: 700; box-shadow: 0 0 6px var(--amberGlow); }
+  .holds { display: flex; gap: 14px; margin-top: 3px; font-family: Consolas, monospace; font-size: 12px;
+           color: var(--amberDim); text-shadow: 0 0 4px rgba(255,150,40,.4); }
+
+  /* the transponder: four digit wheels behind their own windows */
+  .xpdr { display: flex; gap: 4px; margin-top: 5px; }
+  .xpdr span { width: 30px; height: 36px; background: #070605; border-radius: 3px; text-align: center;
+               box-shadow: inset 0 2px 4px rgba(0,0,0,.95); font-family: Consolas, monospace; font-size: 24px;
+               line-height: 36px; color: var(--amber); text-shadow: 0 0 6px var(--amberGlow); }
+  .xpdr span.blank { color: #3a2a12; text-shadow: none; }
+  .xpdrrow { display: flex; align-items: flex-end; justify-content: space-between; }
+  .xpdrrow .aside { margin-bottom: 4px; }
+
+  .waiting { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .below { margin-top: 16px; height: 60px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+           color: var(--muted); font-size: 11px; letter-spacing: 1.2px; padding: 14px 16px; }
+  .notes { margin-top: 18px; font-size: 13px; color: var(--text2); line-height: 1.6; }
+  .notes b { color: var(--text); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page" id="page">
+  <div class="controls">
+    <button id="back">◀ Back</button>
+    <button id="next">Next ▶</button>
+    <label><input type="checkbox" id="narrow"> Narrowest window</label>
+    <label><input type="checkbox" id="twoClass"> Two-class airplane</label>
+    <span class="step" id="stepLabel"></span>
+  </div>
+
+  <div class="card" id="card">
+    <div class="top">
+      <div class="airline">Soxxly Airlines</div>
+      <div class="ident">XLY 8</div>
+      <div class="clock">Plan 1:10</div>
+      <div class="airport">
+        <span class="glyph" style="transform: rotate(-45deg)">&#xE709;</span>
+        <div class="code">KSAN</div>
+        <div class="name">San Diego International Airport</div>
+        <div class="line" id="originLine">Departing soon</div>
+      </div>
+      <div class="airport right">
+        <span class="glyph" style="transform: rotate(45deg)">&#xE709;</span>
+        <div class="code">KSJC</div>
+        <div class="name">Mineta San Jose International Airport</div>
+        <div class="line">Arriving ~12:24 PM</div>
+      </div>
+      <div class="mid">
+        <div class="flight">Flight 8</div>
+        <div class="cities">San Diego to San Jose</div>
+        <div class="dist">0 NM flown · 368 NM to go</div>
+      </div>
+      <svg class="arc" id="arc"></svg>
+    </div>
+
+    <div class="pillrow">
+      <div class="ccode" id="ccodeL">KSAN</div>
+      <div class="pill" id="pill" title="Click to collapse or expand the header"></div>
+      <div class="ccode" id="ccodeR">KSJC</div>
+    </div>
+    <div class="chev" id="chevRow" title="Click to collapse or expand the header">
+      <div class="chevmark" id="chev">
+        <svg width="14" height="18" viewBox="0 0 14 18" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#FCA5A5"/><stop offset=".45" stop-color="#EF4444"/>
+              <stop offset="1" stop-color="#B91C1C"/></linearGradient>
+          </defs>
+          <path d="M7 0.5 L13.5 6.5 L13.5 17.5 L0.5 17.5 L0.5 6.5 Z" fill="url(#rg)" stroke="#FFFFFF" stroke-width="1"
+                stroke-linejoin="round"/>
+          <path d="M2 7.2 L7 2.6 L12 7.2" fill="none" stroke="#FFFFFF" stroke-opacity=".55" stroke-width="1"
+                stroke-linejoin="round"/></svg>
+        <div class="sub" id="sub"></div>
+      </div>
+    </div>
+    <div class="status">
+      <div class="s0" id="s0"></div>
+      <div class="s1" id="s1"></div>
+      <div class="s2" id="s2"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="screw tl"></div><div class="screw tr"></div><div class="screw bl"></div><div class="screw br"></div>
+    <div class="cols">
+      <div class="group" id="loadsheet"></div>
+      <div class="group" id="departure"></div>
+      <div class="group" id="clearance"></div>
+    </div>
+  </div>
+
+  <div class="below">PLANNED FLIGHT (IMPORT, OPEN SIMBRIEF AGAIN, CANCEL) · FLIGHT TILES · EVENT FEED — AS TODAY</div>
+
+  <div class="notes">
+    <b>Click the pill</b> (or the marker) to collapse the header; click again to expand it. The choice is remembered.
+    Numbers are from the KSAN → KSJC leg of 2026-11-25; step 6's runway and SID changes are made up.
+    The panel shows from planning until liftoff, then goes until the in-flight panels exist.
+    <b>—</b> means not known yet. The amber tag marks what ATC or the ATIS changed from the SimBrief plan.
+  </div>
+</div>
+
+<script>
+const SECTIONS = ["Pre-Flight", "Departure", "Climb", "Cruise", "Descent", "Arrival"];
+const PARTS = [["Preparing", "Boarding"], ["Pushback", "Taxiing", "Takeoff"], [""], [""], ["Descending", "Approach"],
+               ["Landing", "Taxiing", "At Gate"]];
+
+// The plan (SimBrief) and what ATC / the ATIS said, per step.
+const PLAN = { fuel: "13,439", zfw: "112,967", cargo: "2,420", fwd: "1,075", aft: "1,345", fl: "FL400",
+               trans: "18,000", runway: "27", heading: "275°", sid: "PADRZ2 IKAYE", surface: "DRY" };
+const ATIS_L = { letter: "L", runway: "27", wind: "CALM", oat: "19 °C", alt: "30.09", altUnit: "inHg" };
+const CLR = { sid: null, alt: "CLIMB VIA SID", sq: "3166", freq: "119.6", runway: "27" };
+
+const STEPS = [
+  { label: "1 · Planned, waiting for the SimBrief plan", plan: false, atis: null, clr: null,
+    lines: ["Preparing aircraft for flight", "", ""], stage: 0, part: 0 },
+  { label: "2 · Plan imported, no ATIS yet: SimBrief's runway and SID show", plan: true, atis: null, clr: null,
+    lines: ["Preparing aircraft for flight", "", ""], stage: 0, part: 0 },
+  { label: "3 · ATIS Lima in", plan: true, atis: ATIS_L, clr: null,
+    lines: ["Catering complete · Refueling complete · Boarding in progress", "Preparing aircraft for flight · 11:02 AM", ""],
+    stage: 0, part: 1 },
+  { label: "4 · Cleared: same runway and SID as the plan", plan: true, atis: ATIS_L, clr: CLR, left: "26:40",
+    lines: ["Catering complete · Refueling complete · Boarding complete", "Preparing aircraft for flight · 11:02 AM", ""],
+    stage: 0, part: 1 },
+  { label: "5 · The clearance has 4 minutes left: the countdown turns red", plan: true, atis: ATIS_L, clr: CLR,
+    left: "4:12", urgent: true,
+    lines: ["Catering complete · Refueling complete · Boarding complete", "Preparing aircraft for flight · 11:02 AM", ""],
+    stage: 0, part: 1 },
+  { label: "6 · Made up: ATC gives runway 09 and another SID", plan: true,
+    atis: { ...ATIS_L, runway: "09" }, clr: { ...CLR, sid: "BORDR2", runway: "09" }, left: "27:05",
+    lines: ["Catering complete · Refueling complete · Boarding complete", "Preparing aircraft for flight · 11:02 AM", ""],
+    stage: 0, part: 1 },
+  { label: "7 · Block out, taxiing: the countdown is gone, the taxi route shows", plan: true, atis: ATIS_L, clr: CLR,
+    taxi: "A, A7, B, B1", blockedOut: true,
+    lines: ["Taxiing to runway 27", "Pushback and startup · 11:43 AM", "Catering complete · Refueling complete · Boarding complete"],
+    stage: 1, part: 1 },
+];
+
+// ?step=4&collapsed=1&narrow=1 opens a given state (for still images).
+const params = new URLSearchParams(location.search);
+let step = Math.min(Math.max((parseInt(params.get("step")) || 1) - 1, 0), STEPS.length - 1);
+let collapsed = params.get("collapsed") === "1";
+if (params.get("narrow") === "1") {
+  document.getElementById("page").classList.add("narrow");
+  document.getElementById("narrow").checked = true;
+}
+
+function readout(title, value, opts = {}) {
+  const blank = value === null || value === undefined || value === "";
+  const cls = ["digits", opts.text ? "text" : "", blank ? "blank" : "", opts.red ? "red" : ""].join(" ");
+  const unit = !blank && opts.unit ? `<small> ${opts.unit}</small>` : "";
+  const aside = opts.aside ? `<span class="aside${opts.flag ? " flag" : ""}">${opts.aside}</span>` : "";
+  const extra = opts.extra || "";
+  return `<div class="radio"><div class="t">${title}</div>
+    <div class="window"><span class="${cls}">${blank ? "—" : value}${unit}</span>${aside}</div>${extra}</div>`;
+}
+
+function render() {
+  const s = STEPS[step];
+  document.getElementById("stepLabel").textContent = s.label + `   (${step + 1}/${STEPS.length})`;
+  const card = document.getElementById("card");
+  card.classList.toggle("collapsed", collapsed);
+
+  // The pill and its marker.
+  const pill = document.getElementById("pill");
+  pill.innerHTML = SECTIONS.map((n, i) =>
+    `<div class="sec ${i < s.stage ? "done" : i === s.stage ? "current" : ""}">${n}</div>`).join("");
+  const parts = PARTS[s.stage];
+  const share = (s.stage + (s.part + 0.5) / parts.length) / SECTIONS.length;
+  requestAnimationFrame(() => {
+    const p = pill.getBoundingClientRect(), row = document.getElementById("chevRow").getBoundingClientRect();
+    document.getElementById("chev").style.left = (p.left - row.left + share * p.width) + "px";
+  });
+  document.getElementById("sub").textContent = parts[s.part];
+  ["s0", "s1", "s2"].forEach((id, i) => document.getElementById(id).textContent = s.lines[i]);
+  document.getElementById("originLine").textContent = s.blockedOut ? "Departed 11:43 AM" : "Departing soon";
+
+  // Load sheet.
+  const twoClass = document.getElementById("twoClass").checked;
+  const pax = twoClass
+    ? `<div class="pair">${readout("BUSINESS", "8")}${readout("ECONOMY", "36")}</div>`
+    : readout("PASSENGERS", "44");
+  document.getElementById("loadsheet").innerHTML = `<div class="gtitle">LOAD SHEET</div>
+    ${readout("BLOCK FUEL", s.plan ? PLAN.fuel : null, { unit: "LB" })}
+    ${readout("ZERO FUEL WEIGHT", s.plan ? PLAN.zfw : null, { unit: "LB" })}
+    ${pax}
+    ${readout("CARGO", s.plan ? PLAN.cargo : null, { unit: "LB",
+        extra: s.plan ? `<div class="holds"><span>FWD ${PLAN.fwd}</span><span>AFT ${PLAN.aft}</span></div>` : "" })}
+    <div class="pair">${readout("CRUISE", s.plan ? PLAN.fl : null)}${readout("TRANS ALT", s.plan ? PLAN.trans : null)}</div>
+    ${s.plan ? "" : `<div class="waiting">Waiting for the SimBrief plan</div>`}`;
+
+  // Departure: the plan's runway, then the ATIS's, then ATC's (D-188, D-189).
+  const runway = s.clr ? s.clr.runway : s.atis ? s.atis.runway : s.plan ? PLAN.runway : null;
+  const runwayChanged = s.plan && runway && runway !== PLAN.runway;
+  const heading = !s.plan ? null : runway === "09" ? "095°" : PLAN.heading;
+  const runwayAside = !runway ? "" : runwayChanged ? `PLAN ${PLAN.runway}` : s.clr ? "ATC" : s.atis ? "ATIS" : "PLAN";
+  document.getElementById("departure").innerHTML = `<div class="gtitle">DEPARTURE</div>
+    <div class="pair">${readout("RUNWAY", runway, { aside: runwayAside, flag: runwayChanged })}
+      ${readout("HEADING", heading)}</div>
+    <div class="pair">${readout("CONDITION", s.plan ? PLAN.surface : null)}
+      ${readout("ATIS", s.atis ? s.atis.letter : null)}</div>
+    ${readout("WIND", s.atis ? s.atis.wind : null)}
+    <div class="pair">${readout("OAT", s.atis ? s.atis.oat : null)}
+      ${readout("ALTIMETER", s.atis ? s.atis.alt : null, { unit: s.atis ? s.atis.altUnit : "" })}</div>`;
+
+  // Clearance: SimBrief's SID until ATC changes it (D-189).
+  const sid = s.clr && s.clr.sid ? s.clr.sid : s.plan ? PLAN.sid : null;
+  const sidChanged = !!(s.clr && s.clr.sid);
+  const sidAside = !sid ? "" : sidChanged ? `PLAN ${PLAN.sid.split(" ")[0]}` : s.clr ? "CLEARED" : "PLAN";
+  const sq = s.clr ? s.clr.sq.split("") : ["", "", "", ""];
+  const xpdr = `<div class="radio"><div class="t">SQUAWK</div><div class="xpdrrow"><div class="xpdr">
+      ${sq.map(d => `<span class="${d ? "" : "blank"}">${d || "—"}</span>`).join("")}</div></div></div>`;
+  const countdown = s.clr && !s.blockedOut
+    ? readout("CLEARANCE EXPIRES", s.left, { red: s.urgent, aside: s.urgent ? "CALL FOR A NEW ONE" : "" })
+    : "";
+  document.getElementById("clearance").innerHTML = `<div class="gtitle">CLEARANCE</div>
+    ${readout("SID", sid, { text: true, aside: sidAside, flag: sidChanged })}
+    ${readout("INITIAL ALTITUDE", s.clr ? s.clr.alt : null, { text: true })}
+    <div class="pair">${xpdr}${readout("DEPARTURE", s.clr ? s.clr.freq : null)}</div>
+    ${readout("TAXI", s.taxi || null, { text: true, aside: s.taxi ? "RWY " + runway : "" })}
+    ${countdown}`;
+}
+
+function toggle() { collapsed = !collapsed; render(); }
+document.getElementById("pill").addEventListener("click", toggle);
+document.getElementById("chevRow").addEventListener("click", toggle);
+document.getElementById("next").onclick = () => { step = Math.min(step + 1, STEPS.length - 1); render(); };
+document.getElementById("back").onclick = () => { step = Math.max(step - 1, 0); render(); };
+document.getElementById("narrow").onchange = e => {
+  document.getElementById("page").classList.toggle("narrow", e.target.checked); render();
+};
+document.getElementById("twoClass").onchange = render;
+
+// The flat arc between the airplanes, still to fly (dotted), as at the gate.
+(function drawArc() {
+  const svg = document.getElementById("arc");
+  const w = svg.getBoundingClientRect().width;
+  const x0 = 60, x1 = w - 60, y = 76, peak = 28;
+  svg.innerHTML = `<path d="M${x0} ${y} Q${w / 2} ${y - 2 * peak} ${x1} ${y}" fill="none" stroke="#5B6573"
+    stroke-width="2" stroke-dasharray="2 6" stroke-linecap="round"/>`;
+})();
+render();
+</script>
+</body>
+</html>
