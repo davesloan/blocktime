@@ -25,7 +25,7 @@ class PreFlightModel : public QObject {
     QML_ELEMENT
     QML_UNCREATABLE("Created by the app")
 
-    // A planned flight on show that hasn't lifted off (the taxi route comes after the push).
+    // A planned flight on show, until block out (D-194).
     Q_PROPERTY(bool visible READ visible NOTIFY changed)
     Q_PROPERTY(bool hasPlan READ hasPlan NOTIFY changed)
     // The load sheet: "13,439 lb"; passengers and holds as [{label, value}] (one cabin is just "Passengers").
@@ -53,9 +53,6 @@ class PreFlightModel : public QObject {
     Q_PROPERTY(QString sidTag READ sidTag NOTIFY changed)
     Q_PROPERTY(QString initialAltitude READ initialAltitude NOTIFY changed)
     Q_PROPERTY(QString squawk READ squawk NOTIFY changed)
-    Q_PROPERTY(QString departureFrequency READ departureFrequency NOTIFY changed)
-    Q_PROPERTY(QString taxiRoute READ taxiRoute NOTIFY changed)
-    Q_PROPERTY(QString taxiRunway READ taxiRunway NOTIFY changed)
     // The 30-minute countdown from the clearance until block out: "26:40", red in the last 5 minutes.
     Q_PROPERTY(bool countdownVisible READ countdownVisible NOTIFY countdownChanged)
     Q_PROPERTY(QString countdownText READ countdownText NOTIFY countdownChanged)
@@ -88,9 +85,6 @@ public:
     QString sidTag() const;
     QString initialAltitude() const { return q(clearance_.initialAltitude); }
     QString squawk() const { return q(clearance_.squawk); }
-    QString departureFrequency() const { return q(clearance_.departureFrequency); }
-    QString taxiRoute() const { return q(clearance_.taxiRoute); }
-    QString taxiRunway() const;
     bool countdownVisible() const;
     QString countdownText() const;
     bool countdownUrgent() const;

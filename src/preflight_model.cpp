@@ -76,7 +76,8 @@ void PreFlightModel::updateTimer() {
     }
 }
 
-bool PreFlightModel::visible() const { return hasFlight_ && !log_.airborne(); }
+// Until block out: the in-flight panel takes over there (D-194; it was liftoff, D-188).
+bool PreFlightModel::visible() const { return hasFlight_ && !log_.blockedOut(); }
 
 QString PreFlightModel::blockFuelText() const {
     return sheet_.hasPlan && sheet_.blockFuelLb > 0 ? pounds(sheet_.blockFuelLb) : QString();
@@ -133,10 +134,6 @@ QString PreFlightModel::sidTag() const {
         return planSid.empty() ? QStringLiteral("CHANGED") : "PLAN " + q(planSid);
     }
     return clearance_.received ? QStringLiteral("CLEARED") : QStringLiteral("PLAN");
-}
-
-QString PreFlightModel::taxiRunway() const {
-    return log_.taxi() && !log_.taxi()->runway.empty() ? "RWY " + q(log_.taxi()->runway) : QString();
 }
 
 bool PreFlightModel::countdownVisible() const {

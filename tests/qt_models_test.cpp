@@ -2657,7 +2657,6 @@ TEST(PreFlightModel, ClearanceAndCountdown) {
     b.applyFlightEvent("atc_exchange", variantOf(ksanClearance()));
     EXPECT_TRUE(m.cleared());
     EXPECT_EQ(m.squawk(), "3166");
-    EXPECT_EQ(m.departureFrequency(), "119.6");
     EXPECT_EQ(m.initialAltitude(), "Climb via SID");
     EXPECT_EQ(m.sid(), "PADRZ2 IKAYE");
     EXPECT_EQ(m.sidTag(), "CLEARED");
@@ -2672,7 +2671,6 @@ TEST(PreFlightModel, ClearanceAndCountdown) {
     out.flightId = kReplayFlight.toStdString();
     b.applyBlockEvent(out);
     EXPECT_FALSE(m.countdownVisible());
-    EXPECT_TRUE(m.visible());  // until liftoff: the taxi route comes after the push
 }
 
 TEST(PreFlightModel, AtcChangesTheRunway) {
@@ -2692,13 +2690,28 @@ TEST(PreFlightModel, AtcChangesTheRunway) {
     EXPECT_EQ(m.sidTag(), "PLAN PADRZ2");
 }
 
-TEST(PreFlightModel, HiddenFromLiftoff) {
+// D-194: the in-flight panel takes over at block out (it was liftoff, D-188).
+TEST(PreFlightModel, HidesAtBlockOut) {
     qtApp();
     RecorderBridge b;
     ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
     PreFlightModel m(b, f);
-    b.applyFlightEvent("liftoff", {{"airport", "KSAN"}});
+    EXPECT_TRUE(m.visible());
+    blocktime::BlockOut out;
+    out.flightId = kReplayFlight.toStdString();
+    b.applyBlockEvent(out);
     EXPECT_FALSE(m.visible());
+}
+
+// D-193, D-201: the ATIS letter as its ICAO word.
+TEST(PreFlightModel, AtisLetterIsAWord) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    PreFlightModel m(b, f);
+    b.applyFlightEvent("atis", variantOf({{"role", "origin"}, {"icao", "KSAN"}, {"letter", "L"},
+                                          {"altimeter", "30.09"}, {"text", "INFO LIMA. WIND CALM."}}));
+    EXPECT_EQ(m.atisLetter(), "LIMA");
 }
 
 TEST(PreFlightModel, ReplayHasOne) {

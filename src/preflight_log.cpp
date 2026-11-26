@@ -115,7 +115,7 @@ DepartureView departureView(const PlannedFlightView& flight, const PreFlightLog&
     if (wind) d.wind = windText(*wind);
     if (const auto t = metarTemperatureC(metar)) d.temperature = std::format("{} °C", *t);
     d.altimeter = altimeterText(field(*atis, "altimeter"));
-    d.atisLetter = field(*atis, "letter");
+    d.atisLetter = phoneticWord(field(*atis, "letter"));  // D-193
     return d;
 }
 

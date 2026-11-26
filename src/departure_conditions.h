@@ -31,5 +31,7 @@ std::optional<int> metarTemperatureC(std::string_view metar);
 bool metarPrecipitation(std::string_view metar);
 // "30.09" → "30.09 inHg", "1013" → "1013 hPa", "" → "".
 std::string altimeterText(std::string_view altimeter);
+// "J" → "JULIETT", "a" → "ALFA": the ICAO word, in ICAO's spelling (D-193, D-201). "" for anything else.
+std::string phoneticWord(std::string_view letter);
 
 }  // namespace blocktime

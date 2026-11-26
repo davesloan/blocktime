@@ -85,3 +85,15 @@ TEST(Conditions, HpaAltimeter) {
     EXPECT_EQ(altimeterText("1013"), "1013 hPa");
     EXPECT_EQ(altimeterText(""), "");
 }
+
+// D-193, D-201: the ATIS letter as its ICAO word, in ICAO's spelling.
+TEST(PhoneticWord, Letters) {
+    EXPECT_EQ(phoneticWord("J"), "JULIETT");
+    EXPECT_EQ(phoneticWord("L"), "LIMA");
+    EXPECT_EQ(phoneticWord("a"), "ALFA");
+    EXPECT_EQ(phoneticWord("X"), "XRAY");
+    EXPECT_EQ(phoneticWord("Z"), "ZULU");
+    EXPECT_EQ(phoneticWord(""), "");
+    EXPECT_EQ(phoneticWord("JJ"), "");
+    EXPECT_EQ(phoneticWord("7"), "");
+}

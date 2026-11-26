@@ -4,6 +4,7 @@
 
 #include "departure_conditions.h"
 
+#include <cctype>
 #include <charconv>
 #include <format>
 #include <regex>
@@ -104,6 +105,17 @@ std::string altimeterText(std::string_view altimeter) {
     double value = 0;
     std::from_chars(altimeter.data(), altimeter.data() + altimeter.size(), value);
     return std::string(altimeter) + (value > 100 ? " hPa" : " inHg");
+}
+
+std::string phoneticWord(std::string_view letter) {
+    static constexpr const char* kWords[] = {"ALFA",  "BRAVO",  "CHARLIE", "DELTA",   "ECHO",  "FOXTROT", "GOLF",
+                                             "HOTEL", "INDIA",  "JULIETT", "KILO",    "LIMA",  "MIKE",    "NOVEMBER",
+                                             "OSCAR", "PAPA",   "QUEBEC",  "ROMEO",   "SIERRA", "TANGO",  "UNIFORM",
+                                             "VICTOR", "WHISKEY", "XRAY",  "YANKEE",  "ZULU"};
+    if (letter.size() != 1) return "";
+    const char c = static_cast<char>(std::toupper(static_cast<unsigned char>(letter[0])));
+    if (c < 'A' || c > 'Z') return "";
+    return kWords[c - 'A'];
 }
 
 }  // namespace blocktime

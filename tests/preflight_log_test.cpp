@@ -189,7 +189,7 @@ TEST(DepartureView, PlanThenAtis) {
     EXPECT_EQ(d.wind, "Calm");
     EXPECT_EQ(d.temperature, "19 °C");
     EXPECT_EQ(d.altimeter, "30.09 inHg");
-    EXPECT_EQ(d.atisLetter, "L");
+    EXPECT_EQ(d.atisLetter, "LIMA");  // D-193
 
     log.onEvent("atis", atis("30L,30R"));
     d = departureView(v, log);

@@ -267,18 +267,6 @@ InstrumentPanel {
                         }
                     }
                 }
-                Readout {
-                    width: (clearance.width - Theme.readoutGap) / 2
-                    title: "Departure"
-                    value: panel.model.departureFrequency
-                }
-            }
-            Readout {
-                width: clearance.width
-                title: "Taxi"
-                value: panel.model.taxiRoute
-                words: true
-                tag: panel.model.taxiRunway
             }
             Readout {
                 width: clearance.width
