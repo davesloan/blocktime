@@ -466,6 +466,16 @@ int main(int argc, char* argv[]) {
     plannedFlight.checkFlown();  // a flight that ended while BlockTime was closed or crashed
     QObject::connect(&newFlight, &NewFlightModel::planned, &plannedFlight,
                      [&plannedFlight](const QString& note) { plannedFlight.reload(note); });
+    // SayIntentions at the gate (D-188): the planned flight's origin until block out, so the clearance shows before
+    // pushback. The watcher itself waits for the sim and stops at block out.
+    const auto preFlightOrigin = [&plannedFlight, &flightWatcher] {
+        const QString state = plannedFlight.state();
+        const bool atGate = state == "waitingForPlan" || state == "waitingForSim" || state == "simConnected";
+        const auto& view = plannedFlight.view();
+        flightWatcher.setPreFlightOrigin(atGate && view ? QString::fromStdString(view->origin) : QString());
+    };
+    QObject::connect(&plannedFlight, &PlannedFlightDisplay::changed, &flightWatcher, preFlightOrigin);
+    preFlightOrigin();
 
     QQmlApplicationEngine engine;
     const QVariantMap props{{"recorder", QVariant::fromValue(&bridge)},

@@ -1370,6 +1370,87 @@ TEST(FlightWatcher, DestinationFromTopOfDescentToTouchdown) {
     EXPECT_EQ(r.planner.wxCalls.size(), calls);
 }
 
+// Milestone 13 (D-188): ATC and the origin's ATIS at the gate, so the clearance shows before pushback.
+TEST(FlightWatcher, PreFlightPollsWhileConnected) {
+    WatcherRig r;
+    r.bridge.applyConnection(blocktime::ConnectionState::Connected);
+    r.watcher->setPreFlightOrigin("KBFI");
+    ASSERT_FALSE(r.planner.wxCalls.isEmpty());
+    EXPECT_EQ(r.planner.wxCalls.front(), "KBFI");
+    EXPECT_GE(r.planner.commsCalls, 1);
+    const auto atis = r.pushed("atis");
+    ASSERT_EQ(atis.size(), 1u);
+    EXPECT_EQ(atis[0].data["role"], "origin");
+    EXPECT_EQ(atis[0].data["flight_id"], "");
+    const auto exchanges = r.pushed("atc_exchange");
+    ASSERT_FALSE(exchanges.empty());
+    EXPECT_EQ(exchanges[0].data["flight_id"], "");
+    r.wait(100);
+    EXPECT_GT(r.planner.wxCalls.size(), 1);
+    EXPECT_GT(r.planner.commsCalls, 1);
+}
+
+TEST(FlightWatcher, PreFlightWaitsForTheSim) {
+    WatcherRig r;
+    r.watcher->setPreFlightOrigin("KBFI");
+    r.wait(100);
+    EXPECT_TRUE(r.planner.wxCalls.isEmpty());
+    EXPECT_EQ(r.planner.commsCalls, 0);
+    r.bridge.applyConnection(blocktime::ConnectionState::Connected);
+    EXPECT_FALSE(r.planner.wxCalls.isEmpty());
+    EXPECT_GE(r.planner.commsCalls, 1);
+    r.bridge.applyConnection(blocktime::ConnectionState::WaitingForSim);
+    const auto wx = r.planner.wxCalls.size();
+    const int comms = r.planner.commsCalls;
+    r.wait(100);
+    EXPECT_EQ(r.planner.wxCalls.size(), wx);
+    EXPECT_EQ(r.planner.commsCalls, comms);
+}
+
+TEST(FlightWatcher, PreFlightStopsWhenThePlanGoes) {
+    WatcherRig r;
+    r.bridge.applyConnection(blocktime::ConnectionState::Connected);
+    r.watcher->setPreFlightOrigin("KBFI");
+    r.watcher->setPreFlightOrigin("");
+    const auto wx = r.planner.wxCalls.size();
+    const int comms = r.planner.commsCalls;
+    r.wait(100);
+    EXPECT_EQ(r.planner.wxCalls.size(), wx);
+    EXPECT_EQ(r.planner.commsCalls, comms);
+}
+
+TEST(FlightWatcher, PreFlightHandsOverAtBlockOut) {
+    WatcherRig r;
+    r.bridge.applyConnection(blocktime::ConnectionState::Connected);
+    r.watcher->setPreFlightOrigin("KBFI");
+    ASSERT_EQ(r.pushed("atis").size(), 1u);
+    r.blockOut();
+    // Block out logs the history and the ATIS again, with the flight id (the debrief keeps everything).
+    const auto atis = r.pushed("atis");
+    ASSERT_EQ(atis.size(), 2u);
+    EXPECT_EQ(atis[1].data["flight_id"], "2026-11-23T22:51:08.969Z");
+    const auto exchanges = r.pushed("atc_exchange");
+    EXPECT_EQ(exchanges.back().data["flight_id"], "2026-11-23T22:51:08.969Z");
+}
+
+TEST(FlightWatcher, NoPreFlightAfterBlockIn) {
+    WatcherRig r;
+    r.bridge.applyConnection(blocktime::ConnectionState::Connected);
+    r.watcher->setPreFlightOrigin("KBFI");
+    r.blockOut();
+    blocktime::BlockIn in;
+    in.flightId = "2026-11-23T22:51:08.969Z";
+    r.bridge.applyBlockEvent(in);
+    const auto wx = r.planner.wxCalls.size();
+    const int comms = r.planner.commsCalls;
+    r.wait(100);
+    EXPECT_EQ(r.planner.wxCalls.size(), wx);
+    EXPECT_EQ(r.planner.commsCalls, comms);
+    r.watcher->setPreFlightOrigin("");
+    r.watcher->setPreFlightOrigin("KPDX");  // the next leg, planned at the gate
+    EXPECT_EQ(r.planner.wxCalls.back(), "KPDX");
+}
+
 TEST(FlightWatcher, AtcEveryPollAndOnceAtBlockIn) {
     WatcherRig r;
     r.blockOut();

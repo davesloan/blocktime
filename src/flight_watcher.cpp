@@ -13,7 +13,7 @@ using namespace std::chrono_literals;
 FlightWatcher::FlightWatcher(Planner& planner, RecorderBridge& bridge, const blocktime::FlightTargetSlot& target,
                              blocktime::AppEventQueue& queue, QObject* parent)
     : QObject(parent), planner_(planner), bridge_(bridge), target_(target), queue_(queue) {
-    setIntervals(60s, 10min);
+    setIntervals(60s, 5min);  // the ATIS about every 5 minutes (D-118, D-188)
     setGateInterval(30s);
     connect(&atcTimer_, &QTimer::timeout, this, &FlightWatcher::fetchAtc);
     connect(&gateTimer_, &QTimer::timeout, this, &FlightWatcher::pollGate);
@@ -22,6 +22,7 @@ FlightWatcher::FlightWatcher(Planner& planner, RecorderBridge& bridge, const blo
             [this] { fetchAtis(destination_, QStringLiteral("destination")); });
     connect(&bridge, &RecorderBridge::blockEvent, this, &FlightWatcher::onBlockEvent);
     connect(&bridge, &RecorderBridge::flightEvent, this, &FlightWatcher::onFlightEvent);
+    connect(&bridge, &RecorderBridge::connectionChanged, this, &FlightWatcher::updatePreFlight);
 }
 
 void FlightWatcher::setIntervals(std::chrono::milliseconds atc, std::chrono::milliseconds atis) {
@@ -37,6 +38,8 @@ void FlightWatcher::setGateContext(GateContextFor gateContext) { gateContext_ = 
 void FlightWatcher::onBlockEvent(const QString& type, const QString& flightId) {
     if (type == "block_out") {
         stopAll();
+        preFlight_ = false;
+        open_ = true;
         flightId_ = flightId;
         const auto t = target_.get();
         origin_ = t ? QString::fromStdString(t->originIcao) : QString();
@@ -58,14 +61,20 @@ void FlightWatcher::onBlockEvent(const QString& type, const QString& flightId) {
     } else if (type == "block_in") {
         stopAll();
         if (!flightId_.isEmpty()) fetchAtc();  // the last exchanges, written as the flight ends
+        open_ = false;
+        preFlight_ = false;
+        preFlightOrigin_.clear();  // the next leg's origin comes with its planned flight
     } else if (type == "flight_interrupted") {
         stopAll();
         flightId_.clear();
+        open_ = false;
+        preFlight_ = false;
+        updatePreFlight();  // still planned: the gate's polling resumes
     }
 }
 
 void FlightWatcher::onFlightEvent(const QString& type, const QVariantMap& data) {
-    if (flightId_.isEmpty()) return;
+    if (!open_) return;
     const QString phase = data.value("phase").toString();
     // liftoff and touchdown are the cues; the phase changes cover a flight where either wasn't logged.
     if (type == "liftoff" || (type == "phase_changed" && phase == "climb")) {
@@ -82,7 +91,7 @@ void FlightWatcher::onFlightEvent(const QString& type, const QVariantMap& data) 
 }
 
 void FlightWatcher::fetchAtc() {
-    planner_.fetchCommsHistory([self = QPointer(this), id = flightId_](QByteArray body, QString error) {
+    planner_.fetchCommsHistory([self = QPointer(this), id = loggedFlightId()](QByteArray body, QString error) {
         if (!self || !error.isEmpty()) return;
         const auto history = blocktime::parseCommsHistory(body.toStdString());
         if (!history) return;
@@ -95,7 +104,7 @@ void FlightWatcher::fetchAtc() {
 }
 
 void FlightWatcher::fetchAtis(const QString& icao, const QString& role) {
-    planner_.fetchWx(icao, [self = QPointer(this), id = flightId_, icao, role](QByteArray body, QString error) {
+    planner_.fetchWx(icao, [self = QPointer(this), id = loggedFlightId(), icao, role](QByteArray body, QString error) {
         if (!self || !error.isEmpty()) return;
         const auto a = blocktime::parseAtis(body.toStdString(), icao.toStdString());
         if (!a || !self->atis_.isNew(*a)) return;
@@ -160,3 +169,32 @@ void FlightWatcher::stopAll() {
     originTimer_.stop();
     destinationTimer_.stop();
 }
+
+void FlightWatcher::setPreFlightOrigin(const QString& originIcao) {
+    if (originIcao == preFlightOrigin_) return;
+    preFlightOrigin_ = originIcao;
+    if (preFlight_) {  // a different origin: start again there
+        preFlight_ = false;
+        atcTimer_.stop();
+        originTimer_.stop();
+    }
+    updatePreFlight();
+}
+
+void FlightWatcher::updatePreFlight() {
+    const bool want = !open_ && !preFlightOrigin_.isEmpty() && bridge_.connection() == QStringLiteral("connected");
+    if (want == preFlight_) return;
+    preFlight_ = want;
+    if (!want) {
+        atcTimer_.stop();
+        originTimer_.stop();
+        return;
+    }
+    origin_ = preFlightOrigin_;
+    fetchAtc();
+    atcTimer_.start();
+    fetchAtis(origin_, QStringLiteral("origin"));
+    originTimer_.start();
+}
+
+QString FlightWatcher::loggedFlightId() const { return open_ ? flightId_ : QString(); }

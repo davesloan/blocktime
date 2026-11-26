@@ -132,3 +132,10 @@ also count the shared Qt DLLs and committed but unused memory, so they read abou
 - `--replay` reads the database without migrating it. On a database older than the build (before Dave first runs the
   new version), the flight's view can't be read; grab against a scratch copy that the app has opened once.
 - `QT_FORCE_STDERR_LOGGING=1` sends QML errors to `errors.log`, which shows why a grab produced no window.
+
+## LNK1235 on the debug build (2026-11-26)
+
+`blocktime-core.lib : fatal error LNK1235: corrupt or invalid COFF symbol table` sometimes stops the debug build when
+`BlockTime.exe` and `blocktime-qt-tests.exe` link at the same time; the debug core library is about 180 MB. Nothing is
+actually corrupt: running `cmake --build --preset x64-debug` again links cleanly. Seen three times in milestone 13,
+always on the first build after a change that relinks both.
