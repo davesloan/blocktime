@@ -1704,7 +1704,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-120 — Flight predictions on Live, after the MVP
 - Date: 2026-11-23
-- Status: Accepted
+- Status: Accepted; the method refined by D-192 (now plus the plan's time from the current position)
 - Decided by: Dave (idea), Claude (approach)
 - Area: design
 - Decision: After the MVP, Live predicts what's ahead (top of climb, top of descent, landing, gate arrival) from the
@@ -2297,7 +2297,8 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 ## D-153 — The Pre-Flight panel
 - Date: 2026-11-24
 - Status: Accepted (after the MVP); the clearance card depends on what SayIntentions exposes (to probe). The current
-  and next frequency superseded by D-187 (moved to the in-flight panels' brainstorm)
+  and next frequency superseded by D-187 (moved to the in-flight panels' brainstorm), then dropped by D-191 with the
+  departure frequency
 - Decided by: Dave + Claude
 - Area: design
 - Decision: Builds on D-118. At the gate the dashboard shows a load sheet (block fuel as the total, ZFW, passengers by
@@ -2761,7 +2762,8 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-179 — The panels below the dashboard's header look like an instrument panel
 - Date: 2026-11-25
-- Status: Accepted (the look by Dave; Claude's details confirmed by Dave on 2026-11-25). Built with
+- Status: Accepted (the look by Dave; Claude's details confirmed by Dave on 2026-11-25). The lamps flash when wrong
+  (D-195). Built with
   the panels, not in milestone 12.
 - Decided by: Dave + Claude
 - Area: design
@@ -2851,7 +2853,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-184 — The dashboard header reworked: one top line, a flat arc, a marker under the pill, Arrival from touchdown
 - Date: 2026-11-26
-- Status: Accepted
+- Status: Accepted; the destination line's estimate changed by D-192 (milestone 15)
 - Decided by: Dave (from three rounds of mockups, `docs/images/dashboard-header-v2.html`)
 - Area: app
 - Decision: (`docs/dashboard.md`, "The header as built (D-184)" and "The pill and its marker")
@@ -2922,7 +2924,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-187 — Milestone 13's scope: the collapsing header, no frequency readout, a short FMC line, a mockup first
 - Date: 2026-11-26
-- Status: Accepted
+- Status: Accepted; the frequency readout dropped altogether by D-191
 - Decided by: Dave
 - Area: design
 - Decision:
@@ -2943,7 +2945,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-188 — Milestone 13's design calls (Claude)
 - Date: 2026-11-26
-- Status: Accepted (confirmed by Dave on 2026-11-26)
+- Status: Accepted (confirmed by Dave on 2026-11-26); "until liftoff" superseded by D-194 (until block out)
 - Decided by: Claude
 - Area: app
 - Decision:
@@ -3009,3 +3011,155 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: Small choices with plausible alternatives, made while building to the approved mockup.
 - Alternatives considered: a MultiEffect glow (invisible in the grabs); a slide animation for the collapse; one FMC
   text line (`FL400 · Trans alt 18,000`, the plan's first wording).
+
+## D-191 — No radio frequencies on the dashboard
+- Date: 2026-11-26
+- Status: Accepted
+- Decided by: Dave
+- Area: design
+- Decision: The dashboard shows no radio frequency anywhere: no "now and next" readout in flight (D-153, moved to the
+  in-flight brainstorm by D-187), and milestone 14 takes the clearance's departure frequency off the Pre-Flight panel.
+  The squawk stays.
+- Why: The SayIntentions window is open on every flight and already shows them. No documented SayIntentions endpoint
+  gives "now" and "next" (`notes/sayintentions-api.md`), so it would have cost a probe and inference for something Dave
+  already has.
+- Alternatives considered: now from COM1 and next from ATC's handoffs; probing `getCurrentFrequencies`; keeping only
+  the departure frequency.
+
+## D-192 — The header is the passenger view: an arrival time that moves, and On time / Early / Delayed under it
+- Date: 2026-11-26
+- Status: Accepted (the 2-minute "On time" band and the prediction method are Claude's, Proposed)
+- Decided by: Dave + Claude
+- Area: design
+- Decision: In milestone 15 the header's destination line becomes `Arrival 12:35 PM` with no `~`, and under it
+  `On time`, `Early ~4m` (green) or `Delayed ~4m` (red). The time follows the estimate; at block in both freeze
+  (`Arrived 12:35 PM · Gate 4`, `Delayed 3m`). On time is measured against block out plus the plan's block time, fixed
+  at block out; before block out there is no line under the time. Within 2 minutes either way it reads `On time`.
+  The estimate is now plus the plan's time from the current position along the route to the gate (taxi-in included),
+  which refines D-120's "shift by the delay at the last waypoint passed". Ahead/behind plan lives here, not on the
+  panel.
+- Why: Dave: the header is what a family member at the destination would watch to know when to pick someone up, or
+  what passengers see on the seat-back screens. That makes BlockTime feel like part of an airline. In a hold the
+  arrival time has to keep slipping; D-120's method freezes there because no waypoint is passed. BlockTime has no
+  timetable, so the reference is the block out.
+- Alternatives considered: SimBrief's scheduled departure and arrival as the reference (a late push shows Delayed,
+  but only as good as the time typed into SimBrief); keeping `~` on the time; showing ahead/behind on the panel.
+
+## D-193 — The ATIS letter as its phonetic word
+- Date: 2026-11-26
+- Status: Accepted
+- Decided by: Dave
+- Area: design
+- Decision: The ATIS readouts on the Pre-Flight and in-flight panels show the letter as its ICAO word (`JULIET`,
+  `GOLF`), not the letter. The arrival ATIS shows the letter, arriving runways, approaches in use, wind, OAT, altimeter
+  and the runway condition; visibility, clouds, dew point and remarks are left out.
+- Why: It's how the information is spoken on frequency. The other readouts are what the PMDG EFB's landing
+  calculation needs and what Dave loads in the FMC before ATC says "expect".
+- Alternatives considered: the bare letter; the whole ATIS text.
+
+## D-194 — One in-flight panel from block out to block in, its readouts changing with the phase
+- Date: 2026-11-26
+- Status: Accepted (the readouts per phase are Claude's from the brainstorm, approved with the mockup)
+- Decided by: Dave + Claude
+- Area: design
+- Decision: Below the header, from block out to block in, one instrument panel (D-179): the lamp strip, four gauges
+  (speed, altitude, vertical speed, fuel), the ATC card (D-197) and readouts for the phase (`dashboard.md`, "The
+  in-flight panel"). The Pre-Flight panel now shows until block out (supersedes D-188's "until liftoff"); the taxi
+  route moves into the ATC card. The speed gauge is ground speed 0–40 kt on the ground below 40 kt (red over 30 kt)
+  and airspeed with a Mach window otherwise. Mockup `docs/images/dashboard-inflight-v1.html`.
+- Why: Dave wants the beacon lamp and a taxi speed gauge at pushback. One panel with the same frame keeps the gauges
+  and lamps in place all flight; only the readouts change. A 0–40 kt dial makes taxi speed readable, which a 0–400 kt
+  airspeed dial can't.
+- Alternatives considered: six separate panels, one per stage (the first plan); switching at liftoff; ground speed on
+  a readout instead of a gauge.
+
+## D-195 — Lamps flash while a switch is wrong, by the debrief's rules; the one continuous animation
+- Date: 2026-11-26
+- Status: Accepted (the windows per lamp are Claude's, from the debrief's checks; the seat belts' transition altitude
+  is Dave's)
+- Decided by: Dave + Claude
+- Area: design
+- Decision: An indicator lamp is lit when its switch is on and dark when off, and flashes (1 s lit, 1 s dark) while
+  the switch is wrong for the moment, by the windows of the debrief's checks (`dashboard.md`, "Lamps"). Outside them a
+  lamp never flashes. Seat belts: on from taxi to at least the transition altitude and from the transition level to
+  block in; anything in between is Dave's choice and never flashes. The flashing is an exception to "no continuous
+  animations" (CLAUDE.md): it runs only while something is wrong.
+- Why: Dave wants to be told while he can still fix it, not after the flight. Using the debrief's windows means the
+  panel and the score agree and nothing unscored nags (seat belts kept on to the top of climb, or for turbulence).
+  One lamp toggling once a second costs next to nothing against the 1% CPU budget.
+- Alternatives considered: lit only, with no warning (D-179's open question); a separate warning colour; flashing
+  by airline-procedure rules wider than the debrief's.
+- Open, then settled by D-200: debrief check 2 scored the seat belts to 10,000 ft, not the transition altitude; it
+  moves to the transition altitude.
+
+## D-196 — The in-flight gauges
+- Date: 2026-11-26
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: design
+- Decision: Speed (D-194's switch; an amber bug at VREF from Approach to touchdown and at the plan's cruise speed in
+  cruise), altitude (pointer, drum and the altimeter setting), vertical speed (±6,000 fpm) and fuel (total lb, a red
+  low-fuel arc; milestone 15 adds the plan's-fuel bug and a +/− window). Needles glide to each value as in D-179.
+- Why: The values that move, as D-179 set out, with the plan's value as a bug.
+- Alternatives considered: a ground speed readout beside a 0–400 kt dial.
+
+## D-197 — The ATC card: the gist of the last clearance, one slot per kind
+- Date: 2026-11-26
+- Status: Accepted (the slots, LATEST tag and ground slots are Claude's, approved with the mockup)
+- Decided by: Dave + Claude
+- Area: design
+- Decision: A card on the in-flight panel shows what ATC cleared, read from the logged `atc_exchange` lines through
+  D-168's plain form: airborne, ALTITUDE, ROUTE or HEADING, SPEED and APPROACH; on the ground, TAXI with ALTITUDE and
+  ROUTE before takeoff and HOLD SHORT after landing. Each slot changes only when ATC changes it; `LATEST` marks the
+  slots the last transmission changed. Before the first altitude clearance ALTITUDE shows `CLIMB VIA SID` with the
+  expected level. The approach shows ATC's transition when given (`CLEARED RNAV-Y 27 LYNDI`). A phrase that can't be
+  read changes nothing.
+- Why: Dave never knows what to set in the altitude window when told to climb via the SID, and one ATC call often
+  carries a heading, an altitude and an approach clearance together; a single "latest instruction" line would lose
+  two of them. Guessing a clearance would be worse than showing the last one read.
+- Alternatives considered: one line with the latest instruction (Dave's first idea); ATC's full text.
+
+## D-198 — Cards and gauges flip when they change, in a wave from left to right
+- Date: 2026-11-26
+- Status: Accepted (the 60 ms step and "by position, whatever the row" are Claude's, Proposed)
+- Decided by: Dave + Claude
+- Area: design
+- Decision: A readout or gauge whose content changes (an ATC slot, a readout changed by the phase, the speed gauge
+  switching faces) does a half-turn flip about its horizontal axis, about half a second. Never the whole panel. When
+  several change at once they flip in a wave from left to right, each about 60 ms after the one to its left. Ticking
+  values and rebuilds don't flip.
+- Why: Dave: a flip catches the eye on a new clearance; the wave makes a phase change pleasing to watch. Only changes
+  animate, within the CPU budget.
+- Alternatives considered: flipping the whole panel at a phase change; flipping every value that changes.
+
+## D-199 — Milestone 14 is the in-flight panel, 15 the predictions and passenger header, 16 developer mode
+- Date: 2026-11-26
+- Status: Accepted (Dave asked for the write-up as milestones; the split is Claude's, Proposed)
+- Decided by: Dave + Claude
+- Area: design
+- Decision: Milestone 14 builds the in-flight panel (D-194 to D-198), the ATIS word (D-193) and drops the departure
+  frequency (D-191), starting with a v2 mockup. Milestone 15 builds the predictions and the passenger header (D-192),
+  filling the panel's prediction readouts and the fuel gauge's bug. Milestone 16 is developer mode, brainstormed when
+  it starts.
+- Why: One session per milestone (D-121) and the whole design is too big for one. The panel needs nothing new from
+  the plan's times; the predictions need nothing from the panel but slots to fill, so each milestone is checkable on
+  replays on its own.
+- Alternatives considered: one milestone for everything; the predictions first (the header sooner, but the readouts
+  they fill wouldn't exist yet).
+
+## D-200 — ATC every 30 s, the destination ATIS from 200 nm, seat belt check 2 to the transition altitude
+- Date: 2026-11-26
+- Status: Accepted
+- Decided by: Dave (questions from the builder check of the in-flight design)
+- Area: app
+- Decision: From block out to block in, `FlightWatcher` fetches SayIntentions' ATC history every 30 s (was 60 s). The
+  destination ATIS is first fetched at the `within_200nm` marker (was the change to Descent or Approach), then every
+  5 minutes as before. Debrief check 2 measures the seat belts off from the start of taxi out until the
+  `transition_altitude` marker (was `above_10000`), for flights recorded from milestone 14 on; old flights keep their
+  stored measurement (D-160). All three in milestone 14.
+- Why: The ATC card (D-197) should show a clearance before Dave has set it from memory; 30 s is enough and stays
+  light on SayIntentions. The arrival ATIS readouts (D-193) are for loading the approach before top of descent, and
+  the cruise panel's DEST ATIS couldn't fill when the fetch started at the descent. The lamp (D-195) and the score
+  should agree on Dave's rule: belts on to at least the transition altitude.
+- Alternatives considered: every 20 s (Claude's pick) or keeping 60 s; fetching from cruise level-off; leaving check
+  2 at 10,000 ft with the lamp disagreeing.

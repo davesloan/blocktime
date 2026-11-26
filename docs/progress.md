@@ -22,6 +22,31 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-26 — The in-flight brainstorm: milestones 14–16 designed (docs only)
+
+**Done:**
+- Brainstorm with Dave from the mockup `docs/images/dashboard-inflight-v1.html` (ten moments of KSAN → KSJC with ATC's
+  real words). Written up in `docs/dashboard.md`, "The in-flight panel", and D-191 to D-199. CLAUDE.md notes the one
+  animation exception (D-195). `roadmap.md` has milestones 14, 15 and 16.
+- Dave's calls: no radio frequencies anywhere, including the Pre-Flight departure frequency (D-191); the header as the
+  passenger and family view, `Arrival 12:35 PM` with On time / Early / Delayed under it, measured from block out
+  (D-192); the ATIS letter as its word and the arrival ATIS readouts (D-193); the panel from block out (D-194); lamps
+  flashing while wrong, seat belts on to at least the transition altitude (D-195); the 0–40 kt ground speed gauge;
+  the ATC card with ATC's approach transition (D-197); flips per card in a left-to-right wave (D-198); developer mode
+  last.
+
+- A builder check (a fresh reviewer reading the spec) raised three questions; Dave answered them (D-200): ATC fetched
+  every 30 s from block out (was 60 s), the destination ATIS from the `within_200nm` marker (was top of descent), and
+  debrief check 2 ending at the transition altitude for new flights (was 10,000 ft).
+
+**Decisions for Dave:**
+- Claude's calls, Proposed: the 2-minute On time band and the "time from here" prediction (D-192); the lamp windows
+  per check (D-195); the 60 ms wave step (D-198); the three-milestone split (D-199).
+
+**Next step:**
+- In a new session (D-121): plan milestone 14 from `roadmap.md` and `dashboard.md`, "The in-flight panel", starting
+  with the v2 mockup.
+
 ## 2026-11-26 — Milestone 13 closed (0.14.0)
 
 **Done:**

@@ -152,7 +152,8 @@ This file overrides the plugin's "invoke a skill on any 1% chance" rule. Use onl
 - Qt 6 from the official installer (not vcpkg), found through `BLOCKTIME_QT_DIR` (D-052). windeployqt runs after
   each build (D-056).
 - Dark only. Every colour, size and font is in `qml/Theme.qml` (D-054); Qt Quick Controls Basic style. No
-  continuous animations: the budget is under 100 MB and under 1% CPU in flight.
+  continuous animations: the budget is under 100 MB and under 1% CPU in flight. The one exception is a lamp flashing
+  while its switch is wrong (D-195).
 - Every QML file starts with the GPL header and `import BlockTime` (needed by hot reload, D-055). Use
   `pragma ComponentBehavior: Bound` and `required` properties in delegates. `qmllint`
   (`blocktime-app_qmllint`) must report nothing.

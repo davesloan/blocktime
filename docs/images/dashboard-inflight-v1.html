@@ -1,0 +1,597 @@
+<!doctype html>
+<!-- BlockTime: the in-flight panel mockup (the brainstorm after milestone 13, D-179). ATC's words are from Dave's
+     KSAN → KSJC leg of 2026-11-25 (XLY 8, N814SX); the times, gauge values and the lamps left wrong are made up.
+     Click the pill to collapse the header. ?step=N&collapsed=1 opens a given state. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Dashboard mockup: in-flight panel</title>
+<style>
+  :root {
+    --bg: #0E1116; --surface: #161B22; --raised: #1C222B; --border: #262D37;
+    --text: #E6EAF0; --text2: #8B95A3; --muted: #5B6573;
+    --good: #22C55E; --done: #06B6D4; --bad: #EF4444; --warn: #E0B030;
+    --onGood: #052E16; --onDone: #083344;
+    --amber: #FFB23E; --amberDim: #B8762A; --amberGlow: rgba(255,160,40,.55);
+    --red: #FF5A45; --redGlow: rgba(255,70,50,.6);
+    --early: #4ADE80; --late: #F87171;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Segoe UI Variable", "Segoe UI", sans-serif; }
+  .page { width: 100%; max-width: 1100px; padding: 20px; }
+
+  .controls { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 13px; color: var(--text2); }
+  .controls button { background: var(--raised); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+                     height: 32px; padding: 0 14px; font: inherit; cursor: pointer; }
+  .controls .step { margin-left: auto; color: var(--text); }
+
+  /* ---------- the header, as built (static here), and collapsed ---------- */
+  .card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+          padding: 20px; }
+  .top { position: relative; height: 202px; }
+  .airline { position: absolute; left: 0; right: 0; top: 0; text-align: center; font-size: 26px; font-weight: 600;
+             line-height: 34px; }
+  .ident { position: absolute; left: 0; top: 2px; font-size: 24px; font-weight: 700; line-height: 30px; }
+  .clock { position: absolute; right: 0; top: 2px; border: 1px solid var(--muted); border-radius: 15px; height: 30px;
+           padding: 0 14px; line-height: 28px; font-family: Consolas, monospace; font-size: 18px; color: var(--text); }
+  .airport { position: absolute; top: 62px; width: 240px; }
+  .airport.right { right: 0; text-align: right; }
+  .glyph { font-family: "Segoe Fluent Icons"; font-size: 26px; color: var(--text2); display: inline-block; height: 28px; }
+  .code { font-size: 36px; font-weight: 700; line-height: 42px; }
+  .name { font-size: 12px; color: var(--text2); line-height: 17px; white-space: nowrap; overflow: hidden;
+          text-overflow: ellipsis; }
+  .line { font-size: 13px; color: var(--text); line-height: 18px; }
+  .ontime { font-size: 13px; font-weight: 600; line-height: 18px; }
+  .ontime.early { color: var(--early); } .ontime.late { color: var(--late); }
+  .ontime.new { outline: 1px dashed var(--amber); outline-offset: 2px; }
+  .mid { position: absolute; left: 0; right: 0; top: 93px; text-align: center; }
+  .mid .flight { font-size: 14px; color: var(--text2); line-height: 20px; }
+  .mid .cities { font-size: 14px; color: var(--muted); line-height: 20px; }
+  .mid .dist { font-size: 14px; color: var(--text2); line-height: 20px; margin-top: 4px; }
+  svg.arc { position: absolute; left: 0; top: 0; width: 100%; height: 184px; overflow: visible; pointer-events: none; }
+
+  .pillrow { display: flex; align-items: center; gap: 14px; }
+  .pillrow .ccode { display: none; font-size: 22px; font-weight: 700; line-height: 30px; }
+  .pillrow .cright { display: none; text-align: right; }
+  .pillrow .cright .ontime { font-size: 11px; line-height: 13px; }
+  .pill { position: relative; flex: 1; display: flex; gap: 2px; height: 30px; margin-top: 4px; cursor: pointer; }
+  .sec { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600;
+         background: var(--raised); color: var(--muted); }
+  .sec:first-child { border-radius: 15px 0 0 15px; }
+  .sec:last-child { border-radius: 0 15px 15px 0; }
+  .sec.current { background: var(--good); color: var(--onGood); }
+  .sec.done { background: var(--done); color: var(--onDone); }
+  .chev { position: relative; height: 34px; margin-top: -6px; cursor: pointer; }
+  .chevmark { position: absolute; top: 0; transform: translateX(-50%); text-align: center;
+              filter: drop-shadow(0 1.5px 1.5px rgba(0, 0, 0, .7)); }
+  .chevmark svg { display: block; margin: 0 auto; overflow: visible; height: 15px; }
+  .chevmark .sub { font-size: 12px; color: var(--text2); margin-top: 1px; white-space: nowrap; height: 16px; }
+  .status { position: relative; height: 76px; margin-top: 6px; text-align: center; }
+  .s0 { font-size: 19px; font-weight: 600; line-height: 26px; }
+  .s1 { font-size: 13px; color: var(--text2); margin-top: 6px; }
+  .s2 { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .card.collapsed { padding: 14px 20px 10px; }
+  .card.collapsed .top, .card.collapsed .s1, .card.collapsed .s2 { display: none; }
+  .card.collapsed .pillrow .ccode, .card.collapsed .pillrow .cright { display: block; margin-top: 4px; }
+  .card.collapsed .status { height: auto; margin-top: 2px; }
+
+  /* ---------- the inset instrument panel (D-179) ---------- */
+  .panel { position: relative; margin-top: 14px; border-radius: 12px; padding: 18px 30px 22px;
+           background: linear-gradient(180deg, #0A0D11 0%, #0C0F14 100%);
+           box-shadow: inset 0 4px 10px rgba(0,0,0,.85), inset 0 1px 2px rgba(0,0,0,.9),
+                       inset 0 -1px 0 rgba(255,255,255,.035), 0 1px 0 rgba(255,255,255,.05); }
+  .screw { position: absolute; width: 11px; height: 11px; border-radius: 50%;
+           background: radial-gradient(circle at 35% 30%, #5a626d, #23282f 70%);
+           box-shadow: 0 1px 1px rgba(0,0,0,.8), inset 0 0 1px rgba(255,255,255,.15); }
+  .screw::after { content: ""; position: absolute; left: 2px; right: 2px; top: 5px; height: 1.5px; background: #111418;
+                  transform: rotate(35deg); }
+  .screw.tl { left: 9px; top: 9px; } .screw.tr { right: 9px; top: 9px; }
+  .screw.bl { left: 9px; bottom: 9px; } .screw.br { right: 9px; bottom: 9px; }
+
+  /* the lamp strip (glareshield) */
+  .lights { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px 26px; padding: 2px 0 14px;
+            border-bottom: 1px solid rgba(255,255,255,.04); margin-bottom: 14px; }
+  .lamp { display: flex; flex-direction: column; align-items: center; gap: 7px; width: 74px; }
+  .bezel { width: 36px; height: 36px; border-radius: 50%; padding: 4px;
+           background: conic-gradient(from 200deg, #8a929c, #3a4048, #9aa2ac, #2c3138, #8a929c);
+           box-shadow: 0 2px 3px rgba(0,0,0,.8); }
+  .lens { position: relative; width: 100%; height: 100%; border-radius: 50%; }
+  .lens::after { content: ""; position: absolute; left: 22%; top: 12%; width: 40%; height: 28%; border-radius: 50%;
+                 background: radial-gradient(ellipse at center, rgba(255,255,255,.55), rgba(255,255,255,0) 70%); }
+  .placard { white-space: nowrap; font-size: 10px; letter-spacing: .12em; color: #C9CED6; font-weight: 600;
+             background: #15191F; border-radius: 3px; padding: 2px 6px; box-shadow: inset 0 1px 1px rgba(0,0,0,.8); }
+  .red.off   { background: radial-gradient(circle at 50% 55%, #3b1210, #1a0807 75%); }
+  .red.on    { background: radial-gradient(circle at 50% 55%, #fff1d6 0%, #ff9a72 16%, #e3301f 45%, #7d0f09 85%);
+               box-shadow: 0 0 16px 5px rgba(255,64,40,.45); }
+  .white.off { background: radial-gradient(circle at 50% 55%, #2c2d2b, #141513 75%); }
+  .white.on  { background: radial-gradient(circle at 50% 55%, #ffffff 0%, #fff4dc 22%, #e9d9b6 50%, #8d7e62 90%);
+               box-shadow: 0 0 16px 5px rgba(255,236,200,.35); }
+  .amber.off { background: radial-gradient(circle at 50% 55%, #3a2808, #191104 75%); }
+  .amber.on  { background: radial-gradient(circle at 50% 55%, #fff6d0 0%, #ffd060 18%, #e89a10 48%, #7a4a02 88%);
+               box-shadow: 0 0 16px 5px rgba(255,170,30,.45); }
+  .green.off { background: radial-gradient(circle at 50% 55%, #10301a, #07160b 75%); }
+  .green.on  { background: radial-gradient(circle at 50% 55%, #eaffe0 0%, #8cf59a 18%, #22b44a 48%, #0b4a1c 88%);
+               box-shadow: 0 0 16px 5px rgba(60,220,100,.38); }
+
+  .gauges { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 0 10px; }
+  .gauge svg { width: 100%; max-width: 200px; height: auto; }
+  .gauge { text-align: center; }
+  .glabel { font-size: 10px; letter-spacing: .14em; color: #9AA3AF; margin-top: 4px; font-weight: 600; }
+
+  /* the bottom row: the ATC card on the left, the phase's readouts on the right */
+  .bottom { display: grid; grid-template-columns: 1.25fr 1fr; gap: 22px; margin-top: 16px; }
+  .group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .gtitle { align-self: flex-start; white-space: nowrap; font-size: 11px; letter-spacing: .16em; color: #C9CED6;
+            font-weight: 700; background: #15191F; border-radius: 3px; padding: 3px 8px;
+            box-shadow: inset 0 1px 1px rgba(0,0,0,.8); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .radio { background: linear-gradient(180deg, #1b2027, #14181e); border-radius: 6px; padding: 7px 10px 9px;
+           box-shadow: 0 2px 4px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.06); min-width: 0; }
+  .radio .t { font-size: 10px; letter-spacing: .14em; color: #9AA3AF; font-weight: 600; white-space: nowrap;
+              display: flex; justify-content: space-between; }
+  .radio .t .latest { color: #1a1205; background: var(--amber); border-radius: 2px; padding: 0 4px;
+                      letter-spacing: .08em; font-weight: 700; box-shadow: 0 0 6px var(--amberGlow); }
+  .window { margin-top: 5px; background: #070605; border-radius: 3px; padding: 4px 9px; min-height: 34px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,.95); display: flex; justify-content: space-between;
+            align-items: baseline; gap: 8px; }
+  .digits { font-family: Consolas, monospace; font-size: 22px; color: var(--amber); letter-spacing: .05em;
+            text-shadow: 0 0 6px var(--amberGlow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .digits small { font-size: 13px; }
+  .digits.text { font-size: 17px; }
+  .digits.blank { color: #3a2a12; text-shadow: none; }
+  .aside { font-family: Consolas, monospace; font-size: 11px; color: var(--amberDim); white-space: nowrap;
+           text-shadow: 0 0 4px rgba(255,150,40,.4); }
+  .aside.flag { color: #1a1205; background: var(--amber); border-radius: 2px; padding: 0 4px; text-shadow: none;
+                font-weight: 700; box-shadow: 0 0 6px var(--amberGlow); }
+  .stars { color: var(--amber); letter-spacing: 2px; }
+  .stars .dim { color: #3a2a12; text-shadow: none; }
+
+  .notes { margin-top: 18px; font-size: 13px; color: var(--text2); line-height: 1.6; }
+  .notes b { color: var(--text); font-weight: 600; }
+  .notes ul { margin: 6px 0 0; padding-left: 20px; }
+</style>
+</head>
+<body>
+<div class="page" id="page">
+  <div class="controls">
+    <button id="back">◀ Back</button>
+    <button id="next">Next ▶</button>
+    <span class="step" id="stepLabel"></span>
+  </div>
+
+  <div class="card" id="card">
+    <div class="top">
+      <div class="airline">Soxxly Airlines</div>
+      <div class="ident">XLY 8</div>
+      <div class="clock" id="clock"></div>
+      <div class="airport">
+        <span class="glyph" style="transform: rotate(-45deg)">&#xE709;</span>
+        <div class="code">KSAN</div>
+        <div class="name">San Diego International Airport</div>
+        <div class="line" id="originLine"></div>
+      </div>
+      <div class="airport right">
+        <span class="glyph" style="transform: rotate(45deg)">&#xE709;</span>
+        <div class="code">KSJC</div>
+        <div class="name">Mineta San Jose International Airport</div>
+        <div class="line" id="destLine"></div>
+        <div class="ontime new" id="onTime"></div>
+      </div>
+      <div class="mid">
+        <div class="flight">Flight 8</div>
+        <div class="cities">San Diego to San Jose</div>
+        <div class="dist" id="dist"></div>
+      </div>
+      <svg class="arc" id="arc"></svg>
+    </div>
+
+    <div class="pillrow">
+      <div class="ccode">KSAN</div>
+      <div class="pill" id="pill" title="Click to collapse or expand the header"></div>
+      <div class="cright"><div class="ccode" style="display:block;margin:0">KSJC</div>
+        <div class="ontime" id="onTimeSmall"></div></div>
+    </div>
+    <div class="chev" id="chevRow" title="Click to collapse or expand the header">
+      <div class="chevmark" id="chev">
+        <svg width="14" height="18" viewBox="0 0 14 18" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#FCA5A5"/><stop offset=".45" stop-color="#EF4444"/>
+              <stop offset="1" stop-color="#B91C1C"/></linearGradient>
+          </defs>
+          <path d="M7 0.5 L13.5 6.5 L13.5 17.5 L0.5 17.5 L0.5 6.5 Z" fill="url(#rg)" stroke="#FFFFFF" stroke-width="1"
+                stroke-linejoin="round"/>
+          <path d="M2 7.2 L7 2.6 L12 7.2" fill="none" stroke="#FFFFFF" stroke-opacity=".55" stroke-width="1"
+                stroke-linejoin="round"/></svg>
+        <div class="sub" id="sub"></div>
+      </div>
+    </div>
+    <div class="status">
+      <div class="s0" id="s0"></div>
+      <div class="s1" id="s1"></div>
+      <div class="s2" id="s2"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="screw tl"></div><div class="screw tr"></div><div class="screw bl"></div><div class="screw br"></div>
+    <div class="lights" id="lights"></div>
+    <div class="gauges">
+      <div class="gauge"><svg id="spd" width="200" height="200" viewBox="0 0 220 220"></svg>
+        <div class="glabel" id="spdLabel"></div></div>
+      <div class="gauge"><svg id="alt" width="200" height="200" viewBox="0 0 220 220"></svg>
+        <div class="glabel">ALTITUDE</div></div>
+      <div class="gauge"><svg id="vsi" width="200" height="200" viewBox="0 0 220 220"></svg>
+        <div class="glabel">VERTICAL SPEED</div></div>
+      <div class="gauge"><svg id="fuel" width="200" height="200" viewBox="0 0 220 220"></svg>
+        <div class="glabel">FUEL</div></div>
+    </div>
+    <div class="bottom">
+      <div class="group" id="atc"></div>
+      <div class="group" id="phase"></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <b>Step through the flight</b> with Next. Click the pill to collapse the header. ATC's words are from the
+    KSAN → KSJC leg of 2026-11-25; times, gauge values and the lamps left wrong (steps 2, 5 and 10) are made up.
+    <ul>
+      <li><b>A flashing lamp</b> is a switch the debrief would mark down right now (beacon, seat belts, strobes,
+        landing lights, APU, STD, gear). Lit means on, dark means off; flashing means fix it. 1 s lit, 1 s dark.</li>
+      <li><b>The speed gauge</b> is ground speed 0–40 kt on the ground below 40 kt (red over 30 kt, the taxi check),
+        and airspeed with the Mach window otherwise. The amber bug is the plan's cruise speed in cruise and VREF on
+        approach.</li>
+      <li><b>The ATC card</b> keeps one slot per kind of instruction; each changes only when ATC changes it. LATEST
+        marks the slots the last call changed (one call can change three).</li>
+      <li><b>Early / Delayed</b> (dashed outline: new) sits under the arrival time from liftoff, against the SimBrief
+        plan; within a minute it reads On time.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const SECTIONS = ["Pre-Flight", "Departure", "Climb", "Cruise", "Descent", "Arrival"];
+const PARTS = [["Preparing", "Boarding"], ["Pushback", "Taxiing", "Takeoff"], [""], [""], ["Descending", "Approach"],
+               ["Landing", "Taxiing", "At Gate"]];
+
+// Lamps: key, placard, lens colour.
+const LAMPS = [["beacon", "BEACON", "red"], ["strobe", "STROBE", "white"], ["landing", "LANDING", "white"],
+               ["belts", "SEAT BELTS", "amber"], ["apu", "APU", "amber"], ["std", "ALT STD", "green"],
+               ["gear", "GEAR DN", "green"]];
+
+const ON_GROUND_ATC = (taxi, to) => [
+  { t: "TAXI", v: taxi, text: true, aside: to, latest: true },
+  { t: "ALTITUDE", v: "CLIMB VIA SID", text: true, aside: "EXP FL400 +10 MIN" },
+  { t: "ROUTE", v: "PADRZ2 IKAYE", text: true, aside: "CLEARED" },
+  { t: "SPEED", v: null },
+];
+
+const STEPS = [
+  { label: "1 · Block out: pushback and engine start", stage: 1, part: 0, clock: "0:00:40",
+    origin: "Departing soon", dest: "Arriving ~11:53 AM", ontime: null, flown: 0,
+    lines: ["Pushback and startup", "Catering complete · Refueling complete · Boarding complete · 10:31 AM",
+            "Preparing aircraft for flight · 10:02 AM"],
+    lamps: { beacon: 1, apu: 1, gear: 1 }, wrong: [],
+    gauges: { gs: 2, alt: 17, vs: 0, fuel: 13.4, plan: 13.4 },
+    atc: [{ t: "ALTITUDE", v: "CLIMB VIA SID", text: true, aside: "EXP FL400 +10 MIN", latest: true },
+          { t: "ROUTE", v: "PADRZ2 IKAYE", text: true, aside: "CLEARED" },
+          { t: "SPEED", v: null }, { t: "APPROACH", v: null }],
+    phaseTitle: "DEPARTURE",
+    phase: [{ t: "RUNWAY", v: "27", aside: "275° · ATC" }, { t: "SQUAWK", v: "3166" },
+            { t: "WIND", v: "CALM", aside: "ATIS L" }, { t: "ALTIMETER", v: "30.09", unit: "inHg" }] },
+
+  { label: "2 · Taxiing (made up: seat belts left off, so the lamp flashes)", stage: 1, part: 1, clock: "0:06:10",
+    origin: "Departing soon", dest: "Arriving ~11:53 AM", ontime: null, flown: 0,
+    lines: ["Taxiing to runway 27", "Pushback and startup · 10:43 AM",
+            "Catering complete · Refueling complete · Boarding complete"],
+    lamps: { beacon: 1, gear: 1 }, wrong: ["belts"],
+    gauges: { gs: 18, alt: 17, vs: 0, fuel: 13.3, plan: 13.4 },
+    atc: ON_GROUND_ATC("A, A7, B, B1", "RWY 27"),
+    phaseTitle: "DEPARTURE",
+    phase: [{ t: "RUNWAY", v: "27", aside: "275° · ATC" }, { t: "SQUAWK", v: "3166" },
+            { t: "WIND", v: "CALM", aside: "ATIS L" }, { t: "ALTIMETER", v: "30.09", unit: "inHg" }] },
+
+  { label: "3 · Departed, climbing via the SID (Early / Delayed appears)", stage: 2, part: 0, clock: "0:15:20",
+    origin: "Departed 10:43 AM", dest: "Arriving ~11:56 AM", ontime: ["late", "Delayed ~3m"], flown: 6,
+    lines: ["Climbing to FL400", "Departed runway 27 · 10:56 AM", "Takeoff roll · 10:55 AM"],
+    lamps: { beacon: 1, strobe: 1, landing: 1, belts: 1 }, wrong: [],
+    gauges: { ias: 205, mach: null, alt: 2400, vs: 2600, fuel: 12.8, plan: 12.9 },
+    atc: [{ t: "ALTITUDE", v: "CLIMB VIA SID", text: true, aside: "EXP FL400 +10 MIN" },
+          { t: "ROUTE", v: "PADRZ2 IKAYE", text: true, aside: "CLEARED" },
+          { t: "SPEED", v: null }, { t: "APPROACH", v: null }],
+    phaseTitle: "CLIMB",
+    phase: [{ t: "TOP OF CLIMB", v: "FL400", aside: "~11:16 AM" }, { t: "TOP OF DESCENT", v: "~11:32", aside: "PLAN 11:29" },
+            { t: "LANDING", v: "~11:49", aside: "PLAN 11:46" }, { t: "CRUISE", v: "FL400" }] },
+
+  { label: "4 · SoCal: climb and maintain FL220", stage: 2, part: 0, clock: "0:19:05",
+    origin: "Departed 10:43 AM", dest: "Arriving ~11:56 AM", ontime: ["late", "Delayed ~3m"], flown: 24,
+    lines: ["Climbing to FL400", "Departed runway 27 · 10:56 AM", "Takeoff roll · 10:55 AM"],
+    lamps: { beacon: 1, strobe: 1, landing: 1, belts: 1 }, wrong: [],
+    gauges: { ias: 290, mach: .62, alt: 12600, vs: 2900, fuel: 12.1, plan: 12.2 },
+    atc: [{ t: "ALTITUDE", v: "FL220", aside: "11:01 AM", latest: true },
+          { t: "ROUTE", v: "PADRZ2 IKAYE", text: true, aside: "CLEARED" },
+          { t: "SPEED", v: null }, { t: "APPROACH", v: null }],
+    phaseTitle: "CLIMB",
+    phase: [{ t: "TOP OF CLIMB", v: "FL400", aside: "~11:16 AM" }, { t: "TOP OF DESCENT", v: "~11:32", aside: "PLAN 11:29" },
+            { t: "LANDING", v: "~11:49", aside: "PLAN 11:46" }, { t: "CRUISE", v: "FL400" }] },
+
+  { label: "5 · LA Center: FL300 (made up: still on 30.09 past the transition altitude, STD flashes)", stage: 2,
+    part: 0, clock: "0:22:40", origin: "Departed 10:43 AM", dest: "Arriving ~11:55 AM", ontime: ["late", "Delayed ~2m"],
+    flown: 41,
+    lines: ["Climbing to FL400", "Departed runway 27 · 10:56 AM", "Takeoff roll · 10:55 AM"],
+    lamps: { beacon: 1, strobe: 1, belts: 1 }, wrong: ["std"],
+    gauges: { ias: 300, mach: .71, alt: 20500, vs: 2400, fuel: 11.6, plan: 11.7, setting: "30.09" },
+    atc: [{ t: "ALTITUDE", v: "FL300", aside: "11:05 AM", latest: true },
+          { t: "ROUTE", v: "PADRZ2 IKAYE", text: true, aside: "CLEARED" },
+          { t: "SPEED", v: null }, { t: "APPROACH", v: null }],
+    phaseTitle: "CLIMB",
+    phase: [{ t: "TOP OF CLIMB", v: "FL400", aside: "~11:16 AM" }, { t: "TOP OF DESCENT", v: "~11:31", aside: "PLAN 11:29" },
+            { t: "LANDING", v: "~11:48", aside: "PLAN 11:46" }, { t: "CRUISE", v: "FL400" }] },
+
+  { label: "6 · Cruise at FL400: top of descent and landing against the plan", stage: 3, part: 0, clock: "0:36:50",
+    origin: "Departed 10:43 AM", dest: "Arriving ~11:55 AM", ontime: ["late", "Delayed ~2m"], flown: 171,
+    lines: ["Cruising at FL400", "Climbing to FL400 · 10:57 AM", "Departed runway 27 · 10:56 AM"],
+    lamps: { beacon: 1, strobe: 1 }, wrong: [],
+    gauges: { ias: 246, mach: .78, alt: 40000, vs: 0, fuel: 9.8, plan: 10.0, setting: "STD", bug: 247 },
+    atc: [{ t: "ALTITUDE", v: "FL400", aside: "11:12 AM" },
+          { t: "ROUTE", v: "PADRZ2 IKAYE", text: true, aside: "CLEARED" },
+          { t: "SPEED", v: null }, { t: "APPROACH", v: null }],
+    phaseTitle: "CRUISE",
+    phase: [{ t: "TOP OF DESCENT", v: "64", unit: "NM", aside: "~11:31 AM" }, { t: "LANDING", v: "~11:48", aside: "PLAN 11:46" },
+            { t: "DEST ATIS", v: "J", aside: "30.19 · RWY 30L" }, { t: "FUEL AT LANDING", v: "7,300", unit: "LB", aside: "PLAN 7,500" }] },
+
+  { label: "7 · Descend via SILCN6 TROXX, then NorCal: expect the ILS 30L via KLIDE", stage: 4, part: 0,
+    clock: "0:52:30", origin: "Departed 10:43 AM", dest: "Arriving ~11:55 AM", ontime: ["late", "Delayed ~2m"],
+    flown: 296,
+    lines: ["Descending into San Jose", "Cruising at FL400 · 11:12 AM", "Climbing to FL400 · 10:57 AM"],
+    lamps: { beacon: 1, strobe: 1, belts: 1, std: 1 }, wrong: [],
+    gauges: { ias: 280, mach: .70, alt: 17200, vs: -2200, fuel: 8.1, plan: 8.2, setting: "STD" },
+    atc: [{ t: "ALTITUDE", v: "DESCEND VIA SILCN6", text: true, aside: "11:31 AM" },
+          { t: "ROUTE", v: "SILCN6 TROXX", text: true, aside: "11:31 AM" },
+          { t: "SPEED", v: null }, { t: "APPROACH", v: "EXP ILS 30L", text: true, aside: "KLIDE", latest: true }],
+    phaseTitle: "ARRIVAL",
+    phase: [{ t: "ATIS", v: "J", aside: "11:36 AM" }, { t: "ALTIMETER", v: "30.19", unit: "inHg", aside: "SET BELOW FL180" },
+            { t: "RUNWAY", v: "30L", aside: "ATC · PLAN 30L" }, { t: "LANDING", v: "~11:48", aside: "PLAN 11:46" }] },
+
+  { label: "8 · Approach: heading 320, 2,700 until established, cleared ILS 30L (one call, three slots)",
+    stage: 4, part: 1, clock: "1:00:10", origin: "Departed 10:43 AM", dest: "Arriving ~11:54 AM",
+    ontime: ["late", "Delayed ~1m"], flown: 348,
+    lines: ["Approach into San Jose", "Descending into San Jose · 11:31 AM", "Cruising at FL400 · 11:12 AM"],
+    lamps: { beacon: 1, strobe: 1, landing: 1, belts: 1 }, wrong: [],
+    gauges: { ias: 190, mach: null, alt: 4100, vs: -900, fuel: 7.6, plan: 7.7, setting: "30.19" },
+    atc: [{ t: "ALTITUDE", v: "2,700", aside: "UNTIL ESTABLISHED", latest: true },
+          { t: "HEADING", v: "320", aside: "LEFT", latest: true },
+          { t: "SPEED", v: null }, { t: "APPROACH", v: "CLEARED ILS 30L", text: true, latest: true }],
+    phaseTitle: "ARRIVAL",
+    phase: [{ t: "ATIS", v: "J" }, { t: "ALTIMETER", v: "30.19", unit: "inHg" },
+            { t: "RUNWAY", v: "30L", aside: "ATC · PLAN 30L" }, { t: "LANDING", v: "~11:47", aside: "PLAN 11:46" }] },
+
+  { label: "9 · Short final: cleared to land, height above the ground, VREF on the airspeed", stage: 4, part: 1,
+    clock: "1:03:40", origin: "Departed 10:43 AM", dest: "Arriving ~11:54 AM", ontime: ["late", "Delayed ~1m"],
+    flown: 366,
+    lines: ["Final approach, runway 30L", "Approach into San Jose · 11:40 AM", "Descending into San Jose · 11:31 AM"],
+    lamps: { beacon: 1, strobe: 1, landing: 1, belts: 1, gear: 1 }, wrong: [],
+    gauges: { ias: 147, mach: null, alt: 560, vs: -720, fuel: 7.4, plan: 7.5, setting: "30.19", bug: 142 },
+    atc: [{ t: "ALTITUDE", v: "2,700", aside: "UNTIL ESTABLISHED" }, { t: "HEADING", v: "320", aside: "LEFT" },
+          { t: "SPEED", v: null }, { t: "APPROACH", v: "CLEARED TO LAND 30L", text: true, latest: true }],
+    phaseTitle: "SHORT FINAL",
+    phase: [{ t: "HEIGHT", v: "420", unit: "FT AGL" }, { t: "WIND", v: "360/04", aside: "TOWER" },
+            { t: "RUNWAY", v: "30L" }, { t: "VREF", v: "142", unit: "KT", aside: "FLAPS 30" }] },
+
+  { label: "10 · Taxi in (made up: strobes still on after 3 minutes, so they flash)", stage: 5, part: 1,
+    clock: "1:10:20", origin: "Departed 10:43 AM", dest: "Arriving ~11:54 AM", ontime: ["late", "Delayed ~1m"],
+    flown: 368,
+    lines: ["Taxiing to Terminal Alpha Gate 4", "Landed on runway 30L · 11:47 AM", "Final approach, runway 30L · 11:45 AM"],
+    lamps: { beacon: 1, landing: 0, belts: 1, gear: 1, std: 0 }, wrong: ["strobe"],
+    gauges: { gs: 16, alt: 62, vs: 0, fuel: 7.2, plan: 7.3, setting: "30.19" },
+    atc: [{ t: "TAXI", v: "K", text: true, aside: "TERMINAL A GATE 4", latest: true },
+          { t: "HOLD SHORT", v: "30R", text: true, latest: true },
+          { t: "SPEED", v: null }, { t: "APPROACH", v: null }].slice(0, 2),
+    phaseTitle: "ARRIVAL",
+    phase: [{ t: "LANDING", stars: 4, aside: "−142 FPM" }, { t: "TOUCHDOWN", v: "1,350", unit: "FT", aside: "PAST THRESHOLD" },
+            { t: "GATE", v: "TERMINAL A GATE 4", text: true }, { t: "TAXI IN", v: "~6", unit: "MIN", aside: "PLAN 7" }] },
+];
+
+const params = new URLSearchParams(location.search);
+let step = Math.min(Math.max((parseInt(params.get("step")) || 1) - 1, 0), STEPS.length - 1);
+let collapsed = params.get("collapsed") === "1";
+let blinkLit = true;
+
+function readout(r) {
+  const blank = (r.v === null || r.v === undefined || r.v === "") && !r.stars;
+  let body;
+  if (r.stars) {
+    body = `<span class="digits stars">${"★".repeat(r.stars)}<span class="dim">${"★".repeat(5 - r.stars)}</span></span>`;
+  } else {
+    const cls = ["digits", r.text ? "text" : "", blank ? "blank" : ""].join(" ");
+    const unit = !blank && r.unit ? `<small> ${r.unit}</small>` : "";
+    body = `<span class="${cls}">${blank ? "—" : r.v}${unit}</span>`;
+  }
+  const aside = r.aside && !blank ? `<span class="aside${r.flag ? " flag" : ""}">${r.aside}</span>` : "";
+  const latest = r.latest ? `<span class="latest">LATEST</span>` : "";
+  return `<div class="radio"><div class="t"><span>${r.t}</span>${latest}</div>
+    <div class="window">${body}${aside}</div></div>`;
+}
+
+function renderLamps() {
+  const s = STEPS[step];
+  document.getElementById("lights").innerHTML = LAMPS.map(([key, placard, colour]) => {
+    let on = !!s.lamps[key];
+    if (s.wrong.includes(key)) on = blinkLit;   // flashing: lit, dark, lit…
+    return `<div class="lamp"><div class="bezel"><div class="lens ${colour} ${on ? "on" : "off"}"></div></div>
+      <div class="placard">${placard}</div></div>`;
+  }).join("");
+}
+
+// ---------- steam gauges (from dashboard-instrument-panel.html) ----------
+const C = 110, R = 92;
+function pt(r, deg) { const a = (deg - 90) * Math.PI / 180; return [C + r * Math.cos(a), C + r * Math.sin(a)]; }
+function face(id) {
+  return `<defs><linearGradient id="${id}bz" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7d8590"/>
+    <stop offset=".5" stop-color="#2a2f36"/><stop offset="1" stop-color="#6b737d"/></linearGradient>
+    <radialGradient id="${id}gl" cx=".35" cy=".25" r=".6"><stop offset="0" stop-color="#fff" stop-opacity=".16"/>
+    <stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
+    <circle cx="${C}" cy="${C}" r="108" fill="#000" opacity=".6"/><circle cx="${C}" cy="${C}" r="106" fill="url(#${id}bz)"/>
+    <circle cx="${C}" cy="${C}" r="98" fill="#0b0c0d" stroke="#000" stroke-width="2"/>`;
+}
+const glass = id => `<ellipse cx="${C - 18}" cy="${C - 34}" rx="70" ry="48" fill="url(#${id}gl)"/>`;
+function ticks(from, to, n, len, w) {
+  let s = "";
+  for (let i = 0; i <= n; i++) {
+    const deg = from + (to - from) * i / n, [x1, y1] = pt(R, deg), [x2, y2] = pt(R - len, deg);
+    s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#e8e8e8" stroke-width="${w}"/>`;
+  }
+  return s;
+}
+function num(deg, r, t, size = 15) {
+  const [x, y] = pt(r, deg);
+  return `<text x="${x}" y="${y + size * .36}" text-anchor="middle" fill="#f0f0f0" font-size="${size}"
+    font-family="Bahnschrift, 'Segoe UI', sans-serif" font-weight="600">${t}</text>`;
+}
+function needle(deg, len = 80) {
+  return `<g transform="rotate(${deg} ${C} ${C})"><path d="M ${C-4} ${C+18} L ${C-2.4} ${C-len+10} L ${C} ${C-len}
+    L ${C+2.4} ${C-len+10} L ${C+4} ${C+18} Z" fill="#f4f4f4" style="filter: drop-shadow(0 2px 2px rgba(0,0,0,.9))"/></g>
+    <circle cx="${C}" cy="${C}" r="8" fill="#22262b" stroke="#555c66" stroke-width="1.5"/>`;
+}
+function bug(deg) {
+  return `<g transform="rotate(${deg} ${C} ${C})"><path d="M ${C-6} ${C-R-2} L ${C+6} ${C-R-2} L ${C+6} ${C-R+6}
+    L ${C} ${C-R+12} L ${C-6} ${C-R+6} Z" fill="#E0B030"/></g>`;
+}
+function box(x, y, w, h, t, size = 16) {
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="#000" stroke="#3b4048"/>
+    <text x="${x + w / 2}" y="${y + h / 2 + size * .36}" text-anchor="middle" fill="#f4f4f4" font-size="${size}"
+    font-family="Consolas, monospace">${t}</text>`;
+}
+const caption = (y, t) => `<text x="${C}" y="${y}" text-anchor="middle" fill="#9aa3af" font-size="9"
+  letter-spacing="1.5" font-family="'Segoe UI', sans-serif">${t}</text>`;
+function arc(from, to, colour, r = R - 3, w = 6) {
+  const [x1, y1] = pt(r, from), [x2, y2] = pt(r, to);
+  return `<path d="M ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2}" fill="none" stroke="${colour}" stroke-width="${w}"/>`;
+}
+
+function drawSpeed(g) {
+  let s = face("spd");
+  if (g.gs !== undefined) {                                // on the ground, below 40 kt: ground speed 0–40
+    const a = v => -150 + 300 * v / 40;
+    s += arc(a(30), a(40), "#c43a2c") + ticks(a(0), a(40), 40, 7, 1.2) + ticks(a(0), a(40), 8, 13, 2.2);
+    for (let v = 0; v <= 40; v += 10) s += num(a(v), 66, String(v), 15);
+    s += caption(C - 30, "GROUND KT") + box(C - 22, C + 28, 44, 22, String(g.gs), 15) + needle(a(g.gs));
+    document.getElementById("spdLabel").textContent = "GROUND SPEED";
+  } else {                                                  // otherwise airspeed 0–400 with the Mach window
+    const a = v => -150 + 300 * v / 400;
+    s += ticks(a(0), a(400), 40, 7, 1.2) + ticks(a(0), a(400), 8, 13, 2.2);
+    for (let v = 50; v <= 400; v += 50) s += num(a(v), 66, String(v), v % 100 ? 11 : 14);
+    s += caption(C - 30, "KNOTS") + box(C - 24, C + 26, 48, 22, g.mach ? g.mach.toFixed(2).slice(1) : "—", 15);
+    if (g.bug) s += bug(a(g.bug));
+    s += needle(a(g.ias));
+    document.getElementById("spdLabel").textContent = "AIRSPEED";
+  }
+  document.getElementById("spd").innerHTML = s + glass("spd");
+}
+function drawAlt(g) {
+  let s = face("alt") + ticks(0, 360, 50, 7, 1.2) + ticks(0, 360, 10, 13, 2.2);
+  for (let i = 0; i < 10; i++) s += num(i * 36, 70, String(i), 16);
+  const drum = g.alt >= 1000 ? Math.floor(g.alt / 1000) + " " + String(Math.round(g.alt % 1000)).padStart(3, "0")
+                             : String(Math.round(g.alt));
+  s += box(C - 40, C + 20, 80, 24, drum, 17) + box(C - 24, C + 47, 48, 15, g.setting || "30.09", 11);
+  s += caption(C - 34, "FEET") + needle((g.alt % 1000) / 1000 * 360);
+  document.getElementById("alt").innerHTML = s + glass("alt");
+}
+function drawVsi(g) {
+  const map = v => { const av = Math.min(Math.abs(v), 6), d = av <= 1 ? av * 60 : av <= 2 ? 60 + (av - 1) * 40
+                     : 100 + (av - 2) * 17.5; return -90 + Math.sign(v) * d; };
+  let s = face("vsi");
+  [-6, -4, -2, -1, 0, 1, 2, 4, 6].forEach(v => {
+    const [x1, y1] = pt(R, map(v)), [x2, y2] = pt(R - 14, map(v));
+    s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#e8e8e8" stroke-width="2.2"/>` + num(map(v), 68, String(Math.abs(v)), 15);
+  });
+  for (let v = -6; v <= 6; v += .5) if (v % 1) {
+    const [x1, y1] = pt(R, map(v)), [x2, y2] = pt(R - 7, map(v));
+    s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#e8e8e8" stroke-width="1.2"/>`;
+  }
+  s += `<text x="${C + 30}" y="${C - 14}" fill="#9aa3af" font-size="10">UP</text>
+        <text x="${C + 30}" y="${C + 24}" fill="#9aa3af" font-size="10">DN</text>`;
+  s += caption(C + 44, "FT/MIN × 1000") + needle(map(g.vs / 1000));
+  document.getElementById("vsi").innerHTML = s + glass("vsi");
+}
+function drawFuel(g) {
+  const a = v => -120 + 240 * v / 16;
+  let s = face("fuel") + arc(a(0), a(2), "#c43a2c") + ticks(a(0), a(16), 32, 7, 1.2) + ticks(a(0), a(16), 8, 13, 2.2);
+  for (let v = 0; v <= 16; v += 4) s += num(a(v), 68, String(v), 15);
+  const diff = Math.round((g.fuel - g.plan) * 10) * 100;
+  s += caption(C + 36, "LB × 1000") + box(C - 30, C + 46, 60, 20, (diff >= 0 ? "+" : "−") + Math.abs(diff), 13);
+  s += bug(a(g.plan)) + needle(a(g.fuel));
+  document.getElementById("fuel").innerHTML = s + glass("fuel");
+}
+
+function render() {
+  const s = STEPS[step];
+  document.getElementById("stepLabel").textContent = s.label + `   (${step + 1}/${STEPS.length})`;
+  document.getElementById("card").classList.toggle("collapsed", collapsed);
+
+  // Header.
+  document.getElementById("clock").textContent = s.clock;
+  document.getElementById("originLine").textContent = s.origin;
+  document.getElementById("destLine").textContent = s.dest;
+  ["onTime", "onTimeSmall"].forEach(id => {
+    const e = document.getElementById(id);
+    e.textContent = s.ontime ? s.ontime[1] : "";
+    e.classList.toggle("early", !!s.ontime && s.ontime[0] === "early");
+    e.classList.toggle("late", !!s.ontime && s.ontime[0] === "late");
+    e.style.visibility = s.ontime ? "visible" : "hidden";
+  });
+  document.getElementById("dist").textContent = `${s.flown} NM flown · ${368 - s.flown} NM to go`;
+  const pill = document.getElementById("pill");
+  pill.innerHTML = SECTIONS.map((n, i) =>
+    `<div class="sec ${i < s.stage ? "done" : i === s.stage ? "current" : ""}">${n}</div>`).join("");
+  const parts = PARTS[s.stage];
+  const share = (s.stage + (s.part + 0.5) / parts.length) / SECTIONS.length;
+  requestAnimationFrame(() => {
+    const p = pill.getBoundingClientRect(), row = document.getElementById("chevRow").getBoundingClientRect();
+    document.getElementById("chev").style.left = (p.left - row.left + share * p.width) + "px";
+  });
+  document.getElementById("sub").textContent = parts[s.part];
+  ["s0", "s1", "s2"].forEach((id, i) => document.getElementById(id).textContent = s.lines[i]);
+  drawArc(s.flown / 368);
+
+  // Panel.
+  renderLamps();
+  drawSpeed(s.gauges); drawAlt(s.gauges); drawVsi(s.gauges); drawFuel(s.gauges);
+  document.getElementById("atc").innerHTML = `<div class="gtitle">ATC</div>
+    <div class="grid2">${s.atc.map(readout).join("")}</div>`;
+  document.getElementById("phase").innerHTML = `<div class="gtitle">${s.phaseTitle}</div>
+    <div class="grid2">${s.phase.map(readout).join("")}</div>`;
+}
+
+// The flat arc: flown part coloured by progress (the real one is by altitude), the rest dotted.
+function drawArc(f) {
+  const svg = document.getElementById("arc");
+  const w = svg.getBoundingClientRect().width;
+  const x0 = 60, x1 = w - 60, y = 76, peak = 28, cx = w / 2, cy = y - 2 * peak;
+  const q = t => [(1 - t) ** 2 * x0 + 2 * (1 - t) * t * cx + t * t * x1, (1 - t) ** 2 * y + 2 * (1 - t) * t * cy + t * t * y];
+  let flown = "";
+  const n = 60;
+  for (let i = 0; i < Math.round(f * n); i++) {
+    const [ax, ay] = q(i / n), [bx, by] = q((i + 1) / n), t = (i + .5) / n;
+    const h = t < .12 ? t / .12 : t > .82 ? (1 - t) / .18 : 1;          // a made-up altitude profile
+    const col = h < .33 ? "#EF4444" : h < .66 ? "#E0B030" : h < .95 ? "#5BBF4A" : "#3B82F6";
+    flown += `<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="${col}" stroke-width="3" stroke-linecap="round"/>`;
+  }
+  const [mx, my] = q(f);
+  svg.innerHTML = `<path d="M${x0} ${y} Q${cx} ${cy} ${x1} ${y}" fill="none" stroke="#5B6573" stroke-width="2"
+    stroke-dasharray="2 6" stroke-linecap="round"/>${flown}
+    <circle cx="${mx}" cy="${my}" r="6" fill="#161B22" stroke="#E6EAF0" stroke-width="2"/>`;
+}
+
+function toggle() { collapsed = !collapsed; render(); }
+document.getElementById("pill").addEventListener("click", toggle);
+document.getElementById("chevRow").addEventListener("click", toggle);
+document.getElementById("next").onclick = () => { step = Math.min(step + 1, STEPS.length - 1); render(); };
+document.getElementById("back").onclick = () => { step = Math.max(step - 1, 0); render(); };
+setInterval(() => { blinkLit = !blinkLit; renderLamps(); }, 1000);   // 1 s lit, 1 s dark
+render();
+</script>
+</body>
+</html>

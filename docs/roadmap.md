@@ -182,11 +182,32 @@ mockups (D-184) and closed by him on 2026-11-26 after trying it on replays.
 **Built in 0.14.0** (D-187..D-190): the mockup approved by Dave, then built to it and checked on replays of Dave's
 KSAN → KSJC leg. Closed by Dave on 2026-11-26.
 
-### Then
+### The in-flight brainstorm (2026-11-26)
 
-A brainstorm for the departure, climb, cruise, descent, short final and arrival panels, the predictions (D-120: TOD,
-the block-in estimate), the current and next frequency all flight long (D-153, moved here by D-187), and developer
-mode.
+Designed with Dave on 2026-11-26 (`docs/dashboard.md`, "The in-flight panel"; D-191 to D-199; mockup
+`docs/images/dashboard-inflight-v1.html`). No radio frequencies anywhere (D-191). Split into three milestones (D-199).
+
+### Milestone 14 — The in-flight panel
+
+One instrument panel below the header from block out to block in (D-194): the lamp strip, flashing while a switch is
+wrong by the debrief's rules (D-195); the speed gauge (ground speed 0–40 kt on the ground, then airspeed), altitude,
+vertical speed and fuel (D-196); the ATC card with the gist of each clearance, slot by slot (D-197); the readouts for
+each phase, including the arrival ATIS; cards and gauges flipping in a left-to-right wave when they change (D-198).
+Also the ATIS letter as its word (D-193) and the departure frequency off the Pre-Flight panel (D-191). A v2 mockup
+first, with what changed after v1. Also (D-200): ATC fetched every 30 s from block out, the destination ATIS from
+200 nm out, and debrief check 2 ending at the transition altitude for new flights. Checked on replays; no sim test.
+
+### Milestone 15 — The predictions and the passenger header
+
+The header's `Arrival 12:35 PM` with `On time` / `Early ~4m` / `Delayed ~4m` under it, measured from block out
+(D-192); the arrival estimate as now plus the plan's time from the current position (refining D-120); top of climb,
+top of descent (and its tick on the arc), landing time, fuel against plan and fuel at landing on the panel; the plan's
+cruise speed on the airspeed gauge. Checked on replays; no sim test.
+
+### Milestone 16 — Developer mode
+
+Live's normal view for flying, with today's debugging data (raw sim values, the event feed, phase-rule state) behind a
+flag or setting. Not designed: a brainstorm when it starts.
 
 **Every panel below the header uses the instrument panel look** (D-179, `docs/dashboard.md`): an inset panel with
 steam gauges for values that move, glass indicator lamps for what the debrief scores, and radio-stack readouts for

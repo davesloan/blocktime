@@ -5,8 +5,8 @@ The design for the **Live Flight Screen**, called **the dashboard** for short, f
 three-column Live (D-139) when it's built. The header and status lines are built (milestone 12, version 0.13.0), and so are the Pre-Flight panel and the collapsing header (milestone 13, version 0.14.0); the in-flight panels aren't yet. Decisions D-150 to D-154 and D-179; built in milestones 12 and 13 (D-163), checked with replays
 (`replay.md`). Nothing on the dashboard reads the wall clock (D-166).
 
-Only the header, the pre-flight panel and the cruise draft are designed. The panels for departure, climb, descent,
-short final and arrival are for later brainstorms.
+The header, the Pre-Flight panel and the in-flight panel (brainstorm of 2026-11-26, D-191 to D-198: milestones 14
+and 15) are designed. Developer mode is for a later brainstorm (milestone 16).
 
 ## Names (D-150)
 
@@ -185,7 +185,7 @@ images `images/dashboard-header-v2-*.png`). It's about 130 px shorter than the f
 | Airport names | the airport table, as stored; long names are cut with `…` |
 | Block clock | `Plan 1:05` (the plan's block time, greyed) before block out, then the running clock, then the final time |
 | Origin line (D-184) | `Departing soon` until liftoff, then `Departed 1:22 PM`: block out's time. A summary shown at app start has no block events, so just `Departed` |
-| Destination line (D-184) | `Arriving ~2:27 PM` until block in, then `Arrived 2:24 PM · Gate C11`: block in's time (the brake set) and its spot. The estimate, until the predictions (D-120): before block out, now plus the plan's block time; from block out, block out plus the plan's block time; no plan, the line is empty. At app start with a summary: `Arrived` |
+| Destination line (D-184) | `Arriving ~2:27 PM` until block in, then `Arrived 2:24 PM · Gate C11`: block in's time (the brake set) and its spot. The estimate, until the predictions (D-120): before block out, now plus the plan's block time; from block out, block out plus the plan's block time; no plan, the line is empty. At app start with a summary: `Arrived`. **Milestone 15 changes it** to `Arrival 2:27 PM` with `On time` / `Early ~4m` / `Delayed ~4m` under it (D-192, "The header as the passenger view" below) |
 | Marker | none: the altitude and speed above it went (D-184); the steam gauges will show them (D-179) |
 | `127 NM flown · 103 NM to go` | route progress, below |
 | Pill | the six stages; the marker's place from the current phase, and in Pre-Flight from GSX boarding |
@@ -354,6 +354,8 @@ nothing. All weights in pounds. No centre of gravity.
 **Frequencies, all flight long.** Always the frequency Dave should be on now and the one he'll need next: clearance and
 ground at the gate, ground and tower after block out, and so on. **Not in milestone 13** (D-187): it moves to the
 in-flight panels' brainstorm. Until then, only the clearance's departure frequency shows.
+**Dropped (D-191):** no frequency anywhere on the dashboard, and milestone 14 takes the departure frequency off this
+panel too. Dave reads frequencies in the SayIntentions window, which is open on every flight.
 
 **Milestone 13's calls** (D-187, D-188; plan `plans/2026-11-26-milestone-13-preflight-panel.md`):
 - The panel shows from planning until liftoff, right under the header. The countdown hides at block out.
@@ -382,11 +384,245 @@ the header collapsed is `images/dashboard-preflight-built.png`.
 - In logs from before 0.14.0 the clearance was logged at block out, so a replay of an older flight shows it only from
   block out.
 
-### Cruise (draft)
+### Cruise (draft, superseded)
 
 Altitude, ground speed (with IAS), top of descent (distance and local time), fuel against plan, the frequency now, and
-landing time against plan. A draft only; the in-flight panels are for a later brainstorm. First sketched as data cards,
-then in the instrument panel look (D-179, sketch above).
+landing time against plan. First sketched as data cards, then in the instrument panel look (D-179, sketch above).
+Replaced by the in-flight panel below (D-194).
+
+### The in-flight panel (brainstorm of 2026-11-26, D-191 to D-198)
+
+Designed with Dave on 2026-11-26 from the mockup `images/dashboard-inflight-v1.html`, which steps through ten moments
+of the KSAN → KSJC leg. ATC's words in it are real; the times, gauge values and the lamps left wrong are made up. Dave
+approved its direction. What changed after it is marked **(after v1)** below, so milestone 14 starts with a v2 mockup.
+
+**Why.** Two different readers:
+- **The panel is Dave's.** In flight he wants to know what to set in the MCP altitude window ("I never know what to
+  set when they say climb via the SID"), what ATC last cleared him for, which switch the debrief will mark down, and
+  how the flight is going against the plan. And it has to be fun to look at (D-179): gauges and lamps, not flat cards.
+- **The header is the passengers' and the family's** (D-192): the arrivals board at the destination, or the seat-back
+  map on the airplane. Someone picking up a passenger watches the arrival time. That makes BlockTime feel like part
+  of an airline, not just a flight dashboard.
+
+**Goals:** the ATC card always shows the altitude to set; lamps flash only when something is wrong now; the arrival
+time is right through holds and delays.
+
+**Non-goals:** radio frequencies anywhere (D-191: the SayIntentions window has them); developer mode (milestone 16);
+a performance calculator (the PMDG EFB does it, D-118); reading the PMDG FMC.
+
+**Anti-goals** (failures even if they work):
+- Lamps that nag about what the debrief doesn't score: seat belts off in cruise, or turned on for turbulence.
+- A guessed clearance. If BlockTime can't read an ATC call, the slot keeps its old value; it never invents one.
+- Panels that animate all the time. Only a change animates, apart from a lamp flashing while something is wrong.
+- Repeating the PMDG's numbers in flat cards.
+
+#### When it shows (D-194)
+
+- **From block out to block in.** The Pre-Flight panel shows until block out (it was until liftoff, D-188), so the
+  beacon lamp and the taxi speed gauge are there for pushback. The taxi route moves from Pre-Flight into the ATC card.
+- At block in the Flight Summary takes the panel's place (D-154, unchanged).
+- On Live and in the replay window, like the Pre-Flight panel.
+
+#### Layout (D-194)
+
+One inset panel (D-179), top to bottom:
+
+```
+┌ screws ─────────────────────────────────────────────────────────────────────────┐
+│   (BEACON) (STROBE) (LANDING) (SEAT BELTS) (APU) (ALT STD) (GEAR DN)            │
+│ ─────────────────────────────────────────────────────────────────────────────── │
+│   [ SPEED ]        [ ALTITUDE ]       [ VERTICAL SPEED ]     [ FUEL ]           │
+│                                                                                 │
+│   ATC                                   <PHASE>                                 │
+│   [ ALTITUDE      ] [ ROUTE / HEADING ] [ readout ] [ readout ]                 │
+│   [ SPEED         ] [ APPROACH        ] [ readout ] [ readout ]  (…)            │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+- The lamp strip across the top, the four gauges under it, then the ATC card on the left and the phase's readouts on
+  the right, each a 2-column grid of radio-stack readouts (`qml/Readout.qml`).
+- **(after v1)** The arrival ATIS needs seven readouts (below), so the readout block must hold more than v1's four:
+  how is the v2 mockup's call. With the header collapsed, the panel should fit a 760 px window as Pre-Flight does.
+
+#### Lamps (D-195)
+
+Beacon, strobes, landing lights, seat belts, APU, ALT STD and gear down, as in D-179 (each lamp its own lens colour).
+**Lit means on, dark means off** (ALT STD lit = both altimeters on STD; GEAR DN lit = gear down). **A lamp flashes,
+1 s lit and 1 s dark, while its switch is wrong right now**, and stops as soon as it's fixed or its window closes.
+
+"Wrong" follows the debrief's checks (`debrief.md` section 2), so the panel never nags about something that isn't
+scored. Outside these windows a lamp never flashes, whatever its state.
+
+| Lamp | Flashes while | Check |
+|---|---|---|
+| Beacon | off, from 10 s after the earlier of block out and the first engine start, until the engines are off after block in | 1 |
+| Seat belts | off, from the start of taxi out until the climb passes the origin's **transition altitude** (Dave's rule; check 2 moves there too, D-200); and off from the descent's `transition_level` marker until block in. Never while on, and never in between: Dave may keep them on to the top of climb, or switch them on for turbulence | 2, 8 |
+| Strobes | off, from 10 s into the takeoff roll until liftoff; on, from 180 s after taxi in began | 5, 12 |
+| Landing lights | off, from 10 s into the takeoff roll until liftoff; off, from 60 s after `below_10000` until touchdown | 5, 10 |
+| APU | on (the selector), from the climb's `transition_altitude` marker until block in; off, from block in until the last engine stops (D-173: it may go on once parked) | 13, 14 |
+| ALT STD | not on STD, from 60 s after the `transition_altitude` marker until the `transition_level` marker; still on STD, from 60 s after `transition_level` until touchdown | 7, 9 |
+| Gear down | up, from the landing approach's `final_approach` marker until touchdown | 11 |
+
+- What counts as "on" (seat belts AUTO, the 737's retractable lights) is whatever the debrief's measurement already
+  uses; the lamps share its reading of the `cockpit` event, not a copy of it.
+- Lamps whose data isn't in the log (no PMDG broadcast, D-159) stay dark and never flash, as the debrief marks those
+  checks not checked.
+- **The flashing is the one exception** to "no continuous animations" (D-195): it runs only while something is wrong,
+  and toggling one lamp's look once a second costs next to nothing.
+
+**Open, for Dave (milestone 14's plan):** check 2 scores the seat belts from taxi to **10,000 ft** (`above_10000`),
+but Dave's rule is "on until at least the transition altitude". Should check 2 move to the `transition_altitude`
+marker too, so the lamp and the debrief agree? That changes check 2's stored measurement for new flights only
+(D-160); old flights keep theirs. **Settled (D-200, Dave): yes.** Milestone 14 moves check 2's window to end at the
+`transition_altitude` marker for new flights, with tests that old flights keep their stored measurement, and updates
+`debrief.md`.
+
+#### Gauges (D-196)
+
+Steam gauges as in D-179 (black faces, metal bezels, a needle that glides to each new value, still otherwise).
+
+- **Speed.** On the ground below 40 kt: **ground speed, 0 to 40 kt**, with a red arc from 30 to 40 kt (check 3's taxi
+  limit). Otherwise **indicated airspeed, 0 to 400 kt**, with the Mach number in a small window. The face switches at
+  40 kt, both ways (takeoff roll and landing rollout); the switch flips the gauge (below). An amber bug marks **VREF**
+  (the `cockpit` event's `vref_kt`) from the Approach phase to touchdown, and the plan's cruise speed in cruise
+  (milestone 15, with the other plan values).
+- **Altitude.** A pointer for hundreds, a drum for the altitude, and the altimeter setting in a small window: `STD`,
+  or the value in the unit the altimeters use.
+- **Vertical speed.** 0 at nine o'clock, ±6,000 fpm, as in D-179's sketch.
+- **Fuel.** Total fuel in lb, with a red low-fuel arc. Milestone 15 adds the amber bug at the plan's fuel for this
+  point and a `+200` / `−300` window against it.
+
+#### The ATC card (D-197)
+
+The gist of what ATC cleared, not ATC's words, so Dave knows what to set. Read from the logged `atc_exchange` lines
+(ATC's side, `outgoing_message`) through D-168's plain form, from every airport and center on the flight.
+
+**Slots.** Each slot changes only when ATC changes it, and shows the time given or a qualifier on its right (the
+readout's aside). A `LATEST` tag marks every slot the last transmission changed: one call can change three ("Turn left
+heading 320. Descend and maintain 2,700 until established on the localizer. Cleared for the ILS runway 30L approach.").
+
+| Where | Slots |
+|---|---|
+| Block out to the takeoff roll | TAXI (`A, A7, B, B1`, aside `RWY 27`), ALTITUDE (the clearance's initial altitude), ROUTE (the cleared SID, matched to the plan's full form as on Pre-Flight) |
+| Airborne | ALTITUDE, ROUTE or HEADING, SPEED, APPROACH |
+| From touchdown | TAXI (`K`, aside `TERMINAL A GATE 4`), HOLD SHORT (`30R`) |
+
+What each slot shows, from the KSAN → KSJC log (`tests/data/flight-ksan-ksjc`) and Dave's examples:
+
+| ATC says | Slot | Shows |
+|---|---|---|
+| Clearance: "Climb via the SID. Expect FL400 one-zero minutes after departure" | ALTITUDE | `CLIMB VIA SID`, aside `EXP FL400 +10 MIN` (until the first altitude clearance) |
+| "Climb and maintain FL220" | ALTITUDE | `FL220` |
+| "Descend via SILCN6, TROXX transition" | ALTITUDE, ROUTE | `DESCEND VIA SILCN6`; `SILCN6 TROXX` |
+| "Descend and maintain 2,700 until established on the localizer" | ALTITUDE | `2,700`, aside `UNTIL ESTABLISHED` |
+| "Turn left heading 320" (also "fly heading 340") | HEADING (the ROUTE slot renamed) | `320`, aside `LEFT` |
+| "Maintain 210 knots" / "resume normal speed" | SPEED | `210 KT` / empty |
+| "Expect the ILS runway 30L approach via KLIDE transition" | APPROACH | `EXP ILS 30L`, aside `KLIDE` |
+| "Cleared for the ILS runway 30L approach" | APPROACH | `CLEARED ILS 30L` |
+| "Cleared RNAV Y runway 27 approach, LYNDI transition" (Dave's example) | APPROACH | `CLEARED RNAV-Y 27 LYNDI`: ATC's transition is always shown when given |
+| "Runway 30L, … Cleared to land" | APPROACH | `CLEARED TO LAND 30L` |
+| "Contact Los Angeles Center on 134.575", traffic calls | none | nothing changes: cruise shows the level ATC last gave |
+
+- A phrase BlockTime can't read changes nothing (an anti-goal above). Fix new wording from the log, like milestone
+  13's readers.
+- **ATC is fetched every 30 s from block out to block in** (D-200; it was every 60 s), so a clearance reaches the card
+  within half a minute. `FlightWatcher` fetches the whole history each time; a whole flight is about 50 exchanges.
+- Left to the builder: what a go-around does to the APPROACH slot, "direct" and "resume own navigation" (most likely
+  the ROUTE slot coming back), and how long `LATEST` stays (v1: until the next transmission that changes a slot).
+
+#### Phase readouts (D-194)
+
+The readouts on the right change with the phase. **(M15)** marks what needs the predictions; milestone 14 leaves
+those out and shows what it has.
+
+| Phase | Readouts |
+|---|---|
+| Departure (block out to liftoff) | RUNWAY (with its heading and source tag, as Pre-Flight), SQUAWK, WIND, ALTIMETER: Pre-Flight's departure values |
+| Climb | CRUISE level; TOP OF CLIMB, TOP OF DESCENT, LANDING **(M15)** |
+| Cruise | DEST ATIS (letter and runways: the destination ATIS is fetched from the `within_200nm` marker, D-200, not from top of descent); TOP OF DESCENT (distance and local time), LANDING (time and the plan's), FUEL AT LANDING (and the plan's) **(M15)** |
+| Descent and Approach | **The arrival ATIS** (below) and the plan against ATC: the STAR and the landing runway with the amber `PLAN …` flag when ATC's differ (as D-189 on Pre-Flight) |
+| Short final (the `final_approach` marker, 1,000 ft AGL, to touchdown) | HEIGHT above the ground (`alt_agl_ft`), WIND (the tower's from the landing clearance, else the ATIS's), RUNWAY, VREF (with the landing flaps) |
+| Arrival (touchdown to block in) | LANDING: the stars and the touchdown rate (D-158's rating, as soon as the touchdown and bounces are logged), GATE |
+
+**The arrival ATIS (after v1).** The destination ATIS gives everything the PMDG EFB's landing calculation asks for and
+what Dave needs to load the approach before ATC says "expect". From the logged KSJC ATIS ("INFO JULIET … ARVG AND
+DPTG RWYS 30L, 30R. WIND VRB AT 4 … TEMP 17 … ALTIM 30.19. ILS RWY 30L AND RNAV-Z RWY 30R APCHS IN USE"):
+
+| Readout | Example |
+|---|---|
+| ATIS | `JULIET` |
+| RUNWAYS | `30L 30R` (arriving) |
+| APPROACHES | `ILS 30L · RNAV-Z 30R` |
+| WIND | `VRB 04` |
+| OAT | `17 °C` |
+| ALTIMETER | `30.19 inHg`, aside `SET AT TL` |
+| CONDITION | `DRY`, or `WET` with precipitation in the METAR (as Pre-Flight) |
+
+Visibility, clouds, dew point and the remarks are left out: they change nothing Dave sets.
+
+**The ATIS letter as a word (D-193), everywhere:** `JULIET`, not `J`, on this panel and on Pre-Flight, in the ICAO
+alphabet (Alfa, Bravo, … Golf, … Zulu).
+
+#### Flips (D-198)
+
+- **A card or gauge flips when its content changes,** never the whole panel: a half-turn about its horizontal axis
+  with a little perspective, the new content showing from the midpoint, about half a second. Like a flip clock.
+- What flips: an ATC slot with a new value; a readout whose title or value changes because the phase changed; the
+  speed gauge switching between ground speed and airspeed.
+- What doesn't: values that tick (times, distances, the needles), and a rebuild (the page opening, a replay seek), as
+  with the status lines (D-184).
+- **A wave:** when several change in one update, they flip one after another from left to right across the panel,
+  each starting about 60 ms after the one to its left, by position whatever the row (Claude's call).
+- Within the no-continuous-animation rule: it runs only on a change.
+
+#### The header as the passenger view (D-192, milestone 15)
+
+The destination line becomes the arrivals board:
+
+```
+KSJC
+Mineta San Jose International Airport
+Arrival 12:35 PM
+Delayed ~3m
+```
+
+- **`Arrival 12:35 PM`, no `~`** (it was `Arriving ~12:24 PM`). The time keeps moving with the estimate; the line under
+  it says how that compares: `On time`, `Early ~4m` (green) or `Delayed ~4m` (red). In a hold the arrival time slips
+  minute by minute and `Delayed` grows with it.
+- **On time is measured against block out plus the plan's block time,** fixed at block out (Dave: BlockTime has no
+  timetable). So the flight is always on time at pushback; only the flight itself makes it early or late.
+- **Before block out:** `Arrival` is now plus the plan's block time (as today), with no line under it.
+- **Within 2 minutes either way it reads `On time`** (Claude's call: it keeps the line from flickering).
+- **At block in it freezes:** `Arrived 12:35 PM · Gate 4`, and `Delayed 3m` (or `Early 2m`, `On time`) without the `~`.
+- **Collapsed,** the On time / Early / Delayed line shows small under the destination code (as in the v1 mockup).
+- The block clock, origin line and the rest of the header are unchanged.
+
+#### The predictions (D-192, milestone 15; refines D-120)
+
+From the stored SimBrief navlog (D-182 already reads its fixes) and the route progress the header computes:
+
+- **The arrival time is now plus the plan's time from where the airplane is to the gate**: the plan's remaining
+  enroute time from the current position along the route (interpolated between navlog fixes), plus the plan's taxi-in.
+  D-120 shifted the plan's times by the delay at the last waypoint passed, which freezes in a hold (no waypoint is
+  passed); this keeps slipping with the clock, as Dave wants. Before liftoff the plan's taxi-out counts too.
+- **Top of climb and top of descent:** the navlog's TOC and TOD fixes, as distance to go along the route and a local
+  time (now plus the plan's time from here to there). After TOD is passed it goes. The TOD tick on the header's arc
+  (D-182's open item) comes with it.
+- **Landing:** the arrival time less the plan's taxi-in, with the plan's landing time beside it.
+- **Fuel:** the plan's fuel on board at the current position (the navlog's planned fuel, interpolated) is the fuel
+  gauge's bug; the difference is its window; FUEL AT LANDING is the current fuel less the plan's burn from here.
+- **The plan's cruise speed** for the airspeed gauge's bug in cruise.
+- Left to the builder: smoothing, how the taxi-in and taxi-out are read from the OFP, and what shows without a plan
+  (most likely: no predictions, the header's line empty).
+
+#### Testing
+
+No sim test: everything is in the logs already (telemetry has `ias_kt`, `gs_kt`, `vs_fpm`, `alt_agl_ft`, `fuel_lb`,
+`mach`, `beacon`, `strobe`; the `cockpit` event the rest; `atc_exchange` and the ATIS since 0.8.0). Plain C++ tests
+first for the lamp windows, the ATC slots (every phrase in the tables above, from the recorded flights and made-up
+lines), the ATIS readers and the predictions; then the panel on replays of Dave's flights with `--replay … --at …
+--grab` at pushback, taxi, a climb clearance, cruise, the descent clearance, the approach clearance, short final and
+taxi in. The flips and the flashing don't show in offscreen grabs: Dave checks those by eye.
 
 ### After block in (D-154)
 
@@ -408,7 +644,9 @@ page switches to the summary at block in (D-134, `design.md` section 13.7); this
   clearance or frequencies. Needs a probe flight before the clearance card is promised. Fallback for published
   frequencies (clearance, ground, tower): OurAirports' frequency file; departure and center frequencies would then
   only come from ATC.
-- The panels for departure, climb, descent, short final and arrival.
+- ~~The panels for departure, climb, descent, short final and arrival~~: designed as one in-flight panel (D-194);
+  frequencies dropped (D-191).
+- Developer mode (milestone 16): not designed.
 - The final wording of every status line (a later brainstorm, with the recorder's events in hand).
 - **The header on a summary** (Dave, 2026-11-26, for later): once the flight is over, the pill and the status lines
   may be better gone from the header entirely, leaving the identity row and the coloured arc above the Flight
