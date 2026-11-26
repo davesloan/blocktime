@@ -193,6 +193,10 @@ so they and a board showing them could come before it), the pre-departure view o
 previews (D-119, design section 3), predictions on Live such as top of descent and gate arrival (D-120, design
 section 16), and whatever the deepening turns up.
 
+Towards the end, timing open: **an MCP server for Claude** (D-186), part of BlockTime itself and on whenever the app
+runs, on the sim PC only. Claude on that PC can then read flights for a deeper analysis than the debrief's.
+Designed when it joins a milestone.
+
 ### Live ideas (for the brainstorm after milestone 10)
 
 Deepening the live flight comes first after the MVP. Ideas collected while testing, one line each; the brainstorm

@@ -22,6 +22,23 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-26 — Questions answered: network use, MCP, ATC comms, frequencies (docs only)
+
+**Done:**
+- Dave asked about using BlockTime from other PCs, a shared database (PostgreSQL, then Dropbox), an MCP server, ATC
+  comms on Live and replays, and SayIntentions' frequencies. Outcome: BlockTime stays on the sim PC only, and an MCP
+  server inside the app goes on the roadmap towards the end (D-186, `roadmap.md`).
+- `notes/sayintentions-api.md` has a new Frequencies section: no documented endpoint gives "now" and "next";
+  `getWX` with `with_comms=1` has the published ones, `getAirSpaceFrequencies` the handoff ladder, and
+  `getCurrentFrequencies` has an undocumented answer. `dashboard.md`'s open item points there.
+
+**Unverified:**
+- `getCurrentFrequencies`: call it once in each phase on a real flight and save the answer, before the frequency
+  readouts are designed.
+
+**Next step:**
+- Unchanged: milestone 13, the Pre-Flight panel, in a new session (D-121).
+
 ## 2026-11-26 — Milestone 12 closed (0.13.0)
 
 **Done:**

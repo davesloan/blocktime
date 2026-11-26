@@ -367,7 +367,9 @@ page switches to the summary at block in (D-134, `design.md` section 13.7); this
 - **What SayIntentions exposes.** Found 2026-11-24 (D-163): the clearance and the taxi routes are already in the
   logged `atc_exchange` lines (KLAS: "Cleared to San Diego via the RADYR2 departure. Then as filed. Climb via the SID.
   Expect FL360 one-zero minutes after departure. Departure on 125.9. Squawk 2546. Expect runway 8L"), so the clearance
-  card reads them from there, as spoken text. Still open: the published frequencies.
+  card reads them from there, as spoken text. Frequencies (2026-11-26): no documented endpoint gives "now" and
+  "next"; `getWX` with `with_comms=1` has the published ones and `getCurrentFrequencies` needs a probe
+  (`notes/sayintentions-api.md`, "Frequencies").
   Earlier note: the clearance (SID, initial altitude, squawk, departure frequency), the taxi route
   and the frequencies are only useful if BlockTime can read them. `notes/sayintentions-api.md`: the local
   `flightJSON` already has `atc_exchange` messages, routes and the arrival ATIS, but nothing confirmed for the

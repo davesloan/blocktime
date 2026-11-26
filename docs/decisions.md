@@ -2899,3 +2899,22 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: Each came up while building; none changes what Dave chose in D-184.
 - Alternatives considered: the bridge's clock at block in (off by the shutdown time); rolling in-place changes too
   (busy during level-offs); a `--` estimate without a plan.
+
+## D-186 — BlockTime stays on the sim PC; an MCP server inside it, later
+- Date: 2026-11-26
+- Status: Accepted
+- Decided by: Dave
+- Area: design
+- Decision: BlockTime runs only on the PC that runs the sim: no network access, no second-screen client, no shared
+  database. Towards the end of the roadmap (timing open), BlockTime gets an MCP server that is part of the app, not a
+  second exe, and is on whenever BlockTime runs, for Claude on the same PC to read flights for a deeper analysis.
+  Designed when it joins a milestone.
+- Why: BlockTime is designed to run beside the sim, and Dave doesn't want to deal with network access for a second
+  screen. An MCP server in the app needs nothing extra running: open BlockTime and Claude can use it.
+- Alternatives considered: BlockTime on other PCs through remote SimConnect (the event log would leave the sim PC,
+  and SayIntentions' flightJSON is on localhost); the sim PC as a server for network clients or a web dashboard
+  (one or two milestones of work); a shared PostgreSQL database (doesn't cover the event log, and two instances
+  would race on lease charges and settling); the database and event logs in a Dropbox folder shared by two PCs
+  (SQLite's WAL files sync separately from the database, two writers give conflicted copies, and the event log would
+  re-upload on every write during a flight; read-only snapshots were possible, but Dave chose local only); a separate
+  MCP exe.

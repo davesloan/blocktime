@@ -131,3 +131,42 @@ Sources:
     So a flight's ATC log exists for BlockTime only if it was polled during the flight. Milestone 6's flights
     (KBFI–KPDX–KSFO) have none.
 - Also listed: getParking, getAirport, getTFRs, getVATSIM, setFreq, importVAData (for virtual airlines).
+
+## Frequencies (for the dashboard's "now" and "next", dashboard.md)
+
+Read from the SAPI reference on 2026-11-26; none of it tried with Dave's keys yet. The reference now lists 17
+endpoints, more than above: also `sayAs`, `getTransponder`, `setTransponder`, `acceptLastHandoff`,
+`getCurrentFrequencies`, `getAirSpaceFrequencies`, `setVar` and `setPause`.
+
+**No documented endpoint gives the frequency the pilot should be on now and the next one.** What there is:
+
+- **`getCurrentFrequencies`**: "Get the current frequency configuration for the active flight." The response isn't
+  documented. It may be exactly what the dashboard needs: a probe on Dave's next flight (call it once in each phase,
+  save the answer) settles it.
+- **`getAirSpaceFrequencies?lat=&lon=`** (optional `flight_rules` IFR/VFR): the frequencies serving a position,
+  including SayIntentions' **handoff ladder by altitude**. Fields per frequency: `type`, `callsign`, `frequency`,
+  `frequency_khz`, `min_altitude_ft`, `max_altitude_ft`, `airport`, `facility`, `distance_nm`, `sector`, `surface`,
+  `secondary`; top level `airspace`, `country`, `flight_rules`, `count`. Needs an active flight, limited to 1 call a
+  second per account. The position needn't be the airplane's. It leaves out handoffs that depend on the flight (the
+  origin's departure, the destination's approach). Useful for "next" en route.
+- **`getWX?icao=...&with_comms=1`**: each airport's published frequencies in a `comms` array, `{"type": "GROUND",
+  "freq": "121.900", "callsign": "JFK Ground", "airport": "KJFK"}`. Note `freq` here, `frequency` elsewhere. No
+  active flight needed. Covers clearance, ground, tower and ATIS, so the OurAirports fallback (dashboard.md) may not
+  be needed.
+- **`getCommsHistory`**: each transmission has `frequency`, `channel`, `station_name`, `ident`. The latest COM entry
+  is the frequency in use (an inference, not a field); a handoff is spoken text ("contact SoCal Approach on
+  125.15") to be parsed for "next". The departure frequency is in the clearance (D-163).
+- **`getAirport`**: documented as including frequencies, but no response fields are given, and it returned `[]` for
+  KLAS and KSAN in milestone 9.
+- **Don't call `acceptLastHandoff` or `setFreq`**: both tune the radio. `acceptLastHandoff` (for datalink apps, on
+  WILCO) answers `status`, `accepted`, `station`, `frequency`, or `reason` (`copilot_not_on_comms`, `no_handoff`,
+  `in_progress`, `already_taken`, `superseded`) and `message`. `setFreq` takes `freq` (MHz), `com` (1 or 2) and
+  `mode` (`active` or `standby`).
+- `flightJSON`'s documented fields have no frequencies.
+- **From the sim:** `COM ACTIVE FREQUENCY:1` (SimConnect) is what's tuned. The SimAPI L:vars `L:SIAI_COM1_POSITION` /
+  `L:SIAI_COM2_POSITION` give the kind of station tuned (3 ground, 4 tower, 5 approach/departure, ...), not a
+  frequency.
+
+A recipe that doesn't depend on `getCurrentFrequencies`: now = COM1, checked against the latest ATC entry; next =
+the last handoff not yet tuned, else the airport's published frequencies on the ground or `getAirSpaceFrequencies`
+in cruise.
