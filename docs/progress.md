@@ -22,6 +22,19 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-26 — Milestone 13 closed (0.14.0)
+
+**Done:**
+- Dave looked at the build and closed the milestone. `main` pushed to `origin` (D-121).
+
+**Unverified:**
+- The items in the entry below: the collapse click, the gate polling on a real flight, and SayIntentions' wording
+  beyond the fixtures. D-188 and D-190 are still Proposed until Dave confirms them.
+
+**Next step:**
+- In a new session (D-121): the brainstorm for the in-flight panels, the predictions (TOD, the block-in estimate) and
+  the frequencies (`roadmap.md`, "Then"), starting from `docs/dashboard.md` and D-179.
+
 ## 2026-11-26 — Milestone 13 built: the Pre-Flight panel and the collapsing header (version 0.14.0)
 
 **Done:**

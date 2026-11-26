@@ -180,7 +180,7 @@ mockups (D-184) and closed by him on 2026-11-26 after trying it on replays.
 **Plan:** `docs/plans/2026-11-26-milestone-13-preflight-panel.md`.
 
 **Built in 0.14.0** (D-187..D-190): the mockup approved by Dave, then built to it and checked on replays of Dave's
-KSAN → KSJC leg. Waits on Dave trying it before it closes (D-121).
+KSAN → KSJC leg. Closed by Dave on 2026-11-26.
 
 ### Then
 
