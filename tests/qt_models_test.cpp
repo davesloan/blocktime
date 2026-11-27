@@ -2715,6 +2715,21 @@ TEST(PreFlightModel, AtisLetterIsAWord) {
     EXPECT_EQ(m.atisLetter(), "LIMA");
 }
 
+// 0.15.1: where to load in, as a readout (the planned flight panel's line is below the fold).
+TEST(PreFlightModel, GateIsWhereItLastParked) {
+    qtApp();
+    RecorderBridge b;
+    PlannedFlightView v = preflightView();
+    v.loadInParking = "Gate 4";
+    ReplayPlannedFlight f(v, "XLY", Rates{}, b, kReplayFlight);
+    PreFlightModel m(b, f);
+    EXPECT_EQ(m.gate(), "4");
+    v.loadInParking = "";
+    ReplayPlannedFlight unknown(v, "XLY", Rates{}, b, kReplayFlight);
+    PreFlightModel none(b, unknown);
+    EXPECT_EQ(none.gate(), "");
+}
+
 TEST(PreFlightModel, ReplayHasOne) {
     qtApp();
     ReplaySession r(kReplayFixtureDir, kReplayFlight, preflightView(), "XLY", Rates{});
@@ -2752,18 +2767,43 @@ void blockOutOf(RecorderBridge& b) {
 
 }  // namespace
 
-TEST(InFlightModel, VisibleFromBlockOutToBlockIn) {
+// 0.15.1: the arrival view stays after block in, its readouts intact, until Dave clicks Finish Flight.
+TEST(InFlightModel, VisibleFromBlockOutUntilFinishFlight) {
     qtApp();
     RecorderBridge b;
     ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
     InFlightModel m(b, f, 3);
     EXPECT_FALSE(m.visible());
+    EXPECT_FALSE(m.finishable());
     blockOutOf(b);
     EXPECT_TRUE(m.visible());
+    EXPECT_FALSE(m.finishable());
+    const QString souls = m.readouts()[0].toMap()["value"].toString();
+    ASSERT_FALSE(souls.isEmpty());
     blocktime::BlockIn in;
     in.flightId = kReplayFlight.toStdString();
     b.applyBlockEvent(in);
+    EXPECT_TRUE(m.visible());
+    EXPECT_TRUE(m.finishable());
+    EXPECT_EQ(m.readouts()[0].toMap()["value"].toString(), souls);  // SOULS, from the flight that just ended
+    m.finishFlight();
     EXPECT_FALSE(m.visible());
+    EXPECT_FALSE(m.finishable());
+}
+
+// The next block out (a replay seek back, or a new flight) starts without the old flight's Finish Flight.
+TEST(InFlightModel, BlockOutClearsFinishFlight) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    InFlightModel m(b, f, 3);
+    blockOutOf(b);
+    blocktime::BlockIn in;
+    in.flightId = kReplayFlight.toStdString();
+    b.applyBlockEvent(in);
+    ASSERT_TRUE(m.finishable());
+    blockOutOf(b);
+    EXPECT_FALSE(m.finishable());
 }
 
 TEST(InFlightModel, SpeedFaceSwitchesAt40Kt) {

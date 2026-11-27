@@ -219,7 +219,7 @@ QtObject {
     })
     readonly property int lampFlashMs: 1000     // 1 s lit, 1 s dark (D-195); the model's timer
     // Steam gauges, drawn on a 220-unit face and scaled to gaugeSize
-    readonly property int gaugeSize: 128
+    readonly property int gaugeSize: 180         // 0.15.1: 128 was hard to read in flight
     readonly property color gaugeBezelLight: "#7D8590"
     readonly property color gaugeBezelDark: "#2A2F36"
     readonly property color gaugeFace: "#0B0C0D"
@@ -236,7 +236,8 @@ QtObject {
     readonly property color gaugeGlare: "#29FFFFFF"
     readonly property color gaugeLabel: "#9AA3AF"
     readonly property int fontSizeGaugeLabel: 10
-    readonly property int needleGlideMs: 400     // a needle glides to each new value, then rests (D-179)
+    // A needle glides to each new value over the samples' one second, so it moves steadily a second behind (D-205)
+    readonly property int needleGlideMs: 1000
     // Flips (D-198): a half-turn about the horizontal axis, in a wave left to right
     readonly property int flipDurationMs: 500
     readonly property int flipWaveStepMs: 60

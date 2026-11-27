@@ -104,7 +104,8 @@ TEST(AtisReaders, ApproachesAndRunways) {
                        "4. VIS 10. TEMP 17, DP 12. ALTIM 30.19. ILS RWY 30L AND RNAV-Z RWY 30R APCHS IN USE. VISUAL APCHS "
                        "IN USE.";
     EXPECT_EQ(atisApproaches(ksjc), "ILS 30L · RNAV-Z 30R");
-    EXPECT_EQ(atisApproaches("SWEETWATER VISUAL RWY 27 APCH IN USE."), "");
+    EXPECT_EQ(atisApproaches("SWEETWATER VISUAL RWY 27 APCH IN USE."), "SWEETWATER VISUAL 27");  // 0.15.1
+    EXPECT_EQ(atisApproaches("ILS RWY 30L AND VISUAL RWY 30R APCHS IN USE."), "ILS 30L · VISUAL 30R");
     EXPECT_EQ(runwayList("30L,30R"), "30L 30R");
     EXPECT_EQ(runwayList("27"), "27");
     EXPECT_EQ(runwayList(""), "");

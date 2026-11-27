@@ -146,6 +146,19 @@ InstrumentPanel {
             width: panel.unit
             title: "DEPARTURE"
 
+            // Where to load in first: the spot it last parked at (D-148, 0.15.1).
+            Pair {
+                Readout {
+                    width: (departure.width - Theme.readoutGap) / 2
+                    title: "Gate"
+                    value: panel.model.gate
+                }
+                Readout {
+                    width: (departure.width - Theme.readoutGap) / 2
+                    title: "ATIS"
+                    value: panel.model.atisLetter
+                }
+            }
             Pair {
                 Readout {
                     width: (departure.width - Theme.readoutGap) / 2
@@ -168,8 +181,8 @@ InstrumentPanel {
                 }
                 Readout {
                     width: (departure.width - Theme.readoutGap) / 2
-                    title: "ATIS"
-                    value: panel.model.atisLetter
+                    title: "OAT"
+                    value: panel.model.temperatureText
                 }
             }
             Readout {
@@ -177,18 +190,11 @@ InstrumentPanel {
                 title: "Wind"
                 value: panel.model.windText
             }
-            Pair {
-                Readout {
-                    width: (departure.width - Theme.readoutGap) / 2
-                    title: "OAT"
-                    value: panel.model.temperatureText
-                }
-                Readout {
-                    width: (departure.width - Theme.readoutGap) / 2
-                    title: "Altimeter"
-                    value: panel.number(panel.model.altimeterText)
-                    unit: panel.unitOf(panel.model.altimeterText)
-                }
+            Readout {
+                width: departure.width
+                title: "Altimeter"
+                value: panel.number(panel.model.altimeterText)
+                unit: panel.unitOf(panel.model.altimeterText)
             }
         }
 

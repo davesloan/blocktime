@@ -79,7 +79,8 @@ TEST(AtcCard, KsanKsjcFixtureThreeInOneCall) {
               (std::vector<AtcSlot>{slot("ALTITUDE", "2,700", "UNTIL ESTABLISHED", "2026-11-25T19:50:26Z", true),
                                     slot("HEADING", "320", "LEFT", "2026-11-25T19:50:26Z", true),
                                     slot("SPEED", "", "", "", false),
-                                    slot("APPROACH", "CLEARED ILS 30L", "", "2026-11-25T19:50:26Z", true)}));
+                                    // KLIDE from the expect call stays (0.15.1)
+                                    slot("APPROACH", "CLEARED ILS 30L", "KLIDE", "2026-11-25T19:50:26Z", true)}));
 }
 
 TEST(AtcCard, KsanKsjcFixtureTaxiIn) {
@@ -180,6 +181,15 @@ TEST(AtcCard, ArrivalFacts) {
 }
 
 // Review fix: continuing the taxi keeps the runway it leads to, and the hold short after a crossing wins.
+// 0.15.1: a clearance without a transition keeps the expected one (KLIDE) as its aside.
+TEST(AtcCard, ClearedKeepsTheExpectedTransition) {
+    AtcCard c = card();
+    c.onMessage(msg(1, "2026-11-25T19:40:00Z", "Expect the ILS runway 30L approach via KLIDE transition"));
+    c.onMessage(msg(2, "2026-11-25T19:50:00Z", "Cleared for the ILS runway 30L approach."));
+    const auto s = c.slotsFor(CardStage::Airborne);
+    EXPECT_EQ(s[3], slot("APPROACH", "CLEARED ILS 30L", "KLIDE", "2026-11-25T19:50:00Z", true));
+}
+
 TEST(AtcCard, ContinueTaxiKeepsTheRunway) {
     AtcCard c;
     c.setFlight("2026-11-24T23:00:00Z", RoutePlan{"RADYR2", ""});  // KLAS → KSAN

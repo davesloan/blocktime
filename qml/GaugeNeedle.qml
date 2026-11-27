@@ -31,7 +31,7 @@ Item {
 
         NumberAnimation {
             duration: Theme.needleGlideMs
-            easing.type: Easing.OutCubic
+            easing.type: Easing.Linear  // one sample to the next at a steady pace (D-205)
         }
     }
 

@@ -11,6 +11,7 @@
 #include <QJsonObject>
 
 #include "clearance.h"
+#include "inflight_readouts.h"
 #include "money.h"
 
 using namespace blocktime;
@@ -46,6 +47,10 @@ PreFlightModel::PreFlightModel(RecorderBridge& bridge, PlannedFlightDisplay& pla
         rebuild();
     });
     refreshFlight();
+}
+
+QString PreFlightModel::gate() const {
+    return hasFlight_ ? q(blocktime::gateReadoutText(flight_.loadInParking)) : QString();
 }
 
 void PreFlightModel::refreshFlight() {

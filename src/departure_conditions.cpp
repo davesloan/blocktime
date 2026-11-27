@@ -120,12 +120,16 @@ std::string phoneticWord(std::string_view letter) {
 
 std::string atisApproaches(std::string_view atisText) {
     const std::string text(atisText);
-    static const std::regex approach(R"(\b(ILS|LOC|RNAV(?:-[A-Z])?|GPS|VOR) (?:RWY|RUNWAY) (\w+))", kIcase);
+    // A named visual approach keeps its name: "SWEETWATER VISUAL RWY 27" (0.15.1). "VISUAL APCHS" has no runway.
+    static const std::regex approach(
+        R"(\b(?:(\w+) (?=VISUAL))?(ILS|LOC|RNAV(?:-[A-Z])?|GPS|VOR|VISUAL) (?:RWY|RUNWAY) (\w+))", kIcase);
     std::string out;
     for (std::sregex_iterator it(text.begin(), text.end(), approach), end; it != end; ++it) {
-        std::string type = (*it)[1].str();
+        std::string name = (*it)[1].matched ? (*it)[1].str() + " " : "";
+        std::string type = name + (*it)[2].str();
         for (char& c : type) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-        out += (out.empty() ? "" : " · ") + type + " " + (*it)[2].str();
+        if (type.starts_with("AND ") || type.starts_with("THE ") || type.starts_with("OR ")) type.erase(0, type.find(' ') + 1);
+        out += (out.empty() ? "" : " · ") + type + " " + (*it)[3].str();
     }
     return out;
 }

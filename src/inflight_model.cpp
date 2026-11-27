@@ -130,6 +130,7 @@ void InFlightModel::refreshFlight() {
         touchdown_.reset();
         stars_.reset();
         gate_.clear();
+        finishable_ = false;
     }
     log_.setFlight(flight_.origin, flight_.plannedAt);
     const PlanBrief brief = flight_.brief.value_or(PlanBrief{});
@@ -191,9 +192,12 @@ void InFlightModel::onBlockEvent(const QString& type) {
         face_.reset();
         phase_ = "pushback";
         onFinal_ = touchedDown_ = false;
+        finishable_ = false;
     } else if (type == "block_in") {
         board_.onBlockIn(now);
+        finishable_ = true;  // the arrival view stays until Finish Flight (0.15.1)
     } else if (type == "flight_interrupted") {
+        finishable_ = false;
         // The same planned flight is flown again (D-108): the attempt's windows go, the cockpit's state stays.
         board_.reset(familyOf(flight_.family));
         if (cockpit_) board_.onEvent("cockpit", *cockpit_, now);
@@ -215,7 +219,13 @@ void InFlightModel::onSample() {
     rebuild();
 }
 
-bool InFlightModel::visible() const { return bridge_.flightOpen(); }
+bool InFlightModel::visible() const { return bridge_.flightOpen() || finishable_; }
+
+void InFlightModel::finishFlight() {
+    if (!finishable_) return;
+    finishable_ = false;
+    emit changed();
+}
 
 QString InFlightModel::speedFace() const {
     const TelemetrySample& s = bridge_.lastSample();
@@ -296,7 +306,7 @@ void InFlightModel::rebuild() {
 
     // The phase's readouts, SOULS and FUEL REMAINING first (D-194, D-203).
     InFlightFacts f;
-    if (hasFlight_) {
+    if (hasFlight_ || finishable_) {  // after block in the planned flight is settled: the arrival view keeps its own copy
         f.departure = departureView(flight_, log_);
         f.clearance = clearanceView(flight_, log_);
         f.cruiseLevelFt = flight_.plan ? flight_.plan->cruiseAltitudeFt : 0;

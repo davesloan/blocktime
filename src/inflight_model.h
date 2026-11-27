@@ -32,7 +32,9 @@ class InFlightModel : public QObject {
     QML_ELEMENT
     QML_UNCREATABLE("Created by the app")
 
-    Q_PROPERTY(bool visible READ visible NOTIFY changed)            // the flight is open: block out to block in
+    // From block out until Finish Flight after block in (0.15.1); a flight settled at startup goes straight to its summary
+    Q_PROPERTY(bool visible READ visible NOTIFY changed)
+    Q_PROPERTY(bool finishable READ finishable NOTIFY changed)      // after block in, until Finish Flight: the button
     Q_PROPERTY(bool animate READ animate NOTIFY animateChanged)     // false while a replay catches up: nothing flips
     // [{name: "BEACON", lens: "red"|"white"|"amber"|"green", known, lit, wrong}] in the strip's order
     Q_PROPERTY(QVariantList lamps READ lamps NOTIFY changed)
@@ -68,6 +70,9 @@ public:
     void setFlashInterval(std::chrono::milliseconds interval);  // 1 s in the app (D-195); tests use less
 
     bool visible() const;
+    bool finishable() const { return finishable_; }
+    // Finish Flight (0.15.1): Dave has shut down and deboarded; the arrival view gives way to the summary.
+    Q_INVOKABLE void finishFlight();
     bool animate() const { return animate_; }
     QVariantList lamps() const { return lamps_; }
     bool flashOn() const { return flashOn_; }
@@ -105,6 +110,7 @@ private:
     int vipAttendantsTimes_;
     blocktime::PlannedFlightView flight_;
     bool hasFlight_ = false;
+    bool finishable_ = false;  // block in happened and Finish Flight hasn't been clicked
     blocktime::LampBoard board_;
     blocktime::AtcCard card_;
     blocktime::PreFlightLog log_;  // the origin's clearance and ATIS, for the Departure readouts

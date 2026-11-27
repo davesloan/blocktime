@@ -147,9 +147,13 @@ void landed(const InFlightFacts& f, std::vector<ReadoutView>& out) {
         landing.tag = std::format("−{} FPM", f.touchdownFpm);
     }
     out.push_back(landing);
-    std::string gate = f.gate;
-    if (gate.starts_with("Gate ")) gate = gate.substr(5);
-    out.push_back(readout("GATE", gate));
+}
+
+// SayIntentions' arrival gate (or BlockTime's, D-155) from when it's picked, usually in cruise, to block in (0.15.1).
+ReadoutView arrivalGate(const InFlightFacts& f) {
+    ReadoutView gate = readout("ARR GATE", gateReadoutText(f.gate));
+    gate.words = gate.value.find(' ') != std::string::npos;
+    return gate;
 }
 
 }  // namespace
@@ -176,13 +180,28 @@ std::vector<ReadoutView> inFlightReadouts(PanelPhase phase, const InFlightFacts&
                 dest.tag = runwayList(field(*f.destinationAtis, "arriving"));
             }
             out.push_back(dest);
+            out.push_back(arrivalGate(f));
             break;
         }
-        case PanelPhase::Arrival: arrival(f, out); break;
-        case PanelPhase::ShortFinal: shortFinal(f, out); break;
-        case PanelPhase::Landed: landed(f, out); break;
+        case PanelPhase::Arrival:
+            arrival(f, out);
+            out.push_back(arrivalGate(f));
+            break;
+        case PanelPhase::ShortFinal:
+            shortFinal(f, out);
+            out.push_back(arrivalGate(f));
+            break;
+        case PanelPhase::Landed:
+            landed(f, out);
+            out.push_back(arrivalGate(f));
+            break;
     }
     return out;
+}
+
+std::string gateReadoutText(std::string_view spot) {
+    if (spot.starts_with("Gate ")) spot.remove_prefix(5);
+    return std::string(spot);
 }
 
 }  // namespace blocktime

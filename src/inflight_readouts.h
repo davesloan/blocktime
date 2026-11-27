@@ -54,4 +54,7 @@ struct InFlightFacts {  // what the readouts need; the model fills it from the l
 
 std::vector<ReadoutView> inFlightReadouts(PanelPhase phase, const InFlightFacts& f);
 
+// A parking spot for a GATE or ARR GATE readout: "Gate 4" → "4"; other spots ("Parking 70") as they are.
+std::string gateReadoutText(std::string_view spot);
+
 }  // namespace blocktime

@@ -18,7 +18,7 @@ InstrumentPanel {
     required property InFlightModel model
 
     property var waveQueue: []
-    readonly property int readoutSlots: 12  // more than any phase shows, so cards persist and flip in place
+    readonly property int readoutSlots: 14  // more than any phase shows (12), so cards persist and flip in place
 
     // A card's content changed: it flips in the wave, by its x across the panel, whatever the row (D-198).
     function requestFlip(card: Item): void {
@@ -219,8 +219,28 @@ InstrumentPanel {
             }
         }
 
-        // The phase's readouts (D-194): SOULS and FUEL REMAINING first, four a row, APPROACHES across two.
-        Placard { text: panel.model.phaseTitle }
+        // The phase's readouts (D-194): SOULS and FUEL REMAINING first, four a row, APPROACHES across two. After block
+        // in, Finish Flight on the right gives way to the summary once shut down and deboarded (0.15.1).
+        Item {
+            width: parent.width
+            height: Math.max(phasePlacard.height, finishButton.visible ? finishButton.height : 0)
+
+            Placard {
+                id: phasePlacard
+
+                anchors.verticalCenter: parent.verticalCenter
+                text: panel.model.phaseTitle
+            }
+            PrimaryButton {
+                id: finishButton
+
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                visible: panel.model.finishable
+                text: qsTr("Finish Flight")
+                onClicked: panel.model.finishFlight()
+            }
+        }
         Flow {
             id: readouts
 

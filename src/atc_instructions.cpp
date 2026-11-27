@@ -59,10 +59,11 @@ std::string trimmed(std::string s) {
     return s;
 }
 
-// "ILS", "RNAV" + "Y" → "RNAV-Y".
+// "ILS", "RNAV" + "Y" → "RNAV-Y", "Sweetwater" + "Visual" → "SWEETWATER VISUAL" (groups 1-3 of kApproach).
 std::string approachType(const std::smatch& m) {
-    std::string type = upper(m[1].str());
-    if (m[2].matched) type += "-" + upper(m[2].str());
+    std::string type = upper(m[2].str());
+    if (m[3].matched) type += "-" + upper(m[3].str());
+    if (m[1].matched) type = upper(m[1].str()) + " " + type;
     return type;
 }
 
@@ -138,18 +139,26 @@ void readSentence(const std::string& s, const std::string& before, std::vector<S
     } else if (std::regex_search(s, std::regex(R"(\bresume own navigation\b)", kIcase))) {
         out.push_back({Slot::Route, "ROUTE", "OWN NAV", ""});
     }
-    static const char* kApproach = R"((ILS|LOC|RNAV|GPS|VOR|VISUAL)(?:[- ]([A-Z]))?\s+(?:runway )?(\w+) approach)";
-    if (std::regex_search(s, m, std::regex(std::string(R"(\bexpect (?:the )?)") + kApproach + R"((?:.*?\bvia (\w+) transition)?)",
+    // A named visual approach's name ("Sweetwater Visual"), the type, its letter, the runway (0.15.1).
+    static const char* kApproach =
+        R"((?:(\w+) (?=visual))?(ILS|LOC|RNAV|GPS|VOR|VISUAL)(?:[- ]([A-Z]))?\s+(?:runway )?(\w+) approach)";
+    if (std::regex_search(s, m, std::regex(std::string(R"(\bexpect (?:the )?)") + kApproach +
+                                               R"((?:.*?\bvia (?:the )?(\w+)(?: transition)?)?)",
                                            kIcase))) {
-        out.push_back({Slot::Approach, "APPROACH", "EXP " + approachType(m) + " " + normalizeRunway(m[3].str()),
-                       m[4].matched ? upper(m[4].str()) : ""});
+        out.push_back({Slot::Approach, "APPROACH", "EXP " + approachType(m) + " " + normalizeRunway(m[4].str()),
+                       m[5].matched ? upper(m[5].str()) : ""});
     } else if (std::regex_search(s, m,
                                  std::regex(std::string(R"(\bcleared (?:for )?(?:the )?)") + kApproach +
-                                                R"((?:,?\s+(\w+) transition)?)",
+                                                R"((?:,?\s+(?:via )?(?:the )?(\w+) transition|,?\s+via (\w+))?)",
                                             kIcase))) {
-        std::string value = "CLEARED " + approachType(m) + " " + normalizeRunway(m[3].str());
-        if (m[4].matched) value += " " + upper(m[4].str());  // ATC's transition is always shown when given
-        out.push_back({Slot::Approach, "APPROACH", value, ""});
+        SlotChange c{Slot::Approach, "APPROACH", "CLEARED " + approachType(m) + " " + normalizeRunway(m[4].str()), ""};
+        const std::string transition = m[5].matched ? m[5].str() : m[6].matched ? m[6].str() : "";
+        if (!transition.empty()) {
+            c.value += " " + upper(transition);  // ATC's transition is always shown when given
+        } else {
+            c.keepAside = true;  // the expect call's transition still applies (0.15.1)
+        }
+        out.push_back(c);
     }
     if (std::regex_search(s, std::regex(R"(\bcleared to land\b)", kIcase))) {
         // The runway is said before it: "Runway 30L, Winds 360 at 4. Cleared to land."

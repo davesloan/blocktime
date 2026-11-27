@@ -126,13 +126,15 @@ TEST(InFlightReadouts, Climb) {
 TEST(InFlightReadouts, Cruise) {
     InFlightFacts f = ksanKsjc();
     f.destinationAtis = &kKsjcAtis;
+    f.gate = "Gate 4";  // SayIntentions' pick, usually in cruise (0.15.1)
     EXPECT_EQ(inFlightReadouts(PanelPhase::Cruise, f),
-              withEmergency("1:34", {r("CRUISE", "FL400"), words(r("DEST ATIS", "JULIETT", "", "30L 30R"))}));
+              withEmergency("1:34", {r("CRUISE", "FL400"), words(r("DEST ATIS", "JULIETT", "", "30L 30R")),
+                                     r("ARR GATE", "4")}));
 }
 
 TEST(InFlightReadouts, CruiseBeforeDestAtis) {
     EXPECT_EQ(inFlightReadouts(PanelPhase::Cruise, ksanKsjc()),
-              withEmergency("1:34", {r("CRUISE", "FL400"), words(r("DEST ATIS", ""))}));
+              withEmergency("1:34", {r("CRUISE", "FL400"), words(r("DEST ATIS", "")), r("ARR GATE", "")}));
 }
 
 TEST(InFlightReadouts, Arrival) {
@@ -146,7 +148,8 @@ TEST(InFlightReadouts, Arrival) {
               withEmergency("1:34", {words(r("ATIS", "JULIETT")), words(r("RUNWAYS", "30L 30R")), approaches,
                                      words(r("WIND", "Variable / 4 kt")), r("OAT", "17", "°C"),
                                      r("ALTIMETER", "30.19", "inHg", "SET AT TL"), words(r("CONDITION", "DRY")),
-                                     words(r("STAR", "SILCN6 TROXX", "", "ATC")), r("LANDING RWY", "30L", "", "ATC")}));
+                                     words(r("STAR", "SILCN6 TROXX", "", "ATC")), r("LANDING RWY", "30L", "", "ATC"),
+                                     r("ARR GATE", "")}));
 }
 
 TEST(InFlightReadouts, ArrivalBeforeAtcUsesThePlan) {
@@ -174,9 +177,10 @@ TEST(InFlightReadouts, ShortFinal) {
     f.vrefKt = 129;
     f.landingFlaps = 40;
     f.fuelLb = 7410;
+    f.gate = "Parking 70";
     EXPECT_EQ(inFlightReadouts(PanelPhase::ShortFinal, f),
               withEmergency("1:32", {words(r("WIND", "360° / 4 kt", "", "TOWER")), r("RUNWAY", "30L", "", "ATC"),
-                                     r("VREF", "129", "KT", "FLAPS 40")}));
+                                     r("VREF", "129", "KT", "FLAPS 40"), words(r("ARR GATE", "Parking 70"))}));
 }
 
 TEST(InFlightReadouts, ShortFinalWindFromTheAtisWithoutTheTower) {
@@ -193,7 +197,7 @@ TEST(InFlightReadouts, Landed) {
     f.fuelLb = 7190;
     ReadoutView landing = r("LANDING", "", "", "−100 FPM");
     landing.stars = 5;
-    EXPECT_EQ(inFlightReadouts(PanelPhase::Landed, f), withEmergency("1:29", {landing, r("GATE", "4")}));
+    EXPECT_EQ(inFlightReadouts(PanelPhase::Landed, f), withEmergency("1:29", {landing, r("ARR GATE", "4")}));
 }
 
 TEST(InFlightReadouts, SoulsAndFuelFirstInEveryPhase) {

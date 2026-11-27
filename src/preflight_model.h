@@ -46,6 +46,7 @@ class PreFlightModel : public QObject {
     Q_PROPERTY(QString temperatureText READ temperatureText NOTIFY changed)
     Q_PROPERTY(QString altimeterText READ altimeterText NOTIFY changed)
     Q_PROPERTY(QString atisLetter READ atisLetter NOTIFY changed)
+    Q_PROPERTY(QString gate READ gate NOTIFY changed)  // where to load in: "4" for Gate 4; "" when unknown (0.15.1)
     // The clearance: the SID is SimBrief's until ATC changes it (D-189); its tag "PLAN", "CLEARED" or "PLAN PADRZ2".
     Q_PROPERTY(bool cleared READ cleared NOTIFY changed)
     Q_PROPERTY(QString sid READ sid NOTIFY changed)
@@ -79,6 +80,7 @@ public:
     QString temperatureText() const { return q(departure_.temperature); }
     QString altimeterText() const { return q(departure_.altimeter); }
     QString atisLetter() const { return q(departure_.atisLetter); }
+    QString gate() const;
     bool cleared() const { return clearance_.received; }
     QString sid() const { return q(clearance_.sid); }
     bool sidChanged() const { return clearance_.sidChanged; }

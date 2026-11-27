@@ -30,6 +30,12 @@ SlotChange altitude(const char* v, const char* aside = "") { return {Slot::Altit
 SlotChange route(const char* v) { return {Slot::Route, "ROUTE", v, ""}; }
 SlotChange heading(const char* v, const char* aside = "") { return {Slot::Route, "HEADING", v, aside}; }
 SlotChange approach(const char* v, const char* aside = "") { return {Slot::Approach, "APPROACH", v, aside}; }
+// A clearance that names no transition keeps the one the expect call gave as its aside (0.15.1).
+SlotChange cleared(const char* v) {
+    SlotChange c{Slot::Approach, "APPROACH", v, ""};
+    c.keepAside = true;
+    return c;
+}
 
 }  // namespace
 
@@ -75,7 +81,7 @@ TEST(AtcInstructions, ThreeInOneCall) {
     EXPECT_EQ(read("12 miles from HIVAK. Turn left heading 320. Descend and maintain 2,700 until established on the "
                    "localizer. Cleared for the ILS runway 30L approach."),
               (std::vector<SlotChange>{heading("320", "LEFT"), altitude("2,700", "UNTIL ESTABLISHED"),
-                                       approach("CLEARED ILS 30L")}));
+                                       cleared("CLEARED ILS 30L")}));
 }
 
 TEST(AtcInstructions, TrafficCallChangesNothing) {
@@ -131,6 +137,26 @@ TEST(AtcInstructions, Speed) {
 TEST(AtcInstructions, ClearedWithTransition) {
     EXPECT_EQ(read("Cleared RNAV Y runway 27 approach, LYNDI transition"),
               (std::vector<SlotChange>{approach("CLEARED RNAV-Y 27 LYNDI")}));
+}
+
+// Dave's KSJC → KSAN leg (0.15.1): "via the KLOMN transition", then "approach, via KLOMN" with no "transition".
+TEST(AtcInstructions, KsanTransitions) {
+    EXPECT_EQ(read("Expect the RNAV-Z runway 27 approach via the KLOMN transition"),
+              (std::vector<SlotChange>{approach("EXP RNAV-Z 27", "KLOMN")}));
+    EXPECT_EQ(read("Cleared for the RNAV-Z runway 27 approach, via KLOMN"),
+              (std::vector<SlotChange>{approach("CLEARED RNAV-Z 27 KLOMN")}));
+    EXPECT_EQ(read("Cleared for the ILS runway 30L approach via the KLIDE transition"),
+              (std::vector<SlotChange>{approach("CLEARED ILS 30L KLIDE")}));
+}
+
+// A named visual approach keeps its name (0.15.1); "the visual" has none.
+TEST(AtcInstructions, NamedVisualApproach) {
+    EXPECT_EQ(read("SoCal Approach, Good evening Lindbergh altimeter 30.05. Expect the Sweetwater Visual runway 27 "
+                   "approach into Lindbergh"),
+              (std::vector<SlotChange>{approach("EXP SWEETWATER VISUAL 27")}));
+    EXPECT_EQ(read("Expect the visual runway 27 approach"), (std::vector<SlotChange>{approach("EXP VISUAL 27")}));
+    EXPECT_EQ(read("Cleared Sweetwater Visual runway 27 approach"),
+              (std::vector<SlotChange>{cleared("CLEARED SWEETWATER VISUAL 27")}));
 }
 
 TEST(AtcInstructions, Direct) {

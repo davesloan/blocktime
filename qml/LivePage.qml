@@ -32,7 +32,8 @@ Item {
     property bool replaying: false
 
     // The summary of the flight that just ended, from the Flights list (design.md §13.7).
-    readonly property bool showSummary: plannedFlight.state === "summary"
+    // From Finish Flight (0.15.1): until then the arrival view stays; a flight settled at startup shows it at once.
+    readonly property bool showSummary: plannedFlight.state === "summary" && !inflight.finishable
     property var summary: ({})
     property var summaryTrack
 
