@@ -238,7 +238,7 @@ its own plan in `docs/plans/` first.
    money inputs priced one way with a test that New Flight and the planned flight agree (review 4.3), money lines
    that carry their workings (4.4), the migration runner's rebuild support (1.5) and migration 10's lookups (2.1).
    The accepted money (D-222) is stored in milestone 16.
-2. **Milestone 15b — Fleet** (`docs/fleet.md`, D-239 to D-246). Added by Dave on 2026-11-27, before dispatch. Fleet
+2. **Milestone 15b — Fleet** (`docs/fleet.md`, D-239 to D-247). Built (0.17.0). Added by Dave on 2026-11-27, before dispatch. Fleet
    becomes the slots screen (the airline as a character sheet, a card per airplane with Fly and Manage); slots are 2,
    +1 per 10 h, at most 20 (D-240); Add Aircraft reads a SimBrief screenshot with Claude and leases the plane, with
    factory or instant delivery; the aircraft screen with New screenshot and Return (with a refund); supported

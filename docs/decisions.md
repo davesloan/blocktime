@@ -4034,3 +4034,29 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   - A new screenshot can't change an airplane's registration (it would relabel past flights).
 - Why: Each is the simplest choice that keeps money and history honest; see `docs/fleet.md`.
 - Alternatives considered: listed in `docs/fleet.md` next to each.
+
+## D-247 — Milestone 15b's build-time calls
+- Date: 2026-11-27
+- Status: Proposed
+- Decided by: Claude
+- Area: app, data
+- Decision:
+  - **A missing Weight Units is accepted**; only a value other than LBS refuses the screenshot. The page's header says
+    "All weights in LBS", and every value is shown for checking before Lease.
+  - **A return refunds only a month already charged.** Returning on the day a new month falls due, before the minute
+    tick has charged it, refunds nothing for it and charges nothing for it.
+  - **The lease's cash check is the whole ledger now** (a lease is always today), not the cash as of `leased_on`.
+  - **`instant_delivery` stores the factory and the airport** (`from_airport_id`, `to_airport_id`), so the ledger can
+    say "N738SX instant delivery KBFI–KSAN · Delivery fee".
+  - **Each aircraft file names its factory** (`factory: KBFI`), so a future type brings its own.
+  - **The BBJ2 accepts SimBrief base type BBJ2** (N814SX's airframe shows Base Type BBJ2, ICAO code B738); the other
+    types' base types (B736, B738, B772, B77W, B77L) are estimates until Dave's screenshots confirm them.
+  - **A layout's hold shares live in `Hold::maxLb`** (renamed nothing): on an airplane it's the hold's maximum.
+  - **Refusals in words before the database's CHECKs**: a 0 where the schema needs more than 0, and a re-read whose
+    seat count no layout of the type has.
+  - **Version 0.17.0.**
+- Why: Each is the smallest choice that keeps money honest and the screens clear; see the ledger lines in
+  `docs/progress.md`'s milestone 15b entry.
+- Alternatives considered: refusing a missing Weight Units (a cut-off screenshot would be refused for a field that
+  can't change the numbers); refunding a due-but-uncharged month (money back that never left); cash as of
+  `leased_on` (always today now); the factory looked up from the type at display time (a fact the ledger should keep).

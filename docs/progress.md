@@ -22,6 +22,59 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-27 — Milestone 15b built: Fleet (0.17.0)
+
+**Done:** the whole plan (`docs/plans/2026-11-27-milestone-15b-fleet.md`, nine tasks), then a fresh reviewer on the
+milestone's diff and one fix pass.
+- Supported aircraft ship as `data/aircraft/*.yaml`, copied next to the exe (D-243); `catalog.yaml` is no longer read.
+- Slots: 2, +1 per 10 h, at most 20 (D-240).
+- Migration 11 (schema 11): fleets dropped; registration, SimBrief ID and flight number unique among airplanes in the
+  fleet; `airplane_simbrief`, `instant_delivery` (+ lines) and `lease_refund`. `airline.yaml`'s `fleets` and
+  `airplanes` are ignored.
+- Leasing in the app from a SimBrief reading, with factory or instant delivery (Delivery fee per nm in place of
+  fuel); return with a refund; re-reading a screenshot; all in single transactions with the checks repeated inside.
+- Claude reads the screenshot (structured output, `claude-opus-5-5`); `blocktime-airframe.exe` does the same from
+  the command line.
+- Screens: Fleet as the slots screen (cards with Fly / Fly Delivery / Continue Flight and Manage), Add Aircraft, and
+  the aircraft screen (New screenshot, Return airplane).
+- Review fixes: a 0 value, a single-layout seat change and a failed return now say why; the refund is integer
+  arithmetic.
+
+**Working / verified:** debug and release build with no warnings; 1,021 tests pass (release run before the review
+fixes: 1,018). qmllint: only ReplayBar's old info line. Migration dry run on a copy of Dave's airline with the release
+build: schema **9 → 11 in one start** (Dave's real airline hasn't run 0.16's migration 10 yet), the backup
+`blocktime.before-schema-11.db` made, `foreign_key_check` empty, `integrity_check` ok, every table's rows equal except
+the new ones and `fleet`, the ledger total unchanged ($3,816,060), N814SX and N916SX identical apart from `fleet_id`.
+`--grab` pictures of Fleet, Add Aircraft and the aircraft screen on a scratch copy look like the mockups.
+
+**Unverified:** no real screenshot has been read yet (none was in the repo), so the prompt and the base types are
+untested against SimBrief's page. No sim test needed: nothing here talks to the sim. Steps for Dave:
+1. Start BlockTime. The first start migrates the airline (two backups: `before-schema-10` and `before-schema-11`).
+   Fleet shows two cards (BBJ2, 777-300ER), "3 / 20" slots at 10.5 h, one empty slot, locked tiles from 20 h.
+2. Take a screenshot of N814SX's SimBrief airframe page (Win+Shift+S) and run
+   `blocktime-airframe.exe <file>`: every value should match the page; Base Type BBJ2.
+3. Fleet → N814SX → Manage: Weights says "No screenshot yet". New screenshot → paste: the changes list shows the
+   values that weren't stored before (Empty, MZFW, MTOW, Max fuel, Max cargo); Save. Weights now says "SimBrief ·
+   read 27 Nov 2026". Same for N916SX (its Base Type should be B77W; if not, tell Claude so the file is fixed).
+4. An empty slot → Add Aircraft with a test airframe → instant delivery to an airport: check the lines and "Cash
+   after", then Cancel (or Lease and return it to see the refund on Money).
+
+**Deferred minors from the review:** Add Aircraft's fields lose Tab focus after each edit (typing path only);
+instant delivery reads `rates.yaml` once at start; `blocktime-airframe` doesn't print an unreadable answer; a $0
+delivery line isn't dropped (under 0.3 nm); a re-leased registration can pick up the old lease's last parking spot;
+README doesn't say to edit the repo's `data/aircraft` (the build overwrites the exe's copy); a free-flight number
+can't be changed after a lease; the aircraft screen says nothing if a picked file can't be opened; a return
+confirmation left open past midnight UTC shows yesterday's refund.
+
+**Dave's call:** D-247 (Proposed): Claude's build-time calls — a missing Weight Units accepted; a return refunds only
+a charged month; the lease's cash check is the whole ledger; `instant_delivery` keeps the factory and airport; each
+aircraft file names its factory; BBJ2's base type is BBJ2; refusals in words before the database's checks; 0.17.0.
+
+**Next step:** milestone 16 (dispatch) in a new session, from `docs/dispatch.md`; Fly on a Fleet card points at the
+dispatch form instead of New Flight.
+
+---
+
 ## 2026-11-27 — Milestone 15b designed: Fleet (decided, not built)
 
 **Done (in chat with Dave, no code):** a brainstorm of the fleet before milestone 16. The design is `docs/fleet.md`,
