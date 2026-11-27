@@ -122,6 +122,7 @@ add_library(blocktime-core STATIC
   src/departure_conditions.cpp
   src/plan_brief.cpp
   src/taxi_history.cpp
+  src/predictions.cpp
   src/load_sheet.cpp
   src/preflight_log.cpp)
 target_include_directories(blocktime-core PUBLIC src)
@@ -196,6 +197,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/atis_test.cpp
     tests/planned_flight_test.cpp
     tests/taxi_history_test.cpp
+    tests/predictions_test.cpp
     tests/flight_draft_test.cpp
     tests/money_test.cpp
     tests/open_flight_test.cpp

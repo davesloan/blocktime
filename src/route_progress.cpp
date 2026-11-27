@@ -45,6 +45,11 @@ RouteProgress::RouteProgress(std::vector<RoutePoint> route) : route_(std::move(r
     }
 }
 
+double RouteProgress::pointNm(std::size_t i) const {
+    if (i < startNm_.size()) return startNm_[i];
+    return i + 1 == route_.size() ? totalNm_ : 0.0;
+}
+
 void RouteProgress::update(double lat, double lon) {
     if (legNm_.empty()) return;
     const std::size_t last = std::min(legNm_.size() - 1, leg_ + kLegsAhead);

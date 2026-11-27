@@ -24,6 +24,8 @@ public:
     double flownNm() const { return flownNm_; }
     double toGoNm() const { return totalNm_ - flownNm_; }
     double share() const { return totalNm_ > 0 ? flownNm_ / totalNm_ : 0.0; }  // 0..1
+    // The distance along the route to route point i (0 for the first, totalNm for the last; 0 out of range).
+    double pointNm(std::size_t i) const;
 
     // The latest position, projected onto the legs from the last matched one to three after it, so a route that
     // doubles back can't jump the marker. The distance flown never goes down.

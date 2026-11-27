@@ -25,7 +25,8 @@ int effectiveTransitionFt(int planFt);
 std::string altitudeText(int ft, bool flightLevel);
 // 3900 s → "1:05"; with seconds, 2470 s → "0:41:10".
 std::string durationText(std::chrono::seconds s, bool withSeconds);
-// Until the predictions (D-120): block out (or now, before it) plus the plan's block time; none without a plan.
+// Block out (or now, before it) plus the plan's block time; none without a plan. Since milestone 15 only the
+// fallback for a plan without navlog times (predictions.h, D-213).
 std::optional<TimePoint> blockInEstimate(std::optional<TimePoint> blockOut, TimePoint now, int planBlockS);
 
 }  // namespace blocktime
