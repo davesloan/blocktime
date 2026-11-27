@@ -22,6 +22,111 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-26 — Milestone 14 built: the in-flight panel (version 0.15.0)
+
+**Done:**
+- Dave approved mockup v2 (`docs/images/dashboard-inflight-v2.html`) with his additions (D-203):
+  - souls on board and fuel remaining in every phase, fuel remaining at the plan's endurance rate;
+  - the pounds on the fuel gauge;
+  - a radio altitude face below 2,000 ft AGL;
+  - the three-hand altimeter (D-202);
+  - ICAO spellings for the ATIS words (`JULIETT`).
+- Built to it, tests first, one commit per task:
+  - **D-200:** ATC every 30 s, the destination ATIS from 200 nm, and debrief check 2 ending at the transition
+    altitude for new flights. Stored flights keep their measurement, pinned by a test.
+  - **Pre-Flight:** hides at block out, shows the ATIS as its word, and no longer shows the departure frequency or
+    the taxi route.
+  - **One shared reading of the cockpit** for the debrief and the lamps. Cockpit lines now reach the app and replays.
+  - **The lamps** (`LampBoard`), with the debrief's windows.
+  - **The ATC card:** ATC's words to slot changes (`readInstructions`) and the card itself (`AtcCard`), with LATEST
+    and repeat-proof rebuilds.
+  - **The readouts by phase:** the arrival ATIS, SOULS and FUEL REMAINING, the radio altitude switch
+    (`AltitudeFace`), and the landing's stars from the debrief.
+  - **`InFlightModel`** and **`qml/InFlightPanel.qml`**: lamps, four steam gauges, the ATC card across the panel, the
+    readouts four a row, and flips in a wave.
+- A fresh code review found nothing Critical and three Important issues, all fixed with tests:
+  - a seek in an open replay window ran a flip wave;
+  - a flight retried after a sim crash kept the first attempt's lamp windows;
+  - KLAS's "cross-runway 1R, then continue taxi via …" was read as a taxi instruction for runway 1R.
+- I re-graded one of its minors as Important and fixed it: the beacon, APU, climb STD and taxi-in strobe lamps now
+  stop at the first fix, as the debrief measures. This changes D-195's approved table (below).
+- The remaining minors are deferred (below).
+
+**Working / verified:**
+- 907 tests pass in debug and release with no warnings (792 at the start). qmllint reports nothing new.
+- Grabs of the KSAN → KSJC replay with the header collapsed, at block out, taxi out, the climb, cruise, the descent,
+  the approach call, short final and taxi in, match the mockup. Built still: `docs/images/dashboard-inflight-built.png`.
+- On that leg the lamps would flash only for GEAR DN on short final, which is the 0.11.0 gear bug the debrief also
+  scored (`LampBoard.KsanKsjcFixture`).
+- The arrival view, the tallest, ends near 755 px on Live with the header collapsed (measured from the replay grabs,
+  minus the replay bar).
+
+**Unverified or broken:**
+- **The flips, the wave and the flashing**: offscreen grabs don't show animation. Dave checks them by eye.
+- **Live in a real flight**: the cockpit lines reaching the app from the recorder (blocktime-sim has no unit test),
+  and the panel's fit on Live (estimated, not grabbed).
+- **SayIntentions' wording** beyond the two fixtures. A phrase BlockTime can't read leaves its slot as it was.
+- **Replays of older logs show ATC up to a minute late.** Logs before this version fetched ATC every 60 s, and their
+  clearance reached the log only at block out.
+- **Deferred minors from the review** (D-174: fix if they get in the way):
+  - The card's rebuild is O(N²) with uncached regexes: a seek costs about 1.5 s in debug.
+  - Unread phrasings leave slots stale: a bare "maintain 5300", named visual approaches ("Sweetwater Visual
+    runway 27"), and "proceed direct to X" (shown as "DIRECT TO"). "Alpha-4" shows as "A-4".
+  - A SimBrief re-import that changes only the SID drops the card's messages until block out re-logs them.
+  - Check 2's new label shows on old flights that were measured to 10,000 ft.
+  - On Live opened mid-flight, the first sample glides the altimeter hands and the first ATC fetch flips a wave.
+  - After a crash and retry, the card keeps the crashed attempt's climb clearances.
+
+**What Dave should see (no sim needed):**
+1. Flights → KSAN → KSJC → Replay, header collapsed (click the pill). At block out the Pre-Flight panel goes and the
+   in-flight panel appears:
+   - the lamps (beacon and seat belts lit);
+   - GROUND SPEED and RADIO ALTITUDE faces;
+   - DEPARTURE readouts with SOULS 49 (44 PAX + 5 CREW) and FUEL REMAINING about 2:47.
+2. Taxi out: ATC reads ALTITUDE `CLIMB VIA SID` (EXP FL400 +10 MIN), ROUTE `PADRZ2 IKAYE`, and TAXI
+   `A, A7, B, B1` (RWY 27) on the right with its placard lit amber. Squawk 3166.
+3. Play at 10×:
+   - At liftoff the speed gauge flips to AIRSPEED.
+   - Above 3,000 ft above the ground the altitude gauge flips to the three hands.
+   - Watch the ALTITUDE card flip at each climb clearance.
+4. Cruise: ALT STD lit, the altimeter's short hand on 4, CRUISE FL400.
+5. Descent:
+   - The cards change in a wave: ARRIVAL readouts with ATIS `JULIETT`, `ILS 30L · RNAV-Z 30R`, ALTIMETER 30.19 SET
+     AT TL, STAR `SILCN6 TROXX`.
+   - ATC shows DESCEND VIA SILCN6, then EXP ILS 30L (KLIDE).
+6. The approach call: HEADING 320 LEFT, 2,700 UNTIL ESTABLISHED and CLEARED ILS 30L, all three lit LATEST, flipping in
+   a wave left to right.
+7. Short final:
+   - the radio altitude face again;
+   - VREF 129 FLAPS 40, with the bug on the airspeed;
+   - GEAR DN flashing (that log's gear bug).
+8. After touchdown: LANDING ★★★★★ −100 FPM and GATE 4. Then TAXI `K` to TERMINAL A GATE 4, and HOLD SHORT
+   `CROSS 30R`.
+9. Seek with the replay bar: nothing flips on the jump.
+
+**On your next flight you should see:**
+- The panel from block out, with the beacon lamp and the ground speed gauge for the push.
+- A clearance on the ATC card within 30 s of ATC saying it; the card's slots change only when ATC changes them.
+- DEST ATIS in cruise from 200 nm out, then the arrival ATIS readouts in the descent.
+- A lamp flashing only while a switch is wrong by the debrief's rules, stopping as soon as you fix it. Starting the
+  APU on taxi in, or strobes on to cross a runway, don't flash.
+- The radio altitude face below 2,000 ft on approach, and the three hands after a go-around until the next short
+  final.
+
+**Decisions for Dave:**
+- D-204 (Proposed), Claude's calls while building. The ones that change what you approved:
+  - **The first-fix lamps:** the beacon, the strobes after taxi in, the APU after the transition altitude and STD in
+    the climb stop at the first fix, as the debrief measures them. As D-195's table was written, they would have
+    flashed for an APU started on taxi in or strobes back on to cross a runway.
+  - **Sizes:** gauges 128 px and readout windows 30 px (the Pre-Flight panel's too), so the arrival view fits 760 px.
+  - **The ATC card:** touchdown clears TAXI and HOLD SHORT, so the taxi in starts empty.
+  - **The ATC card:** "continue taxi via" keeps the runway or gate it leads to.
+- The rest of D-204 is implementation detail (the replay's cockpit lines, the retry reset, the shared runway tag).
+
+**Next step:**
+- Dave tries the replay (the steps above), confirms D-204, and closes milestone 14: push `main` (D-121). Then
+  milestone 15, the predictions and the passenger header, in a new session.
+
 ## 2026-11-26 — Milestone 14 planned: the in-flight panel (docs only)
 
 **Done:**
