@@ -22,6 +22,26 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-26 — Dave's review of 0.15.1: gauges 200 px, a 0-500 ft radio altitude, the G on LANDING
+
+**Done (D-209, D-210):**
+- Gauges 200 px.
+- The radio altitude face from 300 ft above the ground, back to the altimeter above 500 ft, on a 0-500 ft dial
+  (0-5, `FT × 100`). The `final_approach` marker only arms it now (at 1,000 ft the dial would sit pegged); after a
+  go-around it comes back below 300 ft once the airplane has climbed above 500 ft or passed the next marker.
+- LANDED's tag: `−562 FPM · 1.41 G`.
+- Milestone 15 gains the header's altitude and speed on the distance line (D-210, roadmap and `dashboard.md`), with two
+  questions for its plan: Dave's 10,000 ft flight-level line against the transition altitude used elsewhere, and
+  indicated or ground speed.
+
+**Working / verified:** the tests pass in debug and release with no warnings. Grabs of the KSJC → KSAN replay show the
+radio dial at about 120 ft on short final and `−562 FPM · 1.41 G` after block in.
+
+**On your next flight you should see:** the altimeter until about 300 ft on short final, then the 0-500 ft radio dial
+through the flare.
+
+**Next step:** Dave closes milestone 14 (push `main`). Then milestone 15 in a new session.
+
 ## 2026-11-26 — The first flight's fixes (version 0.15.1)
 
 **Done (Dave's answers to the review below, D-205 to D-208):**

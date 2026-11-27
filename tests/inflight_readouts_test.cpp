@@ -193,9 +193,10 @@ TEST(InFlightReadouts, Landed) {
     InFlightFacts f = ksanKsjc();
     f.stars = 5;
     f.touchdownFpm = 100;
+    f.touchdownG = 1.18;  // 0.15.1: the G after the sink rate
     f.gate = "Gate 4";
     f.fuelLb = 7190;
-    ReadoutView landing = r("LANDING", "", "", "−100 FPM");
+    ReadoutView landing = r("LANDING", "", "", "−100 FPM · 1.18 G");
     landing.stars = 5;
     EXPECT_EQ(inFlightReadouts(PanelPhase::Landed, f), withEmergency("1:29", {landing, r("ARR GATE", "4")}));
 }

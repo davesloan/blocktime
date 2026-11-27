@@ -326,7 +326,10 @@ void InFlightModel::rebuild() {
         f.landingFlaps = static_cast<int>(number(*cockpit_, "landing_flaps"));
     }
     f.stars = stars_;
-    if (touchdown_) f.touchdownFpm = static_cast<int>(std::lround(std::abs(number(*touchdown_, "vs_fpm"))));
+    if (touchdown_) {
+        f.touchdownFpm = static_cast<int>(std::lround(std::abs(number(*touchdown_, "vs_fpm"))));
+        f.touchdownG = number(*touchdown_, "g");
+    }
     f.gate = gate_;
     const PanelPhase phase = panelPhase(phase_, onFinal_, touchedDown_);
     phaseTitle_ = phaseTitleOf(phase);

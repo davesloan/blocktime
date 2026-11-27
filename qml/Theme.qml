@@ -219,7 +219,7 @@ QtObject {
     })
     readonly property int lampFlashMs: 1000     // 1 s lit, 1 s dark (D-195); the model's timer
     // Steam gauges, drawn on a 220-unit face and scaled to gaugeSize
-    readonly property int gaugeSize: 180         // 0.15.1: 128 was hard to read in flight
+    readonly property int gaugeSize: 200         // 0.15.1: 128 was hard to read in flight (D-205)
     readonly property color gaugeBezelLight: "#7D8590"
     readonly property color gaugeBezelDark: "#2A2F36"
     readonly property color gaugeFace: "#0B0C0D"

@@ -3232,7 +3232,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-203 — The approved in-flight mockup v2: emergency readouts, radio altitude, and the layout for 900 px
 - Date: 2026-11-26
-- Status: Accepted
+- Status: Accepted; the radio altitude's heights and dial superseded by D-209
 - Decided by: Dave + Claude (Dave approved the mockup and every call in it)
 - Area: design
 - Decision (mockup `docs/images/dashboard-inflight-v2.html`, `docs/dashboard.md` "The in-flight panel", marked (v2)):
@@ -3313,7 +3313,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-205 — Gauges 180 px, needles gliding over each second
 - Date: 2026-11-26
-- Status: Accepted
+- Status: Accepted; the size superseded by D-209 (200 px)
 - Decided by: Dave + Claude
 - Area: design
 - Decision: After the first flight on 0.15.0 (version 0.15.1), the steam gauges are 180 px (they were 128, D-204) and
@@ -3370,3 +3370,33 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   "SWEETWATER VISUAL RWY 27 APCH IN USE".
 - Alternatives considered: clearing the aside when the cleared approach names no transition (loses the transition
   Dave sets in the FMC).
+
+## D-209 — After Dave's review of 0.15.1: 200 px gauges, a 0-500 ft radio altitude, the G on LANDING
+- Date: 2026-11-26
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: design
+- Decision:
+  - The gauges are 200 px (supersedes D-205's 180).
+  - The radio altitude face shows below **300 ft** above the ground and goes back to the altimeter above **500 ft**;
+    its dial is **0 to 500 ft**, evenly over the whole dial, numbered 0-5 with `FT × 100` (supersedes D-203's 2,000 /
+    3,000 ft and 0-3,000 ft dial). A go-around shows the altimeter at once; the radio face comes back below 300 ft
+    once the airplane has climbed above 500 ft or passed the next `final_approach` marker. Claude's call: the marker
+    only arms it now, since at 1,000 ft the 0-500 ft dial would sit pegged.
+  - The LANDED readout's tag adds the touchdown's G after the sink rate: `−562 FPM · 1.41 G`.
+- Why: Dave, after reviewing 0.15.1: bigger gauges again, and the radio altitude only for the flare.
+- Alternatives considered: going back to the altimeter at 300 ft too (no buffer: flickers over uneven ground).
+
+## D-210 — Milestone 15: altitude and speed on the header's distance line
+- Date: 2026-11-26
+- Status: Accepted (Dave's request; to be designed in milestone 15's plan)
+- Decided by: Dave
+- Area: design
+- Decision: The header's distance line gains the altitude and the speed, separated by dots like the rest:
+  `127 NM flown · 103 NM to go · FL110 · M.74`. The altitude reads in feet up to 10,000 ft (`10,000 FT`) and as a
+  flight level above it (`FL110`); the speed reads in knots (`430 KT`) or as Mach (`M.74`) by D-140's rule (Mach from
+  0.70, back to knots below 0.66).
+- Why: Dave wants them at a glance in the header, next to the distances.
+- Open for the plan: Dave's flight-level line is 10,000 ft, while the header's other altitudes switch at the
+  transition altitude (18,000 ft in the US); and whether the knots are indicated (like the airspeed gauge) or ground
+  speed. Ask Dave when planning milestone 15.

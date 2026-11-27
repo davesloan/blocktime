@@ -497,8 +497,8 @@ marker too, so the lamp and the debrief agree? That changes check 2's stored mea
 
 #### Gauges (D-196)
 
-Steam gauges as in D-179 (black faces, metal bezels), 180 px, each needle gliding over the second to the next sample
-(D-205, 0.15.1).
+Steam gauges as in D-179 (black faces, metal bezels), 200 px (D-209), each needle gliding over the second to the next
+sample (D-205, 0.15.1).
 
 - **Speed.** On the ground below 40 kt: **ground speed, 0 to 40 kt**, with a red arc from 30 to 40 kt (check 3's taxi
   limit). Otherwise **indicated airspeed, 0 to 400 kt**, with the Mach number in a small window. The face switches at
@@ -512,7 +512,10 @@ Steam gauges as in D-179 (black faces, metal bezels), 180 px, each needle glidin
     rests in cruise.
 
   The altimeter setting stays in a small window: `STD`, or the value in the unit the altimeters use.
-- **(v2) Radio altitude** (Dave, D-203). Below 2,000 ft above the ground (`alt_agl_ft`) the altitude gauge flips to a
+- **(v2) Radio altitude** (Dave, D-203). **Since 0.15.1 (D-209): below 300 ft above the ground, back to the altimeter
+  above 500 ft, on a 0-500 ft dial numbered 0-5 (`FT × 100`) evenly over the whole dial; the `final_approach` marker
+  only arms it, and after a go-around it comes back below 300 ft once armed again (above 500 ft or the next marker).**
+  As first built: below 2,000 ft above the ground (`alt_agl_ft`) the altitude gauge flips to a
   radio altitude dial, 0 to 3,000 ft, with the bottom 500 ft over half the dial so the flare is readable, numbered
   0–30 and `FT × 100` along the bottom of the circle. It flips back above 3,000 ft, so terrain under an approach
   can't make it flicker between 2,000 and 3,000 ft. It starts on the radio face at block out (on the ground). A
@@ -587,7 +590,7 @@ change:
 | Cruise | DEST ATIS (letter and runways: the destination ATIS is fetched from the `within_200nm` marker, D-200, not from top of descent), ARR GATE; TOP OF DESCENT (distance and local time), LANDING (time and the plan's), FUEL AT LANDING (and the plan's) **(M15)** |
 | Descent and Approach | **The arrival ATIS** (below) and the plan against ATC: the STAR and the landing runway with the amber `PLAN …` flag when ATC's differ (as D-189 on Pre-Flight) |
 | Short final (the `final_approach` marker, 1,000 ft AGL, to touchdown) | WIND (the tower's from the landing clearance, else the ATIS's), RUNWAY, VREF (with the landing flaps). **(v2)** No HEIGHT: the radio altitude dial shows it |
-| Arrival (touchdown to block in, and until Finish Flight) | LANDING: the stars and the touchdown rate (D-158's rating, as soon as the touchdown and bounces are logged), ARR GATE |
+| Arrival (touchdown to block in, and until Finish Flight) | LANDING: the stars, the touchdown rate and the G (`−562 FPM · 1.41 G`, D-209; D-158's rating, as soon as the touchdown and bounces are logged), ARR GATE |
 
 **ARR GATE (D-206, 0.15.1)** is last in Cruise, Descent and Approach, Short final and Arrival: `arrival_gate`'s spot
 (`7` for Gate 7, `Parking 70` as it reads), a dash until SayIntentions picks it, usually in cruise.
@@ -650,7 +653,7 @@ KSAN → KSJC at 1:10 with the header collapsed).
   - in logs from before 0.15.0, ATC lines reach the log at the next fetch, so a replay shows a clearance up to a
     minute after ATC's time.
 - **Sizes:** gauges are 128 px and readout windows 30 px (the Pre-Flight panel's too), so the tallest view (the
-  arrival ATIS) fits a 760 px window with the header collapsed. **0.15.1:** gauges 180 px (D-205); Live scrolls.
+  arrival ATIS) fits a 760 px window with the header collapsed. **0.15.1:** gauges 200 px (D-205, D-209); Live scrolls.
 
 #### The header as the passenger view (D-192, milestone 15)
 
@@ -672,6 +675,10 @@ Delayed ~3m
 - **Within 2 minutes either way it reads `On time`** (Claude's call: it keeps the line from flickering).
 - **At block in it freezes:** `Arrived 12:35 PM · Gate 4`, and `Delayed 3m` (or `Early 2m`, `On time`) without the `~`.
 - **Collapsed,** the On time / Early / Delayed line shows small under the destination code (as in the v1 mockup).
+- **The distance line adds the altitude and the speed (Dave, D-210):** `127 NM flown · 103 NM to go · FL110 · M.74`.
+  Feet up to 10,000 ft (`10,000 FT`), a flight level above it; knots (`430 KT`) or Mach by D-140's rule (Mach from
+  0.70, knots again below 0.66). To settle in the plan: Dave's 10,000 ft line against the transition altitude the
+  header uses elsewhere, and indicated or ground speed.
 - The block clock, origin line and the rest of the header are unchanged.
 
 #### The predictions (D-192, milestone 15; refines D-120)

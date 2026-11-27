@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // The altitude gauge (D-202, D-203). The altimeter: three hands on a 0-9 dial read like a clock (a short, wide hand
-// for the ten thousands, a long one for the thousands, a skinny one for the hundreds). Below 2,000 ft above the ground
-// it becomes the radio altitude, 0-3,000 ft with the bottom 500 ft over half the dial. The setting window is on both.
+// for the ten thousands, a long one for the thousands, a skinny one for the hundreds). Below 300 ft above the ground
+// it becomes the radio altitude, 0-500 ft over the whole dial (D-209). The setting window is on both.
 // The panel flips it when the face changes (D-198).
 
 pragma ComponentBehavior: Bound
@@ -23,10 +23,10 @@ SteamGauge {
 
     readonly property bool radio: face === "radio"
 
-    // The radio altitude's scale: the bottom 500 ft over the first 150°, the rest over the next 150°.
+    // The radio altitude's scale: 0-500 ft evenly over 300° (D-209).
     function raAngle(h) {
-        const v = Math.max(0, Math.min(h, 3000))
-        return -150 + (v <= 500 ? v / 500 * 150 : 150 + (v - 500) / 2500 * 150)
+        const v = Math.max(0, Math.min(h, 500))
+        return -150 + v / 500 * 300
     }
 
     label: radio ? "RADIO ALTITUDE" : "ALTITUDE"
@@ -57,12 +57,10 @@ SteamGauge {
         visible: gauge.radio
         ticks: {
             const out = []
-            for (let h = 0; h <= 500; h += 50) out.push({ deg: gauge.raAngle(h), len: h % 100 ? 7 : 13, w: h % 100 ? 1.2 : 2.2 })
-            for (let h = 750; h <= 3000; h += 250) out.push({ deg: gauge.raAngle(h), len: h % 500 ? 7 : 13, w: h % 500 ? 1.2 : 2.2 })
+            for (let h = 0; h <= 500; h += 20) out.push({ deg: gauge.raAngle(h), len: h % 100 ? 7 : 13, w: h % 100 ? 1.2 : 2.2 })
             return out
         }
-        labels: [0, 100, 200, 300, 400, 500, 1000, 2000, 3000].map(h => ({ deg: gauge.raAngle(h), r: 68,
-                                                                           text: String(h / 100), size: 15 }))
+        labels: [0, 100, 200, 300, 400, 500].map(h => ({ deg: gauge.raAngle(h), r: 68, text: String(h / 100), size: 18 }))
     }
     // "FT × 100" along the bottom of the circle, each letter turned to follow it.
     Repeater {

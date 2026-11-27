@@ -2873,14 +2873,17 @@ TEST(InFlightModel, AltitudeFaceFollowsTheSamples) {
     EXPECT_EQ(m.altitudeFace(), "radio");
     b.applySample(sampleOf(false, 250, 250, 3100));
     EXPECT_EQ(m.altitudeFace(), "altimeter");
-    b.applySample(sampleOf(false, 180, 180, 1900));
+    b.applyFlightEvent("flight_marker", variantOf({{"marker", "final_approach"}}));
+    EXPECT_EQ(m.altitudeFace(), "altimeter");  // 0.15.1: the radio face only from 300 ft (D-209)
+    b.applySample(sampleOf(false, 140, 140, 290));
     EXPECT_EQ(m.altitudeFace(), "radio");
-    EXPECT_DOUBLE_EQ(m.aglFt(), 1900);
+    EXPECT_DOUBLE_EQ(m.aglFt(), 290);
     b.applyFlightEvent("phase_changed", variantOf({{"phase", "go_around"}}));
     EXPECT_EQ(m.altitudeFace(), "altimeter");
-    b.applySample(sampleOf(false, 180, 180, 1500));
+    b.applySample(sampleOf(false, 150, 150, 250));
     EXPECT_EQ(m.altitudeFace(), "altimeter");
-    b.applyFlightEvent("flight_marker", variantOf({{"marker", "final_approach"}}));
+    b.applySample(sampleOf(false, 180, 180, 1500));
+    b.applySample(sampleOf(false, 140, 140, 290));
     EXPECT_EQ(m.altitudeFace(), "radio");
 }
 

@@ -25,9 +25,6 @@ void AltitudeFace::onGoAround() {
     armed_ = false;
 }
 
-void AltitudeFace::onFinalApproach() {
-    radio_ = true;
-    armed_ = true;
-}
+void AltitudeFace::onFinalApproach() { armed_ = true; }
 
 }  // namespace blocktime

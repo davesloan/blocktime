@@ -145,6 +145,7 @@ void landed(const InFlightFacts& f, std::vector<ReadoutView>& out) {
     if (f.stars) {
         landing.stars = *f.stars;
         landing.tag = std::format("−{} FPM", f.touchdownFpm);
+        if (f.touchdownG > 0) landing.tag += std::format(" · {:.2f} G", f.touchdownG);  // 0.15.1
     }
     out.push_back(landing);
 }
