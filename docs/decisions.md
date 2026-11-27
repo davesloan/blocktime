@@ -3281,6 +3281,16 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
     - the clearance's changes come ROUTE then ALTITUDE, as ATC says them.
   - **The gear lamp:** a go-around after the last `final_approach` marker closes its window, so it doesn't flash in
     the go-around climb (the debrief judges only the approach that lands).
+  - **The first-fix lamps (after the code review):** the beacon, the strobes after taxi in, the APU after the
+    transition altitude and STD in the climb stop at the first fix, as checks 1, 12, 13 and 7 measure. As D-195's table
+    was written, they would have flashed for an APU started on taxi in or strobes back on to cross a runway, which the
+    debrief doesn't score (D-195's anti-goal). This changes the approved table: Dave to confirm.
+  - **A retried flight (D-108):** after an interruption the lamp windows, the altitude face and the landing facts
+    start over; the cockpit's last state is kept.
+  - **The taxi readers:** a crossing ("cross-runway 1R, then continue taxi via …") is not a taxi instruction for the
+    runway it crosses. "Continue taxi via" changes the route and keeps the runway or gate it leads to, the hold short
+    after a crossing wins, and "hold short runway 1R" without "of" is read too (the KLAS calls).
+  - **A replay seek or restart:** `animate` stays off until after everything the burst queued has run.
   - **The readouts:**
     - a flagged RUNWAY or LANDING RWY tag drops the heading (`PLAN 27`);
     - the arrival ATIS readout carries no time.

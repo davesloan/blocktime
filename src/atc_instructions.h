@@ -21,6 +21,7 @@ struct SlotChange {
     std::string title;  // "ROUTE" or "HEADING" for Slot::Route; the slot's name otherwise ("HOLD SHORT")
     std::string value;  // "" clears the slot ("resume normal speed")
     std::string aside;  // a qualifier, or "" (the card shows the time instead)
+    bool keepAside = false;  // "continue taxi via …": the route changes, the runway or gate it leads to doesn't
     bool operator==(const SlotChange&) const = default;
 };
 

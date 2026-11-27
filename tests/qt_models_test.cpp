@@ -2809,18 +2809,16 @@ TEST(InFlightModel, FlashRunsOnlyWhileWrong) {
     m.setFlashInterval(std::chrono::milliseconds(5));
     int flashes = 0;
     QObject::connect(&m, &InFlightModel::flashChanged, [&flashes] { ++flashes; });
-    blocktime::TelemetrySample beaconOn = sampleOf(true, 0, 0);
-    beaconOn.lightBeacon = 1;
-    b.applySample(beaconOn);
+    b.applySample(sampleOf(true, 0, 0));  // the beacon never switched on
     blockOutOf(b);
-    now += std::chrono::seconds(30);
-    b.applySample(beaconOn);
+    b.applySample(sampleOf(true, 0, 0));  // not wrong yet: 10 s to switch it on
     QElapsedTimer t;
     t.start();
     while (t.elapsed() < 60) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
     EXPECT_EQ(flashes, 0);
     EXPECT_TRUE(m.flashOn());
-    b.applySample(sampleOf(true, 0, 0));  // the beacon off, 30 s after block out: wrong
+    now += std::chrono::seconds(30);
+    b.applySample(sampleOf(true, 0, 0));  // still off 30 s after block out: wrong
     t.restart();
     while (t.elapsed() < 60) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
     EXPECT_GT(flashes, 1);
@@ -2887,4 +2885,57 @@ TEST(InFlightModel, FirstFillIsNotAChange) {
     EXPECT_FALSE(r.inflight()->animate());  // a seek is a rebuild: nothing flips
     QCoreApplication::processEvents();
     EXPECT_TRUE(r.inflight()->animate());
+}
+
+// Review fix: a card checks a change with Qt.callLater, queued during the seek's burst. It must still see animate
+// off, so a seek in an open replay window runs no flip wave (D-198).
+TEST(InFlightModel, SeekIsCheckedWhileAnimateIsOff) {
+    qtApp();
+    ReplaySession r(kReplayFixtureDir, kReplayFlight, preflightView(), "XLY", Rates{});
+    QCoreApplication::processEvents();
+    InFlightModel* m = r.inflight();
+    std::vector<bool> seen;
+    QObject::connect(m, &InFlightModel::changed, m, [&seen, m] {
+        QMetaObject::invokeMethod(m, [&seen, m] { seen.push_back(m->animate()); }, Qt::QueuedConnection);
+    });
+    ASSERT_TRUE(r.seek("cruise"));
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+    ASSERT_FALSE(seen.empty());
+    for (bool animate : seen) EXPECT_FALSE(animate);
+    EXPECT_TRUE(m->animate());
+}
+
+// Review fix: after a sim crash the same planned flight is flown again (D-108). The first attempt's windows must not
+// carry over: the APU on at the second pushback and the altimeters on QNH are right, not wrong.
+TEST(InFlightModel, InterruptedFlightStartsTheLampsAgain) {
+    qtApp();
+    RecorderBridge b;
+    auto now = utc("2026-11-25T18:43:04Z");
+    b.setClock([&now] { return now; });
+    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    InFlightModel m(b, f, 3);
+    const auto apuOnQnh = [&b] {
+        b.applyFlightEvent("cockpit", variantOf({{"pmdg", true}, {"seat_belts", 2}, {"apu_switch", true}}));
+        b.applyFlightEvent("altimeter", variantOf({{"capt_mb", 1019.0}, {"fo_mb", 1019.0}}));
+    };
+    blocktime::TelemetrySample beaconOn = sampleOf(true, 0, 0);
+    beaconOn.lightBeacon = 1;
+    b.applySample(beaconOn);
+    blockOutOf(b);
+    b.applyFlightEvent("phase_changed", variantOf({{"phase", "taxi_out"}}));
+    b.applyFlightEvent("flight_marker", variantOf({{"marker", "transition_altitude"}}));  // then the sim crashed
+    blocktime::FlightInterrupted interrupted;
+    interrupted.flightId = kReplayFlight.toStdString();
+    interrupted.reason = "sim_stopped";
+    b.applyBlockEvent(interrupted);
+    now += std::chrono::minutes(20);
+    apuOnQnh();
+    b.applySample(beaconOn);
+    blockOutOf(b);
+    now += std::chrono::minutes(2);
+    b.applySample(beaconOn);
+    for (const QVariant& lamp : m.lamps()) {
+        EXPECT_FALSE(lamp.toMap()["wrong"].toBool()) << lamp.toMap()["name"].toString().toStdString();
+    }
 }

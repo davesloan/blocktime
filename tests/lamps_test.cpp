@@ -284,3 +284,42 @@ TEST(LampBoard, KsanKsjcFixture) {
     }
     EXPECT_EQ(next, moments.size());
 }
+
+// Review fix: checks 1, 7, 12 and 13 stop at the first fix (the debrief's secondsUntil). After it, the switch is Dave's
+// again and the lamp never nags (D-195).
+TEST(LampBoard, ApuOnAgainAfterLandingDoesNotFlash) {
+    Board r;
+    r.event(t0, "cockpit", {{"pmdg", true}, {"seat_belts", 2}, {"apu_switch", true}});
+    r.b.onBlockOut(t0 + 1min);
+    r.marker(t0 + 24min, "transition_altitude");
+    r.event(t0 + 25min, "cockpit", {{"pmdg", true}, {"seat_belts", 2}, {"apu_switch", false}});
+    r.event(t0 + 72min, "cockpit", {{"pmdg", true}, {"seat_belts", 2}, {"apu_switch", true}});  // started on taxi in
+    EXPECT_FALSE(r.wrong(Lamp::Apu, t0 + 73min));
+}
+
+TEST(LampBoard, BeaconOffLaterDoesNotFlash) {
+    Board r;  // beacon on at the gate
+    r.b.onBlockOut(t0 + 1min);
+    r.sample(t0 + 30min, false, true);  // off in cruise: not scored
+    EXPECT_FALSE(r.wrong(Lamp::Beacon, t0 + 31min));
+}
+
+TEST(LampBoard, StrobesBackOnToCrossARunway) {
+    Board r;
+    r.b.onBlockOut(t0 + 1min);
+    r.event(t0 + 70min, "touchdown", nlohmann::json::object());
+    r.phase(t0 + 71min, "taxi_in");
+    r.sample(t0 + 71min, true, true);
+    r.sample(t0 + 72min, true, false);  // off
+    r.sample(t0 + 75min, true, true);   // on again to cross a runway
+    EXPECT_FALSE(r.wrong(Lamp::Strobes, t0 + 76min));
+}
+
+TEST(LampBoard, QnhInCruiseDoesNotFlash) {
+    Board r;
+    r.b.onBlockOut(t0 + 1min);
+    r.marker(t0 + 24min, "transition_altitude");
+    r.event(t0 + 24min + 30s, "altimeter", altimeter(1013.2));
+    r.event(t0 + 40min, "altimeter", altimeter(1019));  // set early: the debrief judged the climb already
+    EXPECT_FALSE(r.wrong(Lamp::AltStd, t0 + 41min));
+}

@@ -80,16 +80,27 @@ InFlightModel::InFlightModel(RecorderBridge& bridge, PlannedFlightDisplay& plann
     connect(&bridge_, &RecorderBridge::blockEvent, this, [this](const QString& type) { onBlockEvent(type); });
     connect(&bridge_, &RecorderBridge::sampleChanged, this, &InFlightModel::onSample);
     connect(&bridge_, &RecorderBridge::flightChanged, this, &InFlightModel::rebuild);
-    catchUp();  // the first fill isn't a change
     refreshFlight();
+    // The first fill isn't a change: animate comes on once the event loop runs, unless a replay's burst began.
+    QTimer::singleShot(0, this, [this] {
+        if (catchingUp_) return;
+        animate_ = true;
+        emit animateChanged();
+    });
 }
 
-void InFlightModel::catchUp() {
+void InFlightModel::beginCatchUp() {
+    catchingUp_ = true;
     if (animate_) {
         animate_ = false;
         emit animateChanged();
     }
+}
+
+void InFlightModel::endCatchUp() {
+    // Queued after the burst's own queued calls, which run first (one thread's queued calls run in order).
     QTimer::singleShot(0, this, [this] {
+        catchingUp_ = false;
         animate_ = true;
         emit animateChanged();
     });
@@ -182,6 +193,18 @@ void InFlightModel::onBlockEvent(const QString& type) {
         onFinal_ = touchedDown_ = false;
     } else if (type == "block_in") {
         board_.onBlockIn(now);
+    } else if (type == "flight_interrupted") {
+        // The same planned flight is flown again (D-108): the attempt's windows go, the cockpit's state stays.
+        board_.reset(familyOf(flight_.family));
+        if (cockpit_) board_.onEvent("cockpit", *cockpit_, now);
+        if (altimeter_) board_.onEvent("altimeter", *altimeter_, now);
+        face_.reset();
+        phase_ = "at_gate";
+        onFinal_ = touchedDown_ = false;
+        touchdown_.reset();
+        stars_.reset();
+        gate_.clear();
+        destinationAtis_.reset();
     }
     rebuild();
 }

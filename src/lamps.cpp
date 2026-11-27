@@ -17,7 +17,27 @@ bool inside(TimePoint now, std::optional<TimePoint> from, std::optional<TimePoin
     return from && now >= *from && (!to || now < *to);
 }
 
+// Wrong only until the first fix, at or before `now`.
+bool unfixed(std::optional<TimePoint> fixed, TimePoint now) { return !fixed || *fixed > now; }
+
 }  // namespace
+
+void LampBoard::record(Changes& log, TimePoint at, bool value) {
+    if (log.empty() || log.back().second != value) log.emplace_back(at, value);
+}
+
+std::optional<TimePoint> LampBoard::firstAt(const Changes& log, TimePoint from, bool want) {
+    std::optional<bool> atFrom;
+    for (const auto& [t, v] : log) {
+        if (t <= from) {
+            atFrom = v;
+        } else if (v == want) {
+            return atFrom == want ? std::optional<TimePoint>(from) : std::optional<TimePoint>(t);
+        }
+    }
+    if (atFrom == want) return from;
+    return std::nullopt;
+}
 
 void LampBoard::reset(Family family) {
     *this = LampBoard{};
@@ -31,8 +51,10 @@ void LampBoard::onEvent(std::string_view type, const nlohmann::json& data, TimeP
     if (type == "cockpit") {
         cockpit_ = data;
         pmdgSeen_ = pmdgSeen_ || data.value("pmdg", false);
+        if (const auto apu = apuSwitchOn(data)) record(apuLog_, at, *apu);
     } else if (type == "altimeter") {
         altimeter_ = data;
+        record(stdLog_, at, altimetersStd(data));
     } else if (type == "liftoff") {
         liftoff_ = at;
     } else if (type == "touchdown") {
@@ -61,6 +83,8 @@ void LampBoard::onSample(const TelemetrySample& s, TimePoint at) {
     hasSample_ = true;
     beacon_ = s.lightBeacon != 0;
     strobe_ = s.lightStrobe != 0;
+    record(beaconLog_, at, beacon_);
+    record(strobeLog_, at, strobe_);
     bool running = false;
     for (int i = 0; i < std::clamp(s.numEngines, 0, 4); ++i) running = running || s.engCombustion[i] != 0;
     if (running && !enginesRunning_ && !blockOut_) engineStart_ = at;  // the debrief's flightStart()
@@ -77,7 +101,8 @@ std::array<LampState, 7> LampBoard::lamps(TimePoint now) const {
     beacon.lit = beacon_;
     if (blockOut_) {
         const TimePoint start = engineStart_ ? std::min(*engineStart_, *blockOut_) : *blockOut_;
-        beacon.wrong = beacon.known && !beacon_ && inside(now, start + kBeaconTolerance, blockIn_);
+        beacon.wrong = beacon.known && unfixed(firstAt(beaconLog_, start, true), now) &&
+                       inside(now, start + kBeaconTolerance, blockIn_);
     }
 
     // Strobes (checks 5 and 12): off from 10 s into the takeoff roll to liftoff; on from 180 s into taxi in.
@@ -88,7 +113,8 @@ std::array<LampState, 7> LampBoard::lamps(TimePoint now) const {
         takeoff_ ? std::optional<TimePoint>(*takeoff_ + kTakeoffLightsGrace) : std::nullopt;
     if (strobes.known) {
         strobes.wrong = (!strobe_ && inside(now, rollGrace, liftoff_)) ||
-                        (strobe_ && taxiIn_ && inside(now, *taxiIn_ + kStrobesTolerance, blockIn_));
+                        (taxiIn_ && unfixed(firstAt(strobeLog_, *taxiIn_, false), now) &&
+                         inside(now, *taxiIn_ + kStrobesTolerance, blockIn_));
     }
 
     // The seat belts and landing lights need PMDG's data on the 737 (D-159).
@@ -127,7 +153,8 @@ std::array<LampState, 7> LampBoard::lamps(TimePoint now) const {
         if (const auto on = apuSwitchOn(*cockpit_)) {
             apu.known = true;
             apu.lit = *on;
-            apu.wrong = *on && inside(now, transitionAltitude_, blockIn_);
+            apu.wrong = transitionAltitude_ && unfixed(firstAt(apuLog_, *transitionAltitude_, false), now) &&
+                        inside(now, transitionAltitude_, blockIn_);
         }
     }
 
@@ -142,7 +169,8 @@ std::array<LampState, 7> LampBoard::lamps(TimePoint now) const {
         const std::optional<TimePoint> descent =
             transitionLevel_ ? std::optional<TimePoint>(*transitionLevel_ + kDestinationBaroDelay) : std::nullopt;
         const bool landed = touchdown_ && transitionLevel_ && *touchdown_ > *transitionLevel_;
-        alt.wrong = (!alt.lit && inside(now, climb, transitionLevel_)) || (alt.lit && descent && !landed && now >= *descent);
+        const bool climbFixed = transitionAltitude_ && !unfixed(firstAt(stdLog_, *transitionAltitude_, true), now);
+        alt.wrong = (!climbFixed && inside(now, climb, transitionLevel_)) || (alt.lit && descent && !landed && now >= *descent);
     }
 
     // Gear down (check 11): up from the last final_approach marker to touchdown; a go-around after it closes it.

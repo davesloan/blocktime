@@ -465,16 +465,19 @@ scored. Outside these windows a lamp never flashes, whatever its state.
 
 | Lamp | Flashes while | Check |
 |---|---|---|
-| Beacon | off, from 10 s after the earlier of block out and the first engine start, until the engines are off after block in | 1 |
+| Beacon | off, from 10 s after the earlier of block out and the first engine start, until it's first on (then switching it off isn't scored) | 1 |
 | Seat belts | off, from the start of taxi out until the climb passes the origin's **transition altitude** (Dave's rule; check 2 moves there too, D-200); and off from the descent's `transition_level` marker until block in. Never while on, and never in between: Dave may keep them on to the top of climb, or switch them on for turbulence | 2, 8 |
-| Strobes | off, from 10 s into the takeoff roll until liftoff; on, from 180 s after taxi in began | 5, 12 |
+| Strobes | off, from 10 s into the takeoff roll until liftoff; on, from 180 s after taxi in began, until they're first off after it (on again to cross a runway isn't scored) | 5, 12 |
 | Landing lights | off, from 10 s into the takeoff roll until liftoff; off, from 60 s after `below_10000` until touchdown | 5, 10 |
-| APU | on (the selector), from the climb's `transition_altitude` marker until block in; off, from block in until the last engine stops (D-173: it may go on once parked) | 13, 14 |
-| ALT STD | not on STD, from 60 s after the `transition_altitude` marker until the `transition_level` marker; still on STD, from 60 s after `transition_level` until touchdown | 7, 9 |
+| APU | on (the selector), from the climb's `transition_altitude` marker until it's first off (started again on taxi in isn't scored); off, from block in until the last engine stops (D-173: it may go on once parked; not built, D-201) | 13, 14 |
+| ALT STD | not on STD, from 60 s after the `transition_altitude` marker until the `transition_level` marker or until both are first on STD; still on STD, from 60 s after `transition_level` until touchdown | 7, 9 |
 | Gear down | up, from the landing approach's `final_approach` marker until touchdown | 11 |
 
 - What counts as "on" (seat belts AUTO, the 737's retractable lights) is whatever the debrief's measurement already
   uses; the lamps share its reading of the `cockpit` event, not a copy of it.
+- Checks 1, 7, 12 and 13 measure the time until the switch is first right, so those lamps stop at the first fix
+  (D-204, after the milestone 14 review): the table as first written ran them to block in or the transition level and
+  would have flashed for what the debrief never scores.
 - Lamps whose data isn't in the log (no PMDG broadcast, D-159) stay dark and never flash, as the debrief marks those
   checks not checked.
 - **The flashing is the one exception** to "no continuous animations" (D-195): it runs only while something is wrong,

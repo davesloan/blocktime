@@ -87,16 +87,29 @@ std::vector<SlotChange> fromClearance(const Clearance& c, const RoutePlan& plan)
 // One sentence's changes, in the order its patterns are checked. `before` is the call up to this sentence.
 void readSentence(const std::string& s, const std::string& before, std::vector<SlotChange>& out) {
     std::smatch m;
-    if (const auto taxi = parseTaxi(s)) {
-        out.push_back({Slot::Taxi, "TAXI", taxi->route, taxi->runway.empty() ? "" : "RWY " + taxi->runway});
-    } else if (std::regex_search(s, m, std::regex(R"(\btaxi to (.+?) via (.+?)(,\s*hold short\b.*)?$)", kIcase))) {
-        out.push_back({Slot::Taxi, "TAXI", taxiRoute(trimmed(m[2].str())), withLetters(trimmed(m[1].str()))});
-    }
-    if (std::regex_search(s, m, std::regex(R"(\bhold short of runway (\w+))", kIcase))) {
-        out.push_back({Slot::HoldShort, "HOLD SHORT", normalizeRunway(m[1].str()), ""});
-    }
+    // A crossing first, then the route, then the hold short that still applies ("cross-runway 1R, then continue taxi
+    // via Bravo, hold short of runway 1L").
     if (std::regex_search(s, m, std::regex(R"(\bcross[- ]runway (\w+))", kIcase))) {
         out.push_back({Slot::HoldShort, "HOLD SHORT", "CROSS " + normalizeRunway(m[1].str()), ""});
+    }
+    if (const auto taxi = parseTaxi(s)) {
+        out.push_back({Slot::Taxi, "TAXI", taxiRoute(taxi->route), taxi->runway.empty() ? "" : "RWY " + taxi->runway});
+    } else if (std::regex_search(s, m, std::regex(R"(\btaxi to (.+?) via (.+?)(,\s*hold short\b.*)?$)", kIcase))) {
+        out.push_back({Slot::Taxi, "TAXI", taxiRoute(trimmed(m[2].str())), withLetters(trimmed(m[1].str()))});
+    } else if (std::regex_search(s, m, std::regex(R"(\bcontinue taxi via (.+?)(,\s*hold short\b.*)?$)", kIcase))) {
+        // "… via B, C6 to Terminal 3 Gate E7A" names where it leads; without "to" it still leads where it did.
+        const std::string text = trimmed(m[1].str());
+        std::smatch to;
+        if (std::regex_search(text, to, std::regex(R"(^(.+) to (.+)$)", kIcase))) {
+            out.push_back({Slot::Taxi, "TAXI", taxiRoute(trimmed(to[1].str())), withLetters(trimmed(to[2].str()))});
+        } else {
+            SlotChange route{Slot::Taxi, "TAXI", taxiRoute(text), ""};
+            route.keepAside = true;
+            out.push_back(route);
+        }
+    }
+    if (std::regex_search(s, m, std::regex(R"(\bhold short (?:of )?runway (\w+))", kIcase))) {
+        out.push_back({Slot::HoldShort, "HOLD SHORT", normalizeRunway(m[1].str()), ""});
     }
     if (std::regex_search(s, m, std::regex(R"(\b(?:turn (left|right) )?(?:fly )?heading (\d{3})\b)", kIcase))) {
         out.push_back({Slot::Route, "HEADING", m[2].str(), upper(m[1].str())});

@@ -108,7 +108,7 @@ void AtcCard::rebuild() {
             AtcSlot& s = slots_[index(c.slot)];
             s.title = c.title;
             s.value = c.value;
-            s.aside = c.aside;
+            if (!c.keepAside) s.aside = c.aside;
             s.time = c.value.empty() ? "" : step.message->time;
             s.latest = true;
         }

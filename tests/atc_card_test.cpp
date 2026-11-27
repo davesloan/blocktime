@@ -178,3 +178,14 @@ TEST(AtcCard, ArrivalFacts) {
     EXPECT_EQ(early.approachRunway(), "");
     EXPECT_EQ(early.landingWind(), "");
 }
+
+// Review fix: continuing the taxi keeps the runway it leads to, and the hold short after a crossing wins.
+TEST(AtcCard, ContinueTaxiKeepsTheRunway) {
+    AtcCard c;
+    c.setFlight("2026-11-24T23:00:00Z", RoutePlan{"RADYR2", ""});  // KLAS → KSAN
+    c.onMessage(msg(1, "2026-11-24T23:56:01Z",
+                    "Runway 8L, taxi via Yellow Taxilane, Spot 1, Charlie-2, Bravo, hold short runway 1R."));
+    c.onMessage(msg(2, "2026-11-25T00:03:07Z", "cross-runway 1R, then continue taxi via Bravo, hold short of runway 1L"));
+    const auto s = c.slotsFor(CardStage::Departure);
+    EXPECT_EQ(s[2], slot("TAXI", "B", "RWY 08L", "2026-11-25T00:03:07Z", true));
+}

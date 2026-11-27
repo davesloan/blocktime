@@ -121,3 +121,18 @@ TEST(Countdown, Runs) {
     EXPECT_TRUE(c.urgent);
     EXPECT_TRUE(c.expired);
 }
+
+// Review fix: KLAS's taxi calls (tests/data/flight-klas-ksan). A crossing is not a taxi instruction for the runway it
+// crosses, and the route stops before the hold short.
+TEST(Taxi, KlasRouteStopsBeforeTheHoldShort) {
+    const auto t = parseTaxi("Runway 8L, taxi via Yellow Taxilane, Spot 1, Charlie-2, Bravo, hold short runway 1R.");
+    ASSERT_TRUE(t.has_value());
+    EXPECT_EQ(t->runway, "08L");
+    EXPECT_EQ(t->route, "Yellow Taxilane, Spot 1, Charlie-2, Bravo");
+}
+TEST(Taxi, CrossingIsNotATaxiInstruction) {
+    EXPECT_FALSE(parseTaxi("cross-runway 1R, then continue taxi via Bravo, hold short of runway 1L").has_value());
+    EXPECT_FALSE(parseTaxi("cross-runway 8L, then continue taxi via B, C6, Spot 8, YELLOW TAXILANE to Terminal 3 Gate "
+                           "E7A")
+                     .has_value());
+}

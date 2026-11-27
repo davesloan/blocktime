@@ -61,8 +61,10 @@ public:
     InFlightModel(RecorderBridge& bridge, PlannedFlightDisplay& planned, int vipAttendantsTimes,
                   QObject* parent = nullptr);
 
-    // A burst of lines is coming (a replay seek): animate turns false now and back on once the event loop runs.
-    void catchUp();
+    // A burst of lines (a replay seek or restart) goes between these: animate is off from the first, and comes back
+    // on only after everything the burst queued (the cards' Qt.callLater checks) has run, so nothing flips (D-198).
+    void beginCatchUp();
+    void endCatchUp();
     void setFlashInterval(std::chrono::milliseconds interval);  // 1 s in the app (D-195); tests use less
 
     bool visible() const;
@@ -113,7 +115,7 @@ private:
     std::optional<int> stars_;
     std::string gate_;
     QTimer flash_;
-    bool flashOn_ = true, animate_ = false;
+    bool flashOn_ = true, animate_ = false, catchingUp_ = false;
     QVariantList lamps_, atcSlots_, readouts_;
     QString phaseTitle_;
 };

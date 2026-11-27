@@ -12,6 +12,8 @@
 #include <chrono>
 #include <optional>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -43,6 +45,13 @@ public:
     std::array<LampState, 7> lamps(TimePoint now) const;
 
 private:
+    // When a switch changed (time, good): checks 1, 7, 12 and 13 stop at the first fix, as the debrief's secondsUntil.
+    using Changes = std::vector<std::pair<TimePoint, bool>>;
+    static void record(Changes& log, TimePoint at, bool value);
+    // The first time at or after `from` the value was `want` (`from` itself when it already was); nullopt if never.
+    static std::optional<TimePoint> firstAt(const Changes& log, TimePoint from, bool want);
+
+    Changes beaconLog_, strobeLog_, apuLog_, stdLog_;
     Family family_ = Family::B737;
     bool pmdgSeen_ = false, hasSample_ = false, beacon_ = false, strobe_ = false, enginesRunning_ = false;
     std::optional<nlohmann::json> cockpit_, altimeter_;

@@ -88,8 +88,10 @@ void ReplaySession::restart() {
     next_ = 0;
     finished_ = false;
     makeBridge();
+    inflight_->beginCatchUp();
     emit restarted();
     feedUpTo(0);
+    inflight_->endCatchUp();
     clock_.setPaused(false);
     updateTimer();
     emit stateChanged();
@@ -114,8 +116,9 @@ bool ReplaySession::seek(const QString& at) {
     const auto offset = timeline_.offsetOf(at.toStdString());
     if (!offset) return false;
     clock_.seek(*offset);
-    inflight_->catchUp();  // a burst: the panel rebuilds without flips (D-198)
+    inflight_->beginCatchUp();  // a burst: the panel rebuilds without flips (D-198)
     feedUpTo(*offset);
+    inflight_->endCatchUp();
     return true;
 }
 

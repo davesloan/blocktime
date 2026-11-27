@@ -92,10 +92,13 @@ std::optional<Clearance> parseClearance(std::string_view atcWords) {
 std::optional<TaxiInstruction> parseTaxi(std::string_view atcWords) {
     const std::string words(atcWords);
     std::smatch m;
-    if (!std::regex_search(words, m, std::regex(R"(runway (\w+).*?\btaxi\b.*?\bvia\b\s*(.+))", kIcase))) {
+    // "Runway 8L, taxi via …" at the start of the call or of a phrase: not "cross-runway 1R, then continue taxi via".
+    if (!std::regex_search(words, m, std::regex(R"((?:^|[,.]\s*)runway (\w+),? taxi via\s+(.+))", kIcase))) {
         return std::nullopt;
     }
     std::string route = m[2].str();
+    std::smatch hold;
+    if (std::regex_search(route, hold, std::regex(R"(,\s*hold short\b)", kIcase))) route = hold.prefix().str();
     while (!route.empty() && (route.back() == '.' || route.back() == ' ')) route.pop_back();
     if (route.empty()) return std::nullopt;
     return TaxiInstruction{normalizeRunway(m[1].str()), route};

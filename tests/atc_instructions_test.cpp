@@ -147,3 +147,25 @@ TEST(AtcInstructions, FeetAndFlightLevel) {
 TEST(AtcInstructions, ClimbViaSidLater) {
     EXPECT_EQ(read("Climb via the SID"), (std::vector<SlotChange>{altitude("CLIMB VIA SID")}));
 }
+
+// Review fix: KLAS's taxi calls (tests/data/flight-klas-ksan). The crossing comes first, then the route, then the
+// hold short that still applies.
+TEST(AtcInstructions, KlasTaxiOutWithHoldShort) {
+    EXPECT_EQ(read("Runway 8L, taxi via Yellow Taxilane, Spot 1, Charlie-2, Bravo, hold short runway 1R."),
+              (std::vector<SlotChange>{{Slot::Taxi, "TAXI", "YELLOW TAXILANE, SPOT 1, C-2, B", "RWY 08L"},
+                                       {Slot::HoldShort, "HOLD SHORT", "01R", ""}}));
+}
+
+TEST(AtcInstructions, CrossThenContinueTaxi) {
+    SlotChange route{Slot::Taxi, "TAXI", "B", ""};
+    route.keepAside = true;  // still to runway 8L
+    EXPECT_EQ(read("cross-runway 1R, then continue taxi via Bravo, hold short of runway 1L"),
+              (std::vector<SlotChange>{{Slot::HoldShort, "HOLD SHORT", "CROSS 01R", ""}, route,
+                                       {Slot::HoldShort, "HOLD SHORT", "01L", ""}}));
+}
+
+TEST(AtcInstructions, CrossThenTaxiToTheGate) {
+    EXPECT_EQ(read("cross-runway 8L, then continue taxi via B, C6, Spot 8, YELLOW TAXILANE to Terminal 3 Gate E7A"),
+              (std::vector<SlotChange>{{Slot::HoldShort, "HOLD SHORT", "CROSS 08L", ""},
+                                       {Slot::Taxi, "TAXI", "B, C6, SPOT 8, YELLOW TAXILANE", "TERMINAL 3 GATE E7A"}}));
+}
