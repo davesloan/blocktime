@@ -66,6 +66,28 @@ bool writeLimits(db::Database& db, std::int64_t airplaneId, const AirplaneLimits
 bool writeSimbriefValues(db::Database& db, std::int64_t airplaneId, const SimbriefReading& reading,
                          std::string_view readAt, std::string& error);
 
+// Returns an airplane today (design.md §5, D-245): the lease ends, its slot frees up, and the unused days of a month
+// already charged come back as a lease refund. One transaction. "" when done, else why not (a planned flight, already
+// returned).
+std::string returnAirplane(db::Database& db, std::int64_t airplaneId, Date today);
+
+// What a new screenshot of an airplane's SimBrief airframe would change (docs/fleet.md, "New screenshot").
+struct RereadChange {
+    std::string label, before, after;  // "Bag weight", "55 lb", "80 lb"; before is "—" when it wasn't read before
+};
+struct RereadPlan {
+    std::vector<RereadChange> changes;
+    std::string refusal;  // why it can't be saved; "" when it can
+};
+// The type can't change and neither can the registration (it would relabel past flights, D-246); the Internal ID may,
+// unless another airplane in the fleet uses it. `layout` must be of the airplane's type with SimBrief's seat count.
+RereadPlan planReread(db::Database& db, const Catalog& catalog, std::int64_t airplaneId, const SimbriefReading& reading,
+                      const CatalogAirframe* layout);
+// Saves it in one transaction: limits, SimBrief values, holds, tail and Internal ID, and the cabins when the layout
+// changed. "" when saved, else the refusal.
+std::string applyReread(db::Database& db, const Catalog& catalog, std::int64_t airplaneId,
+                        const SimbriefReading& reading, const CatalogAirframe* layout, std::string_view readAt);
+
 struct LeaseOutcome {
     int monthsCharged = 0, returned = 0;
     std::vector<std::string> notices;  // for the screens, in event order

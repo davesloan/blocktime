@@ -368,6 +368,225 @@ LeaseResult leaseAirplane(db::Database& db, const LeaseRequest& request, const R
     return {id, ""};
 }
 
+namespace {
+
+// An airplane as a re-read or a return needs it.
+struct Current {
+    std::string registration, typeCode, simbriefId, tail, layoutName;
+    bool returned = false, planned = false;
+    Date leasedOn;
+    Cents monthlyCents = 0;
+    AirplaneLimits limits;
+    std::optional<SimbriefReading> simbrief;  // the airplane_simbrief row, if it has one
+    std::vector<Hold> holds;
+    int seats = 0;
+};
+
+std::optional<Current> current(db::Database& db, std::int64_t id) {
+    Current c;
+    {
+        db::Statement q(db,
+                        "SELECT a.registration, t.code, a.simbrief_airframe_id, COALESCE(a.tail_number, ''),"
+                        " a.airframe_name, a.returned_on IS NOT NULL, a.leased_on, a.monthly_lease_cents,"
+                        " EXISTS (SELECT 1 FROM planned_flight p WHERE p.airplane_id = a.airplane_id),"
+                        " (SELECT COALESCE(SUM(seats), 0) FROM airplane_cabin c WHERE c.airplane_id = a.airplane_id)"
+                        " FROM airplane a JOIN aircraft_type t USING (aircraft_type_id) WHERE a.airplane_id = ?");
+        q.bind(1, id);
+        if (!q.next()) return std::nullopt;
+        c.registration = q.text(0);
+        c.typeCode = q.text(1);
+        c.simbriefId = q.text(2);
+        c.tail = q.text(3);
+        c.layoutName = q.text(4);
+        c.returned = q.integer(5) != 0;
+        c.leasedOn = parseDate(q.text(6)).value_or(Date{});
+        c.monthlyCents = q.integer(7);
+        c.planned = q.integer(8) != 0;
+        c.seats = static_cast<int>(q.integer(9));
+    }
+    c.limits = airplaneLimits(db, id).value_or(AirplaneLimits{});
+    {
+        db::Statement q(db, "SELECT base_type, max_passengers, empty_weight_lb, mzfw_lb, mtow_lb, max_fuel_lb,"
+                            " max_cargo_lb FROM airplane_simbrief WHERE airplane_id = ?");
+        q.bind(1, id);
+        if (q.next()) {
+            SimbriefReading s;
+            s.baseType = q.text(0);
+            s.maxPassengers = static_cast<int>(q.integer(1));
+            s.emptyWeightLb = static_cast<int>(q.integer(2));
+            s.mzfwLb = static_cast<int>(q.integer(3));
+            s.mtowLb = static_cast<int>(q.integer(4));
+            s.maxFuelLb = static_cast<int>(q.integer(5));
+            s.maxCargoLb = static_cast<int>(q.integer(6));
+            c.simbrief = s;
+        }
+    }
+    {
+        db::Statement q(db, "SELECT hold, max_lb, ratio FROM airplane_hold WHERE airplane_id = ? ORDER BY rowid");
+        q.bind(1, id);
+        while (q.next()) c.holds.push_back({q.text(0), static_cast<int>(q.integer(1)), static_cast<int>(q.integer(2))});
+    }
+    return c;
+}
+
+std::string pounds(std::optional<int> lb) { return lb ? formatNumber(*lb) + " lb" : "—"; }
+
+std::string holdLabel(const std::string& hold) {
+    if (hold == "main_deck") return "Main deck";
+    std::string label = hold + " hold";
+    label[0] = static_cast<char>(label[0] - 'a' + 'A');
+    return label;
+}
+
+// The refusal and the changes, from the airplane as it is.
+RereadPlan plan(db::Database& db, const Catalog& catalog, std::int64_t airplaneId, const Current& c,
+                const SimbriefReading& r, const CatalogAirframe* layout) {
+    RereadPlan out;
+    const auto refuse = [&](std::string why) {
+        out.refusal = std::move(why);
+        return out;
+    };
+    if (c.returned) return refuse(c.registration + " has been returned.");
+    if (c.planned) return refuse(c.registration + " has a flight planned. Settle or cancel it first.");
+    if (const auto missing = missingFields(r); !missing.empty()) {
+        std::string list;
+        for (const std::string& m : missing) list += (list.empty() ? "" : ", ") + m;
+        return refuse("Not read yet: " + list + ".");
+    }
+    const CatalogType* type = catalog.type(c.typeCode);
+    if (!type) return refuse(c.typeCode + " isn't in the aircraft files.");
+    const auto& bases = type->simbriefBaseTypes;
+    if (std::find(bases.begin(), bases.end(), r.baseType) == bases.end()) {
+        return refuse(std::format("SimBrief's base type {} isn't a {}.", r.baseType, c.typeCode));
+    }
+    if (r.registration != c.registration) {
+        return refuse(std::format("This screenshot is for {}, not {}. A new registration is a new lease.",
+                                  r.registration, c.registration));
+    }
+    if (r.internalId != c.simbriefId) {
+        db::Statement q(db, "SELECT registration FROM airplane WHERE simbrief_airframe_id = ? AND returned_on IS NULL"
+                            " AND airplane_id <> ?");
+        q.bind(1, r.internalId);
+        q.bind(2, airplaneId);
+        if (q.next()) return refuse(std::format("SimBrief airframe {} already belongs to {}.", r.internalId, q.text(0)));
+    }
+    if (!layout || layout->typeCode != c.typeCode) return refuse("Pick a layout of the " + c.typeCode + ".");
+    int seats = 0;
+    for (const Cabin& cabin : layout->cabins) seats += cabin.seats;
+    if (seats != *r.maxPassengers) {
+        return refuse(std::format("SimBrief's Max Passengers is {}, but {} has {} seats.", *r.maxPassengers,
+                                  layout->name, seats));
+    }
+    if (*r.mzfwLb <= *r.emptyWeightLb) return refuse("Max Zero Fuel Weight must be more than Empty Weight.");
+
+    const auto change = [&](const std::string& label, const std::string& before, const std::string& after) {
+        if (before != after) out.changes.push_back({label, before, after});
+    };
+    const auto& s = c.simbrief;
+    change("Internal ID", c.simbriefId, r.internalId);
+    change("Tail", c.tail.empty() ? "—" : c.tail, r.finNumber.empty() ? "—" : r.finNumber);
+    change("Max passengers", std::to_string(c.seats), std::to_string(*r.maxPassengers));
+    change("Passenger weight", pounds(c.limits.passengerWeightLb), pounds(r.passengerWeightLb));
+    change("Bag weight", pounds(c.limits.bagWeightLb), pounds(r.bagWeightLb));
+    change("Empty weight", pounds(s ? s->emptyWeightLb : std::nullopt), pounds(r.emptyWeightLb));
+    change("MZFW", pounds(s ? s->mzfwLb : std::nullopt), pounds(r.mzfwLb));
+    change("MTOW", pounds(s ? s->mtowLb : std::nullopt), pounds(r.mtowLb));
+    change("MLW", pounds(c.limits.mlwLb), pounds(r.mlwLb));
+    change("Max fuel", pounds(s ? s->maxFuelLb : std::nullopt), pounds(r.maxFuelLb));
+    change("Max cargo", pounds(s ? s->maxCargoLb : std::nullopt), pounds(r.maxCargoLb));
+    change("Min runway", formatNumber(c.limits.minRunwayFt) + " ft", formatNumber(*r.minRunwayFt) + " ft");
+    change("Layout", c.layoutName, layout->name);
+    const std::vector<Hold> holds = holdsForMaxCargo(layout->holds, *r.maxCargoLb);
+    for (const Hold& h : holds) {
+        const auto old = std::find_if(c.holds.begin(), c.holds.end(), [&](const Hold& o) { return o.hold == h.hold; });
+        change(holdLabel(h.hold), old == c.holds.end() ? "—" : pounds(old->maxLb), pounds(h.maxLb));
+    }
+    return out;
+}
+
+}  // namespace
+
+RereadPlan planReread(db::Database& db, const Catalog& catalog, std::int64_t airplaneId, const SimbriefReading& reading,
+                      const CatalogAirframe* layout) {
+    const auto c = current(db, airplaneId);
+    if (!c) return {{}, "That airplane isn't in the database."};
+    return plan(db, catalog, airplaneId, *c, reading, layout);
+}
+
+std::string applyReread(db::Database& db, const Catalog& catalog, std::int64_t airplaneId,
+                        const SimbriefReading& r, const CatalogAirframe* layout, std::string_view readAt) {
+    db::Transaction tx(db);
+    if (!tx.active()) return "Couldn't start a transaction: " + tx.error();
+    const auto c = current(db, airplaneId);
+    if (!c) return "That airplane isn't in the database.";
+    if (const RereadPlan p = plan(db, catalog, airplaneId, *c, r, layout); !p.refusal.empty()) return p.refusal;
+    std::string error;
+    const AirplaneLimits limits{*r.minRunwayFt, *r.mlwLb, *r.passengerWeightLb, *r.bagWeightLb,
+                                *r.mzfwLb - *r.emptyWeightLb};
+    db::Statement identity(db, "UPDATE airplane SET simbrief_airframe_id = ?, tail_number = ?, airframe_name = ?"
+                               " WHERE airplane_id = ?");
+    identity.bind(1, r.internalId);
+    if (r.finNumber.empty()) {
+        identity.bindNull(2);
+    } else {
+        identity.bind(2, r.finNumber);
+    }
+    identity.bind(3, layout->name);
+    identity.bind(4, airplaneId);
+    if (!run(identity, error) || !writeLimits(db, airplaneId, limits, error) ||
+        !writeSimbriefValues(db, airplaneId, r, readAt, error) ||
+        !writeHolds(db, airplaneId, holdsForMaxCargo(layout->holds, *r.maxCargoLb), error)) {
+        return "Couldn't save it: " + error;
+    }
+    if (layout->name != c->layoutName) {
+        db::Statement clear(db, "DELETE FROM airplane_cabin WHERE airplane_id = ?");
+        clear.bind(1, airplaneId);
+        if (!run(clear, error)) return "Couldn't save it: " + error;
+        for (const Cabin& cabin : layout->cabins) {
+            db::Statement insert(db, "INSERT INTO airplane_cabin (airplane_id, cabin_class, seats) VALUES (?, ?, ?)");
+            insert.bind(1, airplaneId);
+            insert.bind(2, cabin.cabinClass);
+            insert.bind(3, static_cast<std::int64_t>(cabin.seats));
+            if (!run(insert, error)) return "Couldn't save it: " + error;
+        }
+    }
+    if (!tx.commit(&error)) return "Couldn't save it: " + error;
+    return "";
+}
+
+std::string returnAirplane(db::Database& db, std::int64_t airplaneId, Date today) {
+    db::Transaction tx(db);
+    if (!tx.active()) return "Couldn't start a transaction: " + tx.error();
+    const auto c = current(db, airplaneId);
+    if (!c) return "That airplane isn't in the database.";
+    if (c->returned) return c->registration + " has been returned.";
+    if (c->planned) return c->registration + " has a flight planned. Settle or cancel it first.";
+
+    // Only a month already charged is refunded (a month whose day has come but isn't charged yet costs nothing).
+    int k = 0;
+    while (leasePeriodStart(c->leasedOn, k + 1) <= today) ++k;
+    db::Statement charged(db, "SELECT 1 FROM lease_charge WHERE airplane_id = ? AND period_start = ?");
+    charged.bind(1, airplaneId);
+    charged.bind(2, formatDate(leasePeriodStart(c->leasedOn, k)));
+    const Cents refund = charged.next() ? leaseRefundCents(c->monthlyCents, c->leasedOn, today) : 0;
+
+    std::string error;
+    db::Statement ret(db, "UPDATE airplane SET returned_on = ?, return_reason = 'returned' WHERE airplane_id = ?");
+    ret.bind(1, formatDate(today));
+    ret.bind(2, airplaneId);
+    if (!run(ret, error)) return "Couldn't return it: " + error;
+    if (refund > 0) {
+        db::Statement line(db, "INSERT INTO ledger_line (category, posted_at, amount_cents) VALUES ('lease_refund', ?, ?)");
+        line.bind(1, formatInstant(today));
+        line.bind(2, refund);
+        db::Statement fact(db, "INSERT INTO lease_refund (ledger_line_id, airplane_id) VALUES (last_insert_rowid(), ?)");
+        fact.bind(1, airplaneId);
+        if (!run(line, error) || !run(fact, error)) return "Couldn't return it: " + error;
+    }
+    if (!tx.commit(&error)) return "Couldn't return it: " + error;
+    return "";
+}
+
 LeaseOutcome settleLeases(db::Database& db, Date today) {
     LeaseOutcome outcome;
     // A read that fails stops the run (review 1.4): read as 0, it would return airplanes for good.

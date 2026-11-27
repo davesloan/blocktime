@@ -366,3 +366,110 @@ TEST_F(Leasing, AirplaneViewCountsFlightsAndHours) {
     EXPECT_EQ(planes[0].flights, 1);
     EXPECT_DOUBLE_EQ(planes[0].blockHours, 2.5);
 }
+
+namespace {
+
+std::vector<std::string> changeLines(const RereadPlan& plan) {
+    std::vector<std::string> out;
+    for (const RereadChange& c : plan.changes) out.push_back(c.label + ": " + c.before + " → " + c.after);
+    return out;
+}
+
+}  // namespace
+
+TEST_F(Leasing, ReturnRefundsAndFreesTheSlot) {
+    const auto id = lease(bbj("N814SX", "1_1", d(2026, 11, 22)));
+    EXPECT_EQ(returnAirplane(db_, id, d(2026, 11, 27)), "");
+    EXPECT_EQ(count("SELECT returned_on = '2026-11-27' AND return_reason = 'returned' FROM airplane"), 1);
+    // 24 of the month's 30 days unused: $150,000 x 24 / 30.
+    EXPECT_EQ(count("SELECT l.amount_cents FROM ledger_line l JOIN lease_refund USING (ledger_line_id)"), 12'000'000);
+    EXPECT_EQ(count("SELECT category = 'lease_refund' FROM ledger_line JOIN lease_refund USING (ledger_line_id)"), 1);
+    EXPECT_EQ(listLedger(db_)[0].text, "Lease refund N814SX");
+    EXPECT_EQ(count("SELECT COUNT(*) FROM airplane WHERE returned_on IS NULL"), 0);
+    EXPECT_EQ(settle(d(2026, 12, 22)).monthsCharged, 0);
+    EXPECT_EQ(cashCents(db_), 500'000'000 - 15'000'000 + 12'000'000);
+    EXPECT_NE(returnAirplane(db_, id, d(2026, 11, 28)), "");  // already returned
+}
+
+TEST_F(Leasing, ReturnRefusedWithPlannedFlight) {
+    const auto id = lease(bbj("N814SX", "1_1", d(2026, 11, 22)));
+    ASSERT_TRUE(db_.exec("INSERT INTO planned_flight (airplane_id, origin_airport_id, destination_airport_id,"
+                         " flight_number, kind, cargo_lb, fuel_price_cents_per_100lb, planned_at)"
+                         " VALUES (" + std::to_string(id) + ", 1, 2, '8', 'vip', 0, 4100, '2026-11-23T14:00:00Z')"));
+    EXPECT_EQ(returnAirplane(db_, id, d(2026, 11, 27)), "N814SX has a flight planned. Settle or cancel it first.");
+    EXPECT_EQ(count("SELECT COUNT(*) FROM airplane WHERE returned_on IS NULL"), 1);
+    EXPECT_EQ(count("SELECT COUNT(*) FROM lease_refund"), 0);
+}
+
+// Money safety: a month that hasn't been charged yet can't be refunded.
+TEST_F(Leasing, NoRefundForAMonthNotCharged) {
+    const auto id = lease(bbj("N814SX", "1_1", d(2026, 11, 22)));
+    EXPECT_EQ(returnAirplane(db_, id, d(2026, 12, 23)), "");  // 22 Dec's month was never charged
+    EXPECT_EQ(count("SELECT COUNT(*) FROM lease_refund"), 0);
+    EXPECT_EQ(cashCents(db_), 485'000'000);
+}
+
+TEST_F(Leasing, RereadShowsOnlyChanges) {
+    const auto id = lease(b738("N738SX", "1_1", d(2026, 11, 22)));
+    SimbriefReading r = b738Reading("N738SX", "1_1");
+    r.bagWeightLb = 80;
+    r.maxCargoLb = 20000;
+    const RereadPlan plan = planReread(db_, catalog_, id, r, catalog_.airframe("737-800 Two-class"));
+    EXPECT_EQ(plan.refusal, "");
+    EXPECT_EQ(changeLines(plan), (std::vector<std::string>{"Bag weight: 55 lb → 80 lb",
+                                                           "Max cargo: 18,000 lb → 20,000 lb",
+                                                           "Forward hold: 7,941 lb → 8,823 lb",
+                                                           "Aft hold: 10,059 lb → 11,177 lb"}));
+    EXPECT_EQ(applyReread(db_, catalog_, id, r, catalog_.airframe("737-800 Two-class"), "2026-11-27T10:00:00Z"), "");
+    EXPECT_EQ(airplaneLimits(db_, id)->bagWeightLb, 80);
+    EXPECT_EQ(count("SELECT max_lb FROM airplane_hold WHERE hold = 'aft'"), 11177);
+    EXPECT_EQ(count("SELECT max_cargo_lb FROM airplane_simbrief"), 20000);
+    EXPECT_TRUE(planReread(db_, catalog_, id, r, catalog_.airframe("737-800 Two-class")).changes.empty());
+}
+
+TEST_F(Leasing, RereadRefusesOtherTypeAndRegistration) {
+    const auto id = lease(b738("N738SX", "1_1", d(2026, 11, 22)));
+    SimbriefReading other = b738Reading("N738SX", "1_1");
+    other.baseType = "B77W";
+    EXPECT_EQ(planReread(db_, catalog_, id, other, catalog_.airframe("737-800 Two-class")).refusal,
+              "SimBrief's base type B77W isn't a 737-800.");
+    const SimbriefReading renamed = b738Reading("N999XX", "1_1");
+    EXPECT_EQ(planReread(db_, catalog_, id, renamed, catalog_.airframe("737-800 Two-class")).refusal,
+              "This screenshot is for N999XX, not N738SX. A new registration is a new lease.");
+    EXPECT_NE(applyReread(db_, catalog_, id, renamed, catalog_.airframe("737-800 Two-class"), "2026-11-27T10:00:00Z"), "");
+    EXPECT_EQ(count("SELECT COUNT(*) FROM airplane WHERE registration = 'N999XX'"), 0);
+}
+
+TEST_F(Leasing, RereadLayoutChangeReplacesCabins) {
+    const auto id = lease(b738("N738SX", "1_1", d(2026, 11, 22)));
+    SimbriefReading r = b738Reading("N738SX", "1_1");
+    r.maxPassengers = 184;
+    EXPECT_EQ(planReread(db_, catalog_, id, r, catalog_.airframe("737-800 Two-class")).refusal,
+              "SimBrief's Max Passengers is 184, but 737-800 Two-class has 160 seats.");
+    const RereadPlan plan = planReread(db_, catalog_, id, r, catalog_.airframe("737-800 All-economy"));
+    EXPECT_EQ(plan.refusal, "");
+    EXPECT_EQ(changeLines(plan), (std::vector<std::string>{"Max passengers: 160 → 184",
+                                                           "Layout: 737-800 Two-class → 737-800 All-economy"}));
+    EXPECT_EQ(applyReread(db_, catalog_, id, r, catalog_.airframe("737-800 All-economy"), "2026-11-27T10:00:00Z"), "");
+    EXPECT_EQ(count("SELECT COUNT(*) FROM airplane_cabin"), 1);
+    EXPECT_EQ(count("SELECT seats FROM airplane_cabin WHERE cabin_class = 'economy'"), 184);
+    EXPECT_EQ(listAirplanes(db_)[0].airframeName, "737-800 All-economy");
+}
+
+TEST_F(Leasing, FirstReadOfAnOldAirplaneInsertsItsSimbriefRow) {
+    const auto id = lease(b738("N738SX", "1_1", d(2026, 11, 22)));
+    ASSERT_TRUE(db_.exec("DELETE FROM airplane_simbrief"));  // as if leased before milestone 15b
+    const SimbriefReading r = b738Reading("N738SX", "1_1");
+    const RereadPlan plan = planReread(db_, catalog_, id, r, catalog_.airframe("737-800 Two-class"));
+    EXPECT_EQ(plan.refusal, "");
+    EXPECT_EQ(changeLines(plan).front(), "Empty weight: — → 91,300 lb");
+    EXPECT_EQ(applyReread(db_, catalog_, id, r, catalog_.airframe("737-800 Two-class"), "2026-11-27T10:00:00Z"), "");
+    EXPECT_EQ(count("SELECT COUNT(*) FROM airplane_simbrief"), 1);
+}
+
+TEST_F(Leasing, RereadRefusesAnInternalIdAnotherPlaneUses) {
+    lease(bbj("N814SX", "1_9", d(2026, 11, 22)));
+    const auto id = lease(b738("N738SX", "1_1", d(2026, 11, 22)));
+    EXPECT_EQ(planReread(db_, catalog_, id, b738Reading("N738SX", "1_9"), catalog_.airframe("737-800 Two-class")).refusal,
+              "SimBrief airframe 1_9 already belongs to N814SX.");
+}
