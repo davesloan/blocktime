@@ -13,6 +13,7 @@
 | [progress.md](progress.md) | Session-by-session progress log (newest first) |
 | [qt-ui-test-context.md](qt-ui-test-context.md) | Why the Qt UI test builds were run, what Dave wanted, and the result: Qt won (D-050, D-063) |
 | [plans/](plans/) | Implementation plans, one per milestone or test build |
+| [reviews/2026-11-27-technical-review.md](reviews/2026-11-27-technical-review.md) | The in-depth technical review of 0.16.0: the Principal Engineer's assessment and grades, findings by area, and a suggested fix order |
 | [notes/](notes/) | Small how-to and quirk notes discovered while building |
 
 ## Notes

@@ -227,6 +227,19 @@ next is a new brainstorm, starting from "After the MVP" below.
 steam gauges for values that move, glass indicator lamps for what the debrief scores, and radio-stack readouts for
 other numbers. Not in milestone 12: the header stays flat.
 
+## Next, after the MVP (brainstorm of 2026-11-27)
+
+Dave's order:
+
+1. **An in-depth technical review** of the code base as it stands at 0.16.0.
+2. **Dispatch and the flight summary** (D-214, D-215): New Flight with Maximize payload, the plan review with how each
+   money line was reached, Accept before Live's Pre-Flight; then the summary page revised. Designed in the
+   brainstorm before its plan.
+3. **Journeys** (design.md §16), without the Flight Board. The Flight Board comes after rotations.
+
+Also from this brainstorm, timing open: **the money item** (D-216 to D-218), fares towards real ones and the
+earnings target, checked against Dave's real flights.
+
 ## After the MVP (not ordered)
 
 Rotations unlocked by flying (D-075) and background flying with catch-up (sections 7–8), the settings screen (airline, fleets, leasing, and managing the

@@ -3468,3 +3468,110 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   second copy of the route progress for no gain Dave asked for.
 - Alternatives considered: a FUEL readout with `+200`; SimBrief's cruise Mach as the bug (the gauge is in knots); a
   separate prediction model owning its own route progress.
+
+## D-214 — Dispatch moves off Live: set up, import, review, then accept
+- Date: 2026-11-27
+- Status: Accepted (direction; the detailed design follows in the post-MVP brainstorm)
+- Decided by: Dave
+- Area: design
+- Decision: Setting up a flight is separate from the Live dashboard. New Flight (destination, flight number, options)
+  closes, and until the flight is accepted Live shows only Import SimBrief plan, reopen the New Flight window, and
+  Cancel flight. Importing the plan gives the full money breakdown, with how each line was worked out; Dave then
+  accepts the plan or cancels the flight. Only an accepted flight puts Live into Pre-Flight with the header.
+  Replaces the planned flight panel's mix of setup buttons and estimate (design.md §13.2-13.3).
+- Why: the planned flight panel is the last panel in a debug state; setup steps and in-flight reference don't belong
+  on one panel, and Dave wants to see how each money line was reached before committing.
+- Alternatives considered: restyling the planned flight panel in place (keeps the two jobs mixed).
+
+## D-215 — Maximize payload on free flights
+- Date: 2026-11-27
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: design
+- Decision: New Flight gets a "Maximize payload" option on free flights only: every seat filled, plus belly cargo
+  (on passenger airliners that can carry it) up to max payload (MZFW − empty weight). Available from day one, no
+  unlock. The landing-weight warning still applies.
+- Why: Dave wants to fly at heavy weights, and it earns more; the gain is modest by day (loads already roll 90-100%),
+  so it needs no unlock to stay balanced.
+- Alternatives considered: unlocking it per airplane after 15 hours on that airplane (Dave's first idea).
+
+## D-216 — Short legs pay at least as well per hour of Dave's time as long ones
+- Date: 2026-11-27
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: design
+- Decision: A design rule for every money change: profit per hour of Dave's time (block time plus about an hour at
+  the gates) is at least as high on short legs as on long ones. Today's fixed part of the fare ($90 economy) already
+  does this: about $5,800 per hour at 150 nm against $2,900 at 2,800 nm on a 737-800 all-economy (Claude's estimate).
+- Why: short legs are the ones Dave enjoys; in FlyHub they earned little, which felt like a penalty for not wanting
+  eight hours of cruise.
+- Alternatives considered: none; this is a guard on the money item (D-218).
+
+## D-217 — Earnings target: 20 of Dave's own flights a month ≈ 1.5× one airplane's lease
+- Date: 2026-11-27
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: design
+- Decision: With no rotations, about 20 of Dave's own flights a month (his average of 5 a week) should earn about
+  1.5× the lease of the airplane flown: about $350k on a 737-800 ($235k lease), roughly $17-18k a flight.
+- Why: at today's rates 20 short legs in a 737-800 only break even (~$240k against $235k), and a BBJ2 clears ~$24k
+  over its lease. Flying every day for a month should visibly put the airline ahead, with a second airplane a few
+  months away.
+- Alternatives considered: break-even (today's result, the FlyHub feeling); clearly more generous.
+
+## D-218 — Fares move toward real ones; what else bends is settled in the money item
+- Date: 2026-11-27
+- Status: Accepted (direction); the rates themselves are designed later, checked against Dave's real flights
+- Decided by: Dave
+- Area: design
+- Decision: Passenger fares move toward real-world levels. Today's economy fare ($112 at 300 nm, $150 at 800 nm) is
+  roughly a third to a half of a real one-way ticket (BTS: about $307 average one-way, 2026). Realistic fares alone
+  can't meet D-217 at 20 flights a month (real airlines fly an airplane ~180 legs a month), so the money item also
+  decides what else changes. Claude leans towards charging the lease by use (per block hour flown) until rotations
+  exist; the alternatives are cheaper monthly leases or fares above real.
+- Why: "They don't feel realistic, unless we were operating Spirit Airlines." (Dave)
+- Alternatives considered: raising today's fares above real (unrealistic the other way); cheaper monthly leases.
+
+## D-219 — The lease is charged by use
+- Date: 2026-11-27
+- Status: Accepted (direction); the rate is designed in the money item
+- Decided by: Dave
+- Area: design
+- Decision: An airplane's lease is charged by use (per block hour flown) rather than as a fixed monthly charge
+  (design.md §5). Settles D-218's open question in favour of realistic fares with a lease that scales with use.
+- Why: Dave flies about 20 legs a month in total; a monthly lease made a second airplane a steady loss until
+  rotations exist, and made realistic fares unable to meet the earnings target. No idle or lease-start charge:
+  the slots earned by flying (D-131) already stop the whole catalog being leased on day one. Section 5's monthly
+  charges, prorated returns and D-132's rationale are rewritten in the money item.
+- Alternatives considered: cheaper monthly leases; fares above real (D-218); a lease-start fee or monthly standby
+  charge for idle airplanes (not needed with D-131's slots).
+
+## D-220 — A difficulty setting: flights per month
+- Date: 2026-11-27
+- Status: Accepted (idea and shape); the numbers are designed in the money item
+- Decided by: Dave + Claude
+- Area: design
+- Decision: One number, `flights_per_month` (in `rates.yaml` until a settings screen exists), sets how much Dave
+  expects to fly. It drives one multiplier on fares and cargo rates, and the load rules. **20 is the default**: about
+  20 own flights a month put the airline clearly ahead (D-217's ~$350k a month on a 737-800, ~$17-18k a flight),
+  with realistic fares (D-218). **10 or fewer:** a larger multiplier and full loads, with a warning that fares and
+  cargo rates are unrealistic. **30 or more:** harder, and Maximize payload is not offered (amends D-215). The
+  multiplier applies only to legs Dave flies; background legs always earn at the realistic rate, so the fleet economy
+  is the same at every level. A change applies from the next flight planned; settled flights stay as they are.
+- Why: Dave's idea: players with less time still get a satisfying airline, and the default stays realistic. 1.5x
+  rather than break-even at the default (Claude's recommendation, Dave agreed) because the airline has to grow
+  before rotations can carry it.
+- Alternatives considered: one fixed target for everyone (D-217); scaling each rate separately.
+
+## D-221 — Growth is gated by flying; money is the reward
+- Date: 2026-11-27
+- Status: Accepted
+- Decided by: Dave
+- Area: design
+- Decision: A design rule for the money item and everything after it: what BlockTime gates is flying in the sim, not
+  money. Aircraft slots are earned by Dave's hours (D-131) and a rotation's legs must each be flown once before it
+  can be assigned (D-075). Money is the reward for putting in the time, so the rates should make that time feel
+  rewarded rather than act as a second gate.
+- Why: "The growth gate in BlockTime isn't money, it's flying in the sim. The money is the reward for putting in the
+  time." (Dave)
+- Alternatives considered: none; this frames D-216 to D-220.

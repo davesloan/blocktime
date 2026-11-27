@@ -22,6 +22,39 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-27 — Technical review of 0.16.0
+
+**Done:** the in-depth review from the post-MVP brainstorm (brief `docs/plans/2026-11-27-technical-review.md`),
+written up in `docs/reviews/2026-11-27-technical-review.md`. Nothing in the code was changed. Seven area reviews ran
+side by side, and every finding was checked against the code before it went in. Committed with the brainstorm's
+doc changes (D-214 to D-218, the roadmap's "Next, after the MVP").
+
+**Working / verified:** clean debug and release builds with no warnings; 953 tests pass in both (105 s debug, 26 s
+release). qmllint: one info line, an unused import in `qml/ReplayBar.qml:12`.
+
+**Result:** overall grade B−. 1 Critical, 30 Important, 40 Minor.
+- Critical: development runs (the debug build, `--demo`, `--grab`) migrate and settle Dave's real `blocktime.db`.
+- The most important Important findings:
+  - Cancel can discard a flown flight that didn't settle.
+  - A disk error mid-settlement could post money twice.
+  - A failed read counts as $0 cash, and the lease run then returns airplanes.
+  - One `null` field drops a flight's debrief silently.
+  - Failed flight-event writes aren't retried.
+  - The recorder's warnings are hidden without `--dev`.
+  - Closing the window mid-flight discards the flight without asking.
+  - The migration runner can't rebuild a table.
+  - Block in parses up to 30 log files on the GUI thread.
+- Also found: event logs are never deleted. "Kept 30 days" means the readers look at the last 30 files.
+
+**Waiting on Dave:**
+- Which steps of the review's suggested fix order to do, and when.
+- D-109 against D-214: lock the accepted money, or keep pricing at settlement's rates (finding 4.2).
+- Whether the preview's fuel line should be the fuel to add (4.1).
+- Prune the event logs, or keep them and fix the "30 days" statements (8.2).
+
+**Next step:** Dave's choice from the review's fix order. Its step 1 (protect what can't be undone) is one session of
+small fixes.
+
 ## 2026-11-27 — Milestone 15 closed (0.16.0)
 
 **Done:** Dave closed milestone 15 without a further review and asked for the push; `main` is on `origin` (D-121).
