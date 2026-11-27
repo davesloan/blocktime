@@ -182,7 +182,8 @@ mockups (D-184) and closed by him on 2026-11-26 after trying it on replays.
 **Built in 0.14.0** (D-187..D-190): the mockup approved by Dave, then built to it and checked on replays of Dave's
 KSAN → KSJC leg. Closed by Dave on 2026-11-26, then reopened for the first flight's fixes: **0.15.1** (D-205..D-208:
 200 px gauges gliding over each second, the GATE and ARR GATE cards, Finish Flight, approach transitions and named
-visual approaches, a 0-500 ft radio altitude from 300 ft, the G on LANDING; D-209). Dave reviews the app before closing it again.
+visual approaches, a 0-500 ft radio altitude from 300 ft, the G on LANDING; D-209). Closed again by Dave on 2026-11-26
+after reviewing the app.
 
 ### The in-flight brainstorm (2026-11-26)
 
@@ -211,7 +212,8 @@ The header's `Arrival 12:35 PM` with `On time` / `Early ~4m` / `Delayed ~4m` und
 (D-192); the arrival estimate as now plus the plan's time from the current position (refining D-120); top of climb,
 top of descent (and its tick on the arc), landing time, fuel against plan and fuel at landing on the panel; the plan's
 cruise speed on the airspeed gauge; the altitude and speed on the header's distance line,
-`127 NM flown · 103 NM to go · FL110 · M.74` (D-210). Checked on replays; no sim test.
+`127 NM flown · 103 NM to go · FL350 · M.74` (flight levels above the transition altitude, indicated airspeed;
+D-210). Checked on replays; no sim test.
 
 ### Milestone 16 — Developer mode
 

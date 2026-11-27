@@ -3393,10 +3393,10 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Decided by: Dave
 - Area: design
 - Decision: The header's distance line gains the altitude and the speed, separated by dots like the rest:
-  `127 NM flown · 103 NM to go · FL110 · M.74`. The altitude reads in feet up to 10,000 ft (`10,000 FT`) and as a
-  flight level above it (`FL110`); the speed reads in knots (`430 KT`) or as Mach (`M.74`) by D-140's rule (Mach from
-  0.70, back to knots below 0.66).
+  `127 NM flown · 103 NM to go · FL350 · M.74`. The altitude reads in feet below the transition altitude
+  (`12,000 FT`) and as a flight level above it (`FL350`), the same line the header's other altitudes use (18,000 ft
+  in the US); the speed is **indicated**, like the airspeed gauge, in knots (`290 KT`) or as Mach (`M.74`) by D-140's
+  rule (Mach from 0.70, back to knots below 0.66).
 - Why: Dave wants them at a glance in the header, next to the distances.
-- Open for the plan: Dave's flight-level line is 10,000 ft, while the header's other altitudes switch at the
-  transition altitude (18,000 ft in the US); and whether the knots are indicated (like the airspeed gauge) or ground
-  speed. Ask Dave when planning milestone 15.
+- Settled by Dave (2026-11-26), before milestone 15's plan: the transition altitude for the switch to flight levels
+  (his first note said 10,000 ft), and indicated airspeed rather than ground speed.

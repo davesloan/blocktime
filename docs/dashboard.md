@@ -675,10 +675,10 @@ Delayed ~3m
 - **Within 2 minutes either way it reads `On time`** (Claude's call: it keeps the line from flickering).
 - **At block in it freezes:** `Arrived 12:35 PM · Gate 4`, and `Delayed 3m` (or `Early 2m`, `On time`) without the `~`.
 - **Collapsed,** the On time / Early / Delayed line shows small under the destination code (as in the v1 mockup).
-- **The distance line adds the altitude and the speed (Dave, D-210):** `127 NM flown · 103 NM to go · FL110 · M.74`.
-  Feet up to 10,000 ft (`10,000 FT`), a flight level above it; knots (`430 KT`) or Mach by D-140's rule (Mach from
-  0.70, knots again below 0.66). To settle in the plan: Dave's 10,000 ft line against the transition altitude the
-  header uses elsewhere, and indicated or ground speed.
+- **The distance line adds the altitude and the speed (Dave, D-210):** `127 NM flown · 103 NM to go · FL350 · M.74`.
+  Feet below the transition altitude (`12,000 FT`), a flight level above it, as the header's other altitudes; the
+  indicated airspeed, as on the gauge, in knots (`290 KT`) or Mach by D-140's rule (Mach from 0.70, knots again below
+  0.66).
 - The block clock, origin line and the rest of the header are unchanged.
 
 #### The predictions (D-192, milestone 15; refines D-120)

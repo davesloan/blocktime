@@ -30,9 +30,9 @@ Newest entries at the top. Add an entry at the end of every working session.
   (0-5, `FT × 100`). The `final_approach` marker only arms it now (at 1,000 ft the dial would sit pegged); after a
   go-around it comes back below 300 ft once the airplane has climbed above 500 ft or passed the next marker.
 - LANDED's tag: `−562 FPM · 1.41 G`.
-- Milestone 15 gains the header's altitude and speed on the distance line (D-210, roadmap and `dashboard.md`), with two
-  questions for its plan: Dave's 10,000 ft flight-level line against the transition altitude used elsewhere, and
-  indicated or ground speed.
+- Milestone 15 gains the header's altitude and speed on the distance line (D-210, roadmap and `dashboard.md`):
+  feet below the transition altitude, a flight level above it, and indicated airspeed in knots or Mach (Dave settled
+  both the same day).
 
 **Working / verified:** the tests pass in debug and release with no warnings. Grabs of the KSJC → KSAN replay show the
 radio dial at about 120 ft on short final and `−562 FPM · 1.41 G` after block in.
@@ -40,7 +40,9 @@ radio dial at about 120 ft on short final and `−562 FPM · 1.41 G` after block
 **On your next flight you should see:** the altimeter until about 300 ft on short final, then the 0-500 ft radio dial
 through the flare.
 
-**Next step:** Dave closes milestone 14 (push `main`). Then milestone 15 in a new session.
+**Milestone 14 closed (0.15.1):** Dave reviewed the app and asked for the push; `main` is on `origin`.
+
+**Next step:** milestone 15 in a new session, from `docs/roadmap.md` and D-210.
 
 ## 2026-11-26 — The first flight's fixes (version 0.15.1)
 
