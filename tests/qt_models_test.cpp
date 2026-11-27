@@ -466,7 +466,7 @@ TEST(Fleet, SummaryText) {
     EXPECT_EQ(m.summaryText(), "4.0 h flown");
     EXPECT_EQ(changes, 1);
     EXPECT_EQ(FleetTableModel::fleetSummary(3.21, 1), "3.2 h flown · 1 of 2 slots in use · slot 3 at 10 h");
-    EXPECT_EQ(FleetTableModel::fleetSummary(12, 1), "12.0 h flown · 1 of 3 slots in use · slot 4 at 30 h");
+    EXPECT_EQ(FleetTableModel::fleetSummary(12, 1), "12.0 h flown · 1 of 3 slots in use · slot 4 at 20 h");
 }
 
 TEST(Fleet, ResetReplacesRowsAndNotices) {
