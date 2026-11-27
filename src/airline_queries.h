@@ -22,8 +22,10 @@
 namespace blocktime {
 
 struct AirplaneView {
+    std::int64_t airplaneId = 0;  // lease order
     std::string registration, tailNumber /* "" = none */, typeCode, airframeName, locationIcao;
     int fuelOnBoardLb = 0;
+    Cents monthlyLeaseCents = 0;
     bool awaitingDelivery = false;
     std::optional<Date> returnedOn;  // set once the lease has ended
     std::string returnReason;        // "" while leased, "unpaid"

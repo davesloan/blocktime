@@ -14,7 +14,7 @@ ApplicationWindow {
     required property RecorderBridge recorder
     required property FlightListModel flights
     required property ReviewWriter reviews
-    required property FleetTableModel fleet
+    required property FleetModel fleet
     required property LedgerModel ledger
     required property NewFlightModel newFlight
     required property PlannedFlightModel plannedFlight
@@ -168,12 +168,11 @@ ApplicationWindow {
                 }
 
                 FleetPage {
-                    recorder: window.recorder
                     fleet: window.fleet
-                    plannedFlight: window.plannedFlight
-                    onNewFlightRequested: registration => {
+                    onFlyRequested: registration => {
                         if (window.newFlight.open(registration)) newFlightDialog.open();
                     }
+                    onContinueRequested: sidebar.currentIndex = 0
                 }
 
                 MoneyPage {

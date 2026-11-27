@@ -47,7 +47,7 @@
 #include "review_writer.h"
 #include "error_log.h"
 #include "event_log.h"
-#include "fleet_table_model.h"
+#include "fleet_model.h"
 #include "flight_list_model.h"
 #include "airline_db.h"
 #include "ledger_model.h"
@@ -514,12 +514,6 @@ int main(int argc, char* argv[]) {
     // (D-226). The leases are settled once a flown flight has been
     // (below), and again once a minute, so a month that falls due while the app is open is charged (D-096).
     blocktime::AirlineSession airline = blocktime::AirlineSession::open(blocktime::defaultAirlinePaths());
-    const auto fleetSummary = [&airline] {
-        int inFleet = 0;
-        for (const blocktime::AirplaneView& a : airline.airplanes()) inFleet += a.returnedOn ? 0 : 1;
-        return FleetTableModel::fleetSummary(airline.hoursFlown(), inFleet);
-    };
-    FleetTableModel fleet(airline.airplanes(), toQStringList(airline.notices()), fleetSummary());
     LedgerModel ledger(airline.ledger(), airline.cash());
 
     // Planning (design.md §13.1-13.3): New Flight and the planned flight before departure. Without a database the
@@ -538,6 +532,25 @@ int main(int argc, char* argv[]) {
         return airline.gateContext(planned->typeCode, planned->kind, destination.toStdString());
     });
     const QString airlineIcao = QString::fromStdString(airline.airlineIcao());
+    // The Fleet screen (D-241): the airline, its slots and a card per airplane, marking the planned flight's plane.
+    const auto fleetState = [&airline, &planningDb, airlineIcao] {
+        FleetState s;
+        s.airplanes = airline.airplanes();
+        s.notices = toQStringList(airline.notices());
+        s.hoursFlown = airline.hoursFlown();
+        s.cashCents = airline.cash();
+        s.airlineName = QString::fromStdString(airline.airlineName());
+        s.airlineCode = airlineIcao;
+        s.callsign = QString::fromStdString(airline.airlineCallsign());
+        if (const auto planned = blocktime::currentPlannedFlight(planningDb)) {
+            s.plannedRegistration = QString::fromStdString(planned->registration);
+            s.plannedLeg = QStringLiteral("%1 %2 \u00b7 %3 \u2192 %4")
+                               .arg(airlineIcao, QString::fromStdString(planned->flightNumber),
+                                    QString::fromStdString(planned->origin), QString::fromStdString(planned->destination));
+        }
+        return s;
+    };
+    FleetModel fleet(fleetState());
     // Settled flights from the database, tracks from the log (D-111); refreshed when a flight is settled.
     // Claude's review of each settled flight (D-161): one automatic try after settling, then Retry on the summary.
     // A scratch run (D-226) could settle a pending flight in its copy; it mustn't spend a Claude review on it.
@@ -569,10 +582,18 @@ int main(int argc, char* argv[]) {
     QObject::connect(&reviews, &ReviewWriter::reviewChanged, &flights, &FlightListModel::refreshDebrief);
     // A flight settled: the airplane moved, money was posted and Flights has a new row (D-113).
     QObject::connect(&plannedFlight, &PlannedFlightModel::settled, [&](const QString& logFlightId) {
-        fleet.reset(airline.airplanes(), toQStringList(airline.notices()), fleetSummary());
+        fleet.reset(fleetState());
         ledger.reset(airline.ledger(), airline.cash());
         flights.reload();
         reviews.onSettled(logFlightId, plannedFlight.takeSettledLines());
+    });
+    // A flight planned, cancelled or settled moves the Fleet cards' buttons; the rest of the planned flight's changes
+    // (its plan, its estimate) don't, so the cards are rebuilt only when the planned airplane or leg changes.
+    QObject::connect(&plannedFlight, &PlannedFlightModel::changed, [&] {
+        const FleetState next = fleetState();
+        if (next.plannedRegistration != fleet.plannedRegistration() || next.plannedLeg != fleet.plannedLeg()) {
+            fleet.reset(next);
+        }
     });
     plannedFlight.checkFlown();  // a flight that ended while BlockTime was closed or crashed
     // Flights settle before leases (review 1.4): a flight that blocked in before a lease month is in the cash that
@@ -580,7 +601,7 @@ int main(int argc, char* argv[]) {
     const auto settleAirline = [&] {
         // A model reset rebuilds the views and scrolls them to the top, so only reset when something changed.
         if (!airline.tick(blocktime::utcToday())) return;
-        fleet.reset(airline.airplanes(), toQStringList(airline.notices()), fleetSummary());
+        fleet.reset(fleetState());
         ledger.reset(airline.ledger(), airline.cash());
     };
     settleAirline();

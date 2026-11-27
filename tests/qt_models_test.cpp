@@ -32,7 +32,7 @@
 #include "dashboard_header.h"
 #include "event_feed_model.h"
 #include "flight_watcher.h"
-#include "fleet_table_model.h"
+#include "fleet_model.h"
 #include "ledger_model.h"
 #include "money_lines_qml.h"
 #include "flight_events.h"
@@ -356,129 +356,119 @@ TEST(Bridge, ObserverCallsFromAnotherThreadArriveOnTheGuiThread) {
     EXPECT_EQ(feedText(b, 0), "Connected to sim.");
 }
 
-// --- FleetTableModel ----------------------------------------------------------------------------------------------
+// --- FleetModel (D-241) ------------------------------------------------------------------------------------------
 
 namespace {
 
-AirplaneView plane(const std::string& registration, const std::string& airframe, int fuel) {
+AirplaneView fleetPlane(std::int64_t id, const std::string& registration, const std::string& layout, int fuel,
+                        bool awaitingDelivery, Cents monthly) {
     AirplaneView a;
+    a.airplaneId = id;
     a.registration = registration;
     a.typeCode = "737-800";
-    a.airframeName = airframe;
-    a.locationIcao = "KSAN";
+    a.airframeName = layout;
+    a.locationIcao = awaitingDelivery ? "KBFI" : "KSAN";
     a.fuelOnBoardLb = fuel;
+    a.awaitingDelivery = awaitingDelivery;
+    a.monthlyLeaseCents = monthly;
     return a;
 }
 
-std::vector<AirplaneView> sampleFleet() {
-    return {plane("N880SX", "VIP", 12128), plane("N601SX", "all-economy", 950), plane("N818SX", "Two-class", 3000),
-            plane("N840SX", "Freighter", 0)};
+FleetState sampleFleetState() {
+    FleetState s;
+    AirplaneView returned = fleetPlane(3, "N100SX", "737-800 Two-class", 0, false, 23'500'000);
+    returned.returnedOn = blocktime::Date{std::chrono::year{2026}, std::chrono::month{11}, std::chrono::day{25}};
+    s.airplanes = {fleetPlane(2, "N916SX", "777-300ER Standard", 61000, false, 38'500'000), returned,
+                   fleetPlane(1, "N814SX", "737-800 BBJ2 VIP", 12400, true, 15'000'000)};
+    s.notices = {"No airport data yet."};
+    s.hoursFlown = 23.4;
+    s.cashCents = 398'021'500;
+    s.airlineName = "Soxxly Airlines";
+    s.airlineCode = "XLY";
+    s.callsign = "SOXXLY";
+    return s;
 }
 
-QString cell(const FleetTableModel& m, int row, int column) {
-    return m.data(m.index(row, column), Qt::DisplayRole).toString();
-}
-
-std::vector<QString> column(const FleetTableModel& m, int col) {
-    std::vector<QString> out;
-    for (int r = 0; r < m.rowCount(); ++r) out.push_back(cell(m, r, col));
-    return out;
-}
-
-constexpr Date day(int y, unsigned m, unsigned d) {
-    return Date{std::chrono::year{y}, std::chrono::month{m}, std::chrono::day{d}};
+QVariant role(const FleetModel& m, int row, const char* name) {
+    const auto roles = m.roleNames();
+    for (auto it = roles.begin(); it != roles.end(); ++it) {
+        if (it.value() == name) return m.data(m.index(row), it.key());
+    }
+    return {};
 }
 
 }  // namespace
 
-TEST(Fleet, DefaultsToRegistrationAscending) {
-    FleetTableModel m(sampleFleet(), {});
-    EXPECT_EQ(m.rowCount(), 4);
-    EXPECT_EQ(m.columnCount(), FleetTableModel::ColumnCount);
-    EXPECT_EQ(column(m, FleetTableModel::Registration),
-              (std::vector<QString>{"N601SX", "N818SX", "N840SX", "N880SX"}));
-    EXPECT_EQ(m.headerData(FleetTableModel::Airframe, Qt::Horizontal, Qt::DisplayRole).toString(), "Airframe");
-    EXPECT_EQ(m.headerData(FleetTableModel::Fuel, Qt::Horizontal, Qt::DisplayRole).toString(), "Fuel");
-    EXPECT_FALSE(m.headerData(0, Qt::Vertical, Qt::DisplayRole).isValid());
-}
-
-TEST(Fleet, TextSortIsCaseInsensitive) {
-    FleetTableModel m(sampleFleet(), {});
-    int sortChanges = 0;
-    QObject::connect(&m, &FleetTableModel::sortChanged, [&] { ++sortChanges; });
-    m.sort(FleetTableModel::Airframe, Qt::AscendingOrder);
-    // Case-sensitive order would put "all-economy" last.
-    EXPECT_EQ(column(m, FleetTableModel::Airframe),
-              (std::vector<QString>{"all-economy", "Freighter", "Two-class", "VIP"}));
-    m.sort(FleetTableModel::Airframe, Qt::DescendingOrder);
-    EXPECT_EQ(column(m, FleetTableModel::Airframe),
-              (std::vector<QString>{"VIP", "Two-class", "Freighter", "all-economy"}));
-    EXPECT_EQ(sortChanges, 2);
-}
-
-TEST(Fleet, IgnoresABadSortColumn) {
-    FleetTableModel m(sampleFleet(), {});
-    m.sort(-1);
-    m.sort(FleetTableModel::ColumnCount);
-    EXPECT_EQ(m.sortColumn(), FleetTableModel::Registration);
-    EXPECT_EQ(cell(m, 0, FleetTableModel::Registration), "N601SX");
-}
-
-TEST(Fleet, FuelSortsByNumberAndShowsPounds) {
-    FleetTableModel m(sampleFleet(), {});
-    m.sort(FleetTableModel::Fuel, Qt::AscendingOrder);
-    // Text order would put "12,128 lb" before "3,000 lb".
-    EXPECT_EQ(column(m, FleetTableModel::Fuel), (std::vector<QString>{"0 lb", "950 lb", "3,000 lb", "12,128 lb"}));
-}
-
-TEST(Fleet, StatusText) {
-    std::vector<AirplaneView> rows = sampleFleet();
-    rows[0].awaitingDelivery = true;                // N880SX
-    rows[1].returnedOn = day(2027, 1, 22);          // N601SX
-    rows[1].returnReason = "unpaid";
-    FleetTableModel m(rows, {});
-    EXPECT_EQ(column(m, FleetTableModel::Status),
-              (std::vector<QString>{"Returned 22 Jan 2027", "Parked", "Parked", "Awaiting delivery"}));
-}
-
-TEST(Fleet, FlightsAndHoursColumns) {
-    std::vector<AirplaneView> rows = sampleFleet();
-    rows[0].flights = 3;  // N880SX
-    rows[0].blockHours = 7.25;
-    FleetTableModel m(rows, {});
-    EXPECT_EQ(m.headerData(FleetTableModel::Flights, Qt::Horizontal, Qt::DisplayRole).toString(), "Flights");
-    EXPECT_EQ(m.headerData(FleetTableModel::Hours, Qt::Horizontal, Qt::DisplayRole).toString(), "Hours");
-    EXPECT_EQ(column(m, FleetTableModel::Flights), (std::vector<QString>{"0", "0", "0", "3"}));
-    EXPECT_EQ(column(m, FleetTableModel::Hours), (std::vector<QString>{"0.0", "0.0", "0.0", "7.3"}));
-    m.sort(FleetTableModel::Hours, Qt::DescendingOrder);
-    EXPECT_EQ(cell(m, 0, FleetTableModel::Registration), "N880SX");
-}
-
-TEST(Fleet, SummaryText) {
-    FleetTableModel m(sampleFleet(), {}, "3.2 h flown");
-    EXPECT_EQ(m.summaryText(), "3.2 h flown");
-    int changes = 0;
-    QObject::connect(&m, &FleetTableModel::summaryTextChanged, [&] { ++changes; });
-    m.reset(sampleFleet(), {}, "3.2 h flown");
-    EXPECT_EQ(changes, 0);
-    m.reset(sampleFleet(), {}, "4.0 h flown");
-    EXPECT_EQ(m.summaryText(), "4.0 h flown");
-    EXPECT_EQ(changes, 1);
-    EXPECT_EQ(FleetTableModel::fleetSummary(3.21, 1), "3.2 h flown · 1 of 2 slots in use · slot 3 at 10 h");
-    EXPECT_EQ(FleetTableModel::fleetSummary(12, 1), "12.0 h flown · 1 of 3 slots in use · slot 4 at 20 h");
-}
-
-TEST(Fleet, ResetReplacesRowsAndNotices) {
-    FleetTableModel m(sampleFleet(), {"No airport data yet."});
+TEST(FleetModel, CardsAndSlots) {
+    FleetModel m(sampleFleetState());
+    EXPECT_EQ(m.rowCount(), 2);  // the returned airplane has no card
+    EXPECT_EQ(m.slotsOpen(), 4);
+    EXPECT_EQ(m.slotsMax(), 20);
+    EXPECT_EQ(m.emptySlots(), 2);
+    EXPECT_DOUBLE_EQ(m.nextSlotHours(), 30);
+    EXPECT_NEAR(m.nextSlotProgress(), 0.34, 1e-9);
+    const QVariantList locked = m.lockedSlotHours();
+    ASSERT_EQ(locked.size(), 16);
+    EXPECT_EQ(locked[0].toInt(), 30);
+    EXPECT_EQ(locked[1].toInt(), 40);
+    EXPECT_EQ(locked.last().toInt(), 180);
+    EXPECT_EQ(m.hoursText(), "23.4 h");
+    EXPECT_EQ(m.cashText(), "$3,980,215");
+    EXPECT_EQ(m.leasesText(), "$535,000");  // the two in the fleet
+    EXPECT_EQ(m.airlineName(), "Soxxly Airlines");
     EXPECT_EQ(m.notices(), QStringList{"No airport data yet."});
-    int noticeChanges = 0;
-    QObject::connect(&m, &FleetTableModel::noticesChanged, [&] { ++noticeChanges; });
-    m.sort(FleetTableModel::Fuel, Qt::DescendingOrder);
-    m.reset({plane("N1", "VIP", 5), plane("N2", "VIP", 7)}, {});
-    EXPECT_EQ(m.rowCount(), 2);
-    EXPECT_EQ(cell(m, 0, FleetTableModel::Registration), "N2");  // the sort is kept
-    EXPECT_TRUE(m.notices().isEmpty());
-    EXPECT_EQ(noticeChanges, 1);
+}
+
+TEST(FleetModel, TitleLeadsWithLayoutInLeaseOrder) {
+    FleetModel m(sampleFleetState());
+    EXPECT_EQ(role(m, 0, "registration").toString(), "N814SX");  // leased first
+    EXPECT_EQ(role(m, 0, "title").toString(), "737-800 BBJ2 VIP");
+    EXPECT_EQ(role(m, 0, "place").toString(), "At KBFI \u00b7 12,400 lb");
+    EXPECT_EQ(role(m, 1, "registration").toString(), "N916SX");
+    EXPECT_EQ(role(m, 1, "title").toString(), "777-300ER Standard");
+}
+
+TEST(FleetModel, Buttons) {
+    FleetState s = sampleFleetState();
+    {
+        FleetModel m(s);
+        EXPECT_EQ(role(m, 0, "button").toString(), "Fly Delivery");
+        EXPECT_EQ(role(m, 0, "glyph").toString(), "delivery");
+        EXPECT_TRUE(role(m, 0, "buttonEnabled").toBool());
+        EXPECT_EQ(role(m, 1, "button").toString(), "Fly");
+        EXPECT_EQ(role(m, 1, "glyph").toString(), "ready");
+        EXPECT_EQ(role(m, 1, "leg").toString(), "");
+    }
+    s.plannedRegistration = "N916SX";
+    s.plannedLeg = "XLY 12 \u00b7 KSAN \u2192 KLAX";
+    FleetModel m(s);
+    EXPECT_EQ(role(m, 1, "button").toString(), "Continue Flight");
+    EXPECT_EQ(role(m, 1, "glyph").toString(), "current");
+    EXPECT_TRUE(role(m, 1, "buttonEnabled").toBool());
+    EXPECT_EQ(role(m, 1, "leg").toString(), "XLY 12 \u00b7 KSAN \u2192 KLAX");
+    EXPECT_EQ(role(m, 0, "button").toString(), "Fly Delivery");
+    EXPECT_FALSE(role(m, 0, "buttonEnabled").toBool());  // one flight at a time
+}
+
+TEST(FleetModel, ResetEmitsChanged) {
+    FleetModel m(sampleFleetState());
+    int changes = 0;
+    QObject::connect(&m, &FleetModel::changed, [&] { ++changes; });
+    FleetState s = sampleFleetState();
+    s.hoursFlown = 31;
+    m.reset(s);
+    EXPECT_EQ(changes, 1);
+    EXPECT_EQ(m.slotsOpen(), 5);
+    EXPECT_EQ(m.emptySlots(), 3);
+}
+
+TEST(FleetModel, AllTwentySlotsHaveNoNextSlot) {
+    FleetState s = sampleFleetState();
+    s.hoursFlown = 250;
+    FleetModel m(s);
+    EXPECT_EQ(m.slotsOpen(), 20);
+    EXPECT_TRUE(m.lockedSlotHours().isEmpty());
+    EXPECT_DOUBLE_EQ(m.nextSlotProgress(), 1.0);
 }
 
 // --- LedgerModel --------------------------------------------------------------------------------------------------
@@ -821,10 +811,10 @@ TEST(PlannedFlightModel, OpenDispatchPageRebuildsTheUrl) {
     EXPECT_TRUE(planner.opened[0].contains("&pax=46&")) << planner.opened[0].toStdString();
 }
 
-TEST(Fleet, RegistrationAtRow) {
-    FleetTableModel m({plane("N814SX", "737-800 BBJ2 VIP", 0), plane("N738BT", "737-800 Two-class", 0)}, {});
-    EXPECT_EQ(m.registrationAt(0), "N738BT");  // sorted by registration
-    EXPECT_EQ(m.registrationAt(1), "N814SX");
+TEST(FleetModel, RegistrationAtRow) {
+    FleetModel m(sampleFleetState());
+    EXPECT_EQ(m.registrationAt(0), "N814SX");  // in lease order
+    EXPECT_EQ(m.registrationAt(1), "N916SX");
     EXPECT_EQ(m.registrationAt(5), "");
 }
 

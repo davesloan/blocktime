@@ -248,6 +248,33 @@ QtObject {
     readonly property var atcColumnWeights: [1.3, 1, 0.6, 1.3]
     readonly property int readoutColumns: 4
 
+    // The Fleet screen (D-241): the airline's panel, the airplane cards and the slots.
+    readonly property color glyphReady: good          // a plane Dave can fly now
+    readonly property color glyphDelivery: warn       // awaiting its factory delivery
+    readonly property color glyphCurrent: accent      // the plane with the planned or in-progress flight
+    readonly property color glyphAir: "#4B5563"       // flying a background leg (rotations, later)
+    readonly property color rotation: "#2DD4BF"       // a rotation plane's border and ribbon (later)
+    readonly property color journey: "#A78BFA"        // a journey plane's border and ribbon (later)
+    readonly property color slotLockedBg: "#12161C"
+    readonly property color slotLockedBorder: "#1D232B"
+    readonly property color slotEmptyBorder: "#3A4656"
+    readonly property color slotNextBorder: "#4A3A17"
+    readonly property color cardBorder: "#33404F"
+    readonly property int fleetPanelWidth: 280
+    readonly property int fleetLogoSize: 56
+    readonly property int fleetCardWidth: 270
+    readonly property int fleetCardHeight: 176
+    readonly property int fleetGlyphSize: 52
+    readonly property int lockedTileWidth: 72
+    readonly property int lockedTileHeight: 50
+    readonly property int lockedTilesShown: 7          // then "+N more"
+    readonly property int fontSizeFleetLevel: 30       // "4 / 20"
+    readonly property int fontSizeFleetTitle: 16       // a card's "737-800 Two-class"
+    readonly property int fontSizePlus: 30             // an empty slot's "+"
+    readonly property int progressBarHeight: 8
+    readonly property int dashLength: 4                // an empty slot's dashed border, in stroke widths
+    readonly property int emptySlotBorderWidth: 2
+
     // Window
     readonly property int windowWidth: 1300
     readonly property int windowHeight: 760

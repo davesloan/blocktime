@@ -2,13 +2,14 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// The airline's airplanes from the database, with the airline's notices above them (a missing config file, no
-// airport data, a lease that couldn't be paid). Click a column header to sort by it; click it again to reverse.
-// Click a row to select it, then New Flight (design.md §13.1).
+// The Fleet screen (D-241, docs/fleet.md): the airline as a character sheet on the left (slots open, the next slot,
+// hours, cash, leases, its notices) and its slots on the right: a card per airplane in lease order, the empty slots
+// ("+ Add aircraft") and the locked ones with the hours that open them.
 
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Shapes
 import BlockTime  // explicit, so hot reload from the source folder still sees the module (D-055)
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
@@ -16,232 +17,337 @@ import QtQuick.Layouts
 Item {
     id: page
 
-    required property RecorderBridge recorder
-    required property FleetTableModel fleet
-    required property PlannedFlightModel plannedFlight
+    required property FleetModel fleet
 
-    signal newFlightRequested(string registration)
+    signal flyRequested(string registration)
+    signal continueRequested()
+    signal manageRequested(string registration)
+    signal addRequested()
 
-    property int selectedRow: -1  // the table row, or -1
-    property int hoveredRow: -1   // the row under the mouse, or -1
+    component Stat: RowLayout {
+        id: stat
 
-    // Relative column widths: Registration, Type, Airframe, Location, Fuel, Flights, Hours, Status.
-    readonly property var columnWeights: [1.4, 1.2, 1.3, 1.0, 0.9, 0.85, 0.7, 1.15]
-    readonly property real weightSum: columnWeights.reduce((a, b) => a + b, 0)
-    readonly property var numberColumns: [4, 5, 6]  // Fuel, Flights, Hours: right-aligned
-    readonly property int statusColumn: 7
+        required property string label
+        required property string value
 
-    Card {
+        Layout.fillWidth: true
+
+        Text {
+            Layout.fillWidth: true
+            text: stat.label
+            color: Theme.textSecondary
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeBody
+        }
+
+        Text {
+            text: stat.value
+            color: Theme.textPrimary
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeBody
+        }
+    }
+
+    RowLayout {
         anchors.fill: parent
         anchors.margins: Theme.pagePadding
-        title: "Fleet · " + table.rows + (table.rows === 1 ? " airplane" : " airplanes")
+        spacing: Theme.spacing
 
-        Connections {
-            target: page.fleet
+        // The airline: the character.
+        Rectangle {
+            Layout.preferredWidth: Theme.fleetPanelWidth
+            Layout.alignment: Qt.AlignTop
+            implicitHeight: panel.implicitHeight + 2 * Theme.spacing
+            radius: Theme.radius
+            color: Theme.surface
+            border.color: Theme.border
+            border.width: Theme.borderWidth
 
-            // Rows move when the table is sorted or refreshed: drop the selection rather than point at another row.
-            function onSortChanged() { page.selectedRow = -1; }
-            function onModelReset() { page.selectedRow = -1; }
-        }
+            ColumnLayout {
+                id: panel
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.gap12
+                anchors.fill: parent
+                anchors.margins: Theme.spacing
+                spacing: Theme.gap14
 
-            Text {
-                Layout.fillWidth: true
-                text: page.plannedFlight.hasFlight
-                      ? page.plannedFlight.title.replace(" · ", " ").replace(" → ", "–") + " is planned (Live)"
-                      : page.selectedRow < 0 ? "Select an airplane to plan its next flight." : ""
-                color: Theme.textSecondary
-                elide: Text.ElideRight
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeBody
-            }
+                RowLayout {
+                    spacing: Theme.gap12
 
-            PrimaryButton {
-                text: "New Flight"
-                enabled: page.selectedRow >= 0 && !page.plannedFlight.hasFlight
-                onClicked: page.newFlightRequested(page.fleet.registrationAt(page.selectedRow))
-            }
-        }
+                    Rectangle {
+                        implicitWidth: Theme.fleetLogoSize
+                        implicitHeight: Theme.fleetLogoSize
+                        radius: Theme.radius
+                        color: Theme.accent
 
-        // Dave's hours and the fleet slots they earn (design.md §6).
-        Text {
-            Layout.fillWidth: true
-            visible: text !== ""
-            text: page.fleet.summaryText
-            color: Theme.textSecondary
-            elide: Text.ElideRight
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSizeBody
-        }
+                        Text {
+                            anchors.centerIn: parent
+                            text: page.fleet.airlineCode
+                            color: Theme.textOnAccent
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeTitle
+                            font.weight: Font.Bold
+                        }
+                    }
 
-        // The airline's notices, one line each.
-        Repeater {
-            model: page.fleet.notices
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.gap2
 
-            Text {
-                required property string modelData
+                        Text {
+                            Layout.fillWidth: true
+                            text: page.fleet.airlineName
+                            elide: Text.ElideRight
+                            color: Theme.textPrimary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeFleetTitle
+                            font.weight: Font.DemiBold
+                        }
 
-                Layout.fillWidth: true
-                text: modelData
-                color: Theme.warn
-                wrapMode: Text.WordWrap
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeBody
-            }
-        }
-
-        Text {
-            visible: table.rows === 0 && page.fleet.notices.length === 0
-            text: "No airplanes yet."
-            color: Theme.textSecondary
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSizeBody
-        }
-
-        HorizontalHeaderView {
-            id: header
-
-            Layout.fillWidth: true
-            Layout.preferredHeight: Theme.tableHeaderHeight
-            syncView: table
-            clip: true
-            boundsBehavior: Flickable.StopAtBounds
-
-            delegate: Rectangle {
-                id: headerCell
-
-                required property string display
-                required property int column
-
-                readonly property bool sorted: page.fleet.sortColumn === column
-
-                implicitHeight: Theme.tableHeaderHeight
-                color: "transparent"
-
-                Rectangle {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    height: Theme.hairline
-                    color: Theme.border
+                        Text {
+                            text: page.fleet.airlineCode + " · " + page.fleet.callsign
+                            color: Theme.textSecondary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSmall
+                        }
+                    }
                 }
 
-                Text {
-                    anchors.fill: parent
-                    anchors.leftMargin: Theme.gap12
-                    anchors.rightMargin: Theme.gap12
-                    verticalAlignment: Text.AlignVCenter
-                    horizontalAlignment: page.numberColumns.includes(headerCell.column) ? Text.AlignRight : Text.AlignLeft
-                    text: headerCell.display.toUpperCase()
-                          + (headerCell.sorted ? (page.fleet.sortOrder === Qt.AscendingOrder ? "  ▲" : "  ▼") : "")
-                    color: headerCell.sorted ? Theme.textPrimary : Theme.textSecondary
-                    elide: Text.ElideRight
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeLabel
-                    font.weight: Font.DemiBold
-                    font.letterSpacing: Theme.labelLetterSpacing
+                ColumnLayout {
+                    spacing: Theme.gap2
+
+                    Text {
+                        text: "Slots open"
+                        color: Theme.textSecondary
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeSmall
+                    }
+
+                    Text {
+                        textFormat: Text.StyledText
+                        text: page.fleet.slotsOpen + " <font color=\"" + Theme.textSecondary + "\">/ "
+                              + page.fleet.slotsMax + "</font>"
+                        color: Theme.textPrimary
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeFleetLevel
+                        font.weight: Font.Bold
+                    }
                 }
 
-                TapHandler {
-                    onTapped: page.fleet.sort(headerCell.column,
-                                              headerCell.sorted && page.fleet.sortOrder === Qt.AscendingOrder
-                                              ? Qt.DescendingOrder : Qt.AscendingOrder)
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.gap6
+
+                    Stat {
+                        label: "Next slot"
+                        value: page.fleet.nextSlotText
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: Theme.progressBarHeight
+                        radius: height / 2
+                        color: Theme.surfaceRaised
+                        border.color: Theme.border
+                        border.width: Theme.borderWidth
+
+                        Rectangle {
+                            width: parent.width * page.fleet.nextSlotProgress
+                            height: parent.height
+                            radius: parent.radius
+                            color: Theme.accent
+                        }
+                    }
+                }
+
+                Stat {
+                    label: "Hours flown"
+                    value: page.fleet.hoursText
+                }
+
+                Stat {
+                    label: "Cash"
+                    value: page.fleet.cashText
+                }
+
+                Stat {
+                    label: "Leases / month"
+                    value: page.fleet.leasesText
+                }
+
+                // The airline's notices, one line each: a missing config file, no airport data, an unpaid lease.
+                Repeater {
+                    model: page.fleet.notices
+
+                    Text {
+                        required property string modelData
+
+                        Layout.fillWidth: true
+                        text: modelData
+                        color: Theme.warn
+                        wrapMode: Text.WordWrap
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeSmall
+                    }
                 }
             }
         }
 
-        TableView {
-            id: table
+        // The slots: the gear.
+        Flickable {
+            id: slots
 
             Layout.fillWidth: true
             Layout.fillHeight: true
+            contentHeight: slotColumn.implicitHeight
             clip: true
             boundsBehavior: Flickable.StopAtBounds
-            model: page.fleet
-            columnWidthProvider: column => Math.floor(table.width * page.columnWeights[column] / page.weightSum)
-            onWidthChanged: forceLayout()
             ScrollBar.vertical: ScrollBar {}
 
-            // Rows light up under the mouse, so it's clear they can be clicked (Dave, milestone 5 checks).
-            HoverHandler {
-                cursorShape: Qt.PointingHandCursor
-                onPointChanged: page.hoveredRow = hovered
-                                ? table.cellAtPosition(table.mapToItem(table.contentItem, point.position)).y : -1
-                onHoveredChanged: if (!hovered) page.hoveredRow = -1
-            }
+            ColumnLayout {
+                id: slotColumn
 
-            delegate: Rectangle {
-                id: cell
+                width: slots.width
+                spacing: Theme.gap12
 
-                required property string display
-                required property int row
-                required property int column
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.gap12
 
-                readonly property bool selected: row === page.selectedRow
-                readonly property bool isStatus: column === page.statusColumn
-                readonly property bool isNumber: page.numberColumns.includes(column)
-                readonly property color tone: display === "Parked" ? Theme.good
-                                            : display.startsWith("Returned") ? Theme.bad : Theme.accent
+                    Repeater {
+                        model: page.fleet
 
-                implicitHeight: Theme.tableRowHeight
-                color: selected ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.14)
-                     : row === page.hoveredRow ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.07)
-                     : row % 2 === 0 ? Theme.surface : Theme.surfaceRaised
+                        FleetCard {
+                            onMainClicked: {
+                                if (button === "Continue Flight") page.continueRequested();
+                                else page.flyRequested(registration);
+                            }
+                            onManageClicked: page.manageRequested(registration)
+                        }
+                    }
 
-                Rectangle {
-                    visible: cell.selected && cell.column === 0
-                    anchors.left: parent.left
-                    anchors.top: parent.top
-                    anchors.bottom: parent.bottom
-                    width: Theme.accentBarWidth
-                    color: Theme.accent
+                    Repeater {
+                        model: page.fleet.emptySlots
+
+                        Item {
+                            implicitWidth: Theme.fleetCardWidth
+                            implicitHeight: Theme.fleetCardHeight
+
+                            Shape {
+                                anchors.fill: parent
+                                preferredRendererType: Shape.CurveRenderer
+
+                                ShapePath {
+                                    strokeColor: emptyArea.containsMouse ? Theme.accent : Theme.slotEmptyBorder
+                                    strokeWidth: Theme.emptySlotBorderWidth
+                                    strokeStyle: ShapePath.DashLine
+                                    dashPattern: [Theme.dashLength, Theme.dashLength]
+                                    fillColor: "transparent"
+
+                                    PathRectangle {
+                                        x: Theme.emptySlotBorderWidth / 2
+                                        y: Theme.emptySlotBorderWidth / 2
+                                        width: Theme.fleetCardWidth - Theme.emptySlotBorderWidth
+                                        height: Theme.fleetCardHeight - Theme.emptySlotBorderWidth
+                                        radius: Theme.radius
+                                    }
+                                }
+                            }
+
+                            ColumnLayout {
+                                anchors.centerIn: parent
+                                spacing: Theme.gap4
+
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: "+"
+                                    color: emptyArea.containsMouse ? Theme.textPrimary : Theme.textSecondary
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizePlus
+                                    font.weight: Font.Light
+                                }
+
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: "Add aircraft"
+                                    color: emptyArea.containsMouse ? Theme.textPrimary : Theme.textSecondary
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeBody
+                                }
+                            }
+
+                            MouseArea {
+                                id: emptyArea
+
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: page.addRequested()
+                            }
+                        }
+                    }
                 }
 
-                TapHandler {
-                    onTapped: page.selectedRow = cell.row
-                }
+                // The locked slots: the hours that open them, the next one amber; then how many more.
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.gap8
+                    visible: page.fleet.lockedSlotHours.length > 0
 
-                Text {
-                    anchors.fill: parent
-                    anchors.leftMargin: Theme.gap12
-                    anchors.rightMargin: Theme.gap12
-                    visible: !cell.isStatus
-                    verticalAlignment: Text.AlignVCenter
-                    horizontalAlignment: cell.isNumber ? Text.AlignRight : Text.AlignLeft
-                    text: cell.display
-                    color: cell.column === 0 ? Theme.textPrimary : Theme.textSecondary
-                    elide: Text.ElideRight
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeBody
-                    font.weight: cell.column === 0 ? Font.DemiBold : Font.Normal
-                    font.features: { "tnum": 1 }
-                }
+                    Repeater {
+                        model: page.fleet.lockedSlotHours.slice(0, Theme.lockedTilesShown)
 
-                // Status as a small pill: Parked, Awaiting delivery, or Returned (the lease ended).
-                Rectangle {
-                    anchors.left: parent.left
-                    anchors.leftMargin: Theme.gap12
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: cell.isStatus
-                    width: statusText.implicitWidth + 2 * Theme.gap8
-                    height: Theme.badgeHeight
-                    radius: Theme.badgeHeight / 2
-                    color: Qt.rgba(cell.tone.r, cell.tone.g, cell.tone.b, 0.12)
-                    border.color: Qt.rgba(cell.tone.r, cell.tone.g, cell.tone.b, 0.35)
-                    border.width: Theme.borderWidth
+                        Rectangle {
+                            id: tile
 
-                    Text {
-                        id: statusText
+                            required property int modelData
+                            required property int index
 
-                        anchors.centerIn: parent
-                        text: cell.display
-                        color: cell.tone
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSmall
-                        font.weight: Font.DemiBold
+                            implicitWidth: Theme.lockedTileWidth
+                            implicitHeight: Theme.lockedTileHeight
+                            radius: Theme.radius
+                            color: Theme.slotLockedBg
+                            border.color: tile.index === 0 ? Theme.slotNextBorder : Theme.slotLockedBorder
+                            border.width: Theme.borderWidth
+
+                            ColumnLayout {
+                                anchors.centerIn: parent
+                                spacing: Theme.gap2
+
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: ""  // Lock
+                                    color: tile.index === 0 ? Theme.warn : Theme.textMuted
+                                    font.family: Theme.iconFontFamily
+                                    font.pixelSize: Theme.fontSizeSmall
+                                }
+
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: tile.modelData + " h"
+                                    color: tile.index === 0 ? Theme.warn : Theme.textMuted
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeSmall
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        visible: page.fleet.lockedSlotHours.length > Theme.lockedTilesShown
+                        implicitWidth: Theme.lockedTileWidth
+                        implicitHeight: Theme.lockedTileHeight
+                        radius: Theme.radius
+                        color: Theme.slotLockedBg
+                        border.color: Theme.slotLockedBorder
+                        border.width: Theme.borderWidth
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "+" + (page.fleet.lockedSlotHours.length - Theme.lockedTilesShown) + " more"
+                            color: Theme.textMuted
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSmall
+                        }
                     }
                 }
             }
