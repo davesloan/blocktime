@@ -51,6 +51,9 @@ struct InFlightFacts {  // what the readouts need; the model fills it from the l
     int touchdownFpm = 0;                              // the sink rate, positive
     double touchdownG = 0;                             // the touchdown's G; 0 = not logged
     std::string gate;                                  // arrival_gate's `gate` ("Gate 4"); ""
+    // The predictions (D-192): distances to go, and local times the Qt model formats ("11:01 AM"); none = a dash.
+    std::optional<int> tocNm, todNm, fuelAtLandingLb, planLandingFuelLb;
+    std::string tocTime, todTime, landingTime, planLandingTime;
 };
 
 std::vector<ReadoutView> inFlightReadouts(PanelPhase phase, const InFlightFacts& f);

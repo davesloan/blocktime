@@ -79,6 +79,18 @@ ReadoutView fuel(const char* value) {
     return v;
 }
 
+// The predictions' readouts tick in place, never flip (D-213).
+ReadoutView ticking(ReadoutView v) {
+    v.ticks = true;
+    return v;
+}
+ReadoutView toc(const char* nm = "", const char* at = "") { return ticking(r("TOP OF CLIMB", nm, "NM", at)); }
+ReadoutView tod(const char* nm = "", const char* at = "") { return ticking(r("TOP OF DESCENT", nm, "NM", at)); }
+ReadoutView landingAt(const char* at = "", const char* plan = "") { return ticking(r("LANDING", at, "", plan)); }
+ReadoutView fuelAtLanding(const char* lb = "", const char* plan = "") {
+    return ticking(r("FUEL AT LANDING", lb, "LB", plan));
+}
+
 std::vector<ReadoutView> withEmergency(const char* fuelValue, std::vector<ReadoutView> rest) {
     std::vector<ReadoutView> out{souls(), fuel(fuelValue)};
     out.insert(out.end(), rest.begin(), rest.end());
@@ -120,7 +132,39 @@ TEST(InFlightReadouts, DepartureRunwayChangedIsFlagged) {
 }
 
 TEST(InFlightReadouts, Climb) {
-    EXPECT_EQ(inFlightReadouts(PanelPhase::Climb, ksanKsjc()), withEmergency("1:34", {r("CRUISE", "FL400")}));
+    EXPECT_EQ(inFlightReadouts(PanelPhase::Climb, ksanKsjc()),
+              withEmergency("1:34", {r("CRUISE", "FL400"), toc(), tod(), landingAt()}));
+}
+
+// D-192, D-213: the predictions in the climb.
+TEST(InFlightReadouts, ClimbPredictions) {
+    InFlightFacts f = ksanKsjc();
+    f.tocNm = 42;
+    f.tocTime = "11:01 AM";
+    f.todNm = 180;
+    f.todTime = "11:22 AM";
+    f.landingTime = "12:20 PM";
+    f.planLandingTime = "12:24 PM";
+    EXPECT_EQ(inFlightReadouts(PanelPhase::Climb, f),
+              withEmergency("1:34", {r("CRUISE", "FL400"), toc("42", "11:01 AM"), tod("180", "11:22 AM"),
+                                     landingAt("12:20 PM", "PLAN 12:24 PM")}));
+}
+
+// Two rows of four in the cruise.
+TEST(InFlightReadouts, CruisePredictions) {
+    InFlightFacts f = ksanKsjc();
+    f.destinationAtis = &kKsjcAtis;
+    f.gate = "Gate 4";
+    f.todNm = 63;
+    f.todTime = "11:22 AM";
+    f.landingTime = "12:20 PM";
+    f.planLandingTime = "12:24 PM";
+    f.fuelAtLandingLb = 6380;
+    f.planLandingFuelLb = 6175;
+    EXPECT_EQ(inFlightReadouts(PanelPhase::Cruise, f),
+              withEmergency("1:34", {r("CRUISE", "FL400"), words(r("DEST ATIS", "JULIETT", "", "30L 30R")),
+                                     tod("63", "11:22 AM"), landingAt("12:20 PM", "PLAN 12:24 PM"),
+                                     fuelAtLanding("6,380", "PLAN 6,175"), r("ARR GATE", "4")}));
 }
 
 TEST(InFlightReadouts, Cruise) {
@@ -128,13 +172,14 @@ TEST(InFlightReadouts, Cruise) {
     f.destinationAtis = &kKsjcAtis;
     f.gate = "Gate 4";  // SayIntentions' pick, usually in cruise (0.15.1)
     EXPECT_EQ(inFlightReadouts(PanelPhase::Cruise, f),
-              withEmergency("1:34", {r("CRUISE", "FL400"), words(r("DEST ATIS", "JULIETT", "", "30L 30R")),
-                                     r("ARR GATE", "4")}));
+              withEmergency("1:34", {r("CRUISE", "FL400"), words(r("DEST ATIS", "JULIETT", "", "30L 30R")), tod(),
+                                     landingAt(), fuelAtLanding(), r("ARR GATE", "4")}));
 }
 
 TEST(InFlightReadouts, CruiseBeforeDestAtis) {
     EXPECT_EQ(inFlightReadouts(PanelPhase::Cruise, ksanKsjc()),
-              withEmergency("1:34", {r("CRUISE", "FL400"), words(r("DEST ATIS", "")), r("ARR GATE", "")}));
+              withEmergency("1:34", {r("CRUISE", "FL400"), words(r("DEST ATIS", "")), tod(), landingAt(),
+                                     fuelAtLanding(), r("ARR GATE", "")}));
 }
 
 TEST(InFlightReadouts, Arrival) {

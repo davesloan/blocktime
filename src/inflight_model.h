@@ -22,6 +22,7 @@
 
 #include "altitude_face.h"
 #include "atc_card.h"
+#include "dashboard_header.h"
 #include "lamps.h"
 #include "planned_flight_display.h"
 #include "preflight_log.h"
@@ -42,7 +43,8 @@ class InFlightModel : public QObject {
     Q_PROPERTY(QString speedFace READ speedFace NOTIFY changed)     // "gs" on the ground below 40 kt, else "ias"
     Q_PROPERTY(double speedKt READ speedKt NOTIFY changed)
     Q_PROPERTY(QString machText READ machText NOTIFY changed)       // ".78"; "" low down
-    Q_PROPERTY(double vrefBugKt READ vrefBugKt NOTIFY changed)      // -1: no bug (only from Approach to touchdown)
+    // The amber bug: VREF from Approach to touchdown, else the plan's cruise IAS in cruise (D-213); -1: none
+    Q_PROPERTY(double speedBugKt READ speedBugKt NOTIFY changed)
     Q_PROPERTY(double altitudeFt READ altitudeFt NOTIFY changed)
     Q_PROPERTY(QString altimeterSetting READ altimeterSetting NOTIFY changed)  // "STD", "30.09", "1013"; ""
     Q_PROPERTY(QString altitudeFace READ altitudeFace NOTIFY changed)          // "altimeter" or "radio" (D-203)
@@ -52,6 +54,7 @@ class InFlightModel : public QObject {
     Q_PROPERTY(double fuelScaleLb READ fuelScaleLb NOTIFY changed)  // the block-out fuel rounded up to 6,000 lb
     Q_PROPERTY(double lowFuelLb READ lowFuelLb NOTIFY changed)      // the plan's final reserve; 0 = no arc
     Q_PROPERTY(QString fuelText READ fuelText NOTIFY changed)       // "7,410": the gauge's window
+    Q_PROPERTY(double planFuelLb READ planFuelLb NOTIFY changed)    // the plan's fuel here: the gauge's bug; -1 = none
     // [{title, value, aside, latest, spacer}]: aside is the local time when the slot has no qualifier
     Q_PROPERTY(QVariantList atcSlots READ atcSlots NOTIFY changed)
     Q_PROPERTY(QString phaseTitle READ phaseTitle NOTIFY changed)   // "DEPARTURE", "CLIMB", … "LANDED"
@@ -59,9 +62,10 @@ class InFlightModel : public QObject {
     Q_PROPERTY(QVariantList readouts READ readouts NOTIFY changed)
 
 public:
-    // vipAttendantsTimes: rates.yaml's VIP flight attendant multiple, for SOULS.
+    // vipAttendantsTimes: rates.yaml's VIP flight attendant multiple, for SOULS. `header` gives the predictions
+    // (D-192); without one the prediction readouts show a dash and the plan's bugs don't show.
     InFlightModel(RecorderBridge& bridge, PlannedFlightDisplay& planned, int vipAttendantsTimes,
-                  QObject* parent = nullptr);
+                  const DashboardHeader* header = nullptr, QObject* parent = nullptr);
 
     // A burst of lines (a replay seek or restart) goes between these: animate is off from the first, and comes back
     // on only after everything the burst queued (the cards' Qt.callLater checks) has run, so nothing flips (D-198).
@@ -79,7 +83,7 @@ public:
     QString speedFace() const;
     double speedKt() const;
     QString machText() const;
-    double vrefBugKt() const;
+    double speedBugKt() const;
     double altitudeFt() const { return bridge_.altitudeFt(); }
     QString altimeterSetting() const;
     QString altitudeFace() const { return face_.radio() ? QStringLiteral("radio") : QStringLiteral("altimeter"); }
@@ -89,6 +93,7 @@ public:
     double fuelScaleLb() const;
     double lowFuelLb() const;
     QString fuelText() const;
+    double planFuelLb() const;
     QVariantList atcSlots() const { return atcSlots_; }
     QString phaseTitle() const { return phaseTitle_; }
     QVariantList readouts() const { return readouts_; }
@@ -104,9 +109,20 @@ private:
     void onBlockEvent(const QString& type);
     void onSample();
     void rebuild();  // the lists from the parts, then `changed`
+    void onHeaderChanged();  // rebuilds only when what the panel shows of the predictions changed
+
+    // What the panel shows of the header's predictions, formatted.
+    struct Predicted {
+        std::optional<int> tocNm, todNm, fuelAtLandingLb, planLandingFuelLb, planFuelLb, cruiseSpeedKt;
+        std::string tocTime, todTime, landingTime, planLandingTime;
+        bool operator==(const Predicted&) const = default;
+    };
+    Predicted predicted() const;
 
     RecorderBridge& bridge_;
     PlannedFlightDisplay& planned_;
+    const DashboardHeader* header_;
+    Predicted predicted_;
     int vipAttendantsTimes_;
     blocktime::PlannedFlightView flight_;
     bool hasFlight_ = false;

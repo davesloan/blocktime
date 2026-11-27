@@ -123,7 +123,7 @@ InstrumentPanel {
                         face: speedCard.shown ?? "gs"
                         speedKt: panel.model.speedKt
                         machText: panel.model.machText
-                        bugKt: panel.model.vrefBugKt
+                        bugKt: panel.model.speedBugKt
                         glide: panel.model.animate
                     }
                 }
@@ -175,6 +175,7 @@ InstrumentPanel {
                     scaleLb: panel.model.fuelScaleLb
                     lowLb: panel.model.lowFuelLb
                     text: panel.model.fuelText
+                    bugLb: panel.model.planFuelLb
                     glide: panel.model.animate
                 }
             }

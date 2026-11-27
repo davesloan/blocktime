@@ -69,7 +69,8 @@ void ReplaySession::makeBridge() {
     header_ = new DashboardHeader(*bridge_, *planned_, airlineIcao_, airlineName_,
                                   [view = view_](const QString&) { return view; }, this);
     preflight_ = new PreFlightModel(*bridge_, *planned_, this);
-    inflight_ = new InFlightModel(*bridge_, *planned_, static_cast<int>(rates_.vipFlightAttendantsTimes), this);
+    inflight_ =
+        new InFlightModel(*bridge_, *planned_, static_cast<int>(rates_.vipFlightAttendantsTimes), header_, this);
 }
 
 void ReplaySession::setSpeed(double speed) {

@@ -2999,7 +2999,7 @@ TEST(InFlightModel, SpeedFaceSwitchesAt40Kt) {
     EXPECT_EQ(m.speedFace(), "gs");
 }
 
-TEST(InFlightModel, VrefBugOnlyOnApproach) {
+TEST(InFlightModel, SpeedBugVrefOnlyOnApproach) {
     qtApp();
     RecorderBridge b;
     ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
@@ -3007,11 +3007,11 @@ TEST(InFlightModel, VrefBugOnlyOnApproach) {
     blockOutOf(b);
     b.applyFlightEvent("cockpit", variantOf({{"pmdg", true}, {"seat_belts", 2}, {"vref_kt", 129}, {"landing_flaps", 40}}));
     b.applyFlightEvent("phase_changed", variantOf({{"phase", "climb"}}));
-    EXPECT_DOUBLE_EQ(m.vrefBugKt(), -1);
+    EXPECT_DOUBLE_EQ(m.speedBugKt(), -1);
     b.applyFlightEvent("phase_changed", variantOf({{"phase", "approach"}}));
-    EXPECT_DOUBLE_EQ(m.vrefBugKt(), 129);
+    EXPECT_DOUBLE_EQ(m.speedBugKt(), 129);
     b.applyFlightEvent("touchdown", variantOf({{"time", "2026-11-25T19:58:59.431Z"}, {"vs_fpm", -100.0}}));
-    EXPECT_DOUBLE_EQ(m.vrefBugKt(), -1);
+    EXPECT_DOUBLE_EQ(m.speedBugKt(), -1);
 }
 
 TEST(InFlightModel, FlashRunsOnlyWhileWrong) {
@@ -3156,4 +3156,74 @@ TEST(InFlightModel, InterruptedFlightStartsTheLampsAgain) {
     for (const QVariant& lamp : m.lamps()) {
         EXPECT_FALSE(lamp.toMap()["wrong"].toBool()) << lamp.toMap()["name"].toString().toStdString();
     }
+}
+
+// ---- The predictions on the in-flight panel (milestone 15, D-192, D-213) ----
+
+namespace {
+
+QVariantMap readoutTitled(const InFlightModel& m, const char* title) {
+    for (const QVariant& v : m.readouts()) {
+        if (v.toMap()["title"].toString() == title) return v.toMap();
+    }
+    return {};
+}
+
+}  // namespace
+
+// The airspeed gauge's bug: the plan's cruise IAS in cruise, VREF on approach, none in the climb.
+TEST(InFlightModel, SpeedBug) {
+    qtApp();
+    const PlannedFlightView v = ksjcView();
+    HeaderRig r(v);
+    InFlightModel m(r.b, r.f, 3, &r.h);
+    r.blockOut();
+    r.now += std::chrono::seconds(540);
+    r.liftoff();
+    r.phase("climb");
+    for (std::size_t k = 0; k <= 5; ++k) r.at(v.planFixes[k].at.lat, v.planFixes[k].at.lon);  // to TOC
+    EXPECT_DOUBLE_EQ(m.speedBugKt(), -1);
+    r.phase("cruise");
+    r.at(v.planFixes[5].at.lat, v.planFixes[5].at.lon);
+    EXPECT_DOUBLE_EQ(m.speedBugKt(), 240);  // TESEA's planned IAS, the next fix
+    r.b.applyFlightEvent("cockpit", variantOf({{"pmdg", true}, {"vref_kt", 129}, {"landing_flaps", 40}}));
+    r.phase("approach");
+    EXPECT_DOUBLE_EQ(m.speedBugKt(), 129);
+}
+
+// The fuel gauge's bug: the plan's fuel here, from block out to touchdown.
+TEST(InFlightModel, PlanFuelBug) {
+    qtApp();
+    HeaderRig r(ksjcView());
+    InFlightModel m(r.b, r.f, 3, &r.h);
+    EXPECT_DOUBLE_EQ(m.planFuelLb(), -1);  // at the gate the panel isn't up
+    r.blockOut();
+    r.at(32.7336, -117.19, 17, 0, 0);
+    EXPECT_DOUBLE_EQ(m.planFuelLb(), 13439 - 500);  // the takeoff fuel
+    r.now += std::chrono::seconds(540);
+    r.liftoff();
+    r.now += std::chrono::seconds(3600);
+    r.b.applyFlightEvent("touchdown", {{"time", HeaderRig::isoAt(r.now)}, {"vs_fpm", -100.0}});
+    EXPECT_DOUBLE_EQ(m.planFuelLb(), -1);
+}
+
+TEST(InFlightModel, PredictionReadoutsFollowTheHeader) {
+    qtApp();
+    const PlannedFlightView v = ksjcView();
+    HeaderRig r(v);
+    InFlightModel m(r.b, r.f, 3, &r.h);
+    r.blockOut();
+    r.now += std::chrono::seconds(540);
+    r.liftoff();
+    r.phase("climb");
+    r.at(v.planFixes[0].at.lat, v.planFixes[0].at.lon);
+    const QVariantMap first = readoutTitled(m, "TOP OF DESCENT");
+    ASSERT_FALSE(first["value"].toString().isEmpty());
+    ASSERT_TRUE(first["ticks"].toBool());
+    r.now += std::chrono::minutes(5);
+    emit r.h.changed();  // the header's one-second tick, with no new sample
+    const QVariantMap later = readoutTitled(m, "TOP OF DESCENT");
+    EXPECT_EQ(later["value"], first["value"]);
+    EXPECT_NE(later["tag"], first["tag"]);  // the time slipped 5 minutes
+    EXPECT_FALSE(readoutTitled(m, "LANDING")["tag"].toString().isEmpty());  // PLAN …
 }

@@ -11,6 +11,7 @@
 #include <QDateTime>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QTimeZone>
 
 #include "atc_message.h"
 #include "cockpit_reading.h"
@@ -34,6 +35,17 @@ QString q(const std::string& s) { return QString::fromStdString(s); }
 nlohmann::json jsonOf(const QVariantMap& data) {
     const QByteArray json = QJsonDocument(QJsonObject::fromVariantMap(data)).toJson(QJsonDocument::Compact);
     return nlohmann::json::parse(json.toStdString(), nullptr, false);
+}
+
+QString localTime(TimePoint t) {
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t.time_since_epoch()).count();
+    return QDateTime::fromMSecsSinceEpoch(ms, QTimeZone::UTC).toLocalTime().toString("h:mm AP");
+}
+
+std::string localText(const std::optional<TimePoint>& t) { return t ? localTime(*t).toStdString() : std::string(); }
+
+std::optional<int> roundedNm(const std::optional<double>& nm) {
+    return nm ? std::optional<int>(static_cast<int>(std::lround(*nm))) : std::nullopt;
 }
 
 // "2026-11-25T18:57:56Z" → "10:57 AM" in the PC's time zone.
@@ -68,8 +80,8 @@ const char* phaseTitleOf(PanelPhase p) {
 }  // namespace
 
 InFlightModel::InFlightModel(RecorderBridge& bridge, PlannedFlightDisplay& planned, int vipAttendantsTimes,
-                             QObject* parent)
-    : QObject(parent), bridge_(bridge), planned_(planned), vipAttendantsTimes_(vipAttendantsTimes) {
+                             const DashboardHeader* header, QObject* parent)
+    : QObject(parent), bridge_(bridge), planned_(planned), header_(header), vipAttendantsTimes_(vipAttendantsTimes) {
     flash_.setInterval(1000);  // 1 s lit, 1 s dark (D-195)
     connect(&flash_, &QTimer::timeout, this, [this] {
         flashOn_ = !flashOn_;
@@ -80,6 +92,7 @@ InFlightModel::InFlightModel(RecorderBridge& bridge, PlannedFlightDisplay& plann
     connect(&bridge_, &RecorderBridge::blockEvent, this, [this](const QString& type) { onBlockEvent(type); });
     connect(&bridge_, &RecorderBridge::sampleChanged, this, &InFlightModel::onSample);
     connect(&bridge_, &RecorderBridge::flightChanged, this, &InFlightModel::rebuild);
+    if (header_) connect(header_, &DashboardHeader::changed, this, &InFlightModel::onHeaderChanged);
     refreshFlight();
     // The first fill isn't a change: animate comes on once the event loop runs, unless a replay's burst began.
     QTimer::singleShot(0, this, [this] {
@@ -238,11 +251,39 @@ double InFlightModel::speedKt() const {
 
 QString InFlightModel::machText() const { return bridge_.showMach() ? bridge_.machText() : QString(); }
 
-double InFlightModel::vrefBugKt() const {
+double InFlightModel::speedBugKt() const {
     const bool approaching = phase_ == "approach" || phase_ == "go_around" || onFinal_;
-    if (!approaching || touchedDown_ || !cockpit_) return -1;
-    const double vref = number(*cockpit_, "vref_kt");
-    return vref > 0 ? vref : -1;
+    if (approaching) {
+        if (touchedDown_ || !cockpit_) return -1;
+        const double vref = number(*cockpit_, "vref_kt");
+        return vref > 0 ? vref : -1;
+    }
+    return predicted_.cruiseSpeedKt ? *predicted_.cruiseSpeedKt : -1;
+}
+
+double InFlightModel::planFuelLb() const {
+    return bridge_.flightOpen() && predicted_.planFuelLb ? *predicted_.planFuelLb : -1;
+}
+
+InFlightModel::Predicted InFlightModel::predicted() const {
+    Predicted p;
+    if (!header_) return p;
+    const Predictions now = header_->predictions();
+    p.tocNm = roundedNm(now.tocNm);
+    p.todNm = roundedNm(now.todNm);
+    p.tocTime = localText(now.tocAt);
+    p.todTime = localText(now.todAt);
+    p.landingTime = localText(now.landing);
+    p.planLandingTime = localText(now.planLanding);
+    p.fuelAtLandingLb = now.fuelAtLandingLb;
+    p.planLandingFuelLb = now.planLandingFuelLb;
+    p.planFuelLb = now.planFuelLb;
+    p.cruiseSpeedKt = now.cruiseSpeedKt;
+    return p;
+}
+
+void InFlightModel::onHeaderChanged() {
+    if (predicted() != predicted_) rebuild();
 }
 
 QString InFlightModel::altimeterSetting() const {
@@ -271,6 +312,7 @@ QString InFlightModel::fuelText() const {
 
 void InFlightModel::rebuild() {
     const auto now = bridge_.now();
+    predicted_ = predicted();
 
     // The lamps, and the flash while one is wrong (the one continuous animation, D-195).
     QVariantList lamps;
@@ -331,6 +373,14 @@ void InFlightModel::rebuild() {
         f.touchdownG = number(*touchdown_, "g");
     }
     f.gate = gate_;
+    f.tocNm = predicted_.tocNm;
+    f.todNm = predicted_.todNm;
+    f.tocTime = predicted_.tocTime;
+    f.todTime = predicted_.todTime;
+    f.landingTime = predicted_.landingTime;
+    f.planLandingTime = predicted_.planLandingTime;
+    f.fuelAtLandingLb = predicted_.fuelAtLandingLb;
+    f.planLandingFuelLb = predicted_.planLandingFuelLb;
     const PanelPhase phase = panelPhase(phase_, onFinal_, touchedDown_);
     phaseTitle_ = phaseTitleOf(phase);
     QVariantList readouts;

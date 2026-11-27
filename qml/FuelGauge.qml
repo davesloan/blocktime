@@ -8,6 +8,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Shapes
 import BlockTime  // explicit, so hot reload from the source folder still sees the module (D-055)
 
 SteamGauge {
@@ -18,6 +19,7 @@ SteamGauge {
     property real lowLb: 0
     property string text
     property bool glide: true
+    property real bugLb: -1  // the plan's fuel here (D-192); -1 = no bug
 
     function fuelAngle(lb) { return -120 + 240 * Math.max(0, Math.min(lb, scaleLb)) / Math.max(scaleLb, 1) }
 
@@ -45,6 +47,29 @@ SteamGauge {
         height: 19
         size: 13
         text: gauge.text === "" ? "—" : gauge.text
+    }
+
+    // The plan's fuel for this point: an amber bug, as the airspeed gauge's (D-179).
+    Shape {
+        width: 220
+        height: 220
+        visible: gauge.bugLb >= 0
+        rotation: gauge.fuelAngle(gauge.bugLb)
+        preferredRendererType: Shape.CurveRenderer
+
+        ShapePath {
+            strokeWidth: 0
+            strokeColor: "transparent"
+            fillColor: Theme.gaugeBug
+            startX: 104
+            startY: 16
+
+            PathLine { x: 116; y: 16 }
+            PathLine { x: 116; y: 24 }
+            PathLine { x: 110; y: 30 }
+            PathLine { x: 104; y: 24 }
+            PathLine { x: 104; y: 16 }
+        }
     }
 
     GaugeNeedle {

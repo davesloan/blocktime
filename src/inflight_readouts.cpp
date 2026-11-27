@@ -157,6 +157,26 @@ ReadoutView arrivalGate(const InFlightFacts& f) {
     return gate;
 }
 
+// The predictions (D-192): they tick in place, never flip (D-213); a dash until there is a value.
+ReadoutView ticking(ReadoutView r) {
+    r.ticks = true;
+    return r;
+}
+
+ReadoutView ahead(std::string title, const std::optional<int>& nm, const std::string& at) {
+    return ticking(readout(std::move(title), nm ? std::to_string(*nm) : "", "NM", nm ? at : ""));
+}
+
+ReadoutView landingTime(const InFlightFacts& f) {
+    return ticking(readout("LANDING", f.landingTime, "", f.planLandingTime.empty() ? "" : "PLAN " + f.planLandingTime));
+}
+
+ReadoutView fuelAtLanding(const InFlightFacts& f) {
+    const std::string value = f.fuelAtLandingLb ? formatNumber(*f.fuelAtLandingLb) : "";
+    const std::string plan = f.planLandingFuelLb ? "PLAN " + formatNumber(*f.planLandingFuelLb) : "";
+    return ticking(readout("FUEL AT LANDING", value, "LB", value.empty() ? "" : plan));
+}
+
 }  // namespace
 
 PanelPhase panelPhase(std::string_view phase, bool onFinal, bool touchedDown) {
@@ -172,7 +192,12 @@ std::vector<ReadoutView> inFlightReadouts(PanelPhase phase, const InFlightFacts&
     std::vector<ReadoutView> out = emergency(f);
     switch (phase) {
         case PanelPhase::Departure: departure(f, out); break;
-        case PanelPhase::Climb: out.push_back(readout("CRUISE", cruiseText(f.cruiseLevelFt))); break;
+        case PanelPhase::Climb:
+            out.push_back(readout("CRUISE", cruiseText(f.cruiseLevelFt)));
+            out.push_back(ahead("TOP OF CLIMB", f.tocNm, f.tocTime));
+            out.push_back(ahead("TOP OF DESCENT", f.todNm, f.todTime));
+            out.push_back(landingTime(f));
+            break;
         case PanelPhase::Cruise: {
             out.push_back(readout("CRUISE", cruiseText(f.cruiseLevelFt)));
             ReadoutView dest = words(readout("DEST ATIS", ""));
@@ -181,6 +206,9 @@ std::vector<ReadoutView> inFlightReadouts(PanelPhase phase, const InFlightFacts&
                 dest.tag = runwayList(field(*f.destinationAtis, "arriving"));
             }
             out.push_back(dest);
+            out.push_back(ahead("TOP OF DESCENT", f.todNm, f.todTime));
+            out.push_back(landingTime(f));
+            out.push_back(fuelAtLanding(f));
             out.push_back(arrivalGate(f));
             break;
         }

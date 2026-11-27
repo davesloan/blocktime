@@ -470,7 +470,7 @@ int main(int argc, char* argv[]) {
     const blocktime::Rates liveRates =
         blocktime::loadRates(blocktime::defaultRatesFile(), nullptr).value_or(blocktime::Rates{});
     InFlightModel inflight(bridge, demo ? static_cast<PlannedFlightDisplay&>(*demoPlanned) : plannedFlight,
-                           static_cast<int>(liveRates.vipFlightAttendantsTimes));
+                           static_cast<int>(liveRates.vipFlightAttendantsTimes), header);
     QObject::connect(&reviews, &ReviewWriter::reviewChanged, &flights, &FlightListModel::refreshDebrief);
     // A flight settled: the airplane moved, money was posted and Flights has a new row (D-113).
     QObject::connect(&plannedFlight, &PlannedFlightModel::settled, [&](const QString& logFlightId) {
