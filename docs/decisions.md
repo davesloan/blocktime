@@ -3444,7 +3444,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-213 — Milestone 15's plan: Claude's calls for the predictions and the header
 - Date: 2026-11-26
-- Status: Proposed
+- Status: Accepted (Dave approved every call, 2026-11-26)
 - Decided by: Claude
 - Area: design
 - Decision (plan `docs/plans/2026-11-26-milestone-15-predictions.md`):
