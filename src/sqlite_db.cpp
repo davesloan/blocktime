@@ -71,6 +71,8 @@ bool Database::exec(std::string_view sql, std::string* error) {
 
 std::int64_t Database::lastInsertRowId() { return sqlite3_last_insert_rowid(db_); }
 
+bool Database::inTransaction() { return sqlite3_get_autocommit(db_) == 0; }
+
 int Database::userVersion() {
     Statement q(*this, "PRAGMA user_version");
     return q.next() ? static_cast<int>(q.integer(0)) : 0;

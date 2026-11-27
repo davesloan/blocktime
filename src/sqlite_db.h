@@ -39,6 +39,9 @@ public:
     // Runs one or more statements. False on the first failure, with SQLite's message in *error.
     bool exec(std::string_view sql, std::string* error = nullptr);
     int userVersion();
+    // True while a transaction is open on this connection. Some errors (SQLITE_FULL, SQLITE_IOERR, SQLITE_NOMEM, a
+    // trigger's RAISE(ROLLBACK)) roll the whole transaction back, so code that goes on after an error must check.
+    bool inTransaction();
     std::int64_t lastInsertRowId();  // the row id of the latest INSERT on this connection
     sqlite3* handle() { return db_; }
 

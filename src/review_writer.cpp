@@ -62,7 +62,7 @@ void ReviewWriter::start(const QString& logFlightId) {
     }
 
     ReviewInput in;
-    in.events = loadFlightEvents(logDir_, id, kFlightHistoryFiles);  // logs are kept 30 days
+    in.events = loadFlightEvents(logDir_, id, kFlightHistoryFiles);  // the last 30 day files
     if (in.events.empty()) return finish(logFlightId, "The flight's event log is gone");
     const auto measured = loadMeasurements(db_);
     in.measurements = measured.at(id);

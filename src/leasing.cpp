@@ -43,10 +43,11 @@ std::optional<std::int64_t> idOf(db::Database& db, const char* sql, const std::s
     return q.integer(0);
 }
 
-// Airplanes in the fleet: leased and not returned. Slots cap them (design.md §6).
-std::int64_t fleetSize(db::Database& db) {
+// Airplanes in the fleet: leased and not returned. Slots cap them (design.md §6). nullopt if the read failed.
+std::optional<std::int64_t> fleetSize(db::Database& db) {
     db::Statement q(db, "SELECT COUNT(*) FROM airplane WHERE returned_on IS NULL");
-    return q.next() ? q.integer(0) : 0;
+    if (!q.next()) return std::nullopt;
+    return q.integer(0);
 }
 
 // The registration of the leased airplane that already has this SimBrief airframe, or "".
@@ -223,9 +224,16 @@ double hoursForSlot(int n) {
 
 LeaseOutcome settleLeases(db::Database& db, const Catalog& catalog, const AirlineConfig& config, Date today,
                           std::optional<int> slots) {
-    const double hours = hoursFlown(db);
-    const int slotCount = slots.value_or(slotsEarned(hours));
     LeaseOutcome outcome;
+    // A read that fails stops the run (review 1.4): read as 0, it would return airplanes for good.
+    const auto readFailed = [&outcome](const std::string& what) {
+        outcome.error = "couldn't read " + what;
+        return outcome;
+    };
+    const auto hoursRead = hoursFlown(db);
+    if (!hoursRead) return readFailed("the hours flown");
+    const double hours = *hoursRead;
+    const int slotCount = slots.value_or(slotsEarned(hours));
     EventQueue events;
 
     // Leased airplanes: their next uncharged month. Months are charged in order, so it's the count of charged months.
@@ -247,6 +255,7 @@ LeaseOutcome settleLeases(db::Database& db, const Catalog& catalog, const Airlin
             e.date = leasePeriodStart(e.leasedOn, e.period);
             if (e.date <= today) events.push(e);
         }
+        if (!q.error().empty()) return readFailed("the airplanes: " + q.error());
     }
     // New airplanes from the config whose lease has started.
     for (const ConfigAirplane& a : config.airplanes) {
@@ -261,7 +270,9 @@ LeaseOutcome settleLeases(db::Database& db, const Catalog& catalog, const Airlin
     while (!events.empty()) {
         LeaseEvent e = events.top();
         events.pop();
-        const Cents cash = cashCentsAsOf(db, formatInstant(e.date));
+        const auto cashRead = cashCentsAsOf(db, formatInstant(e.date));
+        if (!cashRead) return readFailed("the cash on " + formatDate(e.date));
+        const Cents cash = *cashRead;
         std::string error;
 
         if (e.config) {
@@ -286,7 +297,9 @@ LeaseOutcome settleLeases(db::Database& db, const Catalog& catalog, const Airlin
                     formatDayMonthYear(e.date)));
                 continue;
             }
-            if (const std::int64_t inFleet = fleetSize(db); inFleet >= slotCount) {
+            const auto inFleetRead = fleetSize(db);
+            if (!inFleetRead) return readFailed("the fleet size");
+            if (const std::int64_t inFleet = *inFleetRead; inFleet >= slotCount) {
                 outcome.notices.push_back(std::format(
                     "Can't lease {} yet: {} of {} slots in use. Slot {} comes at {:.0f} hours flown (you have {:.1f}).",
                     a.registration, inFleet, slotCount, slotCount + 1, hoursForSlot(slotCount + 1), hours));

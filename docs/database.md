@@ -20,7 +20,7 @@ schema change updates it in the same commit.
 | Coordinates | `REAL` degrees, with range checks. |
 | History | Ledger lines and flights are written once and never updated or deleted. A correction is a new, reversing line. |
 | Changes | Anything that touches several tables (leasing an airplane, a month's lease charges) runs in one transaction. |
-| Migrations | Numbered, each in a transaction, tracked with `PRAGMA user_version`. Tests build an empty database through every migration. |
+| Migrations | Numbered, each in a transaction, tracked with `PRAGMA user_version`. Tests build an empty database through every migration. Before running any pending migration on an existing airline, `openAirlineDatabase` copies it to `blocktime.before-schema-N.db` with `VACUUM INTO`, and doesn't migrate if it can't (D-226). |
 
 Connection settings: `foreign_keys = ON`, `journal_mode = WAL` (the UI can read while the airline writes),
 `synchronous = FULL` (money is never lost to a power cut; the cost is a few milliseconds per transaction).
@@ -434,8 +434,8 @@ reused.
 
 ## Milestone 8's tables (schema version 5)
 
-Each settled flight's timings, for the leg templates (D-075, D-137): the event log is deleted after 30 days, so they
-are kept here. Flights settled before 0.9.0 have none.
+Each settled flight's timings, for the leg templates (D-075, D-137): the app reads only the last few
+log files, so they are kept here (the logs themselves are never deleted, D-224). Flights settled before 0.9.0 have none.
 
 ### `flight_phase`
 

@@ -34,7 +34,8 @@ It was built **first**, because everything else depends on reliable flight data.
    - If the recorder itself is killed or the PC loses power mid-flight, no `flight_interrupted` gets written. On
      the next start, the recorder closes a flight left open in the log as interrupted (`recorder_crash`), so it
      isn't silently lost.
-   - A block event whose write failed is held, retried, and shown on the console.
+   - A block event whose write failed is held, retried, and shown on the console (since D-227 every flight event,
+     shown on Live's banner).
    - **Then the Qt UI test builds (D-050):** two test builds on the branch `qt-ui-spike` decided between one native
      Qt app and the recorder plus a web app. **Qt won (D-063)**, the branch was merged, and the recorder now runs
      inside the app (`docs/qt-ui-test-context.md`). The console recorder was dropped (D-065).
@@ -338,11 +339,15 @@ with none the runway is `""`. The offsets are logged as information only.
   - `flight_interrupted`: `flight_id`, `reason` (the session's lost reason, `recorder_exit`, `sim_stopped` or
     `recorder_crash`).
   - The recorder doesn't name airports; the app resolves them from `lat`/`lon`.
-- **Failed writes (D-049):** block events go through an outbox. One whose write fails is held, shown in the app's
-  event feed as a `WARNING` line, and retried oldest first: about every 5 s, or at each reconnect try (10–40 s)
-  while waiting for the sim. Any still held at exit are written as `LOST:` lines to `errors.log`
-  (`%LOCALAPPDATA%\BlockTime\errors.log`, D-067). A late write only moves the line's `ts`; the event's own times
-  are in `data`.
+- **Failed writes (D-049, D-227):** every event that is part of a flight's history goes through an outbox: the block
+  events, the flight events (`phase_changed`, `touchdown`, `bounces`, `landing_runway`, ...), `cockpit` while a flight
+  is open, and the app's events (ATIS, ATC, arrival gate). One whose write fails is held, and retried oldest first
+  with everything after it waiting behind it: about every 5 s, or at each reconnect try (10–40 s) while waiting for
+  the sim. While anything is held, Live's banner says so, with or without `--dev`. Any still held at exit are written
+  as `LOST:` lines to `errors.log` (`%LOCALAPPDATA%\BlockTime\errors.log`, D-067). A late write only moves the line's
+  `ts`; the event's own times are in `data`. Telemetry and connection events are not held.
+- **A log folder that can't be written at start** is tried again every 5 s, with the reason on Live's banner, instead
+  of the recorder giving up (D-227).
 - The log is the record the rest of the app reads back (D-060).
 - At startup, if the log shows a flight that a killed app left open, it's closed as interrupted (`recorder_crash`,
   D-048) and the feed says so.

@@ -166,6 +166,16 @@ TEST_F(Leasing, MonthsMissedWhileClosedAreChargedInDateOrder) {
     EXPECT_EQ(settle(d(2027, 3, 1)).monthsCharged, 0);
 }
 
+// A cash read that fails isn't $0: returning an airplane can't be undone, so the run stops instead (review 1.4).
+TEST_F(Leasing, ReadErrorReturnsNothing) {
+    settle(d(2026, 11, 22));
+    ASSERT_TRUE(db_.exec("ALTER TABLE ledger_line RENAME TO ledger_line_hidden"));  // every cash read now fails
+    const LeaseOutcome outcome = settleLeases(db_, catalog_, config_, d(2026, 12, 22), slots_);
+    EXPECT_NE(outcome.error, "");
+    EXPECT_EQ(outcome.returned, 0);
+    EXPECT_EQ(count("SELECT COUNT(*) FROM airplane WHERE returned_on IS NOT NULL"), 0);
+}
+
 TEST_F(Leasing, CantAffordFirstMonthLeasesNothing) {
     config_.startingCashCents = 10'000'000;
     const LeaseOutcome outcome = settle(d(2026, 11, 22));

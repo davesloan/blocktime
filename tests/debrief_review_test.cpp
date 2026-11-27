@@ -143,6 +143,24 @@ TEST(DebriefReview, NullFieldsFromSayIntentionsDontThrow) {
     EXPECT_EQ(a.review->model, "claude-opus-5-5");
 }
 
+// Review 1.11: an exchange logged again once ATC's reply came in is shown once, with the reply.
+TEST(DebriefReview, ReloggedExchangeKeepsTheLastCopy) {
+    ReviewInput in = input();
+    in.events.push_back({*parseUtc("2026-11-25T00:31:00.000Z"), "atc_exchange",
+                         nlohmann::json::parse(R"({"entry":{"id":7,"channel":"COM1","station_name":"SoCal Approach",
+                             "incoming_message":"Request lower.","outgoing_message":"","stamp_zulu":"2026-11-25T00:31:00Z"}})")});
+    in.events.push_back({*parseUtc("2026-11-25T00:31:06.000Z"), "atc_exchange",
+                         nlohmann::json::parse(R"({"entry":{"id":7,"channel":"COM1","station_name":"SoCal Approach",
+                             "incoming_message":"Request lower.","outgoing_message":"Descend and maintain 8,000.",
+                             "stamp_zulu":"2026-11-25T00:31:00Z"}})")});
+    const std::string user =
+        nlohmann::json::parse(buildReviewRequest(in))["messages"][0]["content"].get<std::string>();
+    const auto pilot = user.find("Pilot: Request lower.");
+    ASSERT_NE(pilot, std::string::npos);
+    EXPECT_EQ(user.find("Pilot: Request lower.", pilot + 1), std::string::npos);  // once
+    EXPECT_NE(user.find("SoCal Approach: Descend and maintain 8,000."), std::string::npos);
+}
+
 TEST(DebriefReview, TimelineGivesHeightsAndSpeedSpells) {
     // From the first real review: without these, Claude guessed the autopilot's height and put the 260 kt spell in
     // the climb.

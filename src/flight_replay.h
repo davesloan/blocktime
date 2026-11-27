@@ -26,7 +26,7 @@ namespace blocktime {
 
 // The day files a flight's lines are in: from the day before its block out (the lead-in can cross UTC midnight) on.
 std::vector<std::filesystem::path> replayLogFiles(const std::filesystem::path& dir, std::string_view flightId);
-// Whether the flight's block-out day is still in the log (the files are kept 30 days).
+// Whether the flight's block-out day file is on disk (logs are never deleted, D-224).
 bool replayLogAvailable(const std::filesystem::path& dir, std::string_view flightId);
 
 // What a line becomes in the replay: a sample, a block event, a flight event, or nothing (lines only the log got).

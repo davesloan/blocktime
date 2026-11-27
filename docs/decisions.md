@@ -1439,7 +1439,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 ## D-104 — Preview and pricing details
 - Date: 2026-11-23
 - Status: Accepted (confirmed by Dave, 2026-11-23), except the rates as code constants, superseded by D-107: they go
-  in a config file
+  in a config file; and the fuel line's en-route burn, superseded by D-223
 - Decided by: Claude
 - Area: app
 - Decision:
@@ -1524,7 +1524,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-109 — Settled money: actual block time and fuel added; the rest as previewed
 - Date: 2026-11-23
-- Status: Accepted
+- Status: Accepted; "rates as they are at settlement" superseded by D-222 for accepted flights
 - Decided by: Dave
 - Area: app
 - Decision: At settlement, pilots (and their count), flight attendants and maintenance use the real block time.
@@ -2014,7 +2014,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-137 — Each flight stores its phase and GSX service times
 - Date: 2026-11-24
-- Status: Accepted (tables Proposed)
+- Status: Accepted (tables Proposed); the log is not deleted after 30 days, see D-224
 - Decided by: Dave (store them now), Claude (the tables)
 - Area: data
 - Decision: Migration 5 adds `flight_phase` (each phase's start, in order) and `flight_service` (each completed GSX
@@ -2674,7 +2674,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-174 — Testing after the MVP: few sim tests, high tolerance for bugs
 - Date: 2026-11-25
-- Status: Accepted
+- Status: Accepted; logs don't expire after 30 days, see D-224
 - Decided by: Dave (with Claude's caveat on money and history)
 - Area: process
 - Decision:
@@ -3575,3 +3575,115 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: "The growth gate in BlockTime isn't money, it's flying in the sim. The money is the reward for putting in the
   time." (Dave)
 - Alternatives considered: none; this frames D-216 to D-220.
+
+## D-222 — An accepted flight's money is locked
+- Date: 2026-11-27
+- Status: Accepted (built in the dispatch milestone, with D-214's accepted state)
+- Decided by: Dave
+- Area: app
+- Decision: When Dave accepts a flight (D-214), its money breakdown and the rates behind it are stored with the
+  planned flight. At settlement the accepted lines are posted as accepted. Only pilots, flight attendants and
+  maintenance (from the real block time) and fuel (the fuel added) are worked out again, with the rates locked at
+  acceptance. A later edit to `rates.yaml` doesn't change a flight that's already accepted. Supersedes D-109's "rates
+  come from `rates.yaml` as it is at settlement".
+- Why: Dave's answer to review finding 4.2. What he accepted is what he gets, which D-214's "review, then accept"
+  implies; the costs that depend on how the flight went still follow what happened (D-109).
+- Alternatives considered: keep D-109 (re-price everything at settlement from the rates then in force).
+
+## D-223 — The preview's fuel line is the fuel to add
+- Date: 2026-11-27
+- Status: Accepted (built in fix step 3, before dispatch)
+- Decided by: Dave
+- Area: app
+- Decision: Once a plan is imported, the preview's fuel line is the fuel to add: the plan's ramp fuel minus the fuel
+  on record for the airplane, never below 0, at the planned flight's locked price. That's what settlement charges
+  (D-109). Before a plan, the preview still shows "+ fuel". Supersedes D-104's en-route burn for the fuel line.
+- Why: Review finding 4.1. On the first leg after a delivery the settled fuel line was 1.5–2× the preview, which broke
+  the rule that the preview is honest.
+- Alternatives considered: keep the en-route burn (simpler, but never what is charged).
+
+## D-224 — Event logs are kept; nothing prunes them
+- Date: 2026-11-27
+- Status: Accepted
+- Decided by: Dave
+- Area: recorder
+- Decision: Event logs stay on disk with no pruning, as they always have. "Kept 30 days" was never true: the readers
+  look at the last 30 log files (settlement looks at 7). The statements in CLAUDE.md, the README, the specs and code
+  comments are corrected. D-137 and D-174 said the log expires; that part of their reasoning is void.
+- Why: Review finding 8.2. Keeping them is good for history: every flight can still be measured again or backfilled
+  (findings 1.6 and 2.3). They grow about 3–17 MB a flying day, which is fine on Dave's disk.
+- Alternatives considered: prune logs older than 30 days (would make the docs true, but needs the tracks stored in
+  the database first, finding 2.3).
+
+## D-225 — The review's fix order is approved
+- Date: 2026-11-27
+- Status: Accepted
+- Decided by: Dave
+- Area: process
+- Decision: The five steps of the 0.16.0 technical review's fix order (`docs/reviews/2026-11-27-technical-review.md`)
+  are done in order, starting with step 1, "protect what can't be undone", before the dispatch milestone.
+- Why: Dave approved the order as written.
+- Alternatives considered: going straight to dispatch and fixing along the way.
+
+## D-226 — Development never writes to Dave's airline; a backup before every migration
+- Date: 2026-11-27
+- Status: Accepted (the fix, review 1.1 and 1.5, approved in D-225); the details below are Proposed
+- Decided by: Dave (the fix), Claude (the details)
+- Area: app
+- Decision: All data lives in one folder, `dataDir()`: `%LOCALAPPDATA%\BlockTime` unless the app picks another at
+  start. `--data-dir <folder>` picks one. The debug build defaults to `%LOCALAPPDATA%\BlockTime-dev`, made on its first
+  run as a copy of the real folder (the database through `VACUUM INTO`, the `.yaml` files, `settings.json` and the
+  event logs); deleting it takes a fresh copy. `--demo` and `--grab` (outside `--replay`) work on a scratch copy in
+  `%TEMP%\BlockTime-scratch-<pid>`, deleted at exit; they read the copied folder's event logs in place, start no
+  recorder, take no mutex and make no Claude calls, and their `errors.log` lines go to the folder they copied; copies
+  a day old, left by a run that was killed, are deleted at the next. `BlockTime.ini` (QML preferences) lives in the
+  data folder. The map tile cache stays in the real folder for every run. Separately, `openAirlineDatabase` copies an existing airline to
+  `blocktime.before-schema-N.db` before running any pending migration, and doesn't migrate if it can't.
+- Why: Review finding 1.1 (Critical): the debug build, `--demo` and `--grab` migrated and settled Dave's real database.
+  A draft migration would have been applied to it for good. The backup covers what's left: a migration that turns out
+  wrong in a release.
+- Alternatives considered: opening read-only for `--demo` and `--grab` as `--replay` does (would break New Flight,
+  Cancel and the lease tick on the screens being checked); an empty dev folder (nothing to look at without setting up a
+  second airline).
+
+## D-227 — Every flight event goes through the outbox; recorder problems show on Live
+- Date: 2026-11-27
+- Status: Accepted (the fix, review 1.7 and 1.8, approved in D-225); amends D-049 and D-211
+- Decided by: Dave (the fix), Claude (the details)
+- Area: recorder
+- Decision: D-049's outbox now holds every event that is part of a flight's history, not only block events: the flight
+  events, `cockpit` while a flight is open and the app's events (ATIS, ATC, arrival gate). A recorder problem (events
+  held, or a log folder that can't be written) is a `recorderProblem` text on the bridge, shown in Live's Not recording
+  banner ahead of any mismatch, with or without `--dev`. A log folder that can't be written at start is tried again
+  every 5 s instead of the recorder ending.
+- Why: settlement's phases, the debrief's measurements and the landing rating are all read back from the log, so a
+  lost touchdown line is lost history (review 1.7). D-211 hid the event feed, and with it D-049's warning (1.8).
+- Alternatives considered: a separate status line in the header (the banner already exists for "events aren't being
+  recorded").
+
+## D-228 — A flown flight that hasn't settled waits, and can't be cancelled
+- Date: 2026-11-27
+- Status: Accepted (the fix, review 1.2 and 1.4, approved in D-225)
+- Decided by: Dave (the fix), Claude (the details)
+- Area: app
+- Decision: Once a block in is seen, or the log shows the planned flight flown, the flight is "waiting to settle" until
+  it settles: Live's notice says "Flown, waiting to settle: <why>", Cancel is refused, and the minute tick tries again
+  (no restart needed after fixing `rates.yaml`). Settlement reads every log file from the planned flight's day on,
+  not the last 7. At start and on the tick a flown flight settles before the leases. A cash, fleet or hours read that
+  fails stops the lease run with an error instead of counting as 0. A failed settle goes to `errors.log`, as does a
+  flight that settled without its debrief, with the reason.
+- Why: review 1.2 (Cancel could throw away a flown flight that hadn't settled) and 1.4 (a failed read returned
+  airplanes as unpaid, for good).
+- Alternatives considered: settling at default rates when `rates.yaml` doesn't read (ledger lines are permanent).
+
+## D-229 — Closing the window mid-flight asks first
+- Date: 2026-11-27
+- Status: Accepted (the fix, review 1.9, approved in D-225)
+- Decided by: Dave (the fix), Claude (the wording)
+- Area: app
+- Decision: While the recorder has a flight open, closing the window shows "A flight is open": Keep flying, or Close
+  and discard. It also asks while events are held after block in (D-227), since a block in that isn't written never
+  settles. `--demo` and `--grab` aren't guarded (they record nothing). D-046 and D-072 stand: a flight closed this
+  way is still interrupted and discarded.
+- Why: one click on the X discarded a whole leg's money and history without a word (review 1.9).
+- Alternatives considered: keeping the recorder running in the tray (a bigger change to D-046).

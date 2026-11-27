@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "lamps.h"
+#include "json_fields.h"
 
 #include <algorithm>
 
@@ -50,7 +51,7 @@ void LampBoard::onEvent(std::string_view type, const nlohmann::json& data, TimeP
     }
     if (type == "cockpit") {
         cockpit_ = data;
-        pmdgSeen_ = pmdgSeen_ || data.value("pmdg", false);
+        pmdgSeen_ = pmdgSeen_ || fields::flag(data, "pmdg");
         if (const auto apu = apuSwitchOn(data)) record(apuLog_, at, *apu);
     } else if (type == "altimeter") {
         altimeter_ = data;
@@ -60,7 +61,7 @@ void LampBoard::onEvent(std::string_view type, const nlohmann::json& data, TimeP
     } else if (type == "touchdown") {
         touchdown_ = at;
     } else if (type == "phase_changed") {
-        const std::string phase = data.value("phase", "");
+        const std::string phase = fields::text(data, "phase");
         // The first taxi out, takeoff and descent, the last taxi in and go-around, as the debrief takes them.
         if (phase == "taxi_out" && !taxiOut_) taxiOut_ = at;
         else if (phase == "takeoff" && !takeoff_) takeoff_ = at;
@@ -68,7 +69,7 @@ void LampBoard::onEvent(std::string_view type, const nlohmann::json& data, TimeP
         else if (phase == "taxi_in") taxiIn_ = at;
         else if (phase == "go_around") goAround_ = at;
     } else if (type == "flight_marker") {
-        const std::string marker = data.value("marker", "");
+        const std::string marker = fields::text(data, "marker");
         if (marker == "transition_altitude" && !transitionAltitude_) transitionAltitude_ = at;
         else if (marker == "transition_level") transitionLevel_ = at;
         else if (marker == "below_10000") below10000_ = at;

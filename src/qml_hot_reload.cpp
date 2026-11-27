@@ -10,7 +10,9 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QQmlApplicationEngine>
+#include <QPointer>
 #include <QQuickWindow>
+#include <QTimer>
 
 QUrl QmlSourceInterceptor::intercept(const QUrl& url, DataType type) {
     if (type != QmlFile) return url;
@@ -70,8 +72,12 @@ void QmlHotReload::load() {
                            ? nullptr
                            : qobject_cast<QQuickWindow*>(engine_.rootObjects().constFirst())) {
         // quitOnLastWindowClosed is off in this mode (deleting the window for a reload mustn't quit), so closing
-        // the window by hand quits here.
-        connect(window, &QQuickWindow::closing, QCoreApplication::instance(), &QCoreApplication::quit);
+        // the window by hand quits here, once it has really closed: Main.qml can refuse while a flight is open (D-229).
+        connect(window, &QQuickWindow::closing, QCoreApplication::instance(), [w = QPointer<QQuickWindow>(window)] {
+            QTimer::singleShot(0, QCoreApplication::instance(), [w] {
+                if (!w || !w->isVisible()) QCoreApplication::quit();
+            });
+        });
     }
     watch();
 }

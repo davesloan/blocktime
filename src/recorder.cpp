@@ -168,8 +168,33 @@ Recorder::Recorder(std::filesystem::path logDir, RecorderObserver& observer, con
 int Recorder::run(const std::atomic<bool>& stop) {
     RecorderObserver& observer = observer_;
     EventLog log(logDir_);
-    if (!log.write("recorder_started", {{"version", BLOCKTIME_VERSION}})) return 1;
+    // A log folder that can't be written (locked, full, gone) is tried again every 5 s rather than given up on: a
+    // recorder that ended here would leave a whole leg unrecorded with nothing on screen (review 1.8).
+    for (bool told = false; !log.write("recorder_started", {{"version", BLOCKTIME_VERSION}});) {
+        if (!told) {
+            observer.onProblem("Can't write to the log folder (" + log.dir().string() +
+                               "), so nothing is being recorded. BlockTime tries again every 5 s.");
+            told = true;
+        }
+        sleepFor(5s, stop);
+        if (stop) return 1;
+    }
+    observer.onProblem("");
     EventOutbox outbox([&log](std::string_view type, const nlohmann::json& data) { return log.write(type, data); });
+    // Every event that's part of a flight's history goes through the outbox (review 1.7): settlement, the debrief
+    // and the landing rating read them back from the log. A failed write is held and retried with the block events.
+    const auto logHistory = [&outbox](const std::string& type, const nlohmann::json& data) {
+        outbox.send(type, data);
+    };
+    bool heldShown = false;
+    const auto reportHeld = [&] {
+        const bool held = outbox.pending() > 0;
+        if (held == heldShown) return;
+        heldShown = held;
+        observer.onProblem(held ? "Some events couldn't be written to the log. BlockTime holds them and tries again "
+                                  "every 5 s: keep it open until this message goes."
+                                : "");
+    };
     HeldEventRetry retry(outbox, observer);
     observer.onStarted(log.dir());
 
@@ -192,7 +217,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
     FlightTracker tracker;
     const auto writeFlightEvents = [&](const std::vector<LogEvent>& events) {
         for (const LogEvent& e : events) {
-            log.write(e.type, e.data);
+            logHistory(e.type, e.data);
             observer.onFlightEvent(e.type, e.data);
             if (const std::string line = flightLine(e); !line.empty()) observer.onLine(line, false);
         }
@@ -203,8 +228,12 @@ int Recorder::run(const std::atomic<bool>& stop) {
     const auto writeCockpit = [&] {
         auto data = cockpit.due(std::chrono::system_clock::now());
         if (!data) return;
-        if (tracker.flightOpen()) (*data)["flight_id"] = tracker.flightId();
-        log.write("cockpit", *data);
+        if (tracker.flightOpen()) {
+            (*data)["flight_id"] = tracker.flightId();
+            logHistory("cockpit", *data);
+        } else {
+            log.write("cockpit", *data);
+        }
         observer.onFlightEvent("cockpit", *data);  // the in-flight panel's lamps (D-195)
     };
     // Every block event goes through here, so the tracker opens and closes with the flight.
@@ -218,7 +247,7 @@ int Recorder::run(const std::atomic<bool>& stop) {
             // The cockpit state at block out, with the flight's id (debrief, D-159).
             if (auto snap = cockpit.snapshot(std::chrono::system_clock::now())) {
                 (*snap)["flight_id"] = tracker.flightId();
-                log.write("cockpit", *snap);
+                logHistory("cockpit", *snap);
                 observer.onFlightEvent("cockpit", *snap);
             }
         } else if (const auto* in = std::get_if<BlockIn>(&e)) {
@@ -302,9 +331,12 @@ int Recorder::run(const std::atomic<bool>& stop) {
 
     while (!stop) {
         retry.tick();
-        // The app's events (D-127): logged first, then told back, so Live sees e.g. the arrival gate (D-147).
+        reportHeld();
+        // The app's events (D-127): logged first, then told back, so Live sees e.g. the arrival gate (D-147). The
+        // ATIS, ATC and gate are the flight's history too (the debrief's review reads them), so they're held on a
+        // failed write like the rest.
         for (const LogEvent& e : appEvents_.drain()) {
-            log.write(e.type, e.data);
+            logHistory(e.type, e.data);
             if (e.type == "arrival_gate") {
                 observer.onLine(utcTimestamp().substr(11, 8) + "  " + feedText(e.type, e.data), false);
             }
@@ -361,8 +393,8 @@ int Recorder::run(const std::atomic<bool>& stop) {
 
     sim.close("recorder_exit");
     endSession("recorder_exit");
-    for (const LogEvent& e : appEvents_.drain()) log.write(e.type, e.data);
-    // Last chance for held block events; anything still held is reported so it can be recovered by hand (D-049).
+    for (const LogEvent& e : appEvents_.drain()) logHistory(e.type, e.data);
+    // Last chance for held events; anything still held is reported so it can be recovered by hand (D-049).
     if (!outbox.flush()) {
         for (const auto& [type, data] : outbox.held()) {
             observer.onLine("LOST: " + type + " " +

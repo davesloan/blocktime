@@ -18,6 +18,7 @@
 #include "airline_queries.h"
 #include "event_log.h"
 #include "gsx_timeline.h"
+#include "telemetry_json.h"
 
 namespace blocktime {
 
@@ -55,6 +56,11 @@ std::optional<FlownFlight> findFlownFlight(const std::filesystem::path& logDir, 
                                            std::string_view plannedAt, const std::set<std::string>& alreadySettled,
                                            std::size_t maxFiles) {
     std::vector<std::filesystem::path> files = dailyLogFiles(logDir);  // oldest first
+    // A flight planned a week ago and flown today is still found (review 1.2): the files from its planned day on.
+    if (plannedAt.size() >= 10) {
+        const std::string first = "events-" + std::string(plannedAt.substr(0, 10));
+        std::erase_if(files, [&first](const std::filesystem::path& f) { return f.filename().string() < first; });
+    }
     if (files.size() > maxFiles) files.erase(files.begin(), files.end() - static_cast<std::ptrdiff_t>(maxFiles));
 
     std::map<std::string, FlownFlight> attempts;  // this planned flight's open block_outs, by flight_id
@@ -89,31 +95,35 @@ std::optional<FlownFlight> findFlownFlight(const std::filesystem::path& logDir, 
                 continue;
             }
             gsx.onEvent(type, data);  // block_out, block_in, flight_interrupted
-            if (type == "block_out") {
-                const auto planned = data.find("planned_flight_id");
-                if (planned == data.end() || !planned->is_number_integer() ||
-                    planned->get<std::int64_t>() != plannedFlightId) {
-                    continue;
-                }
+            if (type == "flight_interrupted") {
+                attempts.erase(id);
+                continue;
+            }
+            // The block events are read by the parser that pairs with the writer's toJson (review 1.10), so a field
+            // renamed in one is caught by the tests of the other.
+            const auto event = blockEventFromJson(type, data);
+            if (!event) continue;
+            if (const auto* out = std::get_if<BlockOut>(&*event)) {
+                if (out->plannedFlightId != plannedFlightId) continue;
                 FlownFlight f;
                 f.logFlightId = id;
-                f.blockOutAt = wholeSeconds(data.value("time", id));
-                f.fuelOutLb = pounds(number(data, "fuel_lb"));
-                f.originParking = data.value("parking", std::string());
+                f.blockOutAt = wholeSeconds(formatUtc(out->time));
+                f.fuelOutLb = pounds(out->fuelLb);
+                f.originParking = out->parking;
                 for (const ServiceSpan& s : gsx.departed()) {
                     f.services.push_back({s.service, wholeSeconds(s.startIso), wholeSeconds(s.endIso)});
                 }
                 if (f.blockOutAt > plannedAt && !alreadySettled.contains(id)) attempts[id] = f;
-            } else if (type == "flight_interrupted") {
-                attempts.erase(id);
-            } else if (const auto it = attempts.find(id); it != attempts.end()) {  // block_in
+            } else if (const auto* blockIn = std::get_if<BlockIn>(&*event)) {
+                const auto it = attempts.find(id);
+                if (it == attempts.end()) continue;
                 FlownFlight f = it->second;
-                f.blockInAt = wholeSeconds(data.value("time", std::string()));
-                f.fuelInLb = pounds(number(data, "shutdown_fuel_lb"));
-                f.inLat = number(data, "lat");
-                f.inLon = number(data, "lon");
-                f.arrivalParking = data.value("parking", std::string());
-                f.blockS = static_cast<long long>(number(data, "block_time_s"));
+                f.blockInAt = wholeSeconds(formatUtc(blockIn->time));
+                f.fuelInLb = pounds(blockIn->shutdownFuelLb);
+                f.inLat = blockIn->latDeg;
+                f.inLon = blockIn->lonDeg;
+                f.arrivalParking = blockIn->parking;
+                f.blockS = blockIn->blockTimeS;
                 // The recorder logs block_in, then phase_changed arrived (FlightTracker::onBlockIn), and settling runs
                 // on block_in, often before that line is written. Arrived is the block in, so it's added here.
                 if (f.phases.empty() || f.phases.back().phase != "arrived") f.phases.push_back({"arrived", f.blockInAt});
@@ -224,13 +234,19 @@ std::optional<SettledFlight> settleFlight(db::Database& db, const PlannedFlightV
         std::optional<FlightMeasurements> measured;
         try {
             measured = measureFlight(flown.lines, settled.diverted);
-        } catch (const std::exception&) {
-            measured.reset();  // a log line the measurement can't read
+        } catch (const std::exception& e) {
+            settled.debriefError = std::string("measuring the debrief: ") + e.what();
         }
         if (measured && db.exec("SAVEPOINT debrief", &message)) {
-            if (!writeMeasurements(db, flightId, *measured, &message)) db.exec("ROLLBACK TO debrief");
-            db.exec("RELEASE debrief");
+            if (!writeMeasurements(db, flightId, *measured, &message)) {
+                settled.debriefError = "writing the debrief: " + message;
+                if (db.inTransaction() && !db.exec("ROLLBACK TO debrief", &message)) return fail(message);
+            }
+            if (db.inTransaction() && !db.exec("RELEASE debrief", &message)) return fail(message);
         }
+        // An error that rolled back the whole transaction leaves autocommit on: the money lines below would then each
+        // commit on their own, and the flight would be settled again at the next start (review 1.3).
+        if (!db.inTransaction()) return fail("the transaction was lost writing the debrief (" + settled.debriefError + ")");
     }
 
     db::Statement ledger(db, "INSERT INTO ledger_line (category, posted_at, amount_cents) VALUES (?, ?, ?)");
@@ -301,15 +317,21 @@ int recordDeboardings(db::Database& db, const std::filesystem::path& logDir, std
     return added;
 }
 
-std::optional<SettledFlight> settleIfFlown(db::Database& db, const std::filesystem::path& logDir, const Rates& rates,
-                                           std::string* error) {
-    if (error) error->clear();
-    const auto planned = currentPlannedFlight(db);
+std::optional<CurrentFlown> findCurrentFlown(db::Database& db, const std::filesystem::path& logDir, bool withLines) {
+    auto planned = currentPlannedFlight(db);
     if (!planned) return std::nullopt;
     auto flown = findFlownFlight(logDir, planned->id, planned->plannedAt, settledLogFlightIds(db));
     if (!flown) return std::nullopt;
-    flown->lines = loadFlightEvents(logDir, flown->logFlightId);
-    return settleFlight(db, *planned, *flown, rates, error);
+    if (withLines) flown->lines = loadFlightEvents(logDir, flown->logFlightId);
+    return CurrentFlown{std::move(*planned), std::move(*flown)};
+}
+
+std::optional<SettledFlight> settleIfFlown(db::Database& db, const std::filesystem::path& logDir, const Rates& rates,
+                                           std::string* error) {
+    if (error) error->clear();
+    const auto current = findCurrentFlown(db, logDir, true);
+    if (!current) return std::nullopt;
+    return settleFlight(db, current->planned, current->flown, rates, error);
 }
 
 }  // namespace blocktime

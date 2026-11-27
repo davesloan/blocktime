@@ -165,7 +165,7 @@ lands ★3: 100 − 30 − 8 = **62**. (The spike itself missed check 6: measure
   every flight and the averages with it.
 - Changing *how* something is measured (a new window, a new bounce rule) applies to flights settled after the change.
   Stored measurements are never rewritten: the replay tool shows what the new measurement would give on any flight
-  whose log still exists (30 days), so a change can be judged before it's made.
+  whose log is on disk (logs are never deleted, D-224), so a change can be judged before it's made.
 
 ## 5. Claude's review
 

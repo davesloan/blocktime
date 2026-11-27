@@ -12,6 +12,8 @@
 #include <gtest/gtest.h>
 
 #include "airline_queries.h"
+#include "block_detector.h"
+#include "event_log.h"
 #include "debrief_measure.h"
 #include "debrief_store.h"
 #include "flight_events.h"
@@ -34,16 +36,30 @@ std::string line(const std::string& type, const std::string& data) {
     return R"({"ts":"2026-11-23T00:00:00.000Z","type":")" + type + R"(","data":)" + data + "}";
 }
 
+// The block lines are built by the recorder's own toJson (review 1.10), so they are what EventLog really writes.
 std::string blockOut(const std::string& id, std::int64_t planned, double fuel) {
-    return line("block_out", R"({"flight_id":")" + id + R"(","time":")" + id + R"(","lat":47.53,"lon":-122.302,)" +
-                                 R"("fuel_lb":)" + std::to_string(fuel) + R"(,"planned_flight_id":)" +
-                                 std::to_string(planned) + R"(,"aircraft_folder":"pmdg 737-800bbj2"})");
+    BlockOut e;
+    e.flightId = id;
+    e.time = *parseUtc(id);
+    e.latDeg = 47.53;
+    e.lonDeg = -122.302;
+    e.fuelLb = fuel;
+    e.plannedFlightId = planned;
+    e.aircraftFolder = "pmdg 737-800bbj2";
+    return line("block_out", toJson(BlockEvent{e}).dump());
 }
 
 std::string blockIn(const std::string& id, const std::string& time, double lat, double lon, double shutdownFuel) {
-    return line("block_in", R"({"flight_id":")" + id + R"(","time":")" + time + R"(","lat":)" + std::to_string(lat) +
-                                R"(,"lon":)" + std::to_string(lon) + R"(,"fuel_lb":9500,"shutdown_fuel_lb":)" +
-                                std::to_string(shutdownFuel) + R"(,"block_time_s":10236})");
+    BlockIn e;
+    e.flightId = id;
+    e.time = *parseUtc(time);
+    e.shutdownTime = e.time;
+    e.latDeg = lat;
+    e.lonDeg = lon;
+    e.fuelLb = 9500;
+    e.shutdownFuelLb = shutdownFuel;
+    e.blockTimeS = 10236;
+    return line("block_in", toJson(BlockEvent{e}).dump());
 }
 
 // A line with its own ts: the sim_* lines carry no data time.
@@ -138,6 +154,18 @@ TEST_F(Settlement, FindsTheMatchingPair) {
     EXPECT_EQ(f->fuelInLb, 9400);
     EXPECT_EQ(f->blockS, 10236);
     EXPECT_DOUBLE_EQ(f->inLat, kSanLat);
+}
+
+// Review 1.2: the lookback isn't the last 7 files but every file from the planned day on, so a flight left unsettled
+// for more than a week of logs still settles.
+TEST_F(Settlement, FoundAfterMoreThanAWeekOfLogs) {
+    const auto id = planDelivery();
+    writeLog({blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    for (int day = 24; day <= 30; ++day) writeLog({line("recorder_started", "{}")}, "2026-11-" + std::to_string(day));
+    for (int day = 1; day <= 3; ++day) writeLog({line("recorder_started", "{}")}, "2026-12-0" + std::to_string(day));
+    const auto f = findFlownFlight(dir_, id, kPlannedAt, {});
+    ASSERT_TRUE(f.has_value());
+    EXPECT_EQ(f->logFlightId, kOut);
 }
 
 TEST_F(Settlement, InterruptedThenFlownAgain) {
@@ -582,12 +610,12 @@ TEST_F(Settlement, NearestAirportAndHours) {
     EXPECT_EQ(near->icao, "KSAN");
     EXPECT_NEAR(near->distanceM, 1000, 10);
 
-    EXPECT_DOUBLE_EQ(hoursFlown(db_), 0.0);
+    EXPECT_DOUBLE_EQ(hoursFlown(db_).value_or(-1), 0.0);
     const auto id = planDelivery();
     writeLog({blockOut(kOut, id, 20000), blockIn(kOut, "2026-11-23T12:00:05.120Z", kSanLat, kSanLon, 9400)});
     std::string error;
     ASSERT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
-    EXPECT_DOUBLE_EQ(hoursFlown(db_), 1.5);
+    EXPECT_DOUBLE_EQ(hoursFlown(db_).value_or(-1), 1.5);
     EXPECT_EQ(settledLogFlightIds(db_), (std::set<std::string>{kOut}));
 }
 
@@ -705,6 +733,44 @@ TEST_F(Settlement, WritesMeasurementsInTheTransaction) {
     EXPECT_EQ(m.landing->offCentrelineDm, 27);
 }
 
+// The money, fuel and block time on a real log (review 6.1): catches a block event field renamed in the writer.
+TEST_F(Settlement, RealLogSettlesTheMoneyFuelAndTimes) {
+    copyFixture(dir_, planDelivery());
+    std::string error;
+    const auto settled = settleIfFlown(db_, dir_, Rates{}, &error);
+    ASSERT_TRUE(settled.has_value()) << error;
+    EXPECT_EQ(settled->arrivalIcao, "KSAN");
+    EXPECT_EQ(integer("SELECT fuel_out_lb FROM flight"), 10984);
+    EXPECT_EQ(integer("SELECT fuel_in_lb FROM flight"), 5906);
+    EXPECT_EQ(integer("SELECT fuel_on_board_lb FROM airplane WHERE registration = 'N814SX'"), 5906);
+    EXPECT_EQ(text("SELECT block_out_at || ' ' || block_in_at FROM flight"),
+              "2026-11-24T23:53:16Z 2026-11-25T00:52:48Z");
+    EXPECT_EQ(text("SELECT origin_parking || ' ' || arrival_parking FROM flight"), "Gate E7 Gate 5");
+    // Crew and maintenance are charged for the block time the block_in reports (3,571 s), fuel for what was added.
+    const auto byCategory = [&](const std::string& category) {
+        return integer("SELECT l.amount_cents FROM ledger_line l JOIN flight_money_line USING (ledger_line_id)"
+                       " WHERE l.category = '" + category + "'");
+    };
+    EXPECT_LT(byCategory("fuel"), 0);
+    EXPECT_LT(byCategory("pilots"), 0);
+    EXPECT_LT(byCategory("maintenance"), 0);
+}
+
+// Some errors (a full disk, an I/O error) make SQLite roll back the whole transaction from inside the debrief's
+// savepoint. Settlement must then fail, not go on writing money line by line in autocommit (review 1.3).
+TEST_F(Settlement, TransactionLostInsideTheDebriefPostsNothing) {
+    copyFixture(dir_, planDelivery());
+    ASSERT_TRUE(db_.exec("CREATE TEMP TRIGGER lose_tx BEFORE INSERT ON flight_landing BEGIN"
+                         " SELECT RAISE(ROLLBACK, 'test'); END;"));
+    const auto linesBefore = count("ledger_line");
+    std::string error;
+    EXPECT_FALSE(settleIfFlown(db_, dir_, Rates{}, &error).has_value());
+    EXPECT_NE(error, "");
+    EXPECT_EQ(count("ledger_line"), linesBefore);
+    EXPECT_EQ(count("flight"), 0);
+    EXPECT_EQ(count("planned_flight"), 1);
+}
+
 // D-160, D-200: check 2's window moved to the transition altitude for new flights; a stored measurement is never
 // measured again, so an old flight keeps the value it was settled with.
 TEST_F(Settlement, StoredMeasurementIsNotRemeasured) {
@@ -746,8 +812,9 @@ TEST_F(Settlement, DebriefFailureStillSettles) {
     EXPECT_EQ(count("flight_check_value"), 0);
 }
 
-TEST_F(Settlement, MeasurementErrorStillSettles) {
-    // A line only the measurement reads, which it can't (a flag that isn't a bool), mustn't stop the flight settling.
+TEST_F(Settlement, MalformedFieldStillMeasures) {
+    // A field of the wrong type (a flag that isn't a bool) reads as its fallback (review 1.6): the flight settles with
+    // its debrief, where it used to throw and settle without one.
     const std::int64_t id = planDelivery();
     writeLog({blockOut(kOut, id, 20000),
               line("cockpit", R"({"flight_id":")" + std::string(kOut) + R"(","pmdg":"yes","seat_belts":2})"),
@@ -755,7 +822,7 @@ TEST_F(Settlement, MeasurementErrorStillSettles) {
     std::string error;
     EXPECT_TRUE(settleIfFlown(db_, dir_, Rates{}, &error).has_value()) << error;
     EXPECT_EQ(count("flight"), 1);
-    EXPECT_EQ(count("flight_debrief"), 0);
+    EXPECT_EQ(count("flight_debrief"), 1);
 }
 
 TEST_F(Settlement, ReviewStoredOnce) {

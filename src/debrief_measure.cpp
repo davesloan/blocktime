@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "debrief_measure.h"
+#include "json_fields.h"
 
 #include <algorithm>
 #include <cmath>
@@ -44,7 +45,7 @@ const nlohmann::json* stateAt(const Series& s, Time t) {
     return d;
 }
 
-bool flag(const nlohmann::json* d, const char* key) { return d && d->contains(key) && (*d)[key].get<bool>(); }
+bool flag(const nlohmann::json* d, const char* key) { return d && fields::flag(*d, key); }
 double number(const nlohmann::json* d, const char* key) {
     return d && d->contains(key) && (*d)[key].is_number() ? (*d)[key].get<double>() : 0.0;
 }
@@ -74,6 +75,7 @@ double secondsUntil(const Series& s, Time from, Time end, const std::function<bo
     if (const nlohmann::json* d = stateAt(s, from); d && good(*d)) return 0;
     for (const Point& p : s) {
         if (p.t <= from) continue;
+        if (p.t >= end) break;  // the window ends there: a later change doesn't count (review 1.12)
         if (good(*p.d)) return seconds(p.t - from);
     }
     return seconds(end - from);
@@ -105,15 +107,15 @@ public:
             else if (l.type == "cockpit") cockpit_.push_back({l.ts, &l.data});
             else if (l.type == "altimeter") altimeter_.push_back({l.ts, &l.data});
             else if (l.type == "atis") atis_.push_back({l.ts, &l.data});
-            else if (l.type == "phase_changed") phases_.emplace_back(l.data.value("phase", ""), t);
-            else if (l.type == "flight_marker") markers_[l.data.value("marker", "")].push_back(t);
+            else if (l.type == "phase_changed") phases_.emplace_back(fields::text(l.data, "phase"), t);
+            else if (l.type == "flight_marker") markers_[fields::text(l.data, "marker")].push_back(t);
             else if (l.type == "lined_up") linedUp_.push_back(t);
             else if (l.type == "touchdown") touchdown_ = {t, &l.data};
-            else if (l.type == "bounces") bounces_ = l.data.value("bounces", 0);
+            else if (l.type == "bounces") bounces_ = static_cast<int>(fields::integer(l.data, "bounces"));
             else if (l.type == "landing_runway") runway_ = &l.data;
             else if (l.type == "block_out") {
                 blockOut_ = t;
-                m_.family = familyOf(l.data.value("aircraft_folder", ""));
+                m_.family = familyOf(fields::text(l.data, "aircraft_folder"));
             } else if (l.type == "block_in") {
                 blockIn_ = t;
                 // When the last engine stopped (the block_in line's own time when it doesn't say).
@@ -179,7 +181,7 @@ private:
         if (!blockOut_ || telemetry_.empty() || !start_) return skip("beacon_late_s", "no_marker");
         const Time deadline = *start_;
         put("beacon_late_s",
-            secondsUntil(telemetry_, deadline, end(), [](const nlohmann::json& d) { return d.value("beacon", false); }));
+            secondsUntil(telemetry_, deadline, end(), [](const nlohmann::json& d) { return fields::flag(d, "beacon"); }));
     }
 
     void beltsDeparture() {
@@ -246,7 +248,8 @@ private:
     void over250() {
         if (!blockOut_ || telemetry_.empty()) return skip("over_250_s", "no_marker");
         put("over_250_s", secondsWhere(telemetry_, *blockOut_, end(), [](const nlohmann::json& d) {
-                return !d.value("on_ground", true) && d.value("alt_ind_ft", 0.0) < 10000 && d.value("ias_kt", 0.0) > 260;
+                return !fields::flag(d, "on_ground", true) && fields::number(d, "alt_ind_ft") < 10000 &&
+                       fields::number(d, "ias_kt") > 260;
             }));
     }
 
@@ -332,7 +335,7 @@ private:
         const auto in = phaseStart("taxi_in", true);
         if (!in) return skip("strobes_on_after_landing_s", "no_marker");
         put("strobes_on_after_landing_s",
-            secondsUntil(telemetry_, *in, end(), [](const nlohmann::json& d) { return !d.value("strobe", true); }));
+            secondsUntil(telemetry_, *in, end(), [](const nlohmann::json& d) { return !fields::flag(d, "strobe", true); }));
     }
 
     // The APU is in PMDG's data only (D-172): a flight without it can't be judged on the APU.
@@ -358,6 +361,12 @@ private:
 
     void landing() {
         if (!touchdown_) return;
+        // NaN is logged as null: without these two the landing isn't measured, rather than stored as 0 fpm, 0 G.
+        const auto isNumber = [this](const char* key) {
+            const nlohmann::json* v = fields::find(*touchdown_->d, key);
+            return v && v->is_number();
+        };
+        if (!isNumber("vs_fpm") || !isNumber("g")) return;
         std::optional<int> vref;
         if (const nlohmann::json* cp = stateAt(cockpit_, touchdown_->t); pmdg_ && cp && number(cp, "vref_kt") > 0) {
             vref = whole(number(cp, "vref_kt"));
@@ -401,8 +410,9 @@ std::optional<Clock::time_point> flightStart(const std::vector<LogLine>& lines) 
         if (l.type != "telemetry") continue;
         if (l.ts > *blockOut) break;
         bool any = false;
-        if (l.data.contains("eng_running"))
-            for (const auto& e : l.data["eng_running"]) any |= e.get<bool>();
+        if (const nlohmann::json* engines = fields::find(l.data, "eng_running"); engines && engines->is_array()) {
+            for (const auto& e : *engines) any |= e.is_boolean() && e.get<bool>();
+        }
         if (any && !running) started = l.ts;
         if (!any) started.reset();
         running = any;
@@ -417,15 +427,15 @@ FlightMeasurements measureFlight(const std::vector<LogLine>& lines, bool diverte
 LandingFacts landingFacts(const nlohmann::json& d, int bounces, std::optional<int> vrefKt,
                           const nlohmann::json* landingRunway) {
     LandingFacts f;
-    f.vsFpm = whole(std::abs(d.value("vs_fpm", 0.0)));
-    f.gHundredths = whole(d.value("g", 0.0) * 100);
+    f.vsFpm = whole(std::abs(fields::number(d, "vs_fpm")));
+    f.gHundredths = whole(fields::number(d, "g") * 100);
     f.bounces = bounces;
-    f.iasKt = whole(d.value("ias_kt", 0.0));
-    f.headingTrueDeg = whole(d.value("heading_true_deg", 0.0));
-    f.windDirDeg = whole(d.value("wind_dir_deg", 0.0));
-    f.windKt = whole(d.value("wind_kt", 0.0));
-    if (d.contains("sim_pitch_deg")) f.simPitchTenths = whole(d["sim_pitch_deg"].get<double>() * 10);
-    if (d.contains("bank_deg")) f.bankTenths = whole(d["bank_deg"].get<double>() * 10);
+    f.iasKt = whole(fields::number(d, "ias_kt"));
+    f.headingTrueDeg = whole(fields::number(d, "heading_true_deg"));
+    f.windDirDeg = whole(fields::number(d, "wind_dir_deg"));
+    f.windKt = whole(fields::number(d, "wind_kt"));
+    if (const auto* v = fields::find(d, "sim_pitch_deg"); v && v->is_number()) f.simPitchTenths = whole(v->get<double>() * 10);
+    if (const auto* v = fields::find(d, "bank_deg"); v && v->is_number()) f.bankTenths = whole(v->get<double>() * 10);
     f.vrefKt = vrefKt;
     if (landingRunway && landingRunway->contains("off_centreline_m")) {
         f.offCentrelineDm = whole(number(landingRunway, "off_centreline_m") * 10);

@@ -6,8 +6,11 @@
 // event log (D-053); QML only displays what the models expose (D-063).
 //
 // Options:
-//   --log-dir <folder>  write the event log there instead of %LOCALAPPDATA%\BlockTime\events
-//   --demo              show made-up values and record nothing, to look at the UI without the sim
+//   --data-dir <folder> keep all data there instead of %LOCALAPPDATA%\BlockTime (the debug build's default is
+//                       %LOCALAPPDATA%\BlockTime-dev, a copy of the real folder made on its first run; D-226)
+//   --log-dir <folder>  write the event log there instead of <data folder>\events
+//   --demo              show made-up values and record nothing, to look at the UI without the sim; like --grab, it
+//                       works on a scratch copy of the data that is deleted at exit (D-226)
 //   --dev               developer mode (D-211): Live also shows the flight tiles and the event feed
 //   --replay <flight>   play a settled flight (its log id, or "last") in a read-only window (D-175), with
 //                       --speed <n>, --at <phase | block_out | block_in | H:MM> and --grab <png>
@@ -31,12 +34,15 @@
 #include <filesystem>
 #include <iostream>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <thread>
+#include <vector>
 
 #include "airline_config.h"
 #include "airline_session.h"
 #include "app_settings.h"
+#include "data_dir.h"
 #include "claude_reviewer.h"
 #include "review_writer.h"
 #include "error_log.h"
@@ -210,6 +216,78 @@ MapSettings mapSettings() {
     return m;
 }
 
+// Where this run keeps its data (D-226). Development never writes to Dave's airline: the debug build has its own
+// folder, a copy of the real one made on its first run, and --demo and --grab (outside --replay, which is read-only)
+// work on a scratch copy that is deleted at exit.
+struct DataFolders {
+    std::filesystem::path source;      // the data folder, or what a scratch run copied
+    std::filesystem::path scratchDir;  // a scratch run's copy; "" otherwise
+    bool scratch = false;
+    std::vector<std::string> notes;  // for errors.log, once it's open
+};
+
+DataFolders chooseDataFolders(const QStringList& args) {
+    DataFolders f;
+    bool scratchRun = false;
+    bool replay = false;
+    std::optional<std::filesystem::path> chosen;
+    for (qsizetype i = 1; i < args.size(); ++i) {
+        if (args[i] == "--data-dir" && i + 1 < args.size()) chosen = args[++i].toStdWString();
+        else if (args[i] == "--demo" || args[i] == "--grab") scratchRun = true;
+        else if (args[i] == "--replay") replay = true;
+    }
+    std::string error;
+    if (chosen) {
+        f.source = *chosen;
+    } else {
+#ifdef NDEBUG
+        f.source = blocktime::realDataDir();
+#else
+        f.source = blocktime::realDataDir().parent_path() / "BlockTime-dev";
+        std::error_code ec;
+        if (!std::filesystem::exists(f.source / "blocktime.db", ec)) {
+            f.notes.push_back(blocktime::seedDataDir(blocktime::realDataDir(), f.source, true, &error)
+                                  ? "Debug build: made " + f.source.string() + " from a copy of " +
+                                        blocktime::realDataDir().string() + " (D-226)."
+                                  : "Debug build: couldn't copy the real data folder: " + error);
+        }
+#endif
+    }
+    if (scratchRun && !replay) {
+        f.scratch = true;
+        std::error_code ec;
+        f.scratchDir = std::filesystem::temp_directory_path(ec) /
+                       ("BlockTime-scratch-" + std::to_string(QCoreApplication::applicationPid()));
+        // Copies left by a run that was killed (they hold settings.json's keys): anything a day old goes.
+        const auto dayAgo = std::filesystem::file_time_type::clock::now() - std::chrono::hours(24);
+        for (std::filesystem::directory_iterator it(f.scratchDir.parent_path(), ec), end; !ec && it != end;
+             it.increment(ec)) {
+            std::error_code itemEc;
+            if (it->path().filename().wstring().starts_with(L"BlockTime-scratch-") &&
+                it->last_write_time(itemEc) < dayAgo && !itemEc) {
+                std::filesystem::remove_all(it->path(), itemEc);
+            }
+        }
+        std::filesystem::remove_all(f.scratchDir, ec);
+        if (!blocktime::seedDataDir(f.source, f.scratchDir, false, &error)) {
+            f.notes.push_back("Couldn't make the scratch copy of the data: " + error);
+        }
+        blocktime::setDataDir(f.scratchDir);
+    } else {
+        blocktime::setDataDir(f.source);
+    }
+    return f;
+}
+
+// Deletes a scratch run's copy at exit. Declared before anything that opens it, so it goes last.
+struct RemoveScratch {
+    std::filesystem::path dir;
+    ~RemoveScratch() {
+        std::error_code ec;
+        if (!dir.empty()) std::filesystem::remove_all(dir, ec);
+    }
+};
+
 QStringList toQStringList(const std::vector<std::string>& lines) {
     QStringList out;
     for (const std::string& line : lines) out << QString::fromStdString(line);
@@ -299,40 +377,50 @@ int main(int argc, char* argv[]) {
     QGuiApplication app(argc, argv);
     QGuiApplication::setApplicationName("BlockTime");
     QGuiApplication::setApplicationVersion(BLOCKTIME_VERSION);
+    const QStringList args = QGuiApplication::arguments();
+    const DataFolders folders = chooseDataFolders(args);
+    const RemoveScratch removeScratch{folders.scratchDir};
     // QML's own preferences (the dashboard header collapsed, D-187) in %LOCALAPPDATA%\BlockTime\BlockTime.ini, next to
     // the rest of BlockTime's data rather than in the registry (D-188).
-    QGuiApplication::setOrganizationName("BlockTime");
+    // QSettings puts it at <path>\<organization>\BlockTime.ini, so the organization is the data folder's own name:
+    // %LOCALAPPDATA%\BlockTime\BlockTime.ini as before, and inside BlockTime-dev or a scratch copy for those (D-226).
+    QGuiApplication::setOrganizationName(QString::fromStdWString(blocktime::dataDir().filename().wstring()));
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
-                       QString::fromStdWString(blocktime::defaultSettingsFile().parent_path().parent_path().wstring()));
+                       QString::fromStdWString(blocktime::dataDir().parent_path().wstring()));
     // Dark only: this also gives the window a dark Windows title bar (D-054).
     QGuiApplication::styleHints()->setColorScheme(Qt::ColorScheme::Dark);
 
     // A windowed app has no console, so std::cerr would go nowhere: LOST: events (D-049) and the errors EventLog and
     // SimConnection print go to errors.log next to the event log instead, or to %TEMP% if that can't be opened
     // (D-067). Declared before the recorder thread, so it outlives it.
-    const std::filesystem::path dataDir = blocktime::defaultSettingsFile().parent_path();
+    // A scratch run logs to the folder it copied, since its own is deleted at exit.
+    const std::filesystem::path errorDir = folders.source;
     std::error_code dirError;
-    std::filesystem::create_directories(dataDir, dirError);
+    std::filesystem::create_directories(errorDir, dirError);
     const blocktime::ErrorLog errorLog(
-        {dataDir / "errors.log", std::filesystem::temp_directory_path(dirError) / "BlockTime-errors.log"}, std::cerr,
-        "--- BlockTime " BLOCKTIME_VERSION " started " + blocktime::utcTimestamp());
+        {errorDir / "errors.log", std::filesystem::temp_directory_path(dirError) / "BlockTime-errors.log"}, std::cerr,
+        "--- BlockTime " BLOCKTIME_VERSION " started " + blocktime::utcTimestamp() + " with data in " +
+            blocktime::dataDir().string());
+    for (const std::string& line : folders.notes) std::cerr << line << std::endl;
 
     const MapSettings map = mapSettings();
     const blocktime::AppSettings settings = blocktime::loadAppSettings(blocktime::defaultSettingsFile());
     g_secrets = settings.secrets();
     g_previousHandler = qInstallMessageHandler(redactingMessageHandler);
 
-    std::filesystem::path logDir = blocktime::EventLog::defaultDir();
+    // A scratch run reads the copied folder's event logs in place; it records nothing, so it never writes to them.
+    std::filesystem::path logDir = folders.scratch ? folders.source / "events" : blocktime::EventLog::defaultDir();
     bool demo = false;
     bool dev = false;   // --dev: Live's flight tiles and event feed (D-211)
     QString grabFile;   // --grab <png>: a developer check of the screens; saves the window after 6 s and quits
     int startPage = 0;  // --page <n>: the page shown first (0 Live, 1 Flights, 2 Fleet, 3 Money)
     blocktime::RecorderOptions recorderOptions;  // --probe (D-116)
     ReplayOptions replay;                        // --replay (D-175)
-    const QStringList args = QGuiApplication::arguments();
     for (qsizetype i = 1; i < args.size(); ++i) {
-        if (args[i] == "--log-dir" && i + 1 < args.size()) {
+        if (args[i] == "--data-dir" && i + 1 < args.size()) {
+            ++i;  // chooseDataFolders read it
+        } else if (args[i] == "--log-dir" && i + 1 < args.size()) {
             logDir = args[++i].toStdWString();
         } else if (args[i] == "--demo") {
             demo = true;
@@ -365,9 +453,10 @@ int main(int argc, char* argv[]) {
     BridgeObserver observer(bridge);
     blocktime::FlightTargetSlot flightTarget;  // the planned flight, for the recorder's matching check (D-088)
     blocktime::AppEventQueue appEvents;        // the app's web results, written to the log by the recorder (D-127)
-    // Demo mode records nothing, so it doesn't take the recorder mutex (a recording copy can run beside it).
+    // A scratch run (--demo, --grab) records nothing, so it doesn't take the recorder mutex (a recording copy can run
+    // beside it).
     std::optional<blocktime::SingleInstance> instance;
-    if (!demo) instance.emplace();
+    if (!folders.scratch) instance.emplace();
     std::atomic<bool> stop{false};
     std::jthread worker;
     // If aboutToQuit is ever skipped, this still stops and joins the recorder before what it uses goes (review #8).
@@ -391,9 +480,17 @@ int main(int argc, char* argv[]) {
         demoHeader =
             std::make_unique<DashboardHeader>(bridge, *demoPlanned, icao, name, DashboardHeader::SettledFlight{});
         fillDemo(bridge);
+    } else if (folders.scratch) {
+        // --grab without --demo: the real screens on the copied data, with no recorder.
     } else if (instance->acquired()) {
         worker = std::jthread([&] {
-            const int result = blocktime::Recorder(logDir, observer, flightTarget, appEvents, recorderOptions).run(stop);
+            int result = 2;
+            try {
+                result = blocktime::Recorder(logDir, observer, flightTarget, appEvents, recorderOptions).run(stop);
+            } catch (const std::exception& e) {
+                // Uncaught, it would end the app (review 3.4); the open flight is closed as recorder_crash next start.
+                std::cerr << "The recorder stopped: " << e.what() << std::endl;
+            }
             QMetaObject::invokeMethod(&bridge, [&bridge, result] { bridge.applyStopped(result); },
                                       Qt::QueuedConnection);
         });
@@ -413,11 +510,10 @@ int main(int argc, char* argv[]) {
     // recorder writes the line before it tells the bridge, so the reload sees it. (A block event whose write was held,
     // D-049, appears at the next reload after it's written.)
 
-    // The airline: the database, the config files and the leases (docs/database.md). --demo opens it too: it records
-    // no flight, and the airline is the same either way. Config drift warnings go to errors.log (D-067). Once a
-    // minute the leases are settled again, so a month that falls due while the app is open is charged (D-096).
-    blocktime::AirlineSession airline =
-        blocktime::AirlineSession::start(blocktime::defaultAirlinePaths(), blocktime::utcToday(), std::cerr);
+    // The airline: the database, the config files and the leases (docs/database.md). --demo opens its scratch copy
+    // (D-226). Config drift warnings go to errors.log (D-067). The leases are settled once a flown flight has been
+    // (below), and again once a minute, so a month that falls due while the app is open is charged (D-096).
+    blocktime::AirlineSession airline = blocktime::AirlineSession::open(blocktime::defaultAirlinePaths(), std::cerr);
     const auto fleetSummary = [&airline] {
         int inFleet = 0;
         for (const blocktime::AirplaneView& a : airline.airplanes()) inFleet += a.returnedOn ? 0 : 1;
@@ -425,15 +521,6 @@ int main(int argc, char* argv[]) {
     };
     FleetTableModel fleet(airline.airplanes(), toQStringList(airline.notices()), fleetSummary());
     LedgerModel ledger(airline.ledger(), airline.cash());
-    QTimer airlineTick;
-    airlineTick.setInterval(60'000);
-    QObject::connect(&airlineTick, &QTimer::timeout, [&] {
-        // A model reset rebuilds the views and scrolls them to the top, so only reset when something changed.
-        if (!airline.tick(blocktime::utcToday())) return;
-        fleet.reset(airline.airplanes(), toQStringList(airline.notices()), fleetSummary());
-        ledger.reset(airline.ledger(), airline.cash());
-    });
-    airlineTick.start();
 
     // Planning (design.md §13.1-13.3): New Flight and the planned flight before departure. Without a database the
     // models work on an empty one, so the screens still open.
@@ -453,7 +540,8 @@ int main(int argc, char* argv[]) {
     const QString airlineIcao = QString::fromStdString(airline.airlineIcao());
     // Settled flights from the database, tracks from the log (D-111); refreshed when a flight is settled.
     // Claude's review of each settled flight (D-161): one automatic try after settling, then Retry on the summary.
-    ClaudeReviewer claude(settings.claudeApiKey);
+    // A scratch run (D-226) could settle a pending flight in its copy; it mustn't spend a Claude review on it.
+    ClaudeReviewer claude(folders.scratch ? std::string() : settings.claudeApiKey);
     ReviewWriter reviews(planningDb, logDir, claude);
     FlightListModel flights(planningDb, logDir, airlineIcao, &reviews);
     flights.reload();
@@ -487,6 +575,22 @@ int main(int argc, char* argv[]) {
         reviews.onSettled(logFlightId);
     });
     plannedFlight.checkFlown();  // a flight that ended while BlockTime was closed or crashed
+    // Flights settle before leases (review 1.4): a flight that blocked in before a lease month is in the cash that
+    // month is checked against. Each minute a flight still waiting to settle is tried again (review 1.2).
+    const auto settleAirline = [&] {
+        // A model reset rebuilds the views and scrolls them to the top, so only reset when something changed.
+        if (!airline.tick(blocktime::utcToday())) return;
+        fleet.reset(airline.airplanes(), toQStringList(airline.notices()), fleetSummary());
+        ledger.reset(airline.ledger(), airline.cash());
+    };
+    settleAirline();
+    QTimer airlineTick;
+    airlineTick.setInterval(60'000);
+    QObject::connect(&airlineTick, &QTimer::timeout, [&] {
+        plannedFlight.retryPendingSettle();
+        settleAirline();
+    });
+    airlineTick.start();
     QObject::connect(&newFlight, &NewFlightModel::planned, &plannedFlight,
                      [&plannedFlight](const QString& note) { plannedFlight.reload(note); });
     // SayIntentions at the gate (D-188): the planned flight's origin until block out, so the clearance shows before
@@ -514,6 +618,7 @@ int main(int argc, char* argv[]) {
                             {"airlineName", QString::fromStdString(airline.airlineName())},
                             {"startPage", startPage},
                             {"devMode", dev},
+                            {"recording", !folders.scratch},
                             {"mapTileUrl", map.tileUrl},
                             {"mapCacheDir", map.cacheDir},
                             {"mapUserAgent", map.userAgent}};

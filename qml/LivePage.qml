@@ -77,9 +77,11 @@ Item {
             height: Math.max(scroll.availableHeight - 2 * Theme.pagePadding, implicitHeight)
             spacing: Theme.spacing
 
+            // The recorder's own problem first: events that can't reach the log matter more than a mismatch (review 1.8).
             NotRecordingBanner {
                 Layout.fillWidth: true
-                text: page.plannedFlight.notRecording
+                text: page.recorder.recorderProblem !== "" ? page.recorder.recorderProblem
+                                                           : page.plannedFlight.notRecording
             }
 
             // A flight that was interrupted and discarded, or one that couldn't be settled (D-072, D-108).

@@ -22,6 +22,12 @@ AirlinePaths defaultAirlinePaths() {
 }
 
 AirlineSession AirlineSession::start(const AirlinePaths& paths, Date today, std::ostream& warnings) {
+    AirlineSession s = open(paths, warnings);
+    s.settle(today);
+    return s;
+}
+
+AirlineSession AirlineSession::open(const AirlinePaths& paths, std::ostream& warnings) {
     AirlineSession s;
     AirlineDbOpen opened = openAirlineDatabase(paths.database);
     if (!opened.db) {
@@ -32,6 +38,10 @@ AirlineSession AirlineSession::start(const AirlinePaths& paths, Date today, std:
     s.db_ = std::move(opened.db);
     if (opened.testSchemaSetAside) {
         s.startNotices_.push_back("The Qt test's database was set aside as blocktime.test-schema.db.");
+    }
+    if (!opened.backup.empty()) {
+        s.startNotices_.push_back("Updated blocktime.db to a new schema; the copy from before is " +
+                                  opened.backup.filename().string() + ".");
     }
     if (opened.versionRestored) {
         s.startNotices_.push_back("An older BlockTime had opened blocktime.db; its schema version was put back.");
@@ -62,7 +72,6 @@ AirlineSession AirlineSession::start(const AirlinePaths& paths, Date today, std:
             for (const std::string& w : configDriftWarnings(*s.db_, *s.config_)) warnings << w << '\n';
         }
     }
-    s.settle(today);
     // Airplanes leased before milestone 5 get their airframe's limits (D-100).
     if (s.db_ && s.catalog_ && s.config_ && !fillMissingLimits(*s.db_, *s.catalog_, *s.config_, &error)) {
         s.startNotices_.push_back("Airline database error: " + error);
@@ -70,6 +79,7 @@ AirlineSession AirlineSession::start(const AirlinePaths& paths, Date today, std:
     if (s.db_ && s.config_ && !syncFreeFlightNumbers(*s.db_, *s.config_, &error)) {
         s.startNotices_.push_back("Flight numbers in airline.yaml: " + error);
     }
+    s.notices_ = s.startNotices_;
     return s;
 }
 
@@ -93,7 +103,7 @@ std::vector<LedgerView> AirlineSession::ledger() { return db_ ? listLedger(*db_)
 
 Cents AirlineSession::cash() { return db_ ? cashCents(*db_) : 0; }
 
-double AirlineSession::hoursFlown() { return db_ ? blocktime::hoursFlown(*db_) : 0.0; }
+double AirlineSession::hoursFlown() { return db_ ? blocktime::hoursFlown(*db_).value_or(0.0) : 0.0; }
 
 std::string AirlineSession::airlineName() const { return config_ ? config_->identity.name : std::string(); }
 

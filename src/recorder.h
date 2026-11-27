@@ -45,6 +45,9 @@ public:
     // An airport's runways and parking spots from the sim, each time they're read (the planned flight's origin and
     // destination). The app picks the arrival gate from them (D-147).
     virtual void onAirport(const AirportFacilities& /*airport*/) {}
+    // Something stops events reaching the log: the log folder can't be written, or events are held for a retry
+    // (D-049). "" once it's cleared. The app shows it on Live, whatever the feed shows (review 1.8).
+    virtual void onProblem(const std::string& /*problem*/) {}
 };
 
 struct RecorderOptions {

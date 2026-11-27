@@ -4,6 +4,8 @@
 
 #include "event_log.h"
 
+#include "data_dir.h"
+
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
@@ -64,18 +66,7 @@ std::vector<std::filesystem::path> dailyLogFiles(const std::filesystem::path& di
     return files;
 }
 
-std::filesystem::path EventLog::defaultDir() {
-    wchar_t* base = nullptr;
-    std::size_t len = 0;
-    std::filesystem::path root;
-    if (_wdupenv_s(&base, &len, L"LOCALAPPDATA") == 0 && base != nullptr) {
-        root = base;
-        std::free(base);
-    } else {
-        root = std::filesystem::current_path();
-    }
-    return root / L"BlockTime" / L"events";
-}
+std::filesystem::path EventLog::defaultDir() { return dataDir() / L"events"; }
 
 EventLog::EventLog(std::filesystem::path dir) : dir_(std::move(dir)) {}
 

@@ -74,12 +74,16 @@ class RecorderBridge : public QObject {
     Q_PROPERTY(QVariantMap pillMarker READ pillMarker NOTIFY stagesChanged)
 
     Q_PROPERTY(EventFeedModel* events READ events CONSTANT)
+    // Why events aren't reaching the log ("" when they are), shown on Live outside --dev too (review 1.8).
+    Q_PROPERTY(QString recorderProblem READ recorderProblem NOTIFY recorderProblemChanged)
 
 public:
     explicit RecorderBridge(QObject* parent = nullptr);
 
     QString connection() const { return connection_; }
     QString logDir() const { return logDir_; }
+    QString recorderProblem() const { return recorderProblem_; }
+    void applyProblem(const QString& problem);
     bool hasSample() const { return hasSample_; }
     double altitudeFt() const { return altitudeFt_; }
     double iasKt() const { return iasKt_; }
@@ -156,6 +160,7 @@ public:
 signals:
     void connectionChanged();
     void logDirChanged();
+    void recorderProblemChanged();
     void sampleChanged();
     void flightChanged();
     void matchChanged();
@@ -176,6 +181,7 @@ private:
 
     QString connection_ = "waiting";
     QString logDir_;
+    QString recorderProblem_;
     bool hasSample_ = false;
     double altitudeFt_ = 0, iasKt_ = 0, gsKt_ = 0, vsFpm_ = 0, fuelLb_ = 0;
     bool parkingBrake_ = false, onGround_ = false;
@@ -213,6 +219,7 @@ public:
     void onMatch(const blocktime::MatchResult& m) override;
     void onFlightEvent(const std::string& type, const nlohmann::json& data) override;
     void onAirport(const blocktime::AirportFacilities& airport) override;
+    void onProblem(const std::string& problem) override;
 
 private:
     RecorderBridge& bridge_;  // only used as the target of queued calls

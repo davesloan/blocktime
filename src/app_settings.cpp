@@ -12,6 +12,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "data_dir.h"
 #include "event_log.h"
 
 namespace blocktime {
@@ -52,9 +53,9 @@ std::string redact(std::string_view text, const std::vector<std::string>& secret
     return out;
 }
 
-// Next to the event log folder: %LOCALAPPDATA%\BlockTime\events → %LOCALAPPDATA%\BlockTime.
-std::filesystem::path defaultSettingsFile() { return EventLog::defaultDir().parent_path() / "settings.json"; }
-std::filesystem::path defaultTileCacheDir() { return EventLog::defaultDir().parent_path() / "tiles"; }
+std::filesystem::path defaultSettingsFile() { return dataDir() / "settings.json"; }
+// Always the real folder's: it's only a cache, and development runs (D-226) shouldn't download the tiles again.
+std::filesystem::path defaultTileCacheDir() { return realDataDir() / "tiles"; }
 
 std::size_t pruneOldFiles(const std::filesystem::path& dir, std::chrono::hours maxAge) {
     const auto cutoff = std::filesystem::file_time_type::clock::now() - maxAge;

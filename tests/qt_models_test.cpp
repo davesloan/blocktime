@@ -1001,6 +1001,49 @@ TEST_F(LiveFlight, SettlesAtStartup) {
     EXPECT_EQ(settled, 1);
 }
 
+// Review 1.2: a block in whose log line was held (D-049) leaves the flight flown but not settled. It can't be
+// cancelled, Live says why, and the minute tick settles it once the line is in the log.
+TEST_F(LiveFlight, HeldBlockInWaitsToSettleAndCantBeCancelled) {
+    auto m = model();
+    int settled = 0;
+    QObject::connect(m.get(), &PlannedFlightModel::settled, [&] { ++settled; });
+    write({liveOut(plannedId_)});
+    BlockOut out;
+    out.flightId = kLiveOut;
+    bridge_.applyBlockEvent(out);
+    BlockIn in;
+    in.flightId = kLiveOut;
+    bridge_.applyBlockEvent(in);  // told, but the line isn't written yet
+    EXPECT_EQ(settled, 0);
+    EXPECT_TRUE(m->notice().startsWith("Flown, waiting to settle")) << m->notice().toStdString();
+    m->cancelFlight();
+    EXPECT_TRUE(m->hasFlight());
+    m->retryPendingSettle();  // the minute tick, still not written
+    EXPECT_EQ(settled, 0);
+    write({liveIn()}, true);
+    m->retryPendingSettle();
+    EXPECT_EQ(settled, 1);
+    EXPECT_FALSE(m->hasFlight());
+    EXPECT_EQ(m->notice(), "");
+}
+
+// Review 1.2: whatever kept it from settling, a flight the log shows flown is never cancelled.
+TEST_F(LiveFlight, FlownFlightInTheLogCantBeCancelled) {
+    write({liveOut(plannedId_), liveIn()});
+    auto m = model();
+    m->cancelFlight();
+    EXPECT_TRUE(m->hasFlight());
+    EXPECT_TRUE(m->message().contains("flown")) << m->message().toStdString();
+}
+
+TEST_F(LiveFlight, NothingFlownIsNotPending) {
+    auto m = model();
+    m->checkFlown();
+    EXPECT_EQ(m->notice(), "");
+    m->cancelFlight();
+    EXPECT_FALSE(m->hasFlight());
+}
+
 TEST_F(LiveFlight, InterruptedKeepsThePlanWithANotice) {
     auto m = model();
     write({liveOut(plannedId_), liveLine("flight_interrupted", std::string(R"({"flight_id":")") + kLiveOut +

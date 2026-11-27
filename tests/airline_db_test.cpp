@@ -123,6 +123,38 @@ TEST_F(AirlineDbFiles, NewFileIsNotSetAside) {
     EXPECT_EQ(opened.db->userVersion(), kAirlineSchemaVersion);
 }
 
+// A pending migration on an existing airline first copies it aside, so a bad migration can be undone (review 1.5).
+TEST_F(AirlineDbFiles, BacksUpBeforeMigrating) {
+    const fs::path file = dir_ / "blocktime.db";
+    {
+        std::string error;
+        auto old = db::Database::open(file, &error);
+        ASSERT_TRUE(old.has_value()) << error;
+        ASSERT_TRUE(migrateAirlineDatabaseTo(*old, kAirlineSchemaVersion - 1, &error)) << error;
+    }
+    AirlineDbOpen opened = openAirlineDatabase(file);
+    ASSERT_TRUE(opened.db.has_value()) << opened.error;
+    EXPECT_EQ(opened.db->userVersion(), kAirlineSchemaVersion);
+    const fs::path backup = dir_ / ("blocktime.before-schema-" + std::to_string(kAirlineSchemaVersion) + ".db");
+    EXPECT_EQ(opened.backup, backup);
+    ASSERT_TRUE(fs::exists(backup));
+    std::string error;
+    auto copy = db::Database::openReadOnly(backup, &error);
+    ASSERT_TRUE(copy.has_value()) << error;
+    EXPECT_EQ(copy->userVersion(), kAirlineSchemaVersion - 1);
+}
+
+TEST_F(AirlineDbFiles, NoBackupWhenNothingIsPending) {
+    const fs::path file = dir_ / "blocktime.db";
+    ASSERT_TRUE(openAirlineDatabase(file).db.has_value());  // a new airline: nothing to back up
+    AirlineDbOpen again = openAirlineDatabase(file);
+    ASSERT_TRUE(again.db.has_value()) << again.error;
+    EXPECT_TRUE(again.backup.empty());
+    for (const auto& entry : fs::directory_iterator(dir_)) {
+        EXPECT_EQ(entry.path().filename().string().find("before-schema"), std::string::npos);
+    }
+}
+
 TEST(AirlineDb, ChecksRejectBadRows) {
     db::Database d = migrated();
     addParents(d);

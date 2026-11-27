@@ -41,7 +41,8 @@ std::vector<AirplaneView> listAirplanes(db::Database& db);  // by registration
 std::vector<LedgerView> listLedger(db::Database& db);       // newest first, then the latest written first
 
 Cents cashCents(db::Database& db);                                // the sum of every ledger line
-Cents cashCentsAsOf(db::Database& db, std::string_view instant);  // lines posted at or before `instant`
+// Lines posted at or before `instant`; nullopt if the read failed (never $0 then: a lease is returned on it, 1.4).
+std::optional<Cents> cashCentsAsOf(db::Database& db, std::string_view instant);
 int airportCount(db::Database& db);
 
 // The airplane's limits (D-100), or nullopt if it has none yet.
@@ -58,7 +59,8 @@ std::optional<NearestAirport> nearestAirport(db::Database& db, double lat, doubl
 
 std::set<std::string> settledLogFlightIds(db::Database& db);  // every flight's log_flight_id
 
-double hoursFlown(db::Database& db);  // the sum of every flight's block time, in hours (D-114)
+// The sum of every flight's block time, in hours (D-114); nullopt if the read failed.
+std::optional<double> hoursFlown(db::Database& db);
 
 // A settled flight with its money, for the Flights screen and the summary (D-111).
 struct FlightView {

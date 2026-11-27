@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "inflight_model.h"
+#include "json_fields.h"
 
 #include <algorithm>
 #include <cmath>
@@ -168,14 +169,14 @@ void InFlightModel::onFlightEvent(const QString& qtype, const QVariantMap& data)
     } else if (type == "altimeter") {
         altimeter_ = d;
     } else if (type == "phase_changed") {
-        phase_ = d.value("phase", phase_);
+        phase_ = fields::text(d, "phase", phase_);
         if (phase_ == "go_around") {
             onFinal_ = false;
             face_.onGoAround();
             card_.onGoAround(time);
         }
     } else if (type == "flight_marker") {
-        if (d.value("marker", "") == "final_approach") {
+        if (fields::text(d, "marker") == "final_approach") {
             onFinal_ = true;
             face_.onFinalApproach();
         }
@@ -185,12 +186,12 @@ void InFlightModel::onFlightEvent(const QString& qtype, const QVariantMap& data)
         card_.onTouchdown(time);
     } else if (type == "bounces" && touchdown_) {
         std::optional<int> vref;
-        if (cockpit_ && cockpit_->value("pmdg", false) && number(*cockpit_, "vref_kt") > 0) {
+        if (cockpit_ && fields::flag(*cockpit_, "pmdg") && number(*cockpit_, "vref_kt") > 0) {
             vref = static_cast<int>(number(*cockpit_, "vref_kt"));
         }
-        stars_ = landingStars(landingFacts(*touchdown_, d.value("bounces", 0), vref, nullptr), familyOf(flight_.family));
+        stars_ = landingStars(landingFacts(*touchdown_, static_cast<int>(fields::integer(d, "bounces")), vref, nullptr), familyOf(flight_.family));
     } else if (type == "arrival_gate") {
-        gate_ = d.value("gate", "");
+        gate_ = fields::text(d, "gate");
     } else {
         return;  // nothing the panel shows
     }

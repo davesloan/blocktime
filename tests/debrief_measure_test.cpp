@@ -289,3 +289,33 @@ TEST(DebriefMeasure, ApuOffAtShutdown) {
         if (l.type == "cockpit" && formatUtc(l.ts) >= "2026-11-25T00:46") l.data["apu_switch"] = false;
     EXPECT_EQ(*value(measureFlight(lines, false), "apu_on_at_shutdown"), 0);
 }
+
+// Review 1.6: NaN is logged as null, and a field can come with the wrong type. Every field the measurement reads is
+// made null, or a string, on a copy of the real flight: it still measures, with nothing thrown.
+TEST(DebriefMeasure, NullAndWrongTypedFieldsDontThrow) {
+    for (const nlohmann::json& bad : {nlohmann::json(nullptr), nlohmann::json("x")}) {
+        std::vector<LogLine> lines = fixture();
+        for (LogLine& l : lines) {
+            if (!l.data.is_object()) continue;
+            for (auto& [key, v] : l.data.items()) {
+                if (key != "flight_id" && key != "time") v = bad;
+            }
+        }
+        FlightMeasurements m;
+        EXPECT_NO_THROW(m = measureFlight(lines, false)) << bad.dump();
+        expectEveryPartOnce(m);
+        EXPECT_FALSE(m.landing) << "a touchdown without vs_fpm and g isn't a 0 fpm landing";
+    }
+}
+
+TEST(DebriefMeasure, LandingFactsFromNullFields) {
+    const nlohmann::json touchdown = {{"vs_fpm", nullptr}, {"g", "1.2"}, {"sim_pitch_deg", nullptr},
+                                      {"bank_deg", nullptr}, {"ias_kt", 131.0}};
+    LandingFacts f;
+    EXPECT_NO_THROW(f = landingFacts(touchdown, 0, std::nullopt, nullptr));
+    EXPECT_EQ(f.vsFpm, 0);
+    EXPECT_EQ(f.gHundredths, 0);
+    EXPECT_EQ(f.iasKt, 131);
+    EXPECT_FALSE(f.simPitchTenths);
+    EXPECT_FALSE(f.bankTenths);
+}

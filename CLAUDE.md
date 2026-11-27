@@ -86,9 +86,11 @@ checkout. Update it whenever the steps change.
 - **Avoid in-sim tests after the MVP (D-174).** You can't run MSFS, and Dave's time in the sim is expensive. Ask for a
   sim test only for a SimVar or SDK field nobody has read yet (a probe), the first run of an entirely new system that
   talks to the sim, or a bug that only shows up there. Otherwise test against recorded flights: the fixtures in
-  `tests/data/` and Dave's event logs (kept 30 days; copy a flight that shows something new into `tests/data/`).
-  Check app changes yourself first (`--demo`, `--grab`, `blocktime-debrief`). Instead of a test run, list "on your next
-  flight you should see …" in the reply, and record unverified items in `docs/progress.md`.
+  `tests/data/` and Dave's event logs (never deleted, D-224; copy a flight that shows something new into `tests/data/`).
+  Check app changes yourself first (`--demo`, `--grab`, `blocktime-debrief`); they never touch Dave's airline: the
+  debug build uses `BlockTime-dev`, and `--demo`/`--grab` a scratch copy (D-226).
+  Instead of a test run, list "on your next flight you should see …" in the reply, and record
+  unverified items in `docs/progress.md`.
 - **High tolerance for bugs, except money and history (D-174).** Dave reports what looks odd and you fix it from the
   event log. In the app or the sim, test the normal flow and the happy path; edge cases belong in unit tests, and
   only where a bug would cost more than a quick fix. Keep careful tests for what can't be undone: settling, the
@@ -160,7 +162,8 @@ This file overrides the plugin's "invoke a skill on any 1% chance" rule. Use onl
 - C++ talks to QML through models and the `RecorderBridge`, passed in as initial properties; the recorder thread
   never touches Qt objects directly (queued calls only).
 - Check UI changes with the debug build's hot reload and `--demo`. QML gotchas are in `docs/notes/qt-setup.md`.
-- Secrets (the CARTO key) live in `%LOCALAPPDATA%\BlockTime\settings.json`: never commit, log or print them.
+- Secrets (the CARTO key) live in `%LOCALAPPDATA%\BlockTime\settings.json` (and the debug build's copy in
+  `BlockTime-dev`, D-226): never commit, log or print them.
 
 ### Database (D-078)
 

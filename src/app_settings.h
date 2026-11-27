@@ -31,8 +31,8 @@ struct AppSettings {
 // mark is allowed.
 AppSettings loadAppSettings(const std::filesystem::path& file);
 
-std::filesystem::path defaultSettingsFile();   // %LOCALAPPDATA%\BlockTime\settings.json
-std::filesystem::path defaultTileCacheDir();   // %LOCALAPPDATA%\BlockTime\tiles
+std::filesystem::path defaultSettingsFile();   // dataDir()\settings.json (D-226)
+std::filesystem::path defaultTileCacheDir();   // %LOCALAPPDATA%\BlockTime\tiles, whatever dataDir() is
 
 // Deletes regular files under `dir` (recursively) whose last write is older than `maxAge`. Returns how many were
 // deleted. A missing folder deletes nothing.

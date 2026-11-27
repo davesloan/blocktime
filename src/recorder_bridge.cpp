@@ -210,10 +210,16 @@ const blocktime::AirportFacilities* RecorderBridge::airport(const QString& icao)
 }
 
 void RecorderBridge::applyFlightEvent(const QString& type, const QVariantMap& data) {
-    const QByteArray json = QJsonDocument(QJsonObject::fromVariantMap(data)).toJson(QJsonDocument::Compact);
-    feedStages(type.toStdString(), nlohmann::json::parse(json.toStdString(), nullptr, false));
-    emit stagesChanged();
-    emit flightEvent(type, data);
+    // An exception out of a slot ends the app, and with it the open flight (D-072), so one line nobody expected is
+    // dropped from the screens instead (review 1.6, 3.4). The log already has it.
+    try {
+        const QByteArray json = QJsonDocument(QJsonObject::fromVariantMap(data)).toJson(QJsonDocument::Compact);
+        feedStages(type.toStdString(), nlohmann::json::parse(json.toStdString(), nullptr, false));
+        emit stagesChanged();
+        emit flightEvent(type, data);  // the in-flight and pre-flight panels read it here, in this call
+    } catch (const std::exception& e) {
+        std::cerr << "A " << type.toStdString() << " event couldn't be shown: " << e.what() << std::endl;
+    }
 }
 
 void RecorderBridge::feedStages(std::string_view type, const nlohmann::json& data) {
@@ -291,7 +297,19 @@ QVariantList RecorderBridge::stages() const {
 }
 
 void RecorderBridge::applyStopped(int result) {
-    if (result != 0) events_.add("warn", "Couldn't write to the log folder, so nothing is being recorded.", nowUtc());
+    if (result == 0) return;
+    const QString text = result == 1 ? "Couldn't write to the log folder, so nothing is being recorded."
+                                     : "The recorder stopped with an error (errors.log), so nothing is being recorded. "
+                                       "Restart BlockTime.";
+    events_.add("warn", text, nowUtc());
+    applyProblem(text);
+}
+
+void RecorderBridge::applyProblem(const QString& problem) {
+    if (problem == recorderProblem_) return;
+    recorderProblem_ = problem;
+    if (!problem.isEmpty()) events_.add("warn", problem, nowUtc());
+    emit recorderProblemChanged();
 }
 
 void BridgeObserver::onStarted(const std::filesystem::path& logDir) {
@@ -324,12 +342,22 @@ void BridgeObserver::onMatch(const MatchResult& m) {
     QMetaObject::invokeMethod(&bridge_, [b = &bridge_, m] { b->applyMatch(m); }, Qt::QueuedConnection);
 }
 
+void BridgeObserver::onProblem(const std::string& problem) {
+    if (!problem.empty()) std::cerr << problem << std::endl;  // errors.log (D-067)
+    const QString text = QString::fromUtf8(problem);
+    QMetaObject::invokeMethod(&bridge_, [b = &bridge_, text] { b->applyProblem(text); }, Qt::QueuedConnection);
+}
+
 void BridgeObserver::onAirport(const blocktime::AirportFacilities& airport) {
     QMetaObject::invokeMethod(&bridge_, [b = &bridge_, airport] { b->applyAirport(airport); }, Qt::QueuedConnection);
 }
 
 void BridgeObserver::onFlightEvent(const std::string& type, const nlohmann::json& data) {
     const QString t = QString::fromStdString(type);
-    const QVariantMap d = QJsonDocument::fromJson(QByteArray::fromStdString(data.dump())).object().toVariantMap();
+    // replace: a sim string that isn't UTF-8 must not throw here, on the recorder thread (review 3.4).
+    const QVariantMap d =
+        QJsonDocument::fromJson(QByteArray::fromStdString(data.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
+            .object()
+            .toVariantMap();
     QMetaObject::invokeMethod(&bridge_, [b = &bridge_, t, d] { b->applyFlightEvent(t, d); }, Qt::QueuedConnection);
 }

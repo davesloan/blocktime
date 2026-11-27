@@ -298,7 +298,7 @@ QVariantMap FlightListModel::summary(int row) const {
             {"totalText", q(blocktime::formatMoneyFull(f.totalCents))},
             {"parkedText", f.arrivalParking.empty() ? QString() : "Parked at " + q(f.arrivalParking)},
             {"debrief", debrief(f)},
-            // Why the Replay button is greyed: the log is kept 30 days (D-175).
+            // Why the Replay button is greyed: the flight's log file isn't on this PC (D-175, D-224).
             {"replayNote", blocktime::replayLogAvailable(logDir_, f.logFlightId)
                                ? QString()
                                : "The log for " + QLocale(QLocale::English).toString(out.date(), "d MMM") +

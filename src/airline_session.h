@@ -36,6 +36,9 @@ public:
     // Opens the database, reads both config files and, if they're valid, syncs types and fleets, posts the opening
     // cash and settles the leases up to `today`. Config drift warnings go to `warnings` (errors.log in the app).
     static AirlineSession start(const AirlinePaths& paths, Date today, std::ostream& warnings);
+    // start() without settling the leases. The app settles a flown flight first, then calls tick(): a flight that
+    // blocked in before a lease month must be in the cash that month is checked against (review 1.4).
+    static AirlineSession open(const AirlinePaths& paths, std::ostream& warnings);
 
     // Settles the leases again (the minute tick), with the config read at start. True if anything changed: a
     // lease, a charge, a return, or the notices.

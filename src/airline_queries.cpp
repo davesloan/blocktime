@@ -81,10 +81,11 @@ Cents cashCents(db::Database& db) {
     return q.next() ? q.integer(0) : 0;
 }
 
-Cents cashCentsAsOf(db::Database& db, std::string_view instant) {
+std::optional<Cents> cashCentsAsOf(db::Database& db, std::string_view instant) {
     db::Statement q(db, "SELECT COALESCE(SUM(amount_cents), 0) FROM ledger_line WHERE posted_at <= ?");
     q.bind(1, instant);
-    return q.next() ? q.integer(0) : 0;
+    if (!q.next()) return std::nullopt;
+    return q.integer(0);
 }
 
 std::optional<NearestAirport> nearestAirport(db::Database& db, double lat, double lon) {
@@ -105,9 +106,10 @@ std::set<std::string> settledLogFlightIds(db::Database& db) {
     return ids;
 }
 
-double hoursFlown(db::Database& db) {
+std::optional<double> hoursFlown(db::Database& db) {
     db::Statement q(db, "SELECT COALESCE(SUM(unixepoch(block_in_at) - unixepoch(block_out_at)), 0) FROM flight");
-    return q.next() ? static_cast<double>(q.integer(0)) / 3600.0 : 0.0;
+    if (!q.next()) return std::nullopt;
+    return static_cast<double>(q.integer(0)) / 3600.0;
 }
 
 std::vector<FlightView> listFlights(db::Database& db) {

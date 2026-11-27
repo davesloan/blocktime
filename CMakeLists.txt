@@ -62,6 +62,7 @@ add_library(blocktime-core STATIC
   src/app_event_queue.cpp
   src/app_settings.cpp
   src/atc_log.cpp
+  src/data_dir.cpp
   src/dates.cpp
   src/error_log.cpp
   src/event_log.cpp
@@ -181,6 +182,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/block_detector_test.cpp
     tests/catalog_test.cpp
     tests/csv_test.cpp
+    tests/data_dir_test.cpp
     tests/dates_test.cpp
     tests/error_log_test.cpp
     tests/event_log_test.cpp
@@ -301,6 +303,7 @@ set(BLOCKTIME_QML_FILES
   qml/TextInputField.qml
   qml/MoneyLines.qml
   qml/NewFlightDialog.qml
+  qml/CloseFlightDialog.qml
   qml/PlannedFlightPanel.qml
   qml/NotRecordingBanner.qml
   qml/FlightSummary.qml

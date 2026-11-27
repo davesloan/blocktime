@@ -209,15 +209,22 @@ while the app is open. A month you can't pay returns the airplane (design.md §5
 - `--probe` also logs GSX's states, every PMDG switch and the airports' runways and parking spots (D-116,
   `docs/notes/probe-flight.md`).
 - `--grab <file.png> [--page <n>]` is a developer check of the screens: it saves the window to a PNG after 6 s and
-  quits (`docs/notes/qt-setup.md`).
+  quits (`docs/notes/qt-setup.md`). Like `--demo`, it records nothing and works on a scratch copy of your data in
+  `%TEMP%`, deleted at exit (D-226).
 - `--dev` is developer mode (D-211): Live also shows the old flight tiles (raw sim values) and the event feed under
   the panels. Without it they're hidden. It works with `--demo` and `--replay` too.
 - `--demo` shows made-up live values and a made-up departure in Flight progress, and records nothing, to look at the
-  UI without the sim. The Flights, Fleet and
-  Money screens still show your real data, and leases are charged as usual.
+  UI without the sim. The Flights, Fleet and Money screens show a scratch copy of your data, so nothing it does
+  (leases, a settle, Cancel) reaches your airline (D-226).
+- `--data-dir <folder>` keeps all the data (database, config files, settings, event log, `errors.log`) in that folder
+  instead of `%LOCALAPPDATA%\BlockTime` (D-226).
+- **The debug build never uses your airline.** It keeps its data in `%LOCALAPPDATA%\BlockTime-dev`, made on its first
+  run as a copy of `%LOCALAPPDATA%\BlockTime` (database, config files, settings and event logs). Delete that folder to
+  take a fresh copy.
+- Closing the window while a flight is open asks first: the flight would be interrupted and discarded (D-229).
 - **Replay** on a Flight Summary (Flights, or Live after block in) opens a second, read-only window that plays the
   flight on Live at 1×, 2×, 3× or 10×, with Pause and Close (D-175, `docs/replay.md`). It works while the flight's
-  log is kept (30 days), and runs beside a recording copy. From the command line:
+  log file is still on disk (logs are never deleted, D-224), and runs beside a recording copy. From the command line:
 
   ```powershell
   .\build\x64-release\BlockTime.exe --replay last --speed 10
@@ -244,7 +251,8 @@ diversion. The tool reads no database, so the review doesn't see earlier flights
 
 ### Files it uses
 
-Everything lives in `%LOCALAPPDATA%\BlockTime\`, outside the repo:
+Everything lives in `%LOCALAPPDATA%\BlockTime\`, outside the repo (the debug build uses `BlockTime-dev\` beside it,
+D-226):
 
 | Path | What |
 |---|---|
@@ -252,9 +260,10 @@ Everything lives in `%LOCALAPPDATA%\BlockTime\`, outside the repo:
 | `settings.json` | Your keys and IDs ([Keys and IDs](#keys-and-ids)). Never commit it |
 | `airline.yaml`, `catalog.yaml`, `rates.yaml` | Your airline, the aircraft catalog and the rates ([Set up your airline](#set-up-your-airline)) |
 | `blocktime.db` | The airline database: airplanes, the money ledger, airports (`docs/database.md`). Back it up by copying it while the app is closed. An old Qt test database is renamed `blocktime.test-schema.db` on first start (D-086) |
+| `blocktime.before-schema-N.db` | A copy of the database taken automatically before a new BlockTime updated it to schema N (D-226). Safe to delete once the new version works |
 | `airport-data\` | The downloaded airport files, kept for the next refresh ([Airport data](#airport-data)) |
-| `tiles\` | Map tile cache, at most 100 MB. Files older than 30 days are deleted at startup. Safe to delete |
-| `errors.log` | Errors that have nowhere else to go: block events that could never be written (`LOST:`, D-049) and event log or SimConnect failures. Normally just one "started" line per run (D-067) |
+| `tiles\` | Map tile cache, at most 100 MB. Files older than 30 days are deleted at startup. Safe to delete. Every build and run shares this one |
+| `errors.log` | Errors that have nowhere else to go: events that could never be written (`LOST:`, D-049, D-227), event log or SimConnect failures, a flight that settled without its debrief and why. Normally just one "started" line per run, which names the data folder (D-067) |
 
 ### Keys and IDs
 

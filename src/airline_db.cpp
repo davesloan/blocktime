@@ -438,6 +438,23 @@ AirlineDbOpen openAirlineDatabase(const std::filesystem::path& file) {
         result.db = db::Database::open(file, &result.error);
         if (!result.db) return result;
     }
+    if (const int version = result.db->userVersion(); version > 0 && version < kAirlineSchemaVersion) {
+        // A migration can't be undone, so the airline is copied aside first. A copy left by an earlier try that
+        // failed is kept: it's the one from before that migration.
+        const auto backup = file.parent_path() / std::format("blocktime.before-schema-{}.db", kAirlineSchemaVersion);
+        std::error_code ec;
+        if (!std::filesystem::exists(backup, ec)) {
+            db::Statement vacuum(*result.db, "VACUUM INTO ?");
+            const std::u8string name = backup.u8string();  // sqlite3 takes UTF-8
+            vacuum.bind(1, std::string_view(reinterpret_cast<const char*>(name.data()), name.size()));
+            if (!vacuum.run()) {
+                result.error = "Couldn't back up blocktime.db before updating it, so it wasn't updated: " + vacuum.error();
+                result.db.reset();
+                return result;
+            }
+        }
+        result.backup = backup;
+    }
     if (!migrateAirlineDatabase(*result.db, &result.error)) result.db.reset();
     return result;
 }

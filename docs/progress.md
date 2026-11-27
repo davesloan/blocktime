@@ -22,6 +22,48 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-27 — Fix step 1: protect what can't be undone
+
+**Done:** step 1 of the review's fix order (plan `docs/plans/2026-11-27-fix-step-1.md`), after Dave's answers to the
+review: accepted money locked (D-222, built with dispatch), the preview's fuel is the fuel to add (D-223, fix step 3),
+event logs kept and the "30 days" statements corrected (D-224), the fix order approved (D-225).
+- 1.1: development never writes to the real airline (D-226). The debug build uses `%LOCALAPPDATA%\BlockTime-dev` (a
+  copy made on its first run); `--demo` and `--grab` use a scratch copy in `%TEMP%`, deleted at exit, and record
+  nothing; `--data-dir` picks any folder.
+- 1.5 (part): a `VACUUM INTO` backup, `blocktime.before-schema-N.db`, before any pending migration.
+- 1.2: a flown flight that hasn't settled can't be cancelled; Live says "Flown, waiting to settle: …"; the minute tick
+  retries; settlement reads every log file from the planned day on (D-228).
+- 1.3: settlement fails if the debrief's savepoint lost the transaction (a test reproduced a money line posted outside
+  it).
+- 1.4: cash, fleet and hours read errors stop the lease run; flights settle before leases at start and on the tick.
+- 1.6: tolerant JSON readers (`src/json_fields.h`) in the debrief measurement, the in-flight panel and the lamps; why a
+  flight settled without its debrief goes to `errors.log`. 3.4 (small part): the bridge's dump can't throw, and the
+  recorder thread and the GUI's flight-event handling catch exceptions.
+- 1.7, 1.8: every flight event through the outbox; held events or an unwritable log folder show in Live's banner
+  outside `--dev`; the log folder is retried every 5 s (D-227).
+- 1.9: closing mid-flight asks first (D-229).
+- 1.10, 6.1: `EventLog` round-trip tests (write, torn line, key order, bad UTF-8, read back through the three
+  readers); settlement reads block events through `blockEventFromJson`, and its tests build lines with `toJson`; the
+  real-log settle test checks money, fuel and times.
+- 1.11: Claude's review shows a re-logged ATC exchange once, with its last content. 1.12: `secondsUntil` stops at the
+  window's end (applies to flights settled from now on; stored ones are never re-measured).
+
+- Code review (a fresh reviewer on the diff): nothing Critical; eight Minor points, all fixed. Closing also asks while
+  events are held after block in; the debug build's hot reload no longer quits when the close was refused;
+  `BlockTime.ini` follows the data folder; scratch copies a day old are cleared; scratch runs make no Claude calls; a
+  touchdown without a vertical speed or G stores no landing instead of a 0 fpm one; `VACUUM INTO` file names are UTF-8;
+  a pending settle reads `rates.yaml` before loading the flight's lines.
+
+**Working / verified:** debug and release build with no warnings; 972 tests pass in both (814 + 158, one skipped as
+before).
+qmllint: the same one info line. `--demo --grab` and `--grab --page 3` on the release build left `blocktime.db`
+untouched and removed their scratch copies; the debug build made `BlockTime-dev` and showed the same airline.
+
+**Unverified:** in the sim, nothing new to fly for; on your next flight you should see no difference. The close dialog,
+the "waiting to settle" notice and the recorder banner were only exercised in tests.
+
+**Next step:** fix step 2, make block in fast (5.1, 5.2, measure 9.1).
+
 ## 2026-11-27 — Technical review of 0.16.0
 
 **Done:** the in-depth review from the post-MVP brainstorm (brief `docs/plans/2026-11-27-technical-review.md`),

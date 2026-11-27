@@ -43,6 +43,9 @@ public:
     void cancelFlight() override;
     // Settles the planned flight if the log shows it flown. The app calls it once at startup; block events call it.
     Q_INVOKABLE void checkFlown();
+    // checkFlown() again if a flight was flown but couldn't be settled yet: its block_in line was held (D-049),
+    // rates.yaml didn't read, or settling failed. The app's minute tick calls it (review 1.2).
+    void retryPendingSettle();
     void doneForNow() override;  // clears the summary
     void turnaround() override;  // clears the summary and asks for New Flight with the same airplane
 
@@ -65,4 +68,5 @@ private:
     std::filesystem::path ratesFile_;
     int fuelOnRecordLb_ = 0;
     QString summaryRegistration_;
+    bool settlePending_ = false;  // a block in was seen, or the log shows the flight flown, and it isn't settled
 };

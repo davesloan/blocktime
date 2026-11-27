@@ -6,6 +6,7 @@
 
 #include <chrono>
 #include <format>
+#include <iostream>
 
 #include <QVariantMap>
 
@@ -71,6 +72,7 @@ void PlannedFlightModel::reload(const QString& message) {
 
 void PlannedFlightModel::onBlockEvent(const QString& type) {
     if (type == "block_in") {
+        settlePending_ = true;  // until it settles: the block_in line may not be in the log yet (D-049)
         checkFlown();
     } else if (type == "flight_interrupted" && flight_) {
         // Discarded as if it never happened; the plan stays for another try (D-072, D-108).
@@ -82,28 +84,47 @@ void PlannedFlightModel::onBlockEvent(const QString& type) {
     emit notRecordingChanged();
 }
 
+void PlannedFlightModel::retryPendingSettle() {
+    if (settlePending_) checkFlown();
+}
+
 void PlannedFlightModel::checkFlown() {
     recordDeboardings(db_, logDir_);  // one that ended while BlockTime was closed (D-137)
     if (!flight_) flight_ = currentPlannedFlight(db_);
-    if (!flight_) return;
+    if (!flight_) {
+        settlePending_ = false;
+        return;
+    }
     const std::string registration = flight_->registration;
+    const auto waiting = [this](const QString& why) {
+        settlePending_ = true;
+        notice_ = "Flown, waiting to settle: " + why;
+        emit changed();
+    };
+    auto current = findCurrentFlown(db_, logDir_, false);
+    if (!current) {
+        // Not in the log yet: a held block_in line (D-049) is written later, and the minute tick tries again.
+        if (settlePending_) waiting("the block in isn't in the log yet. BlockTime tries again every minute.");
+        return;
+    }
     std::string error;
-    // Ledger lines are permanent, so a flight is never settled at default rates: it waits until rates.yaml reads
-    // (the next block event or start settles it).
+    // Ledger lines are permanent, so a flight is never settled at default rates: it waits until rates.yaml reads.
     const auto rates = loadRates(ratesFile_, &error);
     if (!rates) {
-        notice_ = "Flight not settled yet: " + q(error) + ". Fix rates.yaml and restart BlockTime.";
-        emit changed();
+        waiting(q(error) + ". Fix rates.yaml; BlockTime tries again every minute.");
         return;
     }
-    const auto result = settleIfFlown(db_, logDir_, *rates, &error);
+    current->flown.lines = loadFlightEvents(logDir_, current->flown.logFlightId);  // the slow part, only now
+    const auto result = settleFlight(db_, current->planned, current->flown, *rates, &error);
     if (!result) {
-        if (!error.empty()) {
-            notice_ = q(error);
-            emit changed();
-        }
+        std::cerr << error << std::endl;  // errors.log (D-067)
+        waiting(q(error) + ". BlockTime tries again every minute.");
         return;
     }
+    if (!result->debriefError.empty()) {
+        std::cerr << "Settled " << result->logFlightId << " without its debrief: " << result->debriefError << std::endl;
+    }
+    settlePending_ = false;
     notice_.clear();
     summaryRegistration_ = q(registration);
     reload();
@@ -225,6 +246,12 @@ void PlannedFlightModel::importPlan() {
 
 void PlannedFlightModel::cancelFlight() {
     if (bridge_.flightOpen()) return;  // it's being flown: cancelling would lose it without a word
+    // A flown flight that hasn't settled yet would never settle once its planned flight is gone (review 1.2).
+    if (settlePending_ || findCurrentFlown(db_, logDir_, false)) {
+        message_ = "This flight was flown and is waiting to settle, so it can't be cancelled.";
+        emit changed();
+        return;
+    }
     std::string error;
     if (!cancelPlannedFlight(db_, &error)) {
         message_ = q(error);

@@ -47,19 +47,22 @@ struct FlownFlight {
     std::vector<LogLine> lines;
 };
 
-// Reads up to maxFiles daily logs in `logDir`, oldest first, as one stream. The first block_out with this
+// Reads the daily logs in `logDir` from plannedAt's day on (a flight is never in an older file), at most the last
+// maxFiles of them, oldest first, as one stream. The first block_out with this
 // planned_flight_id, released after `plannedAt` and not in `alreadySettled`, that is followed by a block_in with its
 // flight_id is the flown flight. An interrupted attempt is skipped (D-108). Lines that don't parse are skipped.
 // Its phases are the phase_changed events with its flight_id; its services are those a GsxTimeline, fed every block,
 // gsx_service and sim session line, gives the block out (D-138).
 std::optional<FlownFlight> findFlownFlight(const std::filesystem::path& logDir, std::int64_t plannedFlightId,
                                            std::string_view plannedAt, const std::set<std::string>& alreadySettled,
-                                           std::size_t maxFiles = kOpenFlightLookbackFiles);
+                                           std::size_t maxFiles = SIZE_MAX);
 
 struct SettledFlight {
     std::string logFlightId, arrivalIcao;
     bool diverted = false;  // parked somewhere other than the planned destination
     Preview money;          // the posted lines and their total
+    // Why the flight settled without its debrief measurements ("" if it has them, or had no lines): for errors.log.
+    std::string debriefError;
 };
 
 // One transaction: the flight with its cabins, plan, phases and services; its debrief measurements (D-160, measured
@@ -76,7 +79,15 @@ std::optional<SettledFlight> settleFlight(db::Database& db, const PlannedFlightV
 int recordDeboardings(db::Database& db, const std::filesystem::path& logDir,
                       std::size_t maxFiles = kOpenFlightLookbackFiles);
 
-// findFlownFlight, then settleFlight, for the current planned flight. nullopt with `error` "" when nothing was flown.
+// The current planned flight and its flown flight, if the log has one not yet settled. `withLines` also loads the
+// flight's log lines for the debrief (the slow part).
+struct CurrentFlown {
+    PlannedFlightView planned;
+    FlownFlight flown;
+};
+std::optional<CurrentFlown> findCurrentFlown(db::Database& db, const std::filesystem::path& logDir, bool withLines);
+
+// findCurrentFlown, then settleFlight. nullopt with `error` "" when nothing was flown.
 std::optional<SettledFlight> settleIfFlown(db::Database& db, const std::filesystem::path& logDir, const Rates& rates,
                                            std::string* error);
 

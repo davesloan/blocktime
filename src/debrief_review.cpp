@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <format>
+#include <map>
 #include <set>
 
 #include <nlohmann/json.hpp>
@@ -306,14 +307,29 @@ std::string buildReviewRequest(const ReviewInput& in) {
     user += "\nTimeline (UTC):\n" + buildTimeline(in.events);
 
     user += "\nATC exchanges (UTC; \"Pilot\" is Dave's side, spoken by him or his AI co-pilot):\n";
+    // An exchange is logged again when its content changes (ATC's reply comes after the pilot's call), and the log's
+    // contract is that the last line per id wins (atc_log.h). Each exchange is printed once, where it first appeared,
+    // with its last content (review 1.11).
+    const auto entryOf = [](const LogLine& l) -> const nlohmann::json* {
+        if (l.type != "atc_exchange" || !l.data.contains("entry") || !l.data["entry"].is_object()) return nullptr;
+        return &l.data["entry"];
+    };
+    const auto idOf = [](const nlohmann::json& e) {
+        return e.contains("id") && e["id"].is_number() ? e["id"].get<long long>() : -1LL;
+    };
+    std::map<long long, const nlohmann::json*> latest;
+    for (const LogLine& l : in.events) {
+        if (const nlohmann::json* e = entryOf(l); e && idOf(*e) >= 0) latest[idOf(*e)] = e;
+    }
     std::set<long long> seen;
     for (const LogLine& l : in.events) {
         // SayIntentions sends null for fields it has no value for: str() reads those as "".
-        if (l.type != "atc_exchange" || !l.data.contains("entry") || !l.data["entry"].is_object()) continue;
-        const auto& e = l.data["entry"];
-        if (str(e, "channel").rfind("COM", 0) != 0) continue;  // cabin crew and PA are on INTERCOM
-        const long long id = e.contains("id") && e["id"].is_number() ? e["id"].get<long long>() : -1;
+        const nlohmann::json* first = entryOf(l);
+        if (!first) continue;
+        const long long id = idOf(*first);
         if (id >= 0 && !seen.insert(id).second) continue;
+        const auto& e = id >= 0 ? *latest.at(id) : *first;
+        if (str(e, "channel").rfind("COM", 0) != 0) continue;  // cabin crew and PA are on INTERCOM
         const std::string stamp = str(e, "stamp_zulu");
         const std::string at = stamp.size() >= 19 ? stamp.substr(11, 8) : hhmmss(l.ts);
         if (e.contains("incoming_message") && e["incoming_message"].is_string() &&

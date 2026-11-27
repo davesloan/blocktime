@@ -30,7 +30,7 @@ public:
 
     const std::filesystem::path& dir() const { return dir_; }
 
-    // Default directory: %LOCALAPPDATA%\BlockTime\events
+    // Default directory: dataDir()\events, %LOCALAPPDATA%\BlockTime\events unless the app chose another (D-226)
     static std::filesystem::path defaultDir();
 
 private:

@@ -24,6 +24,8 @@ ApplicationWindow {
     required property string airlineName
     property int startPage: 0  // --page; a developer option with --grab
     property bool devMode: false  // --dev (D-211): Live shows the flight tiles and the event feed
+    // False for --demo and --grab, which record nothing (D-226): their made-up or absent flight needs no guard.
+    property bool recording: true
     // Map settings from app_main (D-059). The tile URL holds the CARTO key: never shown or logged.
     required property string mapTileUrl
     required property string mapCacheDir
@@ -45,6 +47,28 @@ ApplicationWindow {
 
         function onTurnaroundRequested(registration: string) {
             if (window.newFlight.open(registration)) newFlightDialog.open();
+        }
+    }
+
+    // Closing while a flight is open asks first (review 1.9): the flight would be discarded.
+    property bool closeConfirmed: false
+
+    onClosing: close => {
+        // Held events (D-227) are lost too: a block in whose line isn't written yet never settles.
+        const held = window.recorder.recorderProblem !== "";
+        if (window.recording && (window.recorder.flightOpen || held) && !window.closeConfirmed) {
+            close.accepted = false;
+            closeFlightDialog.eventsHeld = held && !window.recorder.flightOpen;
+            closeFlightDialog.open();
+        }
+    }
+
+    CloseFlightDialog {
+        id: closeFlightDialog
+
+        onCloseAnyway: {
+            window.closeConfirmed = true;
+            window.close();
         }
     }
 

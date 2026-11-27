@@ -513,7 +513,8 @@ spot only for:
   landing and Claude's review, `docs/debrief.md`). A flight settled at startup (BlockTime was closed or
   crashed at block in) shows its summary the same way.
 - **Flights (D-111)** lists the settled flights from the database, newest first, and shows the same summary for the
-  one selected. The track comes from the event log; once the log is gone (30 days), the map shows a straight line.
+  one selected. The track comes from the event log, and Flights reads only the last 30 log files: an older flight's map shows a
+  straight line (the logs themselves are never deleted, D-224).
 - Two buttons:
   - **At Gate Turnaround:** back to New Flight with the same aircraft at its new airport and gate.
   - **Done for now**: the aircraft stays parked; the app remembers the gate for the next
