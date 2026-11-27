@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
 
 #include "planned_flight.h"
 #include "simbrief.h"
@@ -322,4 +323,57 @@ TEST(Planned, ViewHasRoute) {
     EXPECT_NEAR(f->route[1].lat, 45.0, 1e-6);
     EXPECT_NEAR(f->route[2].lon, -119.0, 1e-6);
     EXPECT_NEAR(f->route[3].lon, -117.19, 1e-6);
+}
+
+namespace {
+
+// A flown flight of N814SX out of `origin` with `taxiOutS` from block out to the takeoff roll.
+void flownWithTaxi(db::Database& db, const std::string& logId, const std::string& origin, const std::string& out,
+                   const std::string& takeoff, const std::string& in) {
+    ASSERT_TRUE(db.exec(
+        "INSERT INTO flight (log_flight_id, airplane_id, flight_number, kind, origin_airport_id,"
+        " planned_destination_airport_id, arrival_airport_id, cargo_lb, fuel_price_cents_per_100lb, planned_at,"
+        " block_out_at, block_in_at, fuel_on_record_lb, fuel_out_lb, fuel_in_lb)"
+        " SELECT '" + logId + "', a.airplane_id, '8', 'vip', o.airport_id, d.airport_id, d.airport_id, 0, 4100,"
+        " '2026-11-20T09:00:00Z', '" + out + "', '" + in + "', 0, 9000, 8000"
+        " FROM airplane a, airport o, airport d WHERE a.registration = 'N814SX' AND o.icao_code = '" + origin +
+        "' AND d.icao_code = 'KSHT'"));
+    ASSERT_TRUE(db.exec("INSERT INTO flight_phase (flight_id, seq, phase, started_at) SELECT flight_id, 0, 'takeoff', '" +
+                        takeoff + "' FROM flight WHERE log_flight_id = '" + logId + "'"));
+}
+
+// The brief's times with the navlog's fixes: the whole of what the predictions read from an OFP.
+std::string predictionsOfp() {
+    nlohmann::json ofp = nlohmann::json::parse(fixture("ofp-ksan-ksjc-brief.json"));
+    ofp["navlog"] = nlohmann::json::parse(fixture("ofp-ksan-ksjc-navlog.json"))["navlog"];
+    return ofp.dump();
+}
+
+}  // namespace
+
+// D-212: Dave's median where he has flown from the airport, else the plan's.
+TEST(Planned, ViewCarriesTaxiTimes) {
+    db::Database db = test::testAirline();
+    flownWithTaxi(db, "earlier", "KBFI", "2026-11-20T10:00:00Z", "2026-11-20T10:06:40Z", "2026-11-20T11:00:00Z");
+    std::string error;
+    const auto id = createPlannedFlight(db, vipToKsan(db), &error);  // KBFI to KSAN
+    ASSERT_TRUE(id.has_value()) << error;
+    EXPECT_EQ(currentPlannedFlight(db)->taxiOutS, 400);  // Dave's, even without a plan
+    EXPECT_EQ(currentPlannedFlight(db)->taxiInS, 0);     // neither Dave's nor a plan's
+
+    ASSERT_TRUE(storeSimbriefPlan(db, *id, fixturePlan(), predictionsOfp(), "2026-11-23T14:05:00Z", &error)) << error;
+    const auto f = currentPlannedFlight(db);
+    EXPECT_EQ(f->taxiOutS, 400);
+    EXPECT_EQ(f->taxiInS, 1200);  // no flights into KSAN yet: the plan's
+    EXPECT_EQ(f->planFixes.size(), 17u);
+    EXPECT_EQ(f->route.size(), 19u);  // the origin, the fixes, the destination
+}
+
+// A replay doesn't feed on its own taxi time (Review Focus 4).
+TEST(Planned, FlownViewTaxiTimesExcludeItself) {
+    db::Database db = test::testAirline();
+    flownWithTaxi(db, "first", "KSAN", "2026-11-20T10:00:00Z", "2026-11-20T10:08:20Z", "2026-11-20T11:00:00Z");
+    flownWithTaxi(db, "second", "KSAN", "2026-11-21T10:00:00Z", "2026-11-21T10:05:00Z", "2026-11-21T11:00:00Z");
+    EXPECT_EQ(flownFlightView(db, "second")->taxiOutS, 500);  // the first's 500 s, not its own 300
+    EXPECT_EQ(flownFlightView(db, "first")->taxiOutS, 0);     // nothing before it, and no plan
 }

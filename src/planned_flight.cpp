@@ -12,6 +12,7 @@
 
 #include "airline_queries.h"
 #include "geo.h"
+#include "taxi_history.h"
 
 namespace blocktime {
 
@@ -258,7 +259,8 @@ std::optional<PlannedFlightView> readFlightView(db::Database& db, const ViewTabl
     plan.bind(1, v.id);
     v.route.push_back({q.real(18), q.real(19)});
     if (plan.next()) {
-        for (const RoutePoint& p : parseNavlog(plan.text(12))) v.route.push_back(p);
+        v.planFixes = parsePlanFixes(plan.text(12));
+        for (const PlanFix& f : v.planFixes) v.route.push_back(f.at);
         v.brief = parsePlanBrief(plan.text(12));
         SimbriefPlan p;
         p.requestId = plan.text(0);
@@ -283,11 +285,19 @@ std::optional<PlannedFlightView> readFlightView(db::Database& db, const ViewTabl
     return v;
 }
 
+// Dave's taxi times at the two airports, else the plan's (D-212), from flights that blocked in before `before`.
+void setTaxiTimes(db::Database& db, PlannedFlightView& v, std::string_view before) {
+    const TaxiHistory h = taxiHistory(db, v.origin, v.destination, before);
+    v.taxiOutS = h.outS.value_or(v.brief ? v.brief->taxiOutS : 0);
+    v.taxiInS = h.inS.value_or(v.brief ? v.brief->taxiInS : 0);
+}
+
 }  // namespace
 
 std::optional<PlannedFlightView> currentPlannedFlight(db::Database& db) {
     auto v = readFlightView(db, kPlannedTables, "", "");
     if (!v) return v;
+    setTaxiTimes(db, *v, "");
     // The latest flight's spot, if it ended where this one starts (D-148).
     db::Statement last(db,
                        "SELECT COALESCE(l.arrival_parking, '') FROM flight l JOIN airport ap"
@@ -301,7 +311,13 @@ std::optional<PlannedFlightView> currentPlannedFlight(db::Database& db) {
 }
 
 std::optional<PlannedFlightView> flownFlightView(db::Database& db, std::string_view logFlightId) {
-    return readFlightView(db, kFlownTables, "WHERE f.log_flight_id = ?", logFlightId);
+    auto v = readFlightView(db, kFlownTables, "WHERE f.log_flight_id = ?", logFlightId);
+    if (!v) return v;
+    // Only the flights before it, so a replay shows what Live would have shown (D-213).
+    db::Statement out(db, "SELECT block_out_at FROM flight WHERE log_flight_id = ?");
+    out.bind(1, logFlightId);
+    if (out.next()) setTaxiTimes(db, *v, out.text(0));
+    return v;
 }
 
 std::optional<std::string> latestFlightId(db::Database& db) {

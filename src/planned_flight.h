@@ -93,6 +93,8 @@ struct PlannedFlightView {
     std::optional<PlanBrief> brief;
     // The origin, the plan's navlog fixes, then the destination; only the two airports without a plan (D-182).
     std::vector<RoutePoint> route;
+    std::vector<PlanFix> planFixes;  // the navlog with the plan's times and fuel: route[k + 1] is planFixes[k]
+    int taxiOutS = 0, taxiInS = 0;   // D-212: Dave's median at the airport, else the plan's; 0 with neither
     std::vector<Hold> holds;  // the airplane's, for the load sheet (D-153)
 };
 
