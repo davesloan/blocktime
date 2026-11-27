@@ -3574,3 +3574,15 @@ TEST(Aircraft, ReturnPlaneEmitsAndFreesTheSlot) {
         if (a.registration == "N738BT") EXPECT_TRUE(a.returnedOn.has_value());
     }
 }
+
+// Final review: a return that fails (here the plane was returned unpaid behind the screen's back) says why.
+TEST(Aircraft, ReturnFailureIsShown) {
+    db::Database db = test::testAirline();
+    FakeReviewClient claude;
+    AircraftModel m(db, shippedAircraft(), claude, day27);
+    ASSERT_TRUE(m.open("N738BT"));
+    ASSERT_TRUE(db.exec("UPDATE airplane SET returned_on = '2026-11-27', return_reason = 'unpaid'"
+                        " WHERE registration = 'N738BT'"));
+    EXPECT_FALSE(m.returnPlane());
+    EXPECT_FALSE(m.returnError().isEmpty());
+}

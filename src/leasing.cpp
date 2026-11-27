@@ -77,6 +77,12 @@ bool postLeaseMonth(db::Database& db, std::int64_t airplaneId, Date periodStart,
     return run(charged, error);
 }
 
+std::string joined(const std::vector<std::string>& items) {
+    std::string out;
+    for (const std::string& item : items) out += (out.empty() ? "" : ", ") + item;
+    return out;
+}
+
 bool digitsOnly(const std::string& s) {
     return !s.empty() && std::all_of(s.begin(), s.end(), [](char c) { return c >= '0' && c <= '9'; });
 }
@@ -108,6 +114,7 @@ std::string check(db::Database& db, const LeaseRequest& req, const Rates& rates,
         for (const std::string& m : missing) list += (list.empty() ? "" : ", ") + m;
         return "Not read yet: " + list + ".";
     }
+    if (const auto zero = zeroFields(r); !zero.empty()) return "Must be more than 0: " + joined(zero) + ".";
     const auto& bases = req.type->simbriefBaseTypes;
     if (std::find(bases.begin(), bases.end(), r.baseType) == bases.end()) {
         return std::format("SimBrief's base type {} isn't a {}.", r.baseType, req.type->code);
@@ -453,6 +460,7 @@ RereadPlan plan(db::Database& db, const Catalog& catalog, std::int64_t airplaneI
         for (const std::string& m : missing) list += (list.empty() ? "" : ", ") + m;
         return refuse("Not read yet: " + list + ".");
     }
+    if (const auto zero = zeroFields(r); !zero.empty()) return refuse("Must be more than 0: " + joined(zero) + ".");
     const CatalogType* type = catalog.type(c.typeCode);
     if (!type) return refuse(c.typeCode + " isn't in the aircraft files.");
     const auto& bases = type->simbriefBaseTypes;
@@ -469,6 +477,13 @@ RereadPlan plan(db::Database& db, const Catalog& catalog, std::int64_t airplaneI
         q.bind(1, r.internalId);
         q.bind(2, airplaneId);
         if (q.next()) return refuse(std::format("SimBrief airframe {} already belongs to {}.", r.internalId, q.text(0)));
+    }
+    const auto choices = candidateLayouts(catalog, r.baseType, *r.maxPassengers);
+    const bool anyFits = std::any_of(choices.begin(), choices.end(), [&](const LayoutChoice& choice) {
+        return choice.seatsMatch && choice.type->code == c.typeCode;
+    });
+    if (!anyFits) {
+        return refuse(std::format("No {} layout has SimBrief's {} seats.", c.typeCode, *r.maxPassengers));
     }
     if (!layout || layout->typeCode != c.typeCode) return refuse("Pick a layout of the " + c.typeCode + ".");
     int seats = 0;

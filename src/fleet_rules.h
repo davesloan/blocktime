@@ -35,6 +35,9 @@ struct SimbriefReading {
 
 // The SimBrief labels of the values a lease needs that weren't read, in the form's order. Fin Number is optional.
 std::vector<std::string> missingFields(const SimbriefReading& reading);
+// The SimBrief labels of read values that must be more than 0 but aren't (the weights other than bags, and the
+// runway). Max Passengers and Baggage Weight may be 0 (a freighter, no bags).
+std::vector<std::string> zeroFields(const SimbriefReading& reading);
 
 // A layout a screenshot could be: every layout of every type that accepts its base type, with whether its seats
 // equal SimBrief's Max Passengers (they must, D-242). Pointers into the catalog.

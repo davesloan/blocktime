@@ -445,6 +445,16 @@ Item {
                             font.pixelSize: Theme.fontSizeBody
                         }
 
+                        Text {
+                            visible: text !== ""
+                            Layout.fillWidth: true
+                            text: page.model.returnError
+                            wrapMode: Text.WordWrap
+                            color: Theme.warn
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeBody
+                        }
+
                         RowLayout {
                             Layout.alignment: Qt.AlignRight
                             spacing: Theme.gap8

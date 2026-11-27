@@ -37,6 +37,22 @@ std::vector<std::string> missingFields(const SimbriefReading& r) {
     return out;
 }
 
+std::vector<std::string> zeroFields(const SimbriefReading& r) {
+    std::vector<std::string> out;
+    const auto positive = [&](const std::optional<int>& value, const char* label) {
+        if (value && *value <= 0) out.push_back(label);
+    };
+    positive(r.passengerWeightLb, "Passenger Weight");
+    positive(r.emptyWeightLb, "Empty Weight");
+    positive(r.mzfwLb, "Max Zero Fuel Weight");
+    positive(r.mtowLb, "Max Takeoff Weight");
+    positive(r.mlwLb, "Max Landing Weight");
+    positive(r.maxFuelLb, "Max Fuel Capacity");
+    positive(r.maxCargoLb, "Max Cargo Weight");
+    positive(r.minRunwayFt, "Min Runway");
+    return out;
+}
+
 std::vector<LayoutChoice> candidateLayouts(const Catalog& catalog, std::string_view baseType, int maxPassengers) {
     std::vector<LayoutChoice> out;
     for (const CatalogType& type : catalog.types) {
@@ -98,8 +114,9 @@ Cents leaseRefundCents(Cents monthlyCents, Date leasedOn, Date returnedOn) {
     const auto [start, next] = leaseMonthOf(leasedOn, returnedOn);
     const int monthDays = daysBetween(start, next);
     if (monthDays <= 0) return 0;
-    const double cents = static_cast<double>(monthlyCents) * unusedLeaseDays(leasedOn, returnedOn) / monthDays;
-    return std::max<Cents>(0, roundToFiveDollars(static_cast<Cents>(std::llround(cents))));
+    // Integer arithmetic, rounded half up to the cent, then to $5 (no floating-point money, CLAUDE.md).
+    const Cents cents = (monthlyCents * unusedLeaseDays(leasedOn, returnedOn) * 2 + monthDays) / (2 * monthDays);
+    return std::max<Cents>(0, roundToFiveDollars(cents));
 }
 
 Preview instantDeliveryPrice(const CatalogType& type, double distanceNm, int mlwLb, const Rates& rates) {

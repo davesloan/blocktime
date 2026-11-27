@@ -48,6 +48,7 @@ class AircraftModel : public QObject {
     Q_PROPERTY(bool canReread READ canReread NOTIFY changed)
     Q_PROPERTY(QString blockedText READ blockedText NOTIFY changed)  // why both are greyed, or ""
     Q_PROPERTY(QString returnText READ returnText NOTIFY changed)    // the confirmation's sentence
+    Q_PROPERTY(QString returnError READ returnError NOTIFY changed)  // why Return failed, on the confirmation
     Q_PROPERTY(QString rereadState READ rereadState NOTIFY changed)  // "idle" | "reading" | "read" | "failed"
     Q_PROPERTY(QString rereadError READ rereadError NOTIFY changed)
     Q_PROPERTY(QVariantList rereadChanges READ rereadChanges NOTIFY changed)  // {label, before, after}
@@ -86,6 +87,7 @@ public:
     bool canReread() const;
     QString blockedText() const;
     QString returnText() const;
+    QString returnError() const { return returnError_; }
     QString rereadState() const { return rereadState_; }
     QString rereadError() const { return rereadError_; }
     QVariantList rereadChanges() const;
@@ -127,6 +129,7 @@ private:
 
     QString rereadState_ = QStringLiteral("idle");
     QString rereadError_;
+    QString returnError_;
     int attempt_ = 0;
     blocktime::SimbriefReading reading_;
     std::vector<blocktime::LayoutChoice> rereadChoices_;

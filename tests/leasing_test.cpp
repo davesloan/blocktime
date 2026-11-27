@@ -479,3 +479,26 @@ TEST_F(Leasing, RefundIfReturnedMatchesTheReturn) {
     EXPECT_EQ(refundIfReturned(db_, id, d(2026, 11, 27)), 12'000'000);
     EXPECT_EQ(refundIfReturned(db_, id, d(2026, 12, 23)), 0);  // that month isn't charged
 }
+
+// Final review: a 0 that the schema would reject is refused in words, not with a CHECK error.
+TEST_F(Leasing, ZeroValuesAreRefused) {
+    LeaseRequest r = b738("N738SX", "1_1", d(2026, 11, 22));
+    r.reading.mtowLb = 0;
+    r.reading.minRunwayFt = 0;
+    EXPECT_EQ(leaseRefusal(db_, r, rates_, slots_), "Must be more than 0: Max Takeoff Weight, Min Runway.");
+    EXPECT_EQ(leaseAirplane(db_, r, rates_, slots_).refusal, "Must be more than 0: Max Takeoff Weight, Min Runway.");
+    EXPECT_EQ(count("SELECT COUNT(*) FROM airplane"), 0);
+    const auto id = lease(b738("N738SX", "1_1", d(2026, 11, 22)));
+    SimbriefReading zero = b738Reading("N738SX", "1_1");
+    zero.maxCargoLb = 0;
+    EXPECT_EQ(planReread(db_, catalog_, id, zero, catalog_.airframe("737-800 Two-class")).refusal,
+              "Must be more than 0: Max Cargo Weight.");
+}
+
+// Final review: a re-read whose seat count no layout of the type has says so, rather than "pick a layout".
+TEST_F(Leasing, RereadSaysWhenNoLayoutHasTheSeats) {
+    const auto id = lease(bbj("N814SX", "1_1", d(2026, 11, 22)));
+    SimbriefReading r = bbjReading("N814SX", "1_1");
+    r.maxPassengers = 50;
+    EXPECT_EQ(planReread(db_, catalog_, id, r, nullptr).refusal, "No 737-800 BBJ2 layout has SimBrief's 50 seats.");
+}

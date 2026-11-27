@@ -125,6 +125,7 @@ bool AircraftModel::open(const QString& registration) {
     ++attempt_;
     rereadState_ = QStringLiteral("idle");
     rereadError_.clear();
+    returnError_.clear();
     rereadChoices_.clear();
     rereadLayoutIndex_ = -1;
     emit changed();
@@ -395,10 +396,11 @@ bool AircraftModel::returnPlane() {
     if (!detail_) return false;
     const std::string error = returnAirplane(db_, detail_->id, today_());
     if (!error.empty()) {
-        rereadError_ = q(error);
+        returnError_ = q(error);
         emit changed();
         return false;
     }
+    returnError_.clear();
     detail_.reset();
     emit changed();
     emit returned();
