@@ -4,7 +4,7 @@ The schema of `%LOCALAPPDATA%\BlockTime\blocktime.db`, the one SQLite file that 
 It follows the database rules in `CLAUDE.md` (D-078), applied for what they protect (D-090). Keep this file true: a
 schema change updates it in the same commit.
 
-**Status:** built through milestone 8 (schema version 5, `src/airline_db.cpp`).
+**Status:** built through milestone 15b (schema version 11, `src/airline_db.cpp`).
 
 ## Conventions
 
@@ -30,17 +30,17 @@ relations between real entities, unique registrations and ICAO codes, money in $
 charged twice. Values written by a single, validated code path (an airplane's cabins and holds, copied from the
 catalog when it's leased) are checked by that code and its tests, not by extra tables or triggers.
 
-**Template copied at lease time (D-082, D-091).** The catalog YAML holds **airframes**: templates, each a type in one
-configuration (737-800 two-class). An **airplane** is one leased plane made from an airframe, like an object made
-from a class. When an airplane is leased, its airframe's values (seats, holds, the type's lease rate) are copied into
-the database with it. Types themselves are reference data, refreshed from the catalog (D-093). From then on the database
+**Template copied at lease time (D-082, D-091, D-243).** The aircraft files in `data/aircraft/` hold **layouts**
+(airframes): templates, each a type in one configuration (737-800 two-class). An **airplane** is one leased plane made
+from a layout, like an object made from a class. When an airplane is leased, its layout's seats, its holds (SimBrief's
+Max Cargo split in the layout's shares) and the type's lease rate are copied into the database with it, along with the
+values read from its SimBrief airframe (D-242). Types themselves are reference data, refreshed from the catalog (D-093). From then on the database
 is the source of truth: editing the catalog changes future leases, never airplanes already in the fleet.
 
 ## Entity diagram
 
 ```mermaid
 erDiagram
-    fleet ||--o{ airplane : groups
     aircraft_type ||--o{ airplane : "is a"
     airport ||--o{ airplane : "parked at"
     airplane ||--o{ airplane_cabin : "seats by class"
@@ -73,6 +73,13 @@ erDiagram
     flight_kind ||--o{ planned_flight : "kind (m10)"
     flight_kind ||--o{ flight : "kind (m10)"
     return_reason ||--o{ airplane : "why returned (m10)"
+    airplane ||--o| airplane_simbrief : "its SimBrief values (m15b)"
+    airplane ||--o| instant_delivery : "bought delivery (m15b)"
+    airport ||--o{ instant_delivery : "from / to (m15b)"
+    instant_delivery ||--o{ instant_delivery_line : "its money"
+    ledger_line ||--o| instant_delivery_line : "money for"
+    airplane ||--o| lease_refund : "refunded at return (m15b)"
+    ledger_line ||--o| lease_refund : "money for"
 ```
 
 ## Tables
@@ -83,14 +90,9 @@ The airline's name, ICAO code and callsign live only in `airline.yaml` and are r
 have no history behind them, so a database copy would only repeat the config (D-093). They get a table when the
 settings screen moves them into the app (D-092). Starting cash is posted once, as an `opening_cash` ledger line.
 
-### `fleet`
+### `fleet` (removed in migration 11)
 
-Named groups of airplanes (design.md §6).
-
-| Column | Type | Rules |
-|---|---|---|
-| `fleet_id` | INTEGER PK | |
-| `name` | TEXT | `UNIQUE`, not empty |
+Named groups of airplanes until milestone 15b, when rotations took over that job (D-244).
 
 ### `aircraft_type`
 
@@ -115,23 +117,22 @@ One leased plane, its lease terms, and where it is now.
 | Column | Type | Rules |
 |---|---|---|
 | `airplane_id` | INTEGER PK | |
-| `registration` | TEXT | `UNIQUE`; capitals, digits and `-`. Entered by Dave in `airline.yaml` when leasing, and set by him in the airplane's SimBrief profile (D-087). Not read from the sim: a livery's ATC ID won't match every registration |
+| `registration` | TEXT | unique among airplanes in the fleet (a partial unique index `WHERE returned_on IS NULL`, migration 11, D-246), so a returned plane can be leased again as a new row; capitals, digits and `-`. Read from the airplane's SimBrief airframe (D-242). Not read from the sim: a livery's ATC ID won't match every registration |
 | `tail_number` | TEXT NULL | optional (design.md §3); NULL means the airplane has none. `CHECK` not empty when set |
 | `aircraft_type_id` | INTEGER | FK → `aircraft_type`, `ON DELETE RESTRICT` |
-| `fleet_id` | INTEGER | FK → `fleet`, `ON DELETE RESTRICT` |
 | `airframe_name` | TEXT | the catalog airframe it was made from (`737-800 Two-class`), for display |
-| `simbrief_airframe_id` | TEXT | `UNIQUE`; entered per airplane in `airline.yaml`, since each airplane has its own custom SimBrief airframe carrying its registration (D-087). Not part of the catalog template |
+| `simbrief_airframe_id` | TEXT | unique among airplanes in the fleet (partial unique index, migration 11); SimBrief's Internal ID, read from the screenshot (D-242). Each airplane has its own custom SimBrief airframe carrying its registration (D-087). A new screenshot may change it |
 | `leased_on` | TEXT | calendar date; each lease month starts on this day of the month |
 | `monthly_lease_cents` | INTEGER | > 0, multiple of 500; the rate at lease time, kept for the life of the lease |
 | `location_airport_id` | INTEGER | FK → `airport`, `ON DELETE RESTRICT`; **current state**, moves after each flight |
 | `fuel_on_board_lb` | INTEGER | ≥ 0; **current state** (design.md §11, fuel stays in the tanks) |
 | `awaiting_delivery` | INTEGER | boolean; **current state**: 1 until the factory delivery flight is settled (milestone 6) |
-| `free_flight_number` | TEXT NULL | added in schema 3 (D-106): the default flight number of its free flights, 1–4 digits, unique (a unique index; several NULLs are allowed). NULL means none is set, and New Flight's field starts empty. Set from `airline.yaml` at every start |
+| `free_flight_number` | TEXT NULL | added in schema 3 (D-106): the default flight number of its free flights, 1–4 digits, unique (a unique index; several NULLs are allowed). NULL means none is set, and New Flight's field starts empty. Set at Add Aircraft (unique among airplanes in the fleet since migration 11) |
 | `returned_on` | TEXT NULL | calendar date the lease ended; NULL while the airplane is still leased |
-| `return_reason` | TEXT NULL | FK → `return_reason`, `ON DELETE RESTRICT` (schema 10; a `CHECK` before); set together with `returned_on` (`CHECK ((returned_on IS NULL) = (return_reason IS NULL))`). `'returned'` (Dave returns it, with a prorated refund) comes with the settings screen, as a row in `return_reason` |
+| `return_reason` | TEXT NULL | FK → `return_reason`, `ON DELETE RESTRICT` (schema 10; a `CHECK` before); set together with `returned_on` (`CHECK ((returned_on IS NULL) = (return_reason IS NULL))`). `'returned'` (Dave returns it from the aircraft screen, with a prorated refund) since migration 11 |
 
-Indexes: `aircraft_type_id`, `fleet_id`, `location_airport_id` (New Flight lists what's parked at an airport),
-`return_reason`.
+Indexes: `aircraft_type_id`, `location_airport_id` (New Flight lists what's parked at an airport), `return_reason`,
+and the partial unique indexes on `registration`, `simbrief_airframe_id` and `free_flight_number` (migration 11).
 
 An airplane is **in the fleet** while `returned_on` is NULL. A returned airplane stays in the database: its lease
 charges (and later its flights) point at it.
@@ -140,7 +141,7 @@ The current-state columns, and `returned_on` and `return_reason` once, are the o
 ever updated. Everything that changes them (a settled flight, an unpaid month) also writes the facts behind the
 change.
 
-One airplane row is one lease. Leasing the same registration again after a return isn't supported in the MVP.
+One airplane row is one lease. Leasing the same registration again after a return makes a new row (migration 11); the old row keeps its flights and lease lines.
 
 ### `airplane_cabin`
 
@@ -238,15 +239,12 @@ ICAO code, at least one open paved runway of 4,000 ft or more, and a time zone i
 **Types from the catalog (D-093).** At each start, every type in the catalog is inserted or updated in
 `aircraft_type`, before any leasing.
 
-**Leasing from config (D-082, D-083).** At each start, every airplane in `airline.yaml` whose registration isn't in
-the database is leased, in one transaction: take the registration and SimBrief airframe from `airline.yaml`, copy
-its airframe from the catalog, insert the airplane with its cabins and holds, and charge the first
-month. If cash is less than that month's charge, nothing is written and the Fleet screen shows "Can't afford
-N738BT's first month". Affordability is the cash as of `leased_on` (D-096), so a later start gives the same answer:
-set a later `leased_on` to try again. An airplane whose SimBrief airframe already belongs to a leased airplane (a
-registration renamed in the config) isn't leased, and the notice says why. One airplane that can't be leased never
-stops the other airplanes' months from being charged (D-098). Editing or removing an airplane already leased changes
-nothing in the database (a warning in `errors.log`).
+**Leasing (milestone 15b, D-242).** Airplanes are leased in the app from a SimBrief reading (Add Aircraft,
+`leaseAirplane` in `leasing.h`), in one transaction: the airplane, its layout's cabins, its holds (SimBrief's Max Cargo
+in the layout's shares), its limits and `airplane_simbrief` row, the first month's `lease_charge`, and instant
+delivery's lines. Every check runs again inside the transaction (slots, seats against the layout, the registration,
+Internal ID and flight number free in the fleet, the delivery airport and its runway, cash for the month and the
+delivery); if one fails nothing is written. Until milestone 15b, airplanes were leased from `airline.yaml` at start.
 
 **Monthly lease charges.** At start and every minute while open: for every airplane in the fleet, every lease month
 whose start has passed and has no `lease_charge` row is charged, all airplanes together in date order, each line
@@ -269,8 +267,8 @@ Migration 3 adds four tables and one column, `airplane.free_flight_number` (D-10
 
 ### `airplane_limits`
 
-The values New Flight needs before a SimBrief plan exists (D-100): the airframe's defaults from the catalog, with any
-override from `airline.yaml`, copied when the airplane is leased. A separate table rather than new `airplane`
+The values New Flight needs before a SimBrief plan exists (D-100): since milestone 15b, read from the airplane's
+SimBrief airframe when it's leased (max payload is MZFW − empty weight) and replaced by a new screenshot (D-242). A separate table rather than new `airplane`
 columns because SQLite can only add a `NOT NULL` column with a default, and there's no right default for an airplane
 already leased: such an airplane gets its row at the next start, from its airframe. Until then it has no row, and New
 Flight says so.
@@ -343,12 +341,11 @@ to the fields the app uses, taken from it at import. Importing again replaces th
 
 ## Milestone 5's processes
 
-**Limits at lease time (D-100).** Leasing copies the airframe's `limits` from the catalog, each value replaced by
-the airplane's override in `airline.yaml` if it has one, in the same transaction as the airplane. At each start, an
-airplane with no `airplane_limits` row gets one the same way.
+**Limits at lease time (D-100, superseded by D-242).** Until milestone 15b, leasing copied the airframe's `limits`
+from the catalog with the airplane's overrides from `airline.yaml`. Now they come from the SimBrief reading.
 
-**Free-flight numbers (D-106).** At every start, each airplane's `free_flight_number` is set from `airline.yaml`'s
-`flight_number` (cleared first, in one transaction, so two airplanes can swap numbers). A planned flight keeps its own
+**Free-flight numbers (D-106).** Set when the airplane is leased (Add Aircraft's flight number; until milestone 15b,
+from `airline.yaml` at every start). A planned flight keeps its own
 `flight_number`, so changing the default changes nothing already planned.
 
 **Planning (design.md §13.1–13.2).** Plan flight writes `planned_flight` and its cabins in one transaction, after the
@@ -574,3 +571,61 @@ and rebuilds `airplane`, `planned_flight` and `flight` so their columns point at
 Every other column, rule and index is as before, in the same column order; the three new foreign keys are indexed.
 `aircraft_type.family` and `role` stay `CHECK`s (D-039 fixes the families; every type has a role, D-090), and
 `airplane.monthly_lease_cents` waits for D-219's per-hour lease (review 2.2).
+
+## Milestone 15b's tables (migration 11, schema version 11)
+
+`airplane` is rebuilt without `fleet_id`, and the `fleet` table is dropped (D-244). `return_reason` gains
+`'returned'`; `ledger_category` gains `delivery_fee` and `lease_refund`.
+
+### `airplane_simbrief`
+
+The values read from the airplane's SimBrief airframe that `airplane_limits` doesn't hold (D-242, D-246). One row per
+airplane; **no row means no screenshot yet** (the airplanes leased before milestone 15b), so no column needs a NULL
+for "unknown". A new screenshot replaces the row (current state, like location and fuel).
+
+| Column | Type | Rules |
+|---|---|---|
+| `airplane_id` | INTEGER PK | FK → `airplane`, `ON DELETE CASCADE` |
+| `read_at` | TEXT | UTC instant of the reading |
+| `base_type` | TEXT | not empty; SimBrief's Base Type (`B738`, `BBJ2`) |
+| `max_passengers` | INTEGER | ≥ 0; equals the layout's seats when read |
+| `empty_weight_lb`, `mtow_lb`, `max_fuel_lb`, `max_cargo_lb` | INTEGER | > 0 |
+| `mzfw_lb` | INTEGER | > `empty_weight_lb` (`airplane_limits.max_payload_lb` is their difference) |
+
+### `instant_delivery` and `instant_delivery_line`
+
+An airplane delivered at once instead of flown from its factory (D-245): one row per lease at most (`UNIQUE` on the
+airplane), with the factory and the airport, and its money lines (the delivery estimate's pilots, maintenance, ATC
+and landing, plus the Delivery fee), each a `ledger_line` pointed at by an `instant_delivery_line` row. Delivering to
+the factory itself writes nothing: there's nothing to buy.
+
+| Column | Type | Rules |
+|---|---|---|
+| `instant_delivery_id` | INTEGER PK | |
+| `airplane_id` | INTEGER | `UNIQUE`; FK → `airplane`, `ON DELETE RESTRICT` |
+| `from_airport_id`, `to_airport_id` | INTEGER | FK → `airport`, `ON DELETE RESTRICT`; each indexed; `CHECK` they differ |
+
+| `instant_delivery_line` | Type | Rules |
+|---|---|---|
+| `ledger_line_id` | INTEGER PK | FK → `ledger_line`, `ON DELETE RESTRICT` |
+| `instant_delivery_id` | INTEGER | FK → `instant_delivery`, `ON DELETE RESTRICT`; indexed |
+
+### `lease_refund`
+
+The refund when Dave returns an airplane (design.md §5, D-245): one `ledger_line` (category `lease_refund`) per lease
+at most. Only a month already charged is refunded, and a $0 refund writes no line.
+
+| Column | Type | Rules |
+|---|---|---|
+| `ledger_line_id` | INTEGER PK | FK → `ledger_line`, `ON DELETE RESTRICT` |
+| `airplane_id` | INTEGER | `UNIQUE`; FK → `airplane`, `ON DELETE RESTRICT` |
+
+## Milestone 15b's processes
+
+- **Returning** (`returnAirplane`): in one transaction, `returned_on` today with reason `returned`, and the refund
+  (the current month's charge × the unused days from tomorrow ÷ the month's days, rounded to $5) if that month was
+  charged. Refused while the airplane has a planned flight. No later month is charged.
+- **A new screenshot** (`applyReread`): in one transaction, the limits, `airplane_simbrief`, the holds, the tail and
+  Internal ID, and the cabins and `airframe_name` when the layout changed. The type and registration can't change
+  (a rename would relabel past flights, D-246). Refused while the airplane has a planned flight. Settled flights keep
+  their own figures.

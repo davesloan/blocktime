@@ -197,9 +197,9 @@ Pressing Lease writes everything in one transaction (below) and returns to Fleet
 - **Max Passengers must equal a layout's total seats exactly** (Dave). That one is pre-selected; layouts with other
   seat counts are shown greyed with "184 seats; SimBrief says 160". If several match, the first in file order is
   pre-selected and Dave can change it.
-- This also tells variants apart if SimBrief gives several the same base type (the BBJ2's 48 VIP seats, the BCF's 0).
-  Whether SimBrief's base types for the BBJ2 and BCF differ from the 737-800's isn't known; the files list whatever
-  Dave's screenshots show.
+- This also tells variants apart if SimBrief gives several the same base type (the BCF's 0 seats). N814SX's SimBrief
+  airframe shows Base Type BBJ2 (ICAO code B738), so the BBJ2 file accepts BBJ2; the others are estimates until Dave's
+  screenshots confirm them.
 - A freighter layout has 0 seats and matches Max Passengers 0.
 
 ### The holds
@@ -223,7 +223,7 @@ separate from each hold's maximum.
   11 and 25 lb per nm at $0.70 per lb; Dave tunes them in the files). Every line shows its working
   ("Delivery fee: 943 nm × $8"). Charged at Lease and posted as those lines (pilots, maintenance, ATC, landing in
   their existing ledger categories, the fee in a new one), all pointing at one instant delivery fact row with the
-  airplane and the airport.
+  airplane, the factory and the airport (the ledger shows "N738SX instant delivery KBFI–KSAN · Delivery fee").
   The airplane starts at that airport, not awaiting delivery, with **0 lb fuel on record**, so its first flight pays
   all its own fuel (Claude's call). Instant delivery earns no hours. If the airport is the factory, there's nothing
   to buy: the option says so and the plane starts there, delivered.

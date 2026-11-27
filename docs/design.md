@@ -44,14 +44,16 @@ Three layers:
    executive or freighter) decides the kind of flight and whether belly cargo can be carried (only airliners; D-089,
    D-090). The type carries what identifies it in the sim (D-088).
 3. **Airplane** — one leased plane, made from an airframe (D-091): registration, optional tail number, its own
-   SimBrief airframe (D-087), livery, current location, status, fuel on board, hours.
+   SimBrief airframe (D-087), livery, current location, status, fuel on board, hours. Leased in the app from a
+   screenshot of its SimBrief airframe page (D-242, `docs/fleet.md`).
 
 In software terms the airframe is the class and the airplane the object. When an airplane is leased, its airframe's
 values are copied into the database with it (D-082). "SimBrief airframe" is SimBrief's own name for a saved aircraft
 profile; each airplane has one, carrying its registration.
 
-The catalog contains only aircraft Dave flies and is edited by hand as his fleet changes. After the MVP it's
-managed in the app instead (D-092).
+The catalog is shipped with the app as one YAML file per type in `data/aircraft/` (D-243): the type's values, the
+SimBrief base types it accepts, its factory, its instant-delivery fee rate and its layouts (seats per class, each
+hold's share of SimBrief's Max Cargo, the loading ratio). Supporting a new aircraft means adding a file.
 
 ### Starting configurations
 
@@ -71,12 +73,13 @@ Exact seats per class, hold maximums and hold ratios are taken from the PMDG loa
 
 ### SimBrief is the source of truth
 
-Each airplane stores its SimBrief airframe ID (D-087). SimBrief has no airframe API, and New Flight needs a few
-values before any plan exists, so they're typed in once (D-100): **minimum runway, MLW, passenger weight, bag weight
-and max payload** (MZFW − empty weight). Each catalog airframe holds them as defaults; an airplane may override
-them, and they're copied onto it at lease time. They must match the airplane's SimBrief airframe: changing one means
-a new SimBrief airframe (on the settings screen, a change blanks the ID). Everything else (MTOW, max fuel, the plan
-itself) is SimBrief's. SimBrief OFP data is
+Each airplane stores its SimBrief airframe ID (D-087). SimBrief has no airframe API, so Add Aircraft reads a
+screenshot of the airplane's SimBrief airframe page with Claude (D-242): the registration, Fin Number, Internal ID,
+base type, Max Passengers, passenger and bag weight, empty weight, MZFW, MTOW, MLW, max fuel, Max Cargo and Min
+Runway. Max Passengers must equal a layout's seats exactly, which picks the layout; Max Cargo is the holds' total,
+split in the layout's shares. New Flight uses the **minimum runway, MLW, passenger weight, bag weight and max payload**
+(MZFW − empty weight) before any plan exists. A new screenshot updates an airplane later (its type and registration
+can't change). The plan itself is SimBrief's. SimBrief OFP data is
 available via `https://www.simbrief.com/api/xml.fetcher.php?userid=<id>&json=v2`; SimBrief deletes old OFPs after a
 few days, so store a copy of each plan when a flight is filed.
 
@@ -85,7 +88,7 @@ few days, so store a copy of each plan when a flight is filed.
 An estimate in **pounds per great-circle NM**, per catalog airframe, used only for previews before a SimBrief plan
 exists (D-119). SimBrief always decides the actual fuel loaded.
 
-- **Entered:** an optional value on the airframe (in `catalog.yaml` until the settings screen exists). It's used
+- **Entered:** an optional value on the airframe (in its aircraft file once built; not built yet). It's used
   whenever it's set and not 0.
 - **Learned:** BlockTime works out its own value from completed flights longer than 200 NM (great-circle) on any
   airplane of that airframe, once there are at least 3: fuel burned (block-out fuel − shutdown fuel) divided by
@@ -108,7 +111,9 @@ exists (D-119). SimBrief always decides the actual fuel loaded.
 
 - **Wet lease, paid monthly in advance.** No buying, no loans. Crew comes with the lease (explains crew costs; no
   pilots to manage). Maintenance is a flat per-hour cost (see Costs).
-- **Return anytime, no penalty.** Prorated refund for the unused part of the month.
+- **Return anytime, no penalty.** Prorated refund for the unused part of the month: the month's charge × the unused
+  days (from tomorrow) ÷ the month's days, rounded to $5, and only for a month already charged (D-245, D-246). From
+  the aircraft screen's Return airplane; refused while the plane has a flight planned.
 - You can't lease a plane you can't afford that month.
 
 ### Monthly lease rates
@@ -133,36 +138,40 @@ No bankruptcy. While cash is below zero you can't lease new planes. A lease that
 
 ## 6. Setup and growth
 
-**MVP (D-076):** the airline identity, fleets and leased airplanes come from hand-edited config files. A settings
-screen for all of this comes after the MVP.
+The airline's name, ICAO code, callsign, founding date, starting cash and preferred gates come from the hand-edited
+`airline.yaml` (D-076). Airplanes are leased in the app (milestone 15b, `docs/fleet.md`, D-242); fleets are gone
+(D-244): rotations will group the planes.
 
 1. **$5M starting cash** (config value).
 2. Airline identity: name, logo, ICAO code, callsign.
-3. Create the first fleet. Fleets are just named groups (passenger, cargo, premium…); add them any time.
-4. Lease the first airplane: registration, optional tail number.
-5. **Delivery:** fly it yourself from the factory (737s from Boeing Field KBFI, 777s from Paine Field KPAE), or pay
-   that delivery flight's estimated cost for instant delivery to any airport. The delivery flight is the only empty
-   flight in the game.
+3. **Lease an airplane:** Fleet → an empty slot → Add Aircraft. Drop in a screenshot of the airplane's SimBrief
+   airframe page; Claude reads it, Dave checks the values, the layout is picked by seat count, and Lease charges the
+   first month.
+4. **Delivery** (D-245): fly it yourself from the factory (737s from Boeing Field KBFI, 777s from Paine Field KPAE;
+   each aircraft file names its factory), or **instant delivery** to any airport with a long enough runway. Instant
+   delivery costs the delivery flight's estimate (pilots only, maintenance, ATC, landing) with the fuel replaced by
+   a **Delivery fee**: great-circle nm × the type's rate ($8 for 737s, $18 for 777s), roughly the fuel's cost. The
+   plane arrives with 0 lb fuel on record and earns no hours. The delivery flight is the only empty flight in the
+   game.
+
+### The Fleet screen (D-241)
+
+Fleet is the slots screen: the airline as a character sheet on the left (slots open, the bar to the next slot,
+hours, cash, leases per month) and its slots on the right: a card per airplane in lease order, then the empty slots
+("+ Add aircraft") and the locked ones with the hours that open them. A card leads with its layout, then the
+registration, where it is and its fuel, and its current leg. Its main button is Continue Flight, Fly Delivery,
+Continue Journey, Fly This Leg or Fly, first that applies; Manage opens the aircraft screen (New screenshot, Return
+airplane). The glyph is green when Dave can fly the plane, amber awaiting delivery, blue for the current flight, grey
+in the air; rotation and journey planes get a teal or violet border (later). One flight at a time: while one plane
+has the planned flight, the others' buttons are greyed.
 
 ### Fleet growth: earn slots by flying
 
-- Start with **2 aircraft slots** (D-131). Slots cap the whole fleet (active and inactive; returned airplanes don't count).
-  Enforced when an airplane is leased (D-083): one that doesn't fit waits, with a notice, until the hours earn its
-  slot. Hours are the sum of Dave's flights' block times (D-114). Fleet shows them: "3.2 h flown · 1 of 2 slots in
-  use · slot 3 at 10 h".
-- Each new slot requires more hours flown **by Dave** (any aircraft, including free and delivery flights).
-  Background hours don't count.
-- Each slot costs 10 more hours than the last:
-
-| Slot | Hours for this slot | Total hours |
-|---|---|---|
-| 3 | 10 | 10 |
-| 4 | 20 | 30 |
-| 5 | 30 | 60 |
-| 6 | 40 | 100 |
-| 7 | 50 | 150 |
-| 9 | 70 | 280 |
-| 11 | 90 | 450 |
+- Start with **2 aircraft slots**, then **one more for every 10 hours** flown by Dave, up to **20** (D-240). Slot 3
+  at 10 h, slot 4 at 20 h, … slot 20 at 180 h. Slots cap the airplanes in the fleet (returned airplanes don't count).
+- Hours are the sum of Dave's flights' block times (D-114), any aircraft, free and delivery flights included.
+  Background hours won't count.
+- Add Aircraft refuses a lease when every slot is in use, saying when the next one opens.
 
 ## 7. Aircraft states and rotations
 
@@ -484,7 +493,7 @@ spot only for:
    SayIntentions' gate is already one of them. Gates for passenger and VIP flights; ramps for charters, deliveries
    and freighters, so a favourite ramp works too. Military spots are never used.
 2. **A gate too small for the type:** twice the spot's radius is less than the type's wingspan (`wingspan_m` in
-   catalog.yaml, D-147). Then the nearest spot of the same kind (gate or ramp) that fits, from SayIntentions' gate;
+   the type's aircraft file, D-147). Then the nearest spot of the same kind (gate or ramp) that fits, from SayIntentions' gate;
    if none fits, SayIntentions' gate stands.
 - Parking spots (name, position, size, type) come from the sim over SimConnect. Gate names are sent to
   SayIntentions in short form, letters and digits only ("E7" for MSFS's Gate E7, "70" for Parking 70; D-147).
@@ -580,9 +589,8 @@ summary as information only.
 
 - **SayIntentions integration:** ATIS comes from `getWX` (section 13.2) and the arrival gate from `assignGate`
   (section 13.6). Still to find out: how to get the ATC log for the flight analysis (section 14, D-040).
-- **Settings screen** (D-092) for the airline, fleets and leasing airplanes, and for **managing the catalog's
-  aircraft types and airframes** in the app (config files until then, D-076). The catalog then moves from YAML
-  into the database; airplanes already leased keep the values copied when they were leased (D-082).
+- **Settings screen** (D-092) for the airline's identity. Leasing, returning and the supported aircraft came with
+  milestone 15b (D-242, D-243): airplanes are leased in the app, and a new type is a new file in `data/aircraft/`.
 - **Pre-departure view on Live (D-118).** Before block out, Live shows everything Dave needs to set up the FMC
   and get ready for pushback, so BlockTime is the only thing open beside the sim. It changes to the in-flight view
   at block out. Sources: the SimBrief plan (route, weights, fuel, cost index, cruise altitude and the rest of perf

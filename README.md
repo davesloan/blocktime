@@ -111,29 +111,30 @@ models and the recorder bridge, without a window). Pass
 
 ## Set up your airline
 
-The airline comes from three config files in `%LOCALAPPDATA%\BlockTime\` (D-076). Copy the repo's examples there:
+The airline comes from two config files in `%LOCALAPPDATA%\BlockTime\` (D-076). Copy the repo's examples there:
 
 ```powershell
-New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\BlockTime" | Out-Null; Copy-Item config\catalog.yaml "$env:LOCALAPPDATA\BlockTime\catalog.yaml"; Copy-Item config\airline.example.yaml "$env:LOCALAPPDATA\BlockTime\airline.yaml"; Copy-Item config\rates.yaml "$env:LOCALAPPDATA\BlockTime\rates.yaml"
+New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\BlockTime" | Out-Null; Copy-Item config\airline.example.yaml "$env:LOCALAPPDATA\BlockTime\airline.yaml"; Copy-Item config\rates.yaml "$env:LOCALAPPDATA\BlockTime\rates.yaml"
 ```
 
-- **`airline.yaml`:** your airline's name, ICAO code and callsign, the day it was founded, its starting cash, its
-  fleets, and the airplanes you lease. Each airplane has its own registration and its own SimBrief airframe (the
-  "Internal ID" on SimBrief's airframe page, D-087). An airplane is leased the first time the app sees it; from then
-  on the database owns it, and editing or removing it in the file changes nothing (a warning goes to `errors.log`,
-  D-082).
-  Optional per airplane: `flight_number`, the default number of its free flights (re-read at every start, D-106), and
-  `limits`, its own values in place of its airframe's (read only when it's leased, D-100).
+Airplanes are leased in the app (milestone 15b, `docs/fleet.md`): **Fleet → an empty slot → Add Aircraft**, then
+drop in (or paste, after Win+Shift+S) a screenshot of the airplane's SimBrief airframe page. Claude reads it with
+your `claude_api_key` ([Keys and IDs](#keys-and-ids)); check the values, pick the delivery, and press Lease. Without a
+key you can type the values in. **Manage** on a card shows the airplane, takes a new screenshot when you change its
+SimBrief airframe, and returns it with a refund for the unused days.
+
+- **`airline.yaml`:** your airline's name, ICAO code and callsign, the day it was founded and its starting cash.
+  **Upgrading to 0.17 (milestone 15b):** its `fleets` and `airplanes` lists are no longer read and can be deleted;
+  your airplanes stay in the database as they are (D-242, D-244).
   Optional for the airline: `preferred_gates`, your own spots by airport in short form (`{ KPDX: [D14] }`), asked
   for in place of SayIntentions' gate: gates on passenger and VIP flights, ramps on charters, deliveries and
   freighters (D-155).
-- **`catalog.yaml`:** aircraft types (lease rate, family, role) and airframes (seats, holds and `limits`: minimum
-  runway, MLW, passenger and bag weight, and max payload, which must match the airplane's SimBrief airframe). Numbers
-  marked `estimate` are placeholders until they're read from the PMDG load pages. Each type also names its
-  `sim_folder`, the sim's folder for that PMDG variant, which the app compares with the loaded aircraft before it
-  records a flight (D-112), and its `wingspan_m`, which decides which parking spots fit (D-147). **Upgrading from 0.5
-  or 0.6:** copy the repo's `catalog.yaml` again, since airframes need `limits` and types need `sim_folder` (keep your
-  own edits). **Upgrading to 0.10:** add `wingspan_m` to each type, as in the repo's `catalog.yaml`.
+- **The supported aircraft** ship with the app in `data\aircraft\` next to `BlockTime.exe`, one YAML file per type
+  (D-243): lease rate, family, role, the sim folder the app matches the loaded aircraft against (D-112), the wingspan
+  for parking spots (D-147), the SimBrief base types it accepts, its factory, the instant-delivery fee rate and its
+  layouts (seats per class and each hold's share of SimBrief's Max Cargo). Numbers marked `estimate` are
+  placeholders. **Upgrading to 0.17:** `%LOCALAPPDATA%\BlockTime\catalog.yaml` is no longer read and can be
+  deleted.
 - **`rates.yaml`:** the fare and cost rates and the fuel price (design.md §10–12, D-107). It's read whenever New
   Flight opens and when a flight is settled, so an edit applies to the next flight without restarting. A planned
   flight keeps its fuel price. **Upgrading from 0.6:** copy it, then delete `fuel_price_per_100lb` from
@@ -249,6 +250,16 @@ the scoring can be tuned on real flights without flying (docs/debrief.md section
 `claude_api_key` and prints the review and the tokens used (it costs money). `--diverted` measures it as a
 diversion. The tool reads no database, so the review doesn't see earlier flights' misses.
 
+### The SimBrief screenshot tool
+
+`blocktime-airframe.exe` sends a screenshot of a SimBrief airframe page to Claude, exactly as Add Aircraft does, and
+prints what was read, so the reading can be checked without the app (`docs/fleet.md`). It uses your
+`claude_api_key` (a few cents a read) and writes nothing:
+
+```powershell
+.\build\x64-release\blocktime-airframe.exe "$env:USERPROFILE\Pictures\Screenshots\simbrief-n814sx.png"
+```
+
 ### Files it uses
 
 Everything lives in `%LOCALAPPDATA%\BlockTime\`, outside the repo (the debug build uses `BlockTime-dev\` beside it,
@@ -258,7 +269,7 @@ D-226):
 |---|---|
 | `events\events-YYYY-MM-DD.jsonl` | The event log, one JSON object per line, one file per UTC day (D-020). Event types: `docs/recorder.md` |
 | `settings.json` | Your keys and IDs ([Keys and IDs](#keys-and-ids)). Never commit it |
-| `airline.yaml`, `catalog.yaml`, `rates.yaml` | Your airline, the aircraft catalog and the rates ([Set up your airline](#set-up-your-airline)) |
+| `airline.yaml`, `rates.yaml` | Your airline and the rates ([Set up your airline](#set-up-your-airline)) |
 | `blocktime.db` | The airline database: airplanes, the money ledger, airports (`docs/database.md`). Back it up by copying it while the app is closed. An old Qt test database is renamed `blocktime.test-schema.db` on first start (D-086) |
 | `blocktime.before-schema-N.db` | A copy of the database taken automatically before a new BlockTime updated it to schema N (D-226). Safe to delete once the new version works |
 | `airport-data\` | The downloaded airport files, kept for the next refresh ([Airport data](#airport-data)) |

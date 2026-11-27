@@ -27,7 +27,7 @@ plain money list on one card, under the dashboard. The flight summary was a repo
 
 - The money item (realistic fares, the per-hour lease, the flights-per-month setting: D-216 to D-221). Dispatch shows
   whatever the rates give; the money item changes the rates later.
-- The Flight Board (after rotations). Create New Flight starts from Fleet until then.
+- The Flight Board (after rotations). A flight starts from a Fleet card's Fly button until then (milestone 15b).
 - A paper-style dispatch release or OFP view.
 
 ### Anti-goals
@@ -54,7 +54,7 @@ at the start.
 
 ## The flow (D-233)
 
-1. **Start.** Fleet → an airplane → **Create New Flight** opens Your Flight with the form pre-filled (later the
+1. **Start.** Fleet → an airplane's card → **Fly** (or **Fly Delivery**; milestone 15b, D-241) opens Your Flight with the form pre-filled (later the
    Flight Board too). Opening Your Flight directly with no flight shows the empty form.
 2. **The form** (Dave's design; the look is the builder's, in the dispatch report's style):
    - Airplane, destination (with today's runway length check, D-100), flight number (D-106).
