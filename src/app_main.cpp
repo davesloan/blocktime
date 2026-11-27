@@ -48,6 +48,7 @@
 #include "error_log.h"
 #include "event_log.h"
 #include "add_aircraft_model.h"
+#include "aircraft_model.h"
 #include "fleet_model.h"
 #include "flight_list_model.h"
 #include "airline_db.h"
@@ -563,6 +564,8 @@ int main(int argc, char* argv[]) {
     // Add Aircraft (D-242): a SimBrief screenshot read by Claude with the same key as the debrief (none in a scratch run,
     // where the values are typed in).
     AddAircraftModel addAircraft(planningDb, airline.catalog(), blocktime::defaultRatesFile(), claude);
+    // The aircraft screen (D-241): New screenshot and Return.
+    AircraftModel aircraft(planningDb, airline.catalog(), claude);
     PlannedFlightModel plannedFlight(planningDb, airlineIcao, planner, bridge, flightTarget, logDir,
                                      blocktime::defaultRatesFile());
     // The dashboard header (D-151, D-180): the planned flight, kept once settled; a summary already showing at startup
@@ -604,6 +607,13 @@ int main(int argc, char* argv[]) {
         fleet.reset(fleetState());
         ledger.reset(airline.ledger(), airline.cash());
     });
+    // A plane returned (its refund on Money) or re-read (its card's layout may have changed).
+    const auto fleetAndMoney = [&] {
+        fleet.reset(fleetState());
+        ledger.reset(airline.ledger(), airline.cash());
+    };
+    QObject::connect(&aircraft, &AircraftModel::returned, fleetAndMoney);
+    QObject::connect(&aircraft, &AircraftModel::saved, fleetAndMoney);
     plannedFlight.checkFlown();  // a flight that ended while BlockTime was closed or crashed
     // Flights settle before leases (review 1.4): a flight that blocked in before a lease month is in the cash that
     // month is checked against. Each minute a flight still waiting to settle is tried again (review 1.2).
@@ -640,6 +650,7 @@ int main(int argc, char* argv[]) {
                             {"reviews", QVariant::fromValue(&reviews)},
                             {"fleet", QVariant::fromValue(&fleet)},
                             {"addAircraft", QVariant::fromValue(&addAircraft)},
+                            {"aircraft", QVariant::fromValue(&aircraft)},
                             {"ledger", QVariant::fromValue(&ledger)},
                             {"newFlight", QVariant::fromValue(&newFlight)},
                             {"plannedFlight", QVariant::fromValue(&plannedFlight)},

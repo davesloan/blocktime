@@ -19,13 +19,17 @@ Item {
 
     required property FleetModel fleet
     required property AddAircraftModel addAircraft
+    required property AircraftModel aircraft
 
     signal flyRequested(string registration)
     signal continueRequested()
-    signal manageRequested(string registration)
 
-    // 0 the slots, 1 Add Aircraft.
+    // 0 the slots, 1 Add Aircraft, 2 an airplane's screen.
     property int view: 0
+
+    function openAircraft(registration) {
+        if (aircraftPage.show(registration)) page.view = 2;
+    }
 
     function openAdd() {
         page.addAircraft.clear();
@@ -42,6 +46,15 @@ Item {
         anchors.fill: parent
         visible: page.view === 1
         model: page.addAircraft
+        onBack: page.view = 0
+    }
+
+    AircraftPage {
+        id: aircraftPage
+
+        anchors.fill: parent
+        visible: page.view === 2
+        model: page.aircraft
         onBack: page.view = 0
     }
 
@@ -243,7 +256,7 @@ Item {
                                 if (button === "Continue Flight") page.continueRequested();
                                 else page.flyRequested(registration);
                             }
-                            onManageClicked: page.manageRequested(registration)
+                            onManageClicked: page.openAircraft(registration)
                         }
                     }
 

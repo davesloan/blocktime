@@ -33,6 +33,7 @@
 #include "event_feed_model.h"
 #include "flight_watcher.h"
 #include "add_aircraft_model.h"
+#include "aircraft_model.h"
 #include "fleet_model.h"
 #include "ledger_model.h"
 #include "money_lines_qml.h"
@@ -3476,4 +3477,100 @@ TEST(AddAircraft, LeaseEmitsAndResets) {
     bool found = false;
     for (const auto& a : blocktime::listAirplanes(db)) found = found || a.registration == "N738SX";
     EXPECT_TRUE(found);
+}
+
+// --- AircraftModel (D-241, D-245) ----------------------------------------------------------------------------------
+
+namespace {
+
+// Claude's answer for N814SX's SimBrief airframe with `bagWeight` lb bags.
+std::string bbjAnswer(int bagWeight) {
+    nlohmann::json r = {{"registration", "N814SX"}, {"fin_number", nullptr}, {"internal_id", "730097_1790536204614"},
+                        {"base_type", "BBJ2"}, {"weight_units", "LBS"}, {"max_passengers", 48},
+                        {"passenger_weight_lb", 190}, {"bag_weight_lb", bagWeight}, {"empty_weight_lb", 102187},
+                        {"mzfw_lb", 138300}, {"mtow_lb", 174700}, {"mlw_lb", 146300}, {"max_fuel_lb", 69986},
+                        {"max_cargo_lb", 17645}, {"min_runway_ft", 7000}};
+    const nlohmann::json body = {{"model", "claude-opus-5-5"}, {"stop_reason", "end_turn"},
+                                 {"content", {{{"type", "text"}, {"text", r.dump()}}}}};
+    return body.dump();
+}
+
+QString rowValue(const QVariantMap& card, const QString& label) {
+    for (const QVariant& row : card["rows"].toList()) {
+        if (row.toMap()["label"].toString() == label) return row.toMap()["value"].toString();
+    }
+    return {};
+}
+
+}  // namespace
+
+TEST(Aircraft, ShowsCardsAndRefund) {
+    db::Database db = test::testAirline();
+    FakeReviewClient claude;
+    AircraftModel m(db, shippedAircraft(), claude, day27);
+    ASSERT_TRUE(m.open("N814SX"));
+    EXPECT_EQ(m.registration(), "N814SX");
+    EXPECT_EQ(m.title(), "737-800 BBJ2 VIP");
+    EXPECT_EQ(m.leaseMonthText(), "6 of 30 days");
+    EXPECT_TRUE(m.returnText().contains("$120,000")) << m.returnText().toStdString();
+    EXPECT_TRUE(m.returnText().contains("24 days")) << m.returnText().toStdString();
+    EXPECT_EQ(rowValue(m.weightsCard(), "MLW"), "146,300 lb");
+    EXPECT_EQ(rowValue(m.simbriefCard(), "Max payload"), "36,113 lb");
+    EXPECT_EQ(rowValue(m.recordCard(), "Refund if returned today"), "$120,000");
+    EXPECT_TRUE(m.canReturn());
+    EXPECT_FALSE(m.open("N000XX"));
+}
+
+TEST(Aircraft, NoScreenshotYet) {
+    db::Database db = test::testAirline();
+    ASSERT_TRUE(db.exec("DELETE FROM airplane_simbrief"));
+    FakeReviewClient claude;
+    AircraftModel m(db, shippedAircraft(), claude, day27);
+    ASSERT_TRUE(m.open("N814SX"));
+    EXPECT_EQ(m.weightsCard()["source"].toString(), "No screenshot yet");
+    EXPECT_EQ(rowValue(m.weightsCard(), "MLW"), "146,300 lb");  // the limits it has
+    EXPECT_EQ(rowValue(m.weightsCard(), "MTOW"), QString::fromUtf8("—"));
+}
+
+TEST(Aircraft, RereadShowsChangesThenSaves) {
+    db::Database db = test::testAirline();
+    FakeReviewClient claude;
+    AircraftModel m(db, shippedAircraft(), claude, day27);
+    ASSERT_TRUE(m.open("N814SX"));
+    m.readImage(QByteArray("png bytes"), "image/png");
+    EXPECT_EQ(m.rereadState(), "reading");
+    claude.answer(200, bbjAnswer(80));
+    EXPECT_EQ(m.rereadState(), "read");
+    const QVariantList changes = m.rereadChanges();
+    ASSERT_EQ(changes.size(), 1);
+    EXPECT_EQ(changes[0].toMap()["label"].toString(), "Bag weight");
+    EXPECT_EQ(changes[0].toMap()["after"].toString(), "80 lb");
+    EXPECT_EQ(m.rereadRefusal(), "");
+    EXPECT_TRUE(m.saveReread());
+    EXPECT_EQ(m.rereadState(), "idle");
+    EXPECT_EQ(rowValue(m.weightsCard(), "Passenger / bag"), "190 / 80 lb");
+}
+
+TEST(Aircraft, ReturnDisabledWithPlannedFlight) {
+    db::Database db = deliveredAirline();
+    planVip(db, "2026-11-23T14:00:00Z");
+    FakeReviewClient claude;
+    AircraftModel m(db, shippedAircraft(), claude, day27);
+    ASSERT_TRUE(m.open("N814SX"));
+    EXPECT_FALSE(m.canReturn());
+    EXPECT_FALSE(m.canReread());
+}
+
+TEST(Aircraft, ReturnPlaneEmitsAndFreesTheSlot) {
+    db::Database db = test::testAirline();
+    FakeReviewClient claude;
+    AircraftModel m(db, shippedAircraft(), claude, day27);
+    ASSERT_TRUE(m.open("N738BT"));
+    int returned = 0;
+    QObject::connect(&m, &AircraftModel::returned, [&] { ++returned; });
+    EXPECT_TRUE(m.returnPlane());
+    EXPECT_EQ(returned, 1);
+    for (const auto& a : blocktime::listAirplanes(db)) {
+        if (a.registration == "N738BT") EXPECT_TRUE(a.returnedOn.has_value());
+    }
 }

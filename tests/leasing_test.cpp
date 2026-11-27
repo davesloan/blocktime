@@ -473,3 +473,9 @@ TEST_F(Leasing, RereadRefusesAnInternalIdAnotherPlaneUses) {
     EXPECT_EQ(planReread(db_, catalog_, id, b738Reading("N738SX", "1_9"), catalog_.airframe("737-800 Two-class")).refusal,
               "SimBrief airframe 1_9 already belongs to N814SX.");
 }
+
+TEST_F(Leasing, RefundIfReturnedMatchesTheReturn) {
+    const auto id = lease(bbj("N814SX", "1_1", d(2026, 11, 22)));
+    EXPECT_EQ(refundIfReturned(db_, id, d(2026, 11, 27)), 12'000'000);
+    EXPECT_EQ(refundIfReturned(db_, id, d(2026, 12, 23)), 0);  // that month isn't charged
+}

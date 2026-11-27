@@ -16,6 +16,7 @@ ApplicationWindow {
     required property ReviewWriter reviews
     required property FleetModel fleet
     required property AddAircraftModel addAircraft
+    required property AircraftModel aircraft
     required property LedgerModel ledger
     required property NewFlightModel newFlight
     required property PlannedFlightModel plannedFlight
@@ -171,6 +172,7 @@ ApplicationWindow {
                 FleetPage {
                     fleet: window.fleet
                     addAircraft: window.addAircraft
+                    aircraft: window.aircraft
                     onFlyRequested: registration => {
                         if (window.newFlight.open(registration)) newFlightDialog.open();
                     }

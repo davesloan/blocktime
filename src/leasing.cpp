@@ -554,6 +554,18 @@ std::string applyReread(db::Database& db, const Catalog& catalog, std::int64_t a
     return "";
 }
 
+Cents refundIfReturned(db::Database& db, std::int64_t airplaneId, Date today) {
+    const auto c = current(db, airplaneId);
+    if (!c || c->returned) return 0;
+    // Only a month already charged is refunded (a month whose day has come but isn't charged yet costs nothing).
+    int k = 0;
+    while (leasePeriodStart(c->leasedOn, k + 1) <= today) ++k;
+    db::Statement charged(db, "SELECT 1 FROM lease_charge WHERE airplane_id = ? AND period_start = ?");
+    charged.bind(1, airplaneId);
+    charged.bind(2, formatDate(leasePeriodStart(c->leasedOn, k)));
+    return charged.next() ? leaseRefundCents(c->monthlyCents, c->leasedOn, today) : 0;
+}
+
 std::string returnAirplane(db::Database& db, std::int64_t airplaneId, Date today) {
     db::Transaction tx(db);
     if (!tx.active()) return "Couldn't start a transaction: " + tx.error();
@@ -562,13 +574,7 @@ std::string returnAirplane(db::Database& db, std::int64_t airplaneId, Date today
     if (c->returned) return c->registration + " has been returned.";
     if (c->planned) return c->registration + " has a flight planned. Settle or cancel it first.";
 
-    // Only a month already charged is refunded (a month whose day has come but isn't charged yet costs nothing).
-    int k = 0;
-    while (leasePeriodStart(c->leasedOn, k + 1) <= today) ++k;
-    db::Statement charged(db, "SELECT 1 FROM lease_charge WHERE airplane_id = ? AND period_start = ?");
-    charged.bind(1, airplaneId);
-    charged.bind(2, formatDate(leasePeriodStart(c->leasedOn, k)));
-    const Cents refund = charged.next() ? leaseRefundCents(c->monthlyCents, c->leasedOn, today) : 0;
+    const Cents refund = refundIfReturned(db, airplaneId, today);
 
     std::string error;
     db::Statement ret(db, "UPDATE airplane SET returned_on = ?, return_reason = 'returned' WHERE airplane_id = ?");

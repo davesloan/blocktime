@@ -278,6 +278,8 @@ QtObject {
     readonly property int formLabelWidth: 130          // Add Aircraft's field labels
     readonly property int formUnitWidth: 18            // "lb", "ft" after a field
     readonly property int holdBarHeight: 26            // the hold split, drawn to scale
+    readonly property int portraitHeight: 150          // the aircraft screen's picture of the plane
+    readonly property int portraitGlyphSize: 110
 
     // Window
     readonly property int windowWidth: 1300

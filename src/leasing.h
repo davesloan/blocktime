@@ -70,6 +70,9 @@ bool writeSimbriefValues(db::Database& db, std::int64_t airplaneId, const Simbri
 // already charged come back as a lease refund. One transaction. "" when done, else why not (a planned flight, already
 // returned).
 std::string returnAirplane(db::Database& db, std::int64_t airplaneId, Date today);
+// What returning the airplane on `today` would refund: the unused days of the current lease month, if that month has
+// been charged (0 if not, or if the airplane isn't in the fleet).
+Cents refundIfReturned(db::Database& db, std::int64_t airplaneId, Date today);
 
 // What a new screenshot of an airplane's SimBrief airframe would change (docs/fleet.md, "New screenshot").
 struct RereadChange {
