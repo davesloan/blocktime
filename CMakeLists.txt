@@ -70,6 +70,7 @@ add_library(blocktime-core STATIC
   src/block_detector.cpp
   src/catalog.cpp
   src/fleet_rules.cpp
+  src/airframe_read.cpp
   src/config_yaml.cpp
   src/csv.cpp
   src/flight_history.cpp
@@ -183,6 +184,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/block_detector_test.cpp
     tests/catalog_test.cpp
     tests/fleet_rules_test.cpp
+    tests/airframe_read_test.cpp
     tests/csv_test.cpp
     tests/data_dir_test.cpp
     tests/dates_test.cpp
@@ -385,6 +387,12 @@ qt_add_executable(blocktime-debrief src/debrief_main.cpp src/review_client.h src
   src/claude_reviewer.cpp)
 target_link_libraries(blocktime-debrief PRIVATE blocktime-core Qt6::Core Qt6::Network)
 add_dependencies(blocktime-debrief blocktime-app)
+
+# Reads a SimBrief airframe screenshot with Claude, as Add Aircraft does (docs/fleet.md), and prints the values.
+qt_add_executable(blocktime-airframe src/airframe_main.cpp src/review_client.h src/claude_reviewer.h
+  src/claude_reviewer.cpp)
+target_link_libraries(blocktime-airframe PRIVATE blocktime-core Qt6::Core Qt6::Network)
+add_dependencies(blocktime-airframe blocktime-app)
 
 # Tests for the Qt side (models and bridge, no QML). They run from the app's folder, so they use the Qt DLLs that
 # windeployqt put there: the app is built first.

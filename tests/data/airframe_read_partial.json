@@ -1,0 +1,17 @@
+{
+  "id": "msg_test",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-opus-5-5",
+  "stop_reason": "end_turn",
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"registration\": \"N738SX\", \"fin_number\": \"738\", \"internal_id\": \"730097_1791702236118\", \"base_type\": \"B738\", \"weight_units\": \"LBS\", \"max_passengers\": 160, \"passenger_weight_lb\": 190, \"bag_weight_lb\": 55, \"empty_weight_lb\": 91300, \"mzfw_lb\": 138300, \"mtow_lb\": 174200, \"mlw_lb\": null, \"max_fuel_lb\": 46063, \"max_cargo_lb\": 18000, \"min_runway_ft\": 7000}"
+    }
+  ],
+  "usage": {
+    "input_tokens": 1600,
+    "output_tokens": 180
+  }
+}

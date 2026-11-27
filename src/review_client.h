@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // The debrief review's HTTPS call (D-161), behind an interface so ReviewWriter can be tested without the network.
-// ClaudeReviewer is the real one; blocktime-debrief uses it too.
+// ClaudeReviewer is the real one; blocktime-debrief uses it too, and so does reading a SimBrief airframe screenshot
+// (Add Aircraft and blocktime-airframe, D-242).
 
 #pragma once
 
