@@ -16,6 +16,7 @@ ApplicationWindow {
     required property ReplaySession replay
     required property FlightListModel flights
     property int startPage: 0  // unused: the replay has Live only, but --page may be passed
+    property bool devMode: false  // --dev (D-211)
     required property string mapTileUrl
     required property string mapCacheDir
     required property string mapUserAgent
@@ -100,6 +101,7 @@ ApplicationWindow {
             flights: window.flights
             reviews: null
             replaying: true
+            devMode: window.devMode
             mapTileUrl: window.mapTileUrl
             mapCacheDir: window.mapCacheDir
             mapUserAgent: window.mapUserAgent

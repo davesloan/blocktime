@@ -23,6 +23,7 @@ ApplicationWindow {
     required property InFlightModel inflight
     required property string airlineName
     property int startPage: 0  // --page; a developer option with --grab
+    property bool devMode: false  // --dev (D-211): Live shows the flight tiles and the event feed
     // Map settings from app_main (D-059). The tile URL holds the CARTO key: never shown or logged.
     required property string mapTileUrl
     required property string mapCacheDir
@@ -127,6 +128,7 @@ ApplicationWindow {
                     inflight: window.inflight
                     flights: window.flights
                     reviews: window.reviews
+                    devMode: window.devMode
                     mapTileUrl: window.mapTileUrl
                     mapCacheDir: window.mapCacheDir
                     mapUserAgent: window.mapUserAgent

@@ -8,6 +8,7 @@
 // Options:
 //   --log-dir <folder>  write the event log there instead of %LOCALAPPDATA%\BlockTime\events
 //   --demo              show made-up values and record nothing, to look at the UI without the sim
+//   --dev               developer mode (D-211): Live also shows the flight tiles and the event feed
 //   --replay <flight>   play a settled flight (its log id, or "last") in a read-only window (D-175), with
 //                       --speed <n>, --at <phase | block_out | block_in | H:MM> and --grab <png>
 
@@ -232,6 +233,7 @@ struct ReplayOptions {
     double speed = 1;
     QString at;
     QString grabFile;
+    bool dev = false;  // --dev (D-211)
 };
 
 // The replay window (D-175): a separate, read-only process. No recorder thread or mutex, no AirlineSession (no
@@ -266,6 +268,7 @@ int runReplay(const ReplayOptions& options, const std::filesystem::path& logDir,
     QQmlApplicationEngine engine;
     const QVariantMap props{{"replay", QVariant::fromValue(&replay)},
                             {"flights", QVariant::fromValue(&flights)},
+                            {"devMode", options.dev},
                             {"mapTileUrl", map.tileUrl},
                             {"mapCacheDir", map.cacheDir},
                             {"mapUserAgent", map.userAgent}};
@@ -322,6 +325,7 @@ int main(int argc, char* argv[]) {
 
     std::filesystem::path logDir = blocktime::EventLog::defaultDir();
     bool demo = false;
+    bool dev = false;   // --dev: Live's flight tiles and event feed (D-211)
     QString grabFile;   // --grab <png>: a developer check of the screens; saves the window after 6 s and quits
     int startPage = 0;  // --page <n>: the page shown first (0 Live, 1 Flights, 2 Fleet, 3 Money)
     blocktime::RecorderOptions recorderOptions;  // --probe (D-116)
@@ -332,6 +336,8 @@ int main(int argc, char* argv[]) {
             logDir = args[++i].toStdWString();
         } else if (args[i] == "--demo") {
             demo = true;
+        } else if (args[i] == "--dev") {
+            dev = true;
         } else if (args[i] == "--grab" && i + 1 < args.size()) {
             grabFile = args[++i];
         } else if (args[i] == "--page" && i + 1 < args.size()) {
@@ -349,6 +355,7 @@ int main(int argc, char* argv[]) {
 
     if (!replay.flight.isEmpty()) {
         replay.grabFile = grabFile;
+        replay.dev = dev;
         if (replay.speed <= 0) replay.speed = 1;
         return runReplay(replay, logDir, map);
     }
@@ -506,6 +513,7 @@ int main(int argc, char* argv[]) {
                             {"inflight", QVariant::fromValue(&inflight)},
                             {"airlineName", QString::fromStdString(airline.airlineName())},
                             {"startPage", startPage},
+                            {"devMode", dev},
                             {"mapTileUrl", map.tileUrl},
                             {"mapCacheDir", map.cacheDir},
                             {"mapUserAgent", map.userAgent}};

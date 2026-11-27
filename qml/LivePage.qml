@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // The live flight screen: "Not recording" when the sim doesn't match the plan (design.md §13.4), the dashboard header
-// (docs/dashboard.md, D-180), the planned flight
-// before and during departure (§13.3), the summary after block in (§13.7), the flight panel and the event feed. The
-// page scrolls when the window is too short for all of it; the scroll bar shows only then.
+// (docs/dashboard.md, D-180), the planned flight before and during departure (§13.3), the summary after block in
+// (§13.7), and with --dev (D-211) the flight panel and the event feed. The page scrolls when the window is too short
+// for all of it; the scroll bar shows only then.
 
 pragma ComponentBehavior: Bound
 
@@ -30,6 +30,8 @@ Item {
     // The replay window's Live (D-175): the summary at block in has no At Gate Turnaround or Done for now; the
     // replay's bar has Replay again and Close.
     property bool replaying: false
+    // Developer mode (--dev, D-211): the flight tiles and the event feed under the panels; hidden otherwise.
+    property bool devMode: false
 
     // The summary of the flight that just ended, from the Flights list (design.md §13.7).
     // From Finish Flight (0.15.1): until then the arrival view stays; a flight settled at startup shows it at once.
@@ -141,12 +143,13 @@ Item {
                 flight: page.plannedFlight
             }
 
-            // The flight tiles and the event log (D-180: the feed stays until developer mode exists). The header's
-            // pill and status lines replace the old stages column.
+            // The flight tiles and the event log, only in developer mode (--dev, D-211). The header's pill and status
+            // lines replace the old stages column.
             RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.minimumHeight: flightPanel.implicitHeight
+                Layout.minimumHeight: page.devMode ? flightPanel.implicitHeight : 0
+                visible: page.devMode
                 spacing: Theme.spacing
 
                 FlightPanel {
