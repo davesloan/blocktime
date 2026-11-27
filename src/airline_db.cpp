@@ -470,6 +470,83 @@ CREATE INDEX flight_block_in ON flight (block_in_at);
 CREATE INDEX flight_kind_code ON flight (kind);
 )sql";
 
+// Migration 11 (milestone 15b, docs/fleet.md): airplanes are leased in the app from a SimBrief screenshot (D-242) and
+// fleets are gone (D-244). airplane is rebuilt without fleet_id; its registration, SimBrief airframe and flight number
+// are unique among airplanes in the fleet only, so a returned plane can be leased again (D-246). The screenshot's
+// other values, instant delivery and the lease refund get their tables.
+constexpr const char* kMigration11 = R"sql(
+CREATE TABLE airplane_new (
+  airplane_id INTEGER PRIMARY KEY,
+  registration TEXT NOT NULL CHECK (registration <> '' AND registration NOT GLOB '*[^A-Z0-9-]*'),
+  tail_number TEXT CHECK (tail_number IS NULL OR tail_number <> ''),
+  aircraft_type_id INTEGER NOT NULL REFERENCES aircraft_type ON DELETE RESTRICT,
+  airframe_name TEXT NOT NULL CHECK (airframe_name <> ''),
+  simbrief_airframe_id TEXT NOT NULL CHECK (simbrief_airframe_id <> ''),
+  leased_on TEXT NOT NULL CHECK (leased_on GLOB )sql" BT_DATE R"sql(),
+  monthly_lease_cents INTEGER NOT NULL CHECK (monthly_lease_cents > 0 AND monthly_lease_cents % 500 = 0),
+  location_airport_id INTEGER NOT NULL REFERENCES airport ON DELETE RESTRICT,
+  fuel_on_board_lb INTEGER NOT NULL CHECK (fuel_on_board_lb >= 0),
+  awaiting_delivery INTEGER NOT NULL CHECK (awaiting_delivery IN (0, 1)),
+  returned_on TEXT CHECK (returned_on IS NULL OR returned_on GLOB )sql" BT_DATE R"sql(),
+  return_reason TEXT REFERENCES return_reason ON DELETE RESTRICT,
+  free_flight_number TEXT
+    CHECK (free_flight_number IS NULL OR
+           (length(free_flight_number) BETWEEN 1 AND 4 AND free_flight_number NOT GLOB '*[^0-9]*')),
+  CHECK ((returned_on IS NULL) = (return_reason IS NULL))
+) STRICT;
+INSERT INTO airplane_new (airplane_id, registration, tail_number, aircraft_type_id, airframe_name,
+                          simbrief_airframe_id, leased_on, monthly_lease_cents, location_airport_id, fuel_on_board_lb,
+                          awaiting_delivery, returned_on, return_reason, free_flight_number)
+  SELECT airplane_id, registration, tail_number, aircraft_type_id, airframe_name, simbrief_airframe_id, leased_on,
+         monthly_lease_cents, location_airport_id, fuel_on_board_lb, awaiting_delivery, returned_on, return_reason,
+         free_flight_number FROM airplane;
+DROP TABLE airplane;
+ALTER TABLE airplane_new RENAME TO airplane;
+CREATE INDEX airplane_aircraft_type ON airplane (aircraft_type_id);
+CREATE INDEX airplane_location ON airplane (location_airport_id);
+CREATE INDEX airplane_return_reason ON airplane (return_reason);
+CREATE UNIQUE INDEX airplane_registration_in_fleet ON airplane (registration) WHERE returned_on IS NULL;
+CREATE UNIQUE INDEX airplane_simbrief_in_fleet ON airplane (simbrief_airframe_id) WHERE returned_on IS NULL;
+CREATE UNIQUE INDEX airplane_free_flight_number ON airplane (free_flight_number) WHERE returned_on IS NULL;
+DROP TABLE fleet;
+
+INSERT INTO return_reason (code) VALUES ('returned');
+INSERT INTO ledger_category (code, label) VALUES ('delivery_fee', 'Delivery fee'), ('lease_refund', 'Lease refund');
+
+CREATE TABLE airplane_simbrief (
+  airplane_id INTEGER PRIMARY KEY REFERENCES airplane ON DELETE CASCADE,
+  read_at TEXT NOT NULL CHECK (read_at GLOB )sql" BT_INSTANT R"sql(),
+  base_type TEXT NOT NULL CHECK (base_type <> ''),
+  max_passengers INTEGER NOT NULL CHECK (max_passengers >= 0),
+  empty_weight_lb INTEGER NOT NULL CHECK (empty_weight_lb > 0),
+  mzfw_lb INTEGER NOT NULL CHECK (mzfw_lb > empty_weight_lb),
+  mtow_lb INTEGER NOT NULL CHECK (mtow_lb > 0),
+  max_fuel_lb INTEGER NOT NULL CHECK (max_fuel_lb > 0),
+  max_cargo_lb INTEGER NOT NULL CHECK (max_cargo_lb > 0)
+) STRICT;
+
+CREATE TABLE instant_delivery (
+  instant_delivery_id INTEGER PRIMARY KEY,
+  airplane_id INTEGER NOT NULL UNIQUE REFERENCES airplane ON DELETE RESTRICT,
+  from_airport_id INTEGER NOT NULL REFERENCES airport ON DELETE RESTRICT,
+  to_airport_id INTEGER NOT NULL REFERENCES airport ON DELETE RESTRICT,
+  CHECK (to_airport_id <> from_airport_id)
+) STRICT;
+CREATE INDEX instant_delivery_from ON instant_delivery (from_airport_id);
+CREATE INDEX instant_delivery_to ON instant_delivery (to_airport_id);
+
+CREATE TABLE instant_delivery_line (
+  ledger_line_id INTEGER PRIMARY KEY REFERENCES ledger_line ON DELETE RESTRICT,
+  instant_delivery_id INTEGER NOT NULL REFERENCES instant_delivery ON DELETE RESTRICT
+) STRICT;
+CREATE INDEX instant_delivery_line_delivery ON instant_delivery_line (instant_delivery_id);
+
+CREATE TABLE lease_refund (
+  ledger_line_id INTEGER PRIMARY KEY REFERENCES ledger_line ON DELETE RESTRICT,
+  airplane_id INTEGER NOT NULL UNIQUE REFERENCES airplane ON DELETE RESTRICT
+) STRICT;
+)sql";
+
 #undef BT_INSTANT
 #undef BT_DATE
 
@@ -478,7 +555,7 @@ using detail::Migration;
 constexpr std::array kMigrations{Migration{2, kMigration2}, Migration{3, kMigration3}, Migration{4, kMigration4},
                                  Migration{5, kMigration5}, Migration{6, kMigration6}, Migration{7, kMigration7},
                                  Migration{8, kMigration8}, Migration{9, kMigration9},
-                                 Migration{10, kMigration10, true}};
+                                 Migration{10, kMigration10, true}, Migration{11, kMigration11, true}};
 
 // The first row PRAGMA foreign_key_check finds pointing at nothing, as "flight row 3 → airplane"; "" if none.
 std::string firstDanglingRow(db::Database& db) {

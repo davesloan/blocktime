@@ -21,12 +21,12 @@ int periodIndex(Date leasedOn, Date periodStart) {
 std::vector<AirplaneView> listAirplanes(db::Database& db) {
     std::vector<AirplaneView> out;
     db::Statement q(db,
-                    "SELECT a.registration, COALESCE(a.tail_number, ''), t.code, a.airframe_name, f.name, p.icao_code,"
+                    "SELECT a.registration, COALESCE(a.tail_number, ''), t.code, a.airframe_name, p.icao_code,"
                     " a.fuel_on_board_lb, a.awaiting_delivery, a.returned_on, COALESCE(a.return_reason, ''),"
                     " (SELECT COUNT(*) FROM flight WHERE airplane_id = a.airplane_id),"
                     " (SELECT COALESCE(SUM(unixepoch(block_in_at) - unixepoch(block_out_at)), 0) FROM flight"
                     "  WHERE airplane_id = a.airplane_id)"
-                    " FROM airplane a JOIN aircraft_type t USING (aircraft_type_id) JOIN fleet f USING (fleet_id)"
+                    " FROM airplane a JOIN aircraft_type t USING (aircraft_type_id)"
                     " JOIN airport p ON p.airport_id = a.location_airport_id ORDER BY a.registration");
     while (q.next()) {
         AirplaneView a;
@@ -34,14 +34,13 @@ std::vector<AirplaneView> listAirplanes(db::Database& db) {
         a.tailNumber = q.text(1);
         a.typeCode = q.text(2);
         a.airframeName = q.text(3);
-        a.fleet = q.text(4);
-        a.locationIcao = q.text(5);
-        a.fuelOnBoardLb = static_cast<int>(q.integer(6));
-        a.awaitingDelivery = q.integer(7) != 0;
-        if (!q.isNull(8)) a.returnedOn = parseDate(q.text(8));
-        a.returnReason = q.text(9);
-        a.flights = static_cast<int>(q.integer(10));
-        a.blockHours = static_cast<double>(q.integer(11)) / 3600.0;
+        a.locationIcao = q.text(4);
+        a.fuelOnBoardLb = static_cast<int>(q.integer(5));
+        a.awaitingDelivery = q.integer(6) != 0;
+        if (!q.isNull(7)) a.returnedOn = parseDate(q.text(7));
+        a.returnReason = q.text(8);
+        a.flights = static_cast<int>(q.integer(9));
+        a.blockHours = static_cast<double>(q.integer(10)) / 3600.0;
         out.push_back(std::move(a));
     }
     return out;
@@ -51,7 +50,8 @@ std::vector<LedgerView> listLedger(db::Database& db) {
     std::vector<LedgerView> out;
     db::Statement q(db,
                     "SELECT l.posted_at, l.amount_cents, c.label, a.registration, a.leased_on, lc.period_start,"
-                    " fa.registration, o.icao_code, d.icao_code"
+                    " fa.registration, o.icao_code, d.icao_code, da.registration, df.icao_code, dp.icao_code,"
+                    " ra.registration"
                     " FROM ledger_line l JOIN ledger_category c ON c.code = l.category"
                     " LEFT JOIN lease_charge lc ON lc.ledger_line_id = l.ledger_line_id"
                     " LEFT JOIN airplane a ON a.airplane_id = lc.airplane_id"
@@ -60,6 +60,13 @@ std::vector<LedgerView> listLedger(db::Database& db) {
                     " LEFT JOIN airplane fa ON fa.airplane_id = f.airplane_id"
                     " LEFT JOIN airport o ON o.airport_id = f.origin_airport_id"
                     " LEFT JOIN airport d ON d.airport_id = f.arrival_airport_id"
+                    " LEFT JOIN instant_delivery_line dl ON dl.ledger_line_id = l.ledger_line_id"
+                    " LEFT JOIN instant_delivery di ON di.instant_delivery_id = dl.instant_delivery_id"
+                    " LEFT JOIN airplane da ON da.airplane_id = di.airplane_id"
+                    " LEFT JOIN airport df ON df.airport_id = di.from_airport_id"
+                    " LEFT JOIN airport dp ON dp.airport_id = di.to_airport_id"
+                    " LEFT JOIN lease_refund lr ON lr.ledger_line_id = l.ledger_line_id"
+                    " LEFT JOIN airplane ra ON ra.airplane_id = lr.airplane_id"
                     " ORDER BY l.posted_at DESC, l.ledger_line_id DESC");
     while (q.next()) {
         LedgerView line{q.text(0), q.text(2), q.integer(1)};
@@ -70,6 +77,11 @@ std::vector<LedgerView> listLedger(db::Database& db) {
             line.text = "Lease " + q.text(3) + ", " + formatLeasePeriod(*start, next);
         } else if (!q.isNull(6)) {
             line.text = q.text(6) + " " + q.text(7) + "\u2013" + q.text(8) + " \u00b7 " + line.text;  // "N814SX KBFI–KSAN · Fuel"
+        } else if (!q.isNull(9)) {
+            // "N738SX instant delivery KBFI–KSAN · Delivery fee" (D-245).
+            line.text = q.text(9) + " instant delivery " + q.text(10) + "\u2013" + q.text(11) + " \u00b7 " + line.text;
+        } else if (!q.isNull(12)) {
+            line.text = line.text + " " + q.text(12);  // "Lease refund N814SX"
         }
         out.push_back(std::move(line));
     }
@@ -86,6 +98,16 @@ std::optional<Cents> cashCentsAsOf(db::Database& db, std::string_view instant) {
     q.bind(1, instant);
     if (!q.next()) return std::nullopt;
     return q.integer(0);
+}
+
+std::optional<double> airportDistanceNm(db::Database& db, std::string_view fromIcao, std::string_view toIcao) {
+    db::Statement q(db, "SELECT a.latitude, a.longitude, b.latitude, b.longitude FROM airport a, airport b"
+                        " WHERE a.icao_code = ? AND b.icao_code = ?");
+    q.bind(1, fromIcao);
+    q.bind(2, toIcao);
+    if (!q.next()) return std::nullopt;
+    constexpr double kMetresPerNm = 1852.0;
+    return distanceMeters(q.real(0), q.real(1), q.real(2), q.real(3)) / kMetresPerNm;
 }
 
 std::optional<NearestAirport> nearestAirport(db::Database& db, double lat, double lon) {

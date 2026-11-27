@@ -5,9 +5,7 @@
 #include "airline_config.h"
 
 #include <algorithm>
-#include <cmath>
 #include <format>
-#include <set>
 #include <utility>
 
 #include "app_settings.h"
@@ -18,12 +16,6 @@ namespace blocktime {
 namespace {
 
 using config::YamlReader;
-
-bool onlyChars(const std::string& text, bool allowDash) {
-    return !text.empty() && std::all_of(text.begin(), text.end(), [&](char c) {
-        return (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || (allowDash && c == '-');
-    });
-}
 
 bool date(YamlReader& r, const YAML::Node& map, const char* key, Date& out) {
     std::string text;
@@ -40,57 +32,7 @@ bool notEmpty(YamlReader& r, const YAML::Node& map, const char* key, std::string
     return true;
 }
 
-// Happy path only (D-099): an override that isn't a number is simply not an override.
-void readOverrides(const YAML::Node& node, LimitOverrides& o) {
-    const YAML::Node limits = node["limits"];
-    if (!limits.IsDefined() || !limits.IsMap()) return;
-    const auto read = [&](const char* key, std::optional<int>& out) {
-        const YAML::Node value = limits[key];
-        if (value.IsDefined() && value.IsScalar()) out = value.as<int>();
-    };
-    read("min_runway_ft", o.minRunwayFt);
-    read("mlw_lb", o.mlwLb);
-    read("passenger_weight_lb", o.passengerWeightLb);
-    read("bag_weight_lb", o.bagWeightLb);
-    read("max_payload_lb", o.maxPayloadLb);
-}
-
-bool readAirplane(YamlReader& r, const YAML::Node& node, const AirlineConfig& config, ConfigAirplane& a) {
-    if (!notEmpty(r, node, "registration", a.registration)) return false;
-    if (!onlyChars(a.registration, true)) {
-        return r.fail(node["registration"], std::format("registration \"{}\" may only use capitals, digits and -", a.registration));
-    }
-    if (!r.optionalString(node, "tail_number", a.tailNumber) || !notEmpty(r, node, "airframe", a.airframe) ||
-        !notEmpty(r, node, "fleet", a.fleet) || !notEmpty(r, node, "simbrief_airframe_id", a.simbriefAirframeId) ||
-        !date(r, node, "leased_on", a.leasedOn) || !r.string(node, "location", a.locationIcao) ||
-        !r.optionalBool(node, "awaiting_delivery", a.awaitingDelivery) ||
-        !r.optionalString(node, "flight_number", a.flightNumber)) {
-        return false;
-    }
-    if (std::find(config.fleets.begin(), config.fleets.end(), a.fleet) == config.fleets.end()) {
-        return r.fail(node["fleet"], std::format("{}: fleet \"{}\" isn't in the fleets list", a.registration, a.fleet));
-    }
-    if (a.leasedOn < config.foundedOn) {
-        return r.fail(node["leased_on"], std::format("{}: leased_on is before founded_on", a.registration));
-    }
-    if (a.locationIcao.size() != 4 || !onlyChars(a.locationIcao, false)) {
-        return r.fail(node["location"], std::format("{}: location must be a 4-character ICAO code", a.registration));
-    }
-    readOverrides(node, a.limits);
-    return true;
-}
-
 }  // namespace
-
-AirplaneLimits withOverrides(const AirplaneLimits& defaults, const LimitOverrides& o) {
-    AirplaneLimits l = defaults;
-    l.minRunwayFt = o.minRunwayFt.value_or(l.minRunwayFt);
-    l.mlwLb = o.mlwLb.value_or(l.mlwLb);
-    l.passengerWeightLb = o.passengerWeightLb.value_or(l.passengerWeightLb);
-    l.bagWeightLb = o.bagWeightLb.value_or(l.bagWeightLb);
-    l.maxPayloadLb = o.maxPayloadLb.value_or(l.maxPayloadLb);
-    return l;
-}
 
 std::optional<AirlineConfig> parseAirlineConfig(std::string_view yaml, std::string* error) {
     std::string message;
@@ -121,33 +63,8 @@ std::optional<AirlineConfig> parseAirlineConfig(std::string_view yaml, std::stri
         }
         config.startingCashCents = cash * 100;
 
-        const YAML::Node fleets = (*root)["fleets"];
-        if (!fleets.IsSequence()) return r.fail(*root, "missing the fleets list"), finish();
-        for (const YAML::Node& f : fleets) {
-            const std::string name = f.IsScalar() ? f.as<std::string>() : std::string();
-            if (name.empty()) return r.fail(f, "a fleet needs a name"), finish();
-            if (std::find(config.fleets.begin(), config.fleets.end(), name) != config.fleets.end()) {
-                return r.fail(f, std::format("fleet \"{}\" is listed twice", name)), finish();
-            }
-            config.fleets.push_back(name);
-        }
-
-        const YAML::Node airplanes = (*root)["airplanes"];
-        if (airplanes.IsDefined() && !airplanes.IsNull() && !airplanes.IsSequence()) {
-            return r.fail(airplanes, "airplanes must be a list"), finish();
-        }
-        std::set<std::string> registrations, simbriefIds;
-        for (const YAML::Node& node : airplanes) {
-            ConfigAirplane a;
-            if (!readAirplane(r, node, config, a)) return finish();
-            if (!registrations.insert(a.registration).second) {
-                return r.fail(node, std::format("duplicate registration {}", a.registration)), finish();
-            }
-            if (!simbriefIds.insert(a.simbriefAirframeId).second) {
-                return r.fail(node, std::format("{}: duplicate simbrief_airframe_id", a.registration)), finish();
-            }
-            config.airplanes.push_back(std::move(a));
-        }
+        // fleets and airplanes, if an older file still has them, are ignored: airplanes are leased in the app
+        // (D-242) and fleets are gone (D-244).
 
         // Optional: { KPDX: [D14, D12] }, SayIntentions' short gate names by ICAO (D-147).
         const YAML::Node preferred = (*root)["preferred_gates"];

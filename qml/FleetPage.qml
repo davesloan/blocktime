@@ -25,11 +25,11 @@ Item {
     property int selectedRow: -1  // the table row, or -1
     property int hoveredRow: -1   // the row under the mouse, or -1
 
-    // Relative column widths: Registration, Type, Airframe, Fleet, Location, Fuel, Flights, Hours, Status.
-    readonly property var columnWeights: [1.4, 1.2, 1.3, 0.9, 1.0, 0.9, 0.85, 0.7, 1.15]
+    // Relative column widths: Registration, Type, Airframe, Location, Fuel, Flights, Hours, Status.
+    readonly property var columnWeights: [1.4, 1.2, 1.3, 1.0, 0.9, 0.85, 0.7, 1.15]
     readonly property real weightSum: columnWeights.reduce((a, b) => a + b, 0)
-    readonly property var numberColumns: [5, 6, 7]  // Fuel, Flights, Hours: right-aligned
-    readonly property int statusColumn: 8
+    readonly property var numberColumns: [4, 5, 6]  // Fuel, Flights, Hours: right-aligned
+    readonly property int statusColumn: 7
 
     Card {
         anchors.fill: parent

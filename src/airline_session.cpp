@@ -21,13 +21,13 @@ AirlinePaths defaultAirlinePaths() {
     return {defaultAirlineDatabaseFile(), defaultCatalogDir(), defaultAirlineConfigFile()};
 }
 
-AirlineSession AirlineSession::start(const AirlinePaths& paths, Date today, std::ostream& warnings) {
-    AirlineSession s = open(paths, warnings);
+AirlineSession AirlineSession::start(const AirlinePaths& paths, Date today) {
+    AirlineSession s = open(paths);
     s.settle(today);
     return s;
 }
 
-AirlineSession AirlineSession::open(const AirlinePaths& paths, std::ostream& warnings) {
+AirlineSession AirlineSession::open(const AirlinePaths& paths) {
     AirlineSession s;
     AirlineDbOpen opened = openAirlineDatabase(paths.database);
     if (!opened.db) {
@@ -65,20 +65,10 @@ AirlineSession AirlineSession::open(const AirlinePaths& paths, std::ostream& war
     if (airportCount(*s.db_) == 0) s.startNotices_.push_back("No airport data yet. Run blocktime-import (README).");
 
     if (s.catalog_ && s.config_) {
-        if (!syncCatalogTypes(*s.db_, *s.catalog_, &error) || !syncFleets(*s.db_, *s.config_, &error) ||
-            !postOpeningCash(*s.db_, *s.config_, &error)) {
+        if (!syncCatalogTypes(*s.db_, *s.catalog_, &error) || !postOpeningCash(*s.db_, *s.config_, &error)) {
             s.startNotices_.push_back("Airline database error: " + error);
             s.catalog_.reset();  // don't settle on a half-synced database
-        } else {
-            for (const std::string& w : configDriftWarnings(*s.db_, *s.config_)) warnings << w << '\n';
         }
-    }
-    // Airplanes leased before milestone 5 get their airframe's limits (D-100).
-    if (s.db_ && s.catalog_ && s.config_ && !fillMissingLimits(*s.db_, *s.catalog_, *s.config_, &error)) {
-        s.startNotices_.push_back("Airline database error: " + error);
-    }
-    if (s.db_ && s.config_ && !syncFreeFlightNumbers(*s.db_, *s.config_, &error)) {
-        s.startNotices_.push_back("Flight numbers in airline.yaml: " + error);
     }
     s.notices_ = s.startNotices_;
     return s;
@@ -92,10 +82,10 @@ bool AirlineSession::tick(Date today) {
 bool AirlineSession::settle(Date today) {
     notices_ = startNotices_;
     if (!db_ || !catalog_ || !config_) return false;
-    const LeaseOutcome outcome = settleLeases(*db_, *catalog_, *config_, today);
+    const LeaseOutcome outcome = settleLeases(*db_, today);
     notices_.insert(notices_.end(), outcome.notices.begin(), outcome.notices.end());
     if (!outcome.error.empty()) notices_.push_back("Airline database error: " + outcome.error);
-    return outcome.leased + outcome.monthsCharged + outcome.returned > 0;
+    return outcome.monthsCharged + outcome.returned > 0;
 }
 
 std::vector<AirplaneView> AirlineSession::airplanes() { return db_ ? listAirplanes(*db_) : std::vector<AirplaneView>{}; }
@@ -109,6 +99,13 @@ double AirlineSession::hoursFlown() { return db_ ? blocktime::hoursFlown(*db_).v
 std::string AirlineSession::airlineName() const { return config_ ? config_->identity.name : std::string(); }
 
 std::string AirlineSession::airlineIcao() const { return config_ ? config_->identity.icaoCode : std::string(); }
+
+std::string AirlineSession::airlineCallsign() const { return config_ ? config_->identity.callsign : std::string(); }
+
+const Catalog& AirlineSession::catalog() const {
+    static const Catalog empty;
+    return catalog_ ? *catalog_ : empty;
+}
 
 
 std::optional<GateContext> AirlineSession::gateContext(const std::string& typeCode, FlightKind kind,

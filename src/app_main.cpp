@@ -511,9 +511,9 @@ int main(int argc, char* argv[]) {
     // D-049, appears at the next reload after it's written.)
 
     // The airline: the database, the config files and the leases (docs/database.md). --demo opens its scratch copy
-    // (D-226). Config drift warnings go to errors.log (D-067). The leases are settled once a flown flight has been
+    // (D-226). The leases are settled once a flown flight has been
     // (below), and again once a minute, so a month that falls due while the app is open is charged (D-096).
-    blocktime::AirlineSession airline = blocktime::AirlineSession::open(blocktime::defaultAirlinePaths(), std::cerr);
+    blocktime::AirlineSession airline = blocktime::AirlineSession::open(blocktime::defaultAirlinePaths());
     const auto fleetSummary = [&airline] {
         int inFleet = 0;
         for (const blocktime::AirplaneView& a : airline.airplanes()) inFleet += a.returnedOn ? 0 : 1;

@@ -365,7 +365,6 @@ AirplaneView plane(const std::string& registration, const std::string& airframe,
     a.registration = registration;
     a.typeCode = "737-800";
     a.airframeName = airframe;
-    a.fleet = "Main";
     a.locationIcao = "KSAN";
     a.fuelOnBoardLb = fuel;
     return a;

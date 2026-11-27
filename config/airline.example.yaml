@@ -1,8 +1,7 @@
 # BlockTime airline config (D-076). An example: copy it to %LOCALAPPDATA%\BlockTime\airline.yaml and fill in your own.
 #
-# The airline's name, ICAO code and callsign are read from this file on every start (D-093). Everything else is
-# initial data: an airplane is leased the first time the app sees its registration here, and from then on the
-# database owns it. Editing or removing a leased airplane here changes nothing (D-082); the app logs a warning.
+# The airline's name, ICAO code and callsign are read from this file on every start (D-093). Airplanes are leased in
+# the app: Fleet, an empty slot, then a screenshot of the airplane's SimBrief airframe (D-242).
 #
 # Money is in whole dollars (multiples of $5). Dates are YYYY-MM-DD.
 
@@ -11,26 +10,8 @@ airline:
   icao: BTA                  # 3 capital letters
   callsign: BLOCKTIME
 
-founded_on: 2026-11-22       # dates the starting cash; no lease may start before it
+founded_on: 2026-11-22       # dates the starting cash
 starting_cash: 5000000       # design.md §6
-
-fleets:                      # named groups; every airplane below names one
-  - Executive
-
-airplanes:
-  - registration: N738BT              # the same registration as in this airplane's SimBrief airframe (D-087)
-    tail_number: "738"                # optional: leave "" for none
-    airframe: 737-800 BBJ2 VIP        # a layout name from data/aircraft/
-    fleet: Executive
-    simbrief_airframe_id: "replace-me"  # SimBrief's ID for this airplane's own custom airframe (D-087)
-    leased_on: 2026-11-22             # the first month is charged on this day; each month starts on it
-    location: KBFI                    # where it waits: Boeing Field for a 737 factory delivery
-    awaiting_delivery: true           # optional, default false: the next flight is its delivery flight
-    flight_number: 8                  # optional: the default number of its free flights (1-4 digits), unique (D-106)
-    limits: { min_runway_ft: 7000, mlw_lb: 146300, passenger_weight_lb: 190, bag_weight_lb: 55, max_payload_lb: 36113 }
-    #                                 # this airplane's values from its SimBrief airframe (D-100). Any of
-    #                                 # min_runway_ft, mlw_lb, passenger_weight_lb, bag_weight_lb, max_payload_lb.
-    #                                 # Read only when it's leased.
 
 # Optional (D-155): the airline's favourite spots, by airport, first choice first, in short form ("D14" for Gate D14,
 # "70" for Parking 70). BlockTime asks SayIntentions for the first one that fits instead of its own gate. Passenger

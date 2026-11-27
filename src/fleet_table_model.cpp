@@ -31,7 +31,6 @@ QString textOf(const blocktime::AirplaneView& a, int column) {
     case FleetTableModel::Registration: return QString::fromStdString(a.registration);
     case FleetTableModel::Type: return QString::fromStdString(a.typeCode);
     case FleetTableModel::Airframe: return QString::fromStdString(a.airframeName);
-    case FleetTableModel::Fleet: return QString::fromStdString(a.fleet);
     case FleetTableModel::Location: return QString::fromStdString(a.locationIcao);
     case FleetTableModel::Fuel: return withCommas(a.fuelOnBoardLb) + QStringLiteral(" lb");
     case FleetTableModel::Flights: return QString::number(a.flights);
@@ -84,8 +83,8 @@ QString FleetTableModel::fleetSummary(double hoursFlown, int inFleet) {
 
 QVariant FleetTableModel::headerData(int section, Qt::Orientation orientation, int role) const {
     if (role != Qt::DisplayRole || orientation != Qt::Horizontal) return {};
-    static const char* const titles[ColumnCount] = {"Registration", "Type",    "Airframe", "Fleet", "Location",
-                                                    "Fuel",         "Flights", "Hours",    "Status"};
+    static const char* const titles[ColumnCount] = {"Registration", "Type",  "Airframe", "Location",
+                                                    "Fuel",         "Flights", "Hours", "Status"};
     return section >= 0 && section < ColumnCount ? QString::fromLatin1(titles[section]) : QVariant();
 }
 

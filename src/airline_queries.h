@@ -22,7 +22,7 @@
 namespace blocktime {
 
 struct AirplaneView {
-    std::string registration, tailNumber /* "" = none */, typeCode, airframeName, fleet, locationIcao;
+    std::string registration, tailNumber /* "" = none */, typeCode, airframeName, locationIcao;
     int fuelOnBoardLb = 0;
     bool awaitingDelivery = false;
     std::optional<Date> returnedOn;  // set once the lease has ended
@@ -44,6 +44,8 @@ Cents cashCents(db::Database& db);                                // the sum of 
 // Lines posted at or before `instant`; nullopt if the read failed (never $0 then: a lease is returned on it, 1.4).
 std::optional<Cents> cashCentsAsOf(db::Database& db, std::string_view instant);
 int airportCount(db::Database& db);
+// The great-circle distance between two airports in the airport data, in nautical miles; nullopt if either is missing.
+std::optional<double> airportDistanceNm(db::Database& db, std::string_view fromIcao, std::string_view toIcao);
 
 // The airplane's limits (D-100), or nullopt if it has none yet.
 std::optional<AirplaneLimits> airplaneLimits(db::Database& db, std::int64_t airplaneId);

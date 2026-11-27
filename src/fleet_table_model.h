@@ -27,7 +27,7 @@ class FleetTableModel : public QAbstractTableModel {
     Q_PROPERTY(QString summaryText READ summaryText NOTIFY summaryTextChanged)
 
 public:
-    enum Column { Registration, Type, Airframe, Fleet, Location, Fuel, Flights, Hours, Status, ColumnCount };
+    enum Column { Registration, Type, Airframe, Location, Fuel, Flights, Hours, Status, ColumnCount };
 
     FleetTableModel(std::vector<blocktime::AirplaneView> airplanes, QStringList notices, QString summaryText = {},
                     QObject* parent = nullptr);

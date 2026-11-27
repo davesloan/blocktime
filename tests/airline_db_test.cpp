@@ -24,17 +24,27 @@ db::Database migrated() {
     return d;
 }
 
-// One airport, type, fleet and airplane, so rows that point at them can be inserted.
+bool hasTable(db::Database& d, const char* name);
+
+// One airport, type and airplane (and a fleet before migration 11), so rows that point at them can be inserted.
 void addParents(db::Database& d) {
     ASSERT_TRUE(d.exec(
         "INSERT INTO airport (airport_id, icao_code, name, latitude, longitude, elevation_ft, country_code, time_zone,"
         "  longest_runway_ft) VALUES (1, 'KBFI', 'Boeing Field', 47.53, -122.30, 21, 'US', 'America/Los_Angeles', 10007);"
         "INSERT INTO aircraft_type (aircraft_type_id, code, family, role, turnaround_min, cruise_speed_kt)"
-        "  VALUES (1, '737-800 BBJ2', '737', 'executive', 35, 450);"
-        "INSERT INTO fleet (fleet_id, name) VALUES (1, 'Executive');"
-        "INSERT INTO airplane (airplane_id, registration, aircraft_type_id, fleet_id, airframe_name,"
-        "  simbrief_airframe_id, leased_on, monthly_lease_cents, location_airport_id, fuel_on_board_lb,"
-        "  awaiting_delivery) VALUES (1, 'N814SX', 1, 1, '737-800 BBJ2 VIP', '730097_1', '2026-11-22', 90000000, 1, 0, 1);"));
+        "  VALUES (1, '737-800 BBJ2', '737', 'executive', 35, 450);"));
+    if (hasTable(d, "fleet")) {
+        ASSERT_TRUE(d.exec(
+            "INSERT INTO fleet (fleet_id, name) VALUES (1, 'Executive');"
+            "INSERT INTO airplane (airplane_id, registration, aircraft_type_id, fleet_id, airframe_name,"
+            "  simbrief_airframe_id, leased_on, monthly_lease_cents, location_airport_id, fuel_on_board_lb,"
+            "  awaiting_delivery) VALUES (1, 'N814SX', 1, 1, '737-800 BBJ2 VIP', '730097_1', '2026-11-22', 90000000, 1, 0, 1);"));
+    } else {
+        ASSERT_TRUE(d.exec(
+            "INSERT INTO airplane (airplane_id, registration, aircraft_type_id, airframe_name,"
+            "  simbrief_airframe_id, leased_on, monthly_lease_cents, location_airport_id, fuel_on_board_lb,"
+            "  awaiting_delivery) VALUES (1, 'N814SX', 1, '737-800 BBJ2 VIP', '730097_1', '2026-11-22', 90000000, 1, 0, 1);"));
+    }
 }
 
 bool hasTable(db::Database& d, const char* name) {
@@ -65,12 +75,12 @@ protected:
 
 }  // namespace
 
-TEST(AirlineDb, EmptyDatabaseMigratesToVersion10) {
+TEST(AirlineDb, EmptyDatabaseMigratesToVersion11) {
     db::Database d = db::Database::openInMemory();
     std::string error;
     EXPECT_TRUE(migrateAirlineDatabase(d, &error)) << error;
-    EXPECT_EQ(d.userVersion(), 10);
-    EXPECT_EQ(kAirlineSchemaVersion, 10);
+    EXPECT_EQ(d.userVersion(), 11);
+    EXPECT_EQ(kAirlineSchemaVersion, 11);
 }
 
 TEST(AirlineDb, ForeignKeysAreOn) {
@@ -215,6 +225,11 @@ TEST(AirlineDb, QueryPlansUseIndexes) {
              "SELECT flight_id FROM flight WHERE kind = 'vip'",
              "SELECT planned_flight_id FROM planned_flight WHERE kind = 'vip'",
              "SELECT airplane_id FROM airplane WHERE return_reason = 'unpaid'",
+             "SELECT airplane_id FROM airplane WHERE registration = 'N814SX' AND returned_on IS NULL",
+             "SELECT airplane_id FROM airplane WHERE simbrief_airframe_id = '1_1' AND returned_on IS NULL",
+             "SELECT instant_delivery_id FROM instant_delivery WHERE from_airport_id = 1",
+             "SELECT instant_delivery_id FROM instant_delivery WHERE to_airport_id = 1",
+             "SELECT ledger_line_id FROM instant_delivery_line WHERE instant_delivery_id = 1",
          }) {
         const std::string plan = queryPlan(d, sql);
         EXPECT_NE(plan.find("USING"), std::string::npos) << sql << "\n" << plan;
@@ -244,7 +259,8 @@ TEST_F(AirlineDbFiles, ReadOnlyRefusesWrites) {
     ASSERT_TRUE(ro.has_value()) << error;
     db::Statement q(*ro, "SELECT COUNT(*) FROM airport");
     EXPECT_TRUE(q.next()) << q.error();
-    EXPECT_FALSE(ro->exec("INSERT INTO fleet (name) VALUES ('Executive')"));
+    EXPECT_FALSE(ro->exec("INSERT INTO ledger_line (category, posted_at, amount_cents)"
+                          " VALUES ('opening_cash', '2026-11-22T00:00:00Z', 500000000)"));
     db::Statement fk(*ro, "PRAGMA foreign_keys");
     ASSERT_TRUE(fk.next());
     EXPECT_EQ(fk.integer(0), 1);
@@ -258,7 +274,8 @@ TEST_F(AirlineDbFiles, ClobberedVersionOfARealAirlineIsRestored) {
         auto opened = db::Database::open(file, &error);
         ASSERT_TRUE(opened.has_value()) << error;
         ASSERT_TRUE(migrateAirlineDatabaseTo(*opened, 2, &error)) << error;
-        ASSERT_TRUE(opened->exec("INSERT INTO fleet (name) VALUES ('Executive')"));
+        ASSERT_TRUE(opened->exec("INSERT INTO ledger_line (category, posted_at, amount_cents)"
+                                 " VALUES ('opening_cash', '2026-11-22T00:00:00Z', 500000000)"));
         // What BlockTime 0.4 and older did to any blocktime.db it opened (D-061's FleetStore).
         ASSERT_TRUE(opened->exec("CREATE TABLE IF NOT EXISTS airframes (registration TEXT PRIMARY KEY);"
                                     "PRAGMA user_version = 1;"));
@@ -269,7 +286,7 @@ TEST_F(AirlineDbFiles, ClobberedVersionOfARealAirlineIsRestored) {
     EXPECT_TRUE(again.versionRestored);
     EXPECT_EQ(again.db->userVersion(), kAirlineSchemaVersion);
     EXPECT_FALSE(fs::exists(dir_ / "blocktime.test-schema.db"));
-    db::Statement q(*again.db, "SELECT COUNT(*) FROM fleet");
+    db::Statement q(*again.db, "SELECT COUNT(*) FROM ledger_line");
     ASSERT_TRUE(q.next());
     EXPECT_EQ(q.integer(0), 1);
 }
@@ -327,9 +344,9 @@ TEST(AirlineDb, FreeFlightNumberIsUniqueDigits) {
     db::Database d = migrated();
     addParents(d);
     ASSERT_TRUE(d.exec(
-        "INSERT INTO airplane (airplane_id, registration, aircraft_type_id, fleet_id, airframe_name,"
+        "INSERT INTO airplane (airplane_id, registration, aircraft_type_id, airframe_name,"
         "  simbrief_airframe_id, leased_on, monthly_lease_cents, location_airport_id, fuel_on_board_lb,"
-        "  awaiting_delivery) VALUES (2, 'N815SX', 1, 1, '737-800 BBJ2 VIP', '730097_2', '2026-11-22', 90000000, 1, 0, 1)"));
+        "  awaiting_delivery) VALUES (2, 'N815SX', 1, '737-800 BBJ2 VIP', '730097_2', '2026-11-22', 90000000, 1, 0, 1)"));
     EXPECT_FALSE(d.exec("UPDATE airplane SET free_flight_number = 'A1' WHERE airplane_id = 1"));
     EXPECT_FALSE(d.exec("UPDATE airplane SET free_flight_number = '12345' WHERE airplane_id = 1"));
     EXPECT_TRUE(d.exec("UPDATE airplane SET free_flight_number = '8' WHERE airplane_id = 1"));
@@ -697,7 +714,7 @@ TEST(AirlineDb, Migration10KeepsEveryRow) {
     db::Database d = filledAt9();
     auto before = snapshot(d);
     std::string error;
-    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 10, &error)) << error;
     EXPECT_EQ(d.userVersion(), 10);
     auto after = snapshot(d);
     EXPECT_EQ(after["flight_kind"], (std::vector<std::string>{"passenger|", "vip|", "charter|", "cargo|", "delivery|"}));
@@ -730,4 +747,85 @@ TEST(AirlineDb, Migration10Lookups) {
     EXPECT_FALSE(d.exec("UPDATE airplane SET return_reason = NULL WHERE airplane_id = 2"));
     EXPECT_FALSE(d.exec("UPDATE planned_flight SET kind = 'vip', cargo_lb = 100"));
     EXPECT_FALSE(d.exec("DELETE FROM flight_kind WHERE code = 'vip'"));  // flights use it
+}
+
+namespace {
+
+// The airplane rows without fleet_id, which migration 11 drops.
+std::vector<std::string> airplaneRows(db::Database& d) {
+    std::vector<std::string> out;
+    db::Statement q(d,
+                    "SELECT airplane_id, registration, COALESCE(tail_number, 'NULL'), aircraft_type_id, airframe_name,"
+                    " simbrief_airframe_id, leased_on, monthly_lease_cents, location_airport_id, fuel_on_board_lb,"
+                    " awaiting_delivery, COALESCE(returned_on, 'NULL'), COALESCE(return_reason, 'NULL'),"
+                    " COALESCE(free_flight_number, 'NULL') FROM airplane ORDER BY airplane_id");
+    while (q.next()) {
+        std::string line;
+        for (int c = 0; c < 14; ++c) line += q.text(c) + "|";
+        out.push_back(line);
+    }
+    return out;
+}
+
+}  // namespace
+
+TEST(AirlineDb, Migration11FromEmpty) {
+    db::Database d = migrated();
+    EXPECT_FALSE(hasTable(d, "fleet"));
+    for (const char* t : {"airplane_simbrief", "instant_delivery", "instant_delivery_line", "lease_refund"}) {
+        EXPECT_TRUE(hasTable(d, t)) << t;
+    }
+    db::Statement fk(d, "PRAGMA foreign_key_check");
+    EXPECT_FALSE(fk.next());
+    const std::string plan =
+        queryPlan(d, "SELECT airplane_id FROM airplane WHERE registration = 'N814SX' AND returned_on IS NULL");
+    EXPECT_NE(plan.find("airplane_registration_in_fleet"), std::string::npos) << plan;
+    db::Statement reasons(d, "SELECT group_concat(code, ',') FROM (SELECT code FROM return_reason ORDER BY code)");
+    ASSERT_TRUE(reasons.next());
+    EXPECT_EQ(reasons.text(0), "returned,unpaid");
+    db::Statement categories(d, "SELECT COUNT(*) FROM ledger_category WHERE code IN ('delivery_fee', 'lease_refund')");
+    ASSERT_TRUE(categories.next());
+    EXPECT_EQ(categories.integer(0), 2);
+}
+
+// Migration 11 keeps every airplane, its children and its charges; only the fleet goes.
+TEST(AirlineDb, Migration11KeepsAirplanes) {
+    db::Database d = filledAt9();
+    std::string error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 10, &error)) << error;
+    const auto airplanesBefore = airplaneRows(d);
+    auto before = snapshot(d);
+    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    EXPECT_EQ(d.userVersion(), 11);
+    EXPECT_EQ(airplaneRows(d), airplanesBefore);
+    auto after = snapshot(d);
+    for (const char* t : {"fleet", "airplane", "return_reason", "ledger_category"}) before.erase(t);
+    for (const char* t : {"airplane", "return_reason", "ledger_category", "airplane_simbrief", "instant_delivery",
+                          "instant_delivery_line", "lease_refund"}) {
+        after.erase(t);
+    }
+    EXPECT_EQ(after, before);
+    db::Statement simbrief(d, "SELECT COUNT(*) FROM airplane_simbrief");
+    ASSERT_TRUE(simbrief.next());
+    EXPECT_EQ(simbrief.integer(0), 0);
+    db::Statement fk(d, "PRAGMA foreign_key_check");
+    EXPECT_FALSE(fk.next());
+    db::Statement integrity(d, "PRAGMA integrity_check");
+    ASSERT_TRUE(integrity.next());
+    EXPECT_EQ(integrity.text(0), "ok");
+}
+
+// D-246: registration, SimBrief airframe and flight number are unique among airplanes in the fleet only.
+TEST(AirlineDb, RegistrationReusableAfterReturn) {
+    db::Database d = migrated();
+    addParents(d);
+    ASSERT_TRUE(d.exec("UPDATE airplane SET free_flight_number = '8' WHERE airplane_id = 1"));
+    const std::string second =
+        "INSERT INTO airplane (airplane_id, registration, aircraft_type_id, airframe_name, simbrief_airframe_id,"
+        " leased_on, monthly_lease_cents, location_airport_id, fuel_on_board_lb, awaiting_delivery,"
+        " free_flight_number) VALUES (2, 'N814SX', 1, '737-800 BBJ2 VIP', '730097_1', '2026-12-01', 90000000, 1, 0, 1,"
+        " '8')";
+    EXPECT_FALSE(d.exec(second));  // both in the fleet
+    ASSERT_TRUE(d.exec("UPDATE airplane SET returned_on = '2026-11-30', return_reason = 'returned' WHERE airplane_id = 1"));
+    EXPECT_TRUE(d.exec(second));
 }

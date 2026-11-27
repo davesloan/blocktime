@@ -10,7 +10,6 @@
 
 #include <filesystem>
 #include <optional>
-#include <ostream>
 #include <string>
 #include <vector>
 
@@ -33,15 +32,15 @@ AirlinePaths defaultAirlinePaths();  // all in %LOCALAPPDATA%\BlockTime
 
 class AirlineSession {
 public:
-    // Opens the database, reads both config files and, if they're valid, syncs types and fleets, posts the opening
-    // cash and settles the leases up to `today`. Config drift warnings go to `warnings` (errors.log in the app).
-    static AirlineSession start(const AirlinePaths& paths, Date today, std::ostream& warnings);
+    // Opens the database, reads the aircraft files and airline.yaml and, if they're valid, syncs the types, posts the
+    // opening cash and settles the leases up to `today`.
+    static AirlineSession start(const AirlinePaths& paths, Date today);
     // start() without settling the leases. The app settles a flown flight first, then calls tick(): a flight that
     // blocked in before a lease month must be in the cash that month is checked against (review 1.4).
-    static AirlineSession open(const AirlinePaths& paths, std::ostream& warnings);
+    static AirlineSession open(const AirlinePaths& paths);
 
     // Settles the leases again (the minute tick), with the config read at start. True if anything changed: a
-    // lease, a charge, a return, or the notices.
+    // charge, a return, or the notices.
     bool tick(Date today);
 
     // The notices from start, plus those of the latest settle.
@@ -53,6 +52,9 @@ public:
     double hoursFlown();  // Dave's, from the settled flights (D-114)
     std::string airlineName() const;  // "" without a valid airline.yaml
     std::string airlineIcao() const;  // "" without a valid airline.yaml
+    std::string airlineCallsign() const;  // "" without a valid airline.yaml
+    // The supported aircraft (D-243); empty if no aircraft file could be read.
+    const Catalog& catalog() const;
 
     // What the arrival gate needs to know (D-147): the type's wingspan from the catalog, gate or ramp from the kind,
     // and the airline's preferred gates at the airport. nullopt for a type the catalog doesn't have.

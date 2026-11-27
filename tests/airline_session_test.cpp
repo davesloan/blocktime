@@ -12,6 +12,9 @@
 
 #include "airline_db.h"
 #include "airline_session.h"
+#include "fleet_rules.h"
+#include "leasing.h"
+#include "rates.h"
 #include "sqlite_db.h"
 
 using namespace blocktime;
@@ -50,6 +53,29 @@ protected:
             " longest_runway_ft) VALUES ('KBFI', 'Boeing Field', 47.53, -122.30, 21, 'US', 'America/Los_Angeles', 10007)"));
     }
 
+    // Leases a BBJ2 on 22 Nov 2026 through the app's own leasing (D-242).
+    void leaseOne(AirlineSession& session) {
+        SimbriefReading r;
+        r.registration = "N738BT";
+        r.internalId = "1_1";
+        r.baseType = "BBJ2";
+        r.weightUnits = "LBS";
+        r.maxPassengers = 48;
+        r.passengerWeightLb = 190;
+        r.bagWeightLb = 55;
+        r.emptyWeightLb = 102187;
+        r.mzfwLb = 138300;
+        r.mtowLb = 174700;
+        r.mlwLb = 146300;
+        r.maxFuelLb = 69986;
+        r.maxCargoLb = 17645;
+        r.minRunwayFt = 7000;
+        const LeaseRequest request{r, session.catalog().type("737-800 BBJ2"),
+                                   session.catalog().airframe("737-800 BBJ2 VIP"), "", std::nullopt, d(2026, 11, 22)};
+        ASSERT_NE(session.database(), nullptr);
+        ASSERT_EQ(leaseAirplane(*session.database(), request, Rates{}, std::nullopt).refusal, "");
+    }
+
     fs::path dir_;
     AirlinePaths paths_;
     std::ostringstream warnings_;
@@ -57,22 +83,21 @@ protected:
 
 }  // namespace
 
-TEST_F(AirlineSessionTest, FreshStartLeasesTheExample) {
+TEST_F(AirlineSessionTest, FreshStartHasTheAirlineAndNoAirplanes) {
     copyConfig();
     importKbfi();
-    AirlineSession session = AirlineSession::start(paths_, d(2026, 11, 22), warnings_);
+    AirlineSession session = AirlineSession::start(paths_, d(2026, 11, 22));
     EXPECT_TRUE(session.notices().empty()) << session.notices().front();
     EXPECT_EQ(session.airlineName(), "BlockTime Air");
-    ASSERT_EQ(session.airplanes().size(), 1u);
-    EXPECT_EQ(session.airplanes()[0].registration, "N738BT");
-    EXPECT_EQ(session.cash(), 485'000'000);
-    EXPECT_EQ(session.ledger().size(), 2u);
-    EXPECT_EQ(warnings_.str(), "");
+    EXPECT_TRUE(session.airplanes().empty());
+    EXPECT_EQ(session.cash(), 500'000'000);
+    EXPECT_EQ(session.ledger().size(), 1u);
+    EXPECT_EQ(session.catalog().types.size(), 7u);
 }
 
 TEST_F(AirlineSessionTest, MissingConfigIsANotice) {
     importKbfi();
-    AirlineSession session = AirlineSession::start(paths_, d(2026, 11, 22), warnings_);
+    AirlineSession session = AirlineSession::start(paths_, d(2026, 11, 22));
     EXPECT_TRUE(hasNoticeStartingWith(session, "No airline.yaml in ")) << ::testing::PrintToString(session.notices());
     EXPECT_EQ(session.airlineName(), "");
     EXPECT_TRUE(session.airplanes().empty());
@@ -82,10 +107,13 @@ TEST_F(AirlineSessionTest, MissingConfigIsANotice) {
 TEST_F(AirlineSessionTest, BadConfigStillShowsTheDatabase) {
     copyConfig();
     importKbfi();
-    AirlineSession::start(paths_, d(2026, 11, 22), warnings_);
+    {
+        AirlineSession first = AirlineSession::start(paths_, d(2026, 11, 22));
+        leaseOne(first);
+    }
     std::ofstream(paths_.airlineConfig) << "airline:\n  name: X\n icao: BTA\n";
 
-    AirlineSession again = AirlineSession::start(paths_, d(2026, 11, 22), warnings_);
+    AirlineSession again = AirlineSession::start(paths_, d(2026, 11, 22));
     EXPECT_TRUE(hasNoticeStartingWith(again, "airline.yaml line ")) << ::testing::PrintToString(again.notices());
     EXPECT_EQ(again.airplanes().size(), 1u);
     EXPECT_EQ(again.ledger().size(), 2u);
@@ -95,7 +123,8 @@ TEST_F(AirlineSessionTest, BadConfigStillShowsTheDatabase) {
 TEST_F(AirlineSessionTest, TickChargesAMonthThatFallsDueWhileOpen) {
     copyConfig();
     importKbfi();
-    AirlineSession session = AirlineSession::start(paths_, d(2026, 12, 21), warnings_);
+    AirlineSession session = AirlineSession::start(paths_, d(2026, 12, 21));
+    leaseOne(session);
     EXPECT_EQ(session.ledger().size(), 2u);
     session.tick(d(2026, 12, 22));
     EXPECT_EQ(session.ledger().size(), 3u);
@@ -106,7 +135,7 @@ TEST_F(AirlineSessionTest, TickChargesAMonthThatFallsDueWhileOpen) {
 
 TEST_F(AirlineSessionTest, NoAirportsIsANotice) {
     copyConfig();
-    AirlineSession session = AirlineSession::start(paths_, d(2026, 11, 22), warnings_);
+    AirlineSession session = AirlineSession::start(paths_, d(2026, 11, 22));
     EXPECT_TRUE(hasNoticeStartingWith(session, "No airport data yet. Run blocktime-import (README)."));
     EXPECT_TRUE(session.airplanes().empty());
 }
@@ -119,30 +148,15 @@ TEST_F(AirlineSessionTest, TestDatabaseSetAsideIsANotice) {
         ASSERT_TRUE(old.has_value()) << error;
         ASSERT_TRUE(old->exec("CREATE TABLE airframes (registration TEXT); PRAGMA user_version = 1;"));
     }
-    AirlineSession session = AirlineSession::start(paths_, d(2026, 11, 22), warnings_);
+    AirlineSession session = AirlineSession::start(paths_, d(2026, 11, 22));
     EXPECT_TRUE(hasNoticeStartingWith(session, "The Qt test's database was set aside as blocktime.test-schema.db."));
-}
-
-TEST_F(AirlineSessionTest, DriftWarningsGoToTheWarningStream) {
-    copyConfig();
-    importKbfi();
-    AirlineSession::start(paths_, d(2026, 11, 22), warnings_);
-    std::ifstream in(paths_.airlineConfig);
-    std::stringstream text;
-    text << in.rdbuf();
-    in.close();
-    std::string yaml = text.str();
-    yaml.replace(yaml.find("replace-me"), 10, "changed-id");
-    std::ofstream(paths_.airlineConfig) << yaml;
-
-    AirlineSession::start(paths_, d(2026, 11, 22), warnings_);
-    EXPECT_NE(warnings_.str().find("N738BT: airline.yaml changed simbrief_airframe_id"), std::string::npos) << warnings_.str();
 }
 
 TEST_F(AirlineSessionTest, TickReportsWhetherAnythingChanged) {
     copyConfig();
     importKbfi();
-    AirlineSession session = AirlineSession::start(paths_, d(2026, 12, 21), warnings_);
+    AirlineSession session = AirlineSession::start(paths_, d(2026, 12, 21));
+    leaseOne(session);
     EXPECT_FALSE(session.tick(d(2026, 12, 21)));
     EXPECT_TRUE(session.tick(d(2026, 12, 22)));
     EXPECT_FALSE(session.tick(d(2026, 12, 22)));
@@ -151,7 +165,7 @@ TEST_F(AirlineSessionTest, TickReportsWhetherAnythingChanged) {
 TEST_F(AirlineSessionTest, GateContextFromCatalogAndConfig) {
     copyConfig();
     importKbfi();
-    AirlineSession session = AirlineSession::start(paths_, d(2026, 11, 22), warnings_);
+    AirlineSession session = AirlineSession::start(paths_, d(2026, 11, 22));
     const auto vip = session.gateContext("737-800 BBJ2", FlightKind::Vip, "KPDX");
     ASSERT_TRUE(vip.has_value());
     EXPECT_DOUBLE_EQ(vip->wingspanM, 35.8);
