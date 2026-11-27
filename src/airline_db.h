@@ -41,4 +41,22 @@ AirlineDbOpen openAirlineDatabase(const std::filesystem::path& file);
 
 std::filesystem::path defaultAirlineDatabaseFile();  // %LOCALAPPDATA%\BlockTime\blocktime.db
 
+namespace detail {  // for tests
+
+struct Migration {
+    int version;
+    const char* sql;
+    // Rebuilds a table by SQLite's 12-step recipe (sqlite.org/lang_altertable.html): create the new table, copy, drop
+    // the old one, rename. It needs foreign keys off, or dropping a parent fails (RESTRICT) or deletes its children
+    // (CASCADE) (review 1.5).
+    bool rebuild = false;
+};
+
+// Applies one migration in its own transaction and sets user_version to its version. A rebuild runs with foreign
+// keys off and must leave PRAGMA foreign_key_check empty before it commits. Foreign keys are on again afterwards,
+// whether it worked or not.
+bool applyMigration(db::Database& db, const Migration& m, std::string* error);
+
+}  // namespace detail
+
 }  // namespace blocktime

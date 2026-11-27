@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <filesystem>
+#include <map>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -523,4 +525,165 @@ TEST(AirlineDb, Migration9AddsCity) {
     db::Statement q(d, "SELECT city FROM airport WHERE icao_code = 'KSAN'");
     ASSERT_TRUE(q.next()) << q.error();
     EXPECT_EQ(q.text(0), "");
+}
+
+namespace {
+
+// A schema-9 airline with a row in every table a real one fills (Review Focus 2): two airplanes, one returned for
+// not being paid, with cabins, holds and limits; the opening cash and a lease charge; a planned flight with its cabins
+// and SimBrief plan; two settled flights with cabins, plan, phases, a service, parking, money lines and a debrief
+// (check values and skips, landing, review and its items).
+db::Database filledAt9() {
+    db::Database d = db::Database::openInMemory();
+    std::string error;
+    EXPECT_TRUE(migrateAirlineDatabaseTo(d, 9, &error)) << error;
+    addFlightParents(d);
+    EXPECT_TRUE(d.exec(
+        "INSERT INTO airport_import (imported_at, airport_count) VALUES ('2026-11-22T10:00:00Z', 2);"
+        "UPDATE airplane SET free_flight_number = '8', awaiting_delivery = 0 WHERE airplane_id = 1;"
+        "INSERT INTO airplane (airplane_id, registration, tail_number, aircraft_type_id, fleet_id, airframe_name,"
+        "  simbrief_airframe_id, leased_on, monthly_lease_cents, location_airport_id, fuel_on_board_lb,"
+        "  awaiting_delivery, returned_on, return_reason) VALUES (2, 'N815SX', 'SX', 1, 1, 'BBJ2 two', '730097_2',"
+        "  '2026-11-22', 90000000, 2, 5000, 0, '2026-11-25', 'unpaid');"
+        "INSERT INTO airplane_cabin (airplane_id, cabin_class, seats) VALUES (1, 'economy', 48), (2, 'economy', 48);"
+        "INSERT INTO airplane_hold (airplane_id, hold, max_lb, ratio) VALUES (1, 'forward', 5000, 4),"
+        "  (1, 'aft', 6000, 6);"
+        "INSERT INTO airplane_limits (airplane_id, min_runway_ft, mlw_lb, passenger_weight_lb, bag_weight_lb,"
+        "  max_payload_lb) VALUES (1, 6000, 146300, 190, 40, 30000), (2, 6000, 146300, 190, 40, 30000);"
+        "INSERT INTO ledger_line (ledger_line_id, category, posted_at, amount_cents) VALUES"
+        "  (1, 'opening_cash', '2026-11-22T10:00:00Z', 2000000000), (2, 'lease', '2026-11-22T10:00:00Z', -90000000),"
+        "  (3, 'vip_fares', '2026-11-23T13:20:41Z', 2815000), (4, 'fuel', '2026-11-23T13:20:41Z', -246000);"
+        "INSERT INTO lease_charge (ledger_line_id, airplane_id, period_start) VALUES (2, 1, '2026-11-22');"
+        "INSERT INTO planned_flight (planned_flight_id, airplane_id, origin_airport_id, destination_airport_id,"
+        "  flight_number, kind, cargo_lb, fuel_price_cents_per_100lb, planned_at, origin_runway)"
+        "  VALUES (1, 1, 2, 1, '9', 'vip', 0, 4100, '2026-11-24T10:00:00Z', '27');"
+        "INSERT INTO planned_flight_cabin (planned_flight_id, cabin_class, passengers) VALUES (1, 'economy', 40);"
+        "INSERT INTO simbrief_plan (planned_flight_id, request_id, generated_at, imported_at, route, origin_runway,"
+        "  destination_runway, cruise_altitude_ft, est_block_s, ramp_fuel_lb, enroute_burn_lb, est_landing_weight_lb,"
+        "  origin_transition_altitude_ft, destination_transition_level_ft, ofp_json) VALUES (1, 'r1',"
+        "  '2026-11-24T09:50:00Z', '2026-11-24T09:55:00Z', 'DCT', '27', '14R', 37000, 9000, 20000, 15000, 120000,"
+        "  18000, 18000, '{}');",
+        &error))
+        << error;
+    EXPECT_TRUE(insertFlight(d, "first", "vip", "2026-11-23T10:30:05Z", "2026-11-23T13:20:41Z", 20000));
+    EXPECT_TRUE(insertFlight(d, "second", "delivery", "2026-11-23T15:00:00Z", "2026-11-23T17:00:00Z", 15000));
+    EXPECT_TRUE(d.exec(
+        "UPDATE flight SET origin_parking = 'Gate D14', arrival_parking = 'Parking 70' WHERE flight_id = 1;"
+        "INSERT INTO flight_cabin (flight_id, cabin_class, passengers) VALUES (1, 'economy', 46);"
+        "INSERT INTO flight_plan (flight_id, request_id, generated_at, imported_at, route, origin_runway,"
+        "  destination_runway, cruise_altitude_ft, est_block_s, ramp_fuel_lb, enroute_burn_lb, est_landing_weight_lb,"
+        "  origin_transition_altitude_ft, destination_transition_level_ft, ofp_json) VALUES (1, 'r0',"
+        "  '2026-11-23T09:50:00Z', '2026-11-23T09:55:00Z', 'DCT', '14R', '27', 37000, 9000, 20000, 15000, 120000,"
+        "  18000, 18000, '{}');"
+        "INSERT INTO flight_money_line (ledger_line_id, flight_id) VALUES (3, 1), (4, 1);"
+        "INSERT INTO flight_phase (flight_id, seq, phase, started_at) VALUES (1, 0, 'pushback', '2026-11-23T10:30:05Z'),"
+        "  (1, 1, 'taxi_out', '2026-11-23T10:33:00Z');"
+        "INSERT INTO flight_service (flight_id, service, started_at, ended_at) VALUES"
+        "  (1, 'boarding', '2026-11-23T10:00:00Z', '2026-11-23T10:20:00Z');"
+        "INSERT INTO flight_debrief (flight_id, family) VALUES (1, '737');"
+        "INSERT INTO flight_check_value (flight_id, part, value) VALUES (1, 'taxi_max_kt', 25);"
+        "INSERT INTO flight_check_skip (flight_id, part, reason) VALUES (1, 'std_late_s', 'no_marker');"
+        "INSERT INTO flight_landing (flight_id, vs_fpm, g_hundredths, bounces, ias_kt, heading_true_deg, wind_dir_deg,"
+        "  wind_kt) VALUES (1, 591, 147, 0, 125, 286, 330, 9);"
+        "INSERT INTO flight_review (flight_id, summary, landing, atc, model, written_at)"
+        "  VALUES (1, 'Good', 'Firm', 'Clear', 'claude-opus-5-5', '2026-11-24T00:55:00Z');"
+        "INSERT INTO flight_review_item (flight_id, seq, text) VALUES (1, 0, 'Beacon first'), (1, 1, 'Flare later');",
+        &error))
+        << error;
+    return d;
+}
+
+// Every row of every table, as text, by table name. Lookup tables a migration adds have no rows to compare before.
+std::map<std::string, std::vector<std::string>> snapshot(db::Database& d) {
+    std::map<std::string, std::vector<std::string>> out;
+    std::vector<std::string> tables;
+    {
+        db::Statement names(d, "SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite_%'");
+        while (names.next()) tables.push_back(names.text(0));
+    }
+    for (const std::string& t : tables) {
+        db::Statement cols(d, "SELECT count(*) FROM pragma_table_info('" + t + "')");
+        EXPECT_TRUE(cols.next()) << t;
+        const int n = static_cast<int>(cols.integer(0));
+        db::Statement rows(d, "SELECT * FROM " + t + " ORDER BY rowid");
+        auto& lines = out[t];
+        while (rows.next()) {
+            std::string line;
+            for (int c = 0; c < n; ++c) line += (rows.isNull(c) ? "NULL" : rows.text(c)) + "|";
+            lines.push_back(line);
+        }
+        EXPECT_EQ(rows.error(), "") << t;
+    }
+    return out;
+}
+
+int foreignKeysOn(db::Database& d) {
+    db::Statement q(d, "PRAGMA foreign_keys");
+    EXPECT_TRUE(q.next());
+    return static_cast<int>(q.integer(0));
+}
+
+// SQLite's 12-step rebuild of `table` with the same columns: a new table from the stored CREATE, the rows copied, the
+// old one dropped, the new one renamed, the indexes recreated.
+std::string sameShapeRebuild(db::Database& d, const std::string& table) {
+    db::Statement create(d, "SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = ?");
+    create.bind(1, std::string_view(table));
+    EXPECT_TRUE(create.next());
+    std::string ddl = create.text(0);
+    const std::string head = "CREATE TABLE " + table;
+    ddl.replace(ddl.find(head), head.size(), head + "_new");
+    std::string sql = ddl + ";\nINSERT INTO " + table + "_new SELECT * FROM " + table + ";\nDROP TABLE " + table +
+                      ";\nALTER TABLE " + table + "_new RENAME TO " + table + ";\n";
+    db::Statement indexes(d, "SELECT sql FROM sqlite_schema WHERE type = 'index' AND tbl_name = ? AND sql IS NOT NULL");
+    indexes.bind(1, std::string_view(table));
+    while (indexes.next()) sql += indexes.text(0) + ";\n";
+    return sql;
+}
+
+}  // namespace
+
+// Review 1.5: a rebuild runs with foreign keys off, so dropping a parent neither fails (RESTRICT) nor deletes its
+// children (CASCADE).
+TEST(AirlineDb, RebuildKeepsCascadeChildren) {
+    db::Database d = filledAt9();
+    const auto before = snapshot(d);
+    const std::string sql = sameShapeRebuild(d, "flight");
+    std::string error;
+    ASSERT_TRUE(detail::applyMigration(d, {10, sql.c_str(), true}, &error)) << error;
+    EXPECT_EQ(snapshot(d), before);
+    EXPECT_EQ(foreignKeysOn(d), 1);
+    EXPECT_EQ(d.userVersion(), 10);
+}
+
+// Review Focus 3: a rebuild that would leave rows pointing at nothing changes nothing.
+TEST(AirlineDb, RebuildWithDanglingRowFails) {
+    db::Database d = filledAt9();
+    const auto before = snapshot(d);
+    std::string sql = sameShapeRebuild(d, "airplane");
+    const std::string copy = "INSERT INTO airplane_new SELECT * FROM airplane;";
+    sql.replace(sql.find(copy), copy.size(), "");
+    std::string error;
+    EXPECT_FALSE(detail::applyMigration(d, {10, sql.c_str(), true}, &error));
+    EXPECT_NE(error.find("foreign key check"), std::string::npos) << error;
+    EXPECT_EQ(d.userVersion(), 9);
+    EXPECT_EQ(snapshot(d), before);
+    EXPECT_EQ(foreignKeysOn(d), 1);
+}
+
+TEST(AirlineDb, FailedRebuildTurnsForeignKeysBackOn) {
+    db::Database d = filledAt9();
+    std::string error;
+    EXPECT_FALSE(detail::applyMigration(d, {10, "DROP TABLE flight_review_item; CREATE TABLE oops (", true}, &error));
+    EXPECT_EQ(d.userVersion(), 9);
+    EXPECT_TRUE(hasTable(d, "flight_review_item"));
+    EXPECT_EQ(foreignKeysOn(d), 1);
+}
+
+// A plain migration still runs with foreign keys on: deleting a parent with RESTRICT children fails.
+TEST(AirlineDb, PlainMigrationKeepsForeignKeysOn) {
+    db::Database d = filledAt9();
+    std::string error;
+    EXPECT_FALSE(detail::applyMigration(d, {10, "DELETE FROM airplane WHERE airplane_id = 1", false}, &error));
+    EXPECT_EQ(d.userVersion(), 9);
+    EXPECT_EQ(foreignKeysOn(d), 1);
 }

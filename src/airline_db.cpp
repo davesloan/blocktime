@@ -359,14 +359,28 @@ ALTER TABLE airport ADD COLUMN city TEXT NOT NULL DEFAULT '';
 #undef BT_INSTANT
 #undef BT_DATE
 
-struct Migration {
-    int version;
-    const char* sql;
-};
+using detail::Migration;
 
 constexpr std::array kMigrations{Migration{2, kMigration2}, Migration{3, kMigration3}, Migration{4, kMigration4},
                                  Migration{5, kMigration5}, Migration{6, kMigration6}, Migration{7, kMigration7},
                                  Migration{8, kMigration8}, Migration{9, kMigration9}};
+
+// The first row PRAGMA foreign_key_check finds pointing at nothing, as "flight row 3 → airplane"; "" if none.
+std::string firstDanglingRow(db::Database& db) {
+    db::Statement q(db, "PRAGMA foreign_key_check");
+    if (!q.next()) return q.error();
+    return std::format("{} row {} → {}", q.text(0), q.isNull(1) ? std::string("?") : q.text(1), q.text(2));
+}
+
+// Turns foreign keys back on when it goes out of scope, after the transaction's own end: SQLite ignores the pragma
+// inside a transaction.
+struct ForeignKeysBackOn {
+    db::Database& db;
+    explicit ForeignKeysBackOn(db::Database& d) : db(d) {}
+    ForeignKeysBackOn(const ForeignKeysBackOn&) = delete;
+    ForeignKeysBackOn& operator=(const ForeignKeysBackOn&) = delete;
+    ~ForeignKeysBackOn() { db.exec("PRAGMA foreign_keys = ON"); }
+};
 
 constexpr int kFirstRealSchemaVersion = 2;  // what a clobbered milestone 4 airline really is (D-098)
 
@@ -399,15 +413,34 @@ bool migrateAirlineDatabaseTo(db::Database& db, int target, std::string* error) 
     }
     for (const Migration& m : kMigrations) {
         if (m.version <= current || m.version > target) continue;
-        db::Transaction tx(db);
-        std::string message;
-        if (!tx.active() || !db.exec(m.sql, &message) ||
-            !db.exec(std::format("PRAGMA user_version = {}", m.version), &message) || !tx.commit(&message)) {
-            if (error) *error = std::format("Migration {} failed: {}", m.version, message);
-            return false;
-        }
+        if (!detail::applyMigration(db, m, error)) return false;
     }
     if (error) error->clear();
+    return true;
+}
+
+bool detail::applyMigration(db::Database& db, const Migration& m, std::string* error) {
+    std::string message;
+    const auto fail = [&] {
+        if (error) *error = std::format("Migration {} failed: {}", m.version, message);
+        return false;
+    };
+    ForeignKeysBackOn backOn{db};  // declared before the transaction, so it runs after its rollback
+    if (m.rebuild && !db.exec("PRAGMA foreign_keys = OFF", &message)) return fail();
+    db::Transaction tx(db);
+    if (!tx.active()) {
+        message = tx.error();
+        return fail();
+    }
+    if (!db.exec(m.sql, &message)) return fail();
+    if (m.rebuild) {
+        const std::string dangling = firstDanglingRow(db);
+        if (!dangling.empty()) {
+            message = "foreign key check failed: " + dangling;
+            return fail();
+        }
+    }
+    if (!db.exec(std::format("PRAGMA user_version = {}", m.version), &message) || !tx.commit(&message)) return fail();
     return true;
 }
 
