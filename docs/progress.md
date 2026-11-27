@@ -46,8 +46,7 @@ qmllint: the same one info line. A release replay (`--replay last --at approach 
 window pausing, and Claude's review arrive as before. The visibility gate's saving before block out didn't show in a
 replay (nothing moved the needles there), so it's unmeasured.
 
-**Waiting on Dave:** D-232 keeps the 1 s glide since it's inside the budget. A 400 ms glide would roughly halve its
-cost, with jumpier needles; say if you want it.
+**Dave's call:** keep the 1 s glide (D-232 accepted), after seeing the 400 ms and no-glide measurements.
 
 **Next step:** fix step 3, groundwork for dispatch and the money item. Its first item, Dave's calls on 4.2 and 4.1, is
 already answered (D-222, D-223).

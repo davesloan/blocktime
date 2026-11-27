@@ -3722,8 +3722,8 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-232 — Needles glide only while the panel shows; the glide stays 1 s
 - Date: 2026-11-27
-- Status: Proposed (the visibility gate is review 9.1's fix; keeping 1 s is Claude's reading of the measurement)
-- Decided by: Claude
+- Status: Accepted (Dave kept the 1 s glide after seeing the measurements, 2026-11-27)
+- Decided by: Dave + Claude
 - Area: app
 - Decision: The in-flight panel's needles glide only while the panel is visible (hidden before block out and after
   block in, or Live not the current page). The glide stays 1 s (D-205): it's inside the 1% budget.
@@ -3740,3 +3740,64 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   window. The hidden-panel case the review describes (fuel ticking at the gate before block out) didn't show in the
   replay (0.1%), so the gate's saving there is unmeasured.
 - Alternatives considered: a 400 ms glide (about half the cost, needles jumpier: Dave's call, D-205); no glide.
+
+## D-222 — Dispatch on Your Flight: the flow
+- Date: 2026-11-27
+- Status: Accepted (design doc follows with the summary's)
+- Decided by: Dave + Claude
+- Area: design
+- Decision (refines D-214):
+  - **Live is renamed Your Flight.** Dispatch happens there, not in a dialog or a separate page: Your Flight shows
+    either the dispatch screens or the dashboard, never both (approach C; a Dispatch page was rejected as too close
+    to FlyHub's, a dialog as too small).
+  - **The form:** Fleet → an airplane → Create New Flight (later also the Flight Board) opens Your Flight with the
+    form pre-filled; opening Your Flight directly gives an empty form. Fields: airplane, destination, flight number,
+    fully loaded (D-215) or random, plus today's options (the BBJ2's VIP airliner / charter, belly cargo on random
+    loads, delivery flights forced empty), **additional fuel** in pounds, and the **route**: Dave's last route on
+    the leg if he changed SimBrief's, else SimBrief's own, with a switch between them.
+  - **Dispatch** rolls the loads (once: no hidden rolls) and opens the dispatch report before import.
+  - **Import from SimBrief** (Re-import after the first) checks the plan against the flight: passengers exactly,
+    cargo within about 1% or 100 lb, destination, airplane and flight number. A mismatch is refused, saying what to
+    regenerate, with Open SimBrief pre-filled with the right values; a refused re-import keeps the plan already
+    imported. A re-import changes fuel, route, block time and the money lines that follow; never the loads.
+  - **Accept** puts Your Flight into Pre-Flight. **Cancel flight** stays until block out.
+  - **Money locks at block out**, and so does Re-import: after block out nothing a re-import could change matters
+    (fuel and crew are fixed, a reroute's time is settled at block in, a diversion closes where Dave parks).
+  - **View Dispatch Report** opens the accepted report in a popup during the flight; Re-import is there until block
+    out, read-only after.
+  - **Settled at block in, unchanged (D-208):** the button after block in is renamed **Settle Up** and only reveals
+    the summary. At Gate Turnaround goes back to the form pre-filled for the same airplane; Done for now clears it.
+  - **No runway check** on the report: the length check is New Flight's, and the runways are suggestions ATC may
+    change.
+- Why: Dave's flow from the brainstorm of 2026-11-27; the real-world parallels (captain's extra fuel, a better route)
+  are why the form takes extra fuel and remembers routes.
+- Alternatives considered: a three-step dialog (A); a Dispatch page in the sidebar (B); re-import allowed until block
+  in (Dave asked what it could change after block out: nothing).
+
+## D-223 — The dispatch report's look: the ring, the flipboard, load and plan
+- Date: 2026-11-27
+- Status: Accepted (Dave: "perfection")
+- Decided by: Dave + Claude
+- Area: design
+- Decision: The mockup "The dispatch report" on the canvas https://claude.ai/artifact/N81DAojKWXThKyjb9itke7 (board
+  `Final`) is the design:
+  - **The money card:** a ring (the fares as the whole circle, each cost a slice in colour families: fuel red,
+    airports orange, crew and airplane purple, service and route blue; what's left a green arc; the profit in the
+    centre). Hovering a slice lifts it outward with its name and amount; clicking it selects it. Beside it a
+    **split-flap board**, one row per line plus fares at the top and profit at the bottom, costs settling in amber,
+    fares and profit in green. On the right, the selected line's working (and the change since booking, e.g. the
+    extra fuel), with Accept and Cancel flight under it.
+  - **Before the first import:** the board shows the labels with blank value tiles, the ring an empty track with
+    only a dash in the centre, the plan card the three steps (Open SimBrief, Generate, Import) with Open SimBrief ↗
+    and Import from SimBrief centred under them, the load card filled (the loads are rolled at Dispatch) with
+    takeoff and landing weight "after import", Accept greyed.
+  - **Import** flips the values in once, row by row (a one-time animation, allowed like the gauge needles); a
+    re-import flips only the rows that changed (the Flight Board's rule, D-144).
+  - **Load card:** a seat strip, bags and holds, and ZFW, TOW and landing weight as bars with each limit marked.
+    **Plan card:** the departure and arrival with an altitude-coloured line, runways, SID and STAR, and cruise,
+    distance, block, block fuel, burn and arrival time.
+  - No paper document (Dave dislikes SimBrief's) and no runway lamp; the instrument-panel lamps and the bar charts
+    were tried and dropped.
+- Why: "It has to have a cool factor"; the ring echoes the gauges and the board the Flight Board to come.
+- Alternatives considered: A (instrument panel with lamps), B (vertical waterfall), B2 (stacked horizontal bars),
+  C (costs on a flight timeline), a grouped list.
