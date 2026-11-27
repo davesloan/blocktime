@@ -50,7 +50,8 @@ std::string withLetters(const std::string& text) {
 
 // A taxi route: letters, and "A 7" joined to "A7".
 std::string taxiRoute(const std::string& text) {
-    return std::regex_replace(withLetters(text), std::regex(R"(\b([A-Z]) (\d+)\b)"), "$1$2");
+    static const std::regex letterNumber(R"(\b([A-Z]) (\d+)\b)");
+    return std::regex_replace(withLetters(text), letterNumber, "$1$2");
 }
 
 std::string trimmed(std::string s) {
@@ -85,23 +86,52 @@ std::vector<SlotChange> fromClearance(const Clearance& c, const RoutePlan& plan)
     return out;
 }
 
+// A named visual approach's name ("Sweetwater Visual"), the type, its letter, the runway (0.15.1).
+constexpr const char* kApproach =
+    R"((?:(?!(?:a|an|the|expect|cleared|for|and|or) )(\w+) (?=visual))?)"  // not an article or a verb
+    R"((ILS|LOC|RNAV|GPS|VOR|VISUAL)(?:[- ]([A-Z]))?\s+(?:runway )?(\w+) approach)";
+
+// Built once (review 5.2): MSVC's std::regex is slow to construct, and the ATC card reads every message.
+const std::regex kCross(R"(\bcross[- ]runway (\w+))", kIcase);
+const std::regex kTaxiToVia(R"(\btaxi to (.+?) via (.+?)(,\s*hold short\b.*)?$)", kIcase);
+const std::regex kContinueTaxi(R"(\bcontinue taxi via (.+?)(,\s*hold short\b.*)?$)", kIcase);
+const std::regex kRouteTo(R"(^(.+) to (.+)$)", kIcase);
+const std::regex kHoldShort(R"(\bhold short (?:of )?runway (\w+))", kIcase);
+const std::regex kHeading(R"(\b(?:turn (left|right) )?(?:fly )?heading (\d{3})\b)", kIcase);
+const std::regex kVia(R"(\b(climb|descend) via (?:the )?(\w+)(?:,?\s+(\w+) transition)?)", kIcase);
+const std::regex kMaintain(R"(\b(?:climb|descend)(?: and)? maintain (flight level |FL ?)?([\d,]+)( until established)?)",
+                           kIcase);
+const std::regex kKnots(R"(\bmaintain (\d{3}) knots\b)", kIcase);
+const std::regex kResumeSpeed(R"(\bresume normal speed\b)", kIcase);
+const std::regex kDirect(R"(\bdirect (\w+))", kIcase);
+const std::regex kOwnNav(R"(\bresume own navigation\b)", kIcase);
+const std::regex kExpectApproach(std::string(R"(\bexpect (?:the |an? )?)") + kApproach +
+                                     R"((?:.*?\bvia (?:the )?(\w+) transition)?)",
+                                 kIcase);
+const std::regex kClearedApproach(std::string(R"(\bcleared (?:for )?(?:the |an? )?)") + kApproach +
+                                      R"((?:,?\s+(?:via )?(?:the )?(\w+) transition|,?\s+via (?:the )?(\w+))?)",
+                                  kIcase);
+const std::regex kClearedToLand(R"(\bcleared to land\b)", kIcase);
+const std::regex kRunway(R"(\brunway (\w+))", kIcase);
+const std::regex kSentenceStop(R"(\.(\s+|$))");
+
 // One sentence's changes, in the order its patterns are checked. `before` is the call up to this sentence.
 void readSentence(const std::string& s, const std::string& before, std::vector<SlotChange>& out) {
     std::smatch m;
     // A crossing first, then the route, then the hold short that still applies ("cross-runway 1R, then continue taxi
     // via Bravo, hold short of runway 1L").
-    if (std::regex_search(s, m, std::regex(R"(\bcross[- ]runway (\w+))", kIcase))) {
+    if (std::regex_search(s, m, kCross)) {
         out.push_back({Slot::HoldShort, "HOLD SHORT", "CROSS " + normalizeRunway(m[1].str()), ""});
     }
     if (const auto taxi = parseTaxi(s)) {
         out.push_back({Slot::Taxi, "TAXI", taxiRoute(taxi->route), taxi->runway.empty() ? "" : "RWY " + taxi->runway});
-    } else if (std::regex_search(s, m, std::regex(R"(\btaxi to (.+?) via (.+?)(,\s*hold short\b.*)?$)", kIcase))) {
+    } else if (std::regex_search(s, m, kTaxiToVia)) {
         out.push_back({Slot::Taxi, "TAXI", taxiRoute(trimmed(m[2].str())), withLetters(trimmed(m[1].str()))});
-    } else if (std::regex_search(s, m, std::regex(R"(\bcontinue taxi via (.+?)(,\s*hold short\b.*)?$)", kIcase))) {
+    } else if (std::regex_search(s, m, kContinueTaxi)) {
         // "… via B, C6 to Terminal 3 Gate E7A" names where it leads; without "to" it still leads where it did.
         const std::string text = trimmed(m[1].str());
         std::smatch to;
-        if (std::regex_search(text, to, std::regex(R"(^(.+) to (.+)$)", kIcase))) {
+        if (std::regex_search(text, to, kRouteTo)) {
             out.push_back({Slot::Taxi, "TAXI", taxiRoute(trimmed(to[1].str())), withLetters(trimmed(to[2].str()))});
         } else {
             SlotChange route{Slot::Taxi, "TAXI", taxiRoute(text), ""};
@@ -109,13 +139,13 @@ void readSentence(const std::string& s, const std::string& before, std::vector<S
             out.push_back(route);
         }
     }
-    if (std::regex_search(s, m, std::regex(R"(\bhold short (?:of )?runway (\w+))", kIcase))) {
+    if (std::regex_search(s, m, kHoldShort)) {
         out.push_back({Slot::HoldShort, "HOLD SHORT", normalizeRunway(m[1].str()), ""});
     }
-    if (std::regex_search(s, m, std::regex(R"(\b(?:turn (left|right) )?(?:fly )?heading (\d{3})\b)", kIcase))) {
+    if (std::regex_search(s, m, kHeading)) {
         out.push_back({Slot::Route, "HEADING", m[2].str(), upper(m[1].str())});
     }
-    if (std::regex_search(s, m, std::regex(R"(\b(climb|descend) via (?:the )?(\w+)(?:,?\s+(\w+) transition)?)", kIcase))) {
+    if (std::regex_search(s, m, kVia)) {
         const std::string name = upper(m[2].str());
         const bool procedureWord = name == "SID" || name == "STAR";
         out.push_back({Slot::Altitude, "ALTITUDE", upper(m[1].str()) + " VIA " + name, ""});
@@ -123,35 +153,24 @@ void readSentence(const std::string& s, const std::string& before, std::vector<S
             out.push_back({Slot::Route, "ROUTE", m[3].matched ? name + " " + upper(m[3].str()) : name, ""});
         }
     }
-    if (std::regex_search(s, m,
-                          std::regex(R"(\b(?:climb|descend)(?: and)? maintain (flight level |FL ?)?([\d,]+)( until established)?)",
-                                     kIcase))) {
+    if (std::regex_search(s, m, kMaintain)) {
         out.push_back({Slot::Altitude, "ALTITUDE", altitudeText(m[1].matched, m[2].str()),
                        m[3].matched ? "UNTIL ESTABLISHED" : ""});
     }
-    if (std::regex_search(s, m, std::regex(R"(\bmaintain (\d{3}) knots\b)", kIcase))) {
+    if (std::regex_search(s, m, kKnots)) {
         out.push_back({Slot::Speed, "SPEED", m[1].str() + " KT", ""});
-    } else if (std::regex_search(s, std::regex(R"(\bresume normal speed\b)", kIcase))) {
+    } else if (std::regex_search(s, kResumeSpeed)) {
         out.push_back({Slot::Speed, "SPEED", "", ""});
     }
-    if (std::regex_search(s, m, std::regex(R"(\bdirect (\w+))", kIcase))) {
+    if (std::regex_search(s, m, kDirect)) {
         out.push_back({Slot::Route, "ROUTE", "DIRECT " + upper(m[1].str()), ""});
-    } else if (std::regex_search(s, std::regex(R"(\bresume own navigation\b)", kIcase))) {
+    } else if (std::regex_search(s, kOwnNav)) {
         out.push_back({Slot::Route, "ROUTE", "OWN NAV", ""});
     }
-    // A named visual approach's name ("Sweetwater Visual"), the type, its letter, the runway (0.15.1).
-    static const char* kApproach =
-        R"((?:(?!(?:a|an|the|expect|cleared|for|and|or) )(\w+) (?=visual))?)"  // not an article or a verb
-        R"((ILS|LOC|RNAV|GPS|VOR|VISUAL)(?:[- ]([A-Z]))?\s+(?:runway )?(\w+) approach)";
-    if (std::regex_search(s, m, std::regex(std::string(R"(\bexpect (?:the |an? )?)") + kApproach +
-                                               R"((?:.*?\bvia (?:the )?(\w+) transition)?)",
-                                           kIcase))) {
+    if (std::regex_search(s, m, kExpectApproach)) {
         out.push_back({Slot::Approach, "APPROACH", "EXP " + approachType(m) + " " + normalizeRunway(m[4].str()),
                        m[5].matched ? upper(m[5].str()) : ""});
-    } else if (std::regex_search(s, m,
-                                 std::regex(std::string(R"(\bcleared (?:for )?(?:the |an? )?)") + kApproach +
-                                                R"((?:,?\s+(?:via )?(?:the )?(\w+) transition|,?\s+via (?:the )?(\w+))?)",
-                                            kIcase))) {
+    } else if (std::regex_search(s, m, kClearedApproach)) {
         SlotChange c{Slot::Approach, "APPROACH", "CLEARED " + approachType(m) + " " + normalizeRunway(m[4].str()), ""};
         const std::string transition = m[5].matched ? m[5].str() : m[6].matched ? m[6].str() : "";
         if (!transition.empty()) {
@@ -161,12 +180,11 @@ void readSentence(const std::string& s, const std::string& before, std::vector<S
         }
         out.push_back(c);
     }
-    if (std::regex_search(s, std::regex(R"(\bcleared to land\b)", kIcase))) {
+    if (std::regex_search(s, kClearedToLand)) {
         // The runway is said before it: "Runway 30L, Winds 360 at 4. Cleared to land."
         const std::string said = before + " " + s;
         std::string runway;
-        const std::regex rwy(R"(\brunway (\w+))", kIcase);
-        for (std::sregex_iterator it(said.begin(), said.end(), rwy), end; it != end; ++it) runway = (*it)[1].str();
+        for (std::sregex_iterator it(said.begin(), said.end(), kRunway), end; it != end; ++it) runway = (*it)[1].str();
         out.push_back({Slot::Approach, "APPROACH",
                        runway.empty() ? "CLEARED TO LAND" : "CLEARED TO LAND " + normalizeRunway(runway), ""});
     }
@@ -179,10 +197,9 @@ std::vector<SlotChange> readInstructions(std::string_view atcWords, const RouteP
     if (const auto clearance = parseClearance(words)) return fromClearance(*clearance, plan);
     std::vector<SlotChange> out;
     // Sentences end at a full stop followed by a space or the end ("30.19" stays whole).
-    const std::regex stop(R"(\.(\s+|$))");
     std::string before;
     auto from = words.cbegin();
-    for (std::sregex_iterator it(words.begin(), words.end(), stop), end;; ++it) {
+    for (std::sregex_iterator it(words.begin(), words.end(), kSentenceStop), end;; ++it) {
         const bool last = it == end;
         const std::string sentence(from, last ? words.cend() : (*it)[0].first);
         if (!sentence.empty()) readSentence(sentence, before, out);

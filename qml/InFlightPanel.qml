@@ -19,6 +19,10 @@ InstrumentPanel {
 
     property var waveQueue: []
     readonly property int readoutSlots: 14  // more than any phase shows (12), so cards persist and flip in place
+    // The needles glide only while they can be seen (review 9.1): a gliding needle keeps the window drawing every frame
+    // (about 4% of a core in a 1x replay), so the panel hidden, before block out or on another page, stops it. A
+    // minimised window needs nothing: Qt stops drawing it.
+    readonly property bool glide: panel.model.animate && panel.visible
 
     // A card's content changed: it flips in the wave, by its x across the panel, whatever the row (D-198).
     function requestFlip(card: Item): void {
@@ -124,7 +128,7 @@ InstrumentPanel {
                         speedKt: panel.model.speedKt
                         machText: panel.model.machText
                         bugKt: panel.model.speedBugKt
-                        glide: panel.model.animate
+                        glide: panel.glide
                     }
                 }
             }
@@ -147,7 +151,7 @@ InstrumentPanel {
                         altitudeFt: panel.model.altitudeFt
                         aglFt: panel.model.aglFt
                         setting: panel.model.altimeterSetting
-                        glide: panel.model.animate
+                        glide: panel.glide
                     }
                 }
             }
@@ -160,7 +164,7 @@ InstrumentPanel {
 
                     anchors.horizontalCenter: parent.horizontalCenter
                     vsFpm: panel.model.vsFpm
-                    glide: panel.model.animate
+                    glide: panel.glide
                 }
             }
             Item {
@@ -176,7 +180,7 @@ InstrumentPanel {
                     lowLb: panel.model.lowFuelLb
                     text: panel.model.fuelText
                     bugLb: panel.model.planFuelLb
-                    glide: panel.model.animate
+                    glide: panel.glide
                 }
             }
         }

@@ -82,6 +82,47 @@ TEST(FlightEvents, ReadsAcrossDailyFiles) {
     EXPECT_EQ(loadFlightEvents(dir, "C").size(), 2u);
 }
 
+// Fix step 2 (review 5.1): reading starts at the file with the flight's block_out, and lines before the lead-in aren't
+// parsed. The lead-in still reaches back across midnight.
+TEST(FlightEvents, LeadInReachesBackAcrossFiles) {
+    const auto dir = tempLogDir("lead-in");
+    writeLines(dir / "events-2026-11-23.jsonl",
+               {R"({"ts":"2026-11-23T10:00:00.000Z","type":"block_out","data":{"flight_id":"Z"}})"});
+    writeLines(dir / "events-2026-11-24.jsonl",
+               {R"({"ts":"2026-11-24T10:00:00.000Z","type":"telemetry","data":{"on_ground":true}})",
+                R"({"ts":"2026-11-24T23:45:00.000Z","type":"beacon","data":{"on":true}})"});
+    writeLines(dir / "events-2026-11-25.jsonl",
+               {R"({"ts":"2026-11-25T00:05:00.000Z","type":"block_out","data":{"flight_id":"F"}})",
+                R"({"ts":"2026-11-25T01:00:00.000Z","type":"block_in","data":{"flight_id":"F"}})"});
+    writeLines(dir / "events-2026-11-26.jsonl", {});  // opened, nothing written yet
+    const auto lines = loadFlightEvents(dir, "F");
+    ASSERT_EQ(lines.size(), 3u);
+    EXPECT_EQ(lines[0].type, "beacon");
+    EXPECT_EQ(lines[1].type, "block_out");
+}
+
+TEST(FlightEvents, LeadInStartsThirtyMinutesBeforeBlockOut) {
+    const auto dir = tempLogDir("window");
+    writeLines(dir / "events-2026-11-24.jsonl",
+               {R"({"ts":"2026-11-24T09:00:00.000Z","type":"telemetry","data":{"on_ground":true}})",
+                R"({"ts":"2026-11-24T09:39:59.999Z","type":"telemetry","data":{"on_ground":true}})",
+                R"({"ts":"2026-11-24T09:40:00.000Z","type":"beacon","data":{"on":true}})",
+                R"({"ts":"2026-11-24T10:10:00.000Z","type":"block_out","data":{"flight_id":"G"}})",
+                R"({"ts":"2026-11-24T11:00:00.000Z","type":"block_in","data":{"flight_id":"G"}})"});
+    const auto lines = loadFlightEvents(dir, "G");
+    ASSERT_EQ(lines.size(), 3u);
+    EXPECT_EQ(lines[0].type, "beacon");
+}
+
+// A block_out the text search can't see (not the writer's compact form) is still found by parsing every line.
+TEST(FlightEvents, BlockOutInAnotherFormStillLoads) {
+    const auto dir = tempLogDir("spaced");
+    writeLines(dir / "events-2026-11-24.jsonl",
+               {R"({"ts": "2026-11-24T10:10:00.000Z", "type": "block_out", "data": {"flight_id": "H"}})",
+                R"({"ts":"2026-11-24T11:00:00.000Z","type":"block_in","data":{"flight_id":"H"}})"});
+    EXPECT_EQ(loadFlightEvents(dir, "H").size(), 2u);
+}
+
 TEST(FlightEvents, OpenFlightIsEmpty) {
     const auto dir = tempLogDir("open");
     writeLines(dir / "events-2026-11-24.jsonl",

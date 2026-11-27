@@ -22,6 +22,36 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-27 — Fix step 2: make block in fast
+
+**Done:** step 2 of the review's fix order (plan `docs/plans/2026-11-27-fix-step-2.md`), measured before and after.
+- 5.1 (D-230): a flight's lines are read from the file with its block out, and lines before the 30-minute lead-in
+  aren't parsed. Settling reads the log once; Claude's review gets the same lines instead of reading 30 files again.
+  The latest flight on Dave's logs: 855 ms → 70 ms, read once instead of twice. All 17 of Dave's flights read back
+  identically to the old reader.
+- 5.2 (D-231): every regex in the ATC, clearance and ATIS readers is built once, and the ATC card reads each message
+  once. The KSAN–KSJC fixture's 54 messages: 78 ms → under 1 ms.
+- 9.1 (D-232): the needles glide only while the in-flight panel shows. CPU in a 1× replay with the 1 s glide: 4.7–6.2%
+  of one core at cruise, 0.30–0.39% of the machine (inside the 1% budget, as D-205 measured), so the glide stays 1 s.
+  A 400 ms glide would be 3.4% of a core; none, 2.0%.
+- Code review (a fresh reviewer on the diff): nothing Critical or Important; the reader matches the old one in every
+  case that can occur. Minor points taken: a test pins the writer's line form the fast path relies on, and comments
+  on the one-block_out assumption and the ATC cache's validity. Not taken: making the namespace-scope regexes lazy (a
+  bad pattern would crash every test binary at start, so it can't reach Dave unseen).
+
+**Working / verified:** debug and release build with no warnings; 977 tests pass in both (one skipped as before).
+qmllint: the same one info line. A release replay (`--replay last --at approach --grab`) draws the panel as before.
+
+**Unverified:** nothing to fly for. On your next flight you should see the summary appear at block in without the
+window pausing, and Claude's review arrive as before. The visibility gate's saving before block out didn't show in a
+replay (nothing moved the needles there), so it's unmeasured.
+
+**Waiting on Dave:** D-232 keeps the 1 s glide since it's inside the budget. A 400 ms glide would roughly halve its
+cost, with jumpier needles; say if you want it.
+
+**Next step:** fix step 3, groundwork for dispatch and the money item. Its first item, Dave's calls on 4.2 and 4.1, is
+already answered (D-222, D-223).
+
 ## 2026-11-27 — Fix step 1: protect what can't be undone
 
 **Done:** step 1 of the review's fix order (plan `docs/plans/2026-11-27-fix-step-1.md`), after Dave's answers to the

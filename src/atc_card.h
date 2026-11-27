@@ -5,7 +5,8 @@
 // The ATC card (D-197, docs/dashboard.md "The ATC card"): the gist of what ATC cleared, one slot per kind of
 // instruction. Each slot changes only when ATC changes it; LATEST marks the slots the last transmission that changed
 // any slot changed, until the next one does (D-201). Rebuilt in ATC's time order on every message, so a repeat or a
-// late re-log never moves a slot back.
+// late re-log never moves a slot back. Each message is read once, when it arrives (review 5.2); a rebuild replays
+// what was read.
 
 #pragma once
 
@@ -55,7 +56,13 @@ private:
     std::string plannedAt_;
     std::optional<std::chrono::system_clock::time_point> plannedTime_;
     RoutePlan plan_;
-    std::map<long long, AtcMessage> messages_;  // by SayIntentions' id
+    struct Read {
+        AtcMessage message;
+        std::optional<std::chrono::system_clock::time_point> at;  // ATC's time; nullopt if it doesn't parse
+        // readInstructions(message.atc, plan_). Valid because setFlight clears the messages whenever plan_ changes.
+        std::vector<SlotChange> changes;
+    };
+    std::map<long long, Read> messages_;  // by SayIntentions' id
     std::vector<std::string> goArounds_, touchdowns_;
     std::array<AtcSlot, 6> slots_{};  // by Slot
     std::string star_, approachRunway_, landingWind_;

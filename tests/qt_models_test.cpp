@@ -34,6 +34,7 @@
 #include "flight_watcher.h"
 #include "fleet_table_model.h"
 #include "ledger_model.h"
+#include "flight_events.h"
 #include "flight_list_model.h"
 #include "new_flight_model.h"
 #include "flight_settlement.h"
@@ -993,9 +994,15 @@ TEST_F(LiveFlight, SettlesAtStartup) {
     write({liveOut(plannedId_), liveIn()});
     auto m = model();
     int settled = 0;
-    QObject::connect(m.get(), &PlannedFlightModel::settled, [&] { ++settled; });
+    std::size_t handed = 0;  // the lines settlement read, handed on to Claude's review (review 5.1)
+    QObject::connect(m.get(), &PlannedFlightModel::settled, [&] {
+        ++settled;
+        handed = m->takeSettledLines().size();
+    });
     m->checkFlown();
     EXPECT_EQ(settled, 1);
+    EXPECT_EQ(handed, 2u);
+    EXPECT_TRUE(m->takeSettledLines().empty());  // taken once
     EXPECT_EQ(m->summaryFlightId(), kLiveOut);
     m->checkFlown();  // nothing left to settle
     EXPECT_EQ(settled, 1);
@@ -2008,6 +2015,21 @@ TEST_F(Debrief, WritesOnceAfterSettling) {
     EXPECT_EQ(changes, 2);  // writing, then written
     w.onSettled(kDebriefFlight);  // already written: no second call
     EXPECT_EQ(client_.bodies.size(), 1u);
+}
+
+// Review 5.1: at block in the review gets the lines settlement already read, so it doesn't read the log again.
+TEST_F(Debrief, UsesTheLinesSettlementRead) {
+    const auto lines = loadFlightEvents(dir_, kDebriefFlight);
+    ASSERT_FALSE(lines.empty());
+    std::filesystem::remove(dir_ / "events-2026-11-24.jsonl");
+    ReviewWriter w(db_, dir_, client_);
+    w.onSettled(kDebriefFlight, lines);
+    ASSERT_EQ(client_.bodies.size(), 1u);
+    w.retry(kDebriefFlight);  // Retry, or a restart, reads the log: gone here
+    client_.answer(529, "{}");
+    w.retry(kDebriefFlight);
+    EXPECT_EQ(client_.bodies.size(), 1u);
+    EXPECT_EQ(w.error(kDebriefFlight), "The flight's event log is gone");
 }
 
 TEST_F(Debrief, FailureStoresNothingAndKeepsReason) {

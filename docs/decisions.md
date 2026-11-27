@@ -3687,3 +3687,56 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   way is still interrupted and discarded.
 - Why: one click on the X discarded a whole leg's money and history without a word (review 1.9).
 - Alternatives considered: keeping the recorder running in the tray (a bigger change to D-046).
+
+## D-230 — A flight's lines are read from its block out, and read once at block in
+- Date: 2026-11-27
+- Status: Accepted (the fix, review 5.1, approved in D-225; the method is Claude's)
+- Decided by: Claude
+- Area: app
+- Decision: `loadFlightEvents` finds the flight's `block_out` line by text first (newest file first, only matching
+  lines parsed), starts at that file (or earlier, while a file starts inside the 30-minute lead-in), and skips lines
+  before the lead-in by their leading `ts` without parsing the JSON. Without a `block_out` in the writer's compact form
+  it parses everything, as before (each file is then read twice: about 10% over the old cost, for a flight whose log
+  is gone or an unknown id). At block in, the lines settlement read are handed to Claude's review
+  (`PlannedFlightModel::takeSettledLines`); Retry and a review at startup still read the log.
+- Why: settling and the review each parsed every line of up to 7 and 30 day files on the GUI thread. On Dave's logs
+  (31 MB) the latest flight now reads in 70 ms instead of 855 ms, and the review adds nothing; a flight days back reads
+  in 140–300 ms (the text search walks back through newer files). All 17 of Dave's flights read back identically to
+  the old reader, in all four of its modes.
+- Alternatives considered: the review's type pre-filter (the debrief needs the telemetry, so it would save little);
+  using the flight id, which is the release time, to pick the file (faster, but ties the reader to how ids are made);
+  reading on a worker thread (the review's "medium" fix; not needed at these times).
+
+## D-231 — Regexes are built once; the ATC card reads each message once
+- Date: 2026-11-27
+- Status: Accepted (the fix, review 5.2, approved in D-225)
+- Decided by: Claude
+- Area: app
+- Decision: Every `std::regex` in the ATC instruction reader, the clearance parser and the ATIS wind reader is built
+  once (namespace-scope or function `static`). `AtcCard` keeps each message's `SlotChange`s, read when the message
+  arrives; a rebuild (every message, go-around and touchdown) only replays them. The cache can't go stale: a new plan
+  or flight already clears the messages.
+- Why: MSVC builds a `std::regex` slowly, and each new message re-read every earlier one, so a flight cost O(n²)
+  regex builds on the GUI thread. The KSAN–KSJC fixture's 54 messages went from 78 ms to under 1 ms.
+- Alternatives considered: a different regex library (a new dependency for a cost that's now gone).
+
+## D-232 — Needles glide only while the panel shows; the glide stays 1 s
+- Date: 2026-11-27
+- Status: Proposed (the visibility gate is review 9.1's fix; keeping 1 s is Claude's reading of the measurement)
+- Decided by: Claude
+- Area: app
+- Decision: The in-flight panel's needles glide only while the panel is visible (hidden before block out and after
+  block in, or Live not the current page). The glide stays 1 s (D-205): it's inside the 1% budget.
+- Why: a needle always moving keeps the window drawing every frame. Measured on the release build in a 1× replay of
+  Dave's KSJC–KSAN leg (CPU of one core / of the whole 16-thread machine, as Task Manager counts it):
+
+  | Glide | Cruise | At the gate after block out |
+  |---|---|---|
+  | 1 s (D-205) | 4.7–6.2% / 0.30–0.39% | 4.3% / 0.27% |
+  | 400 ms | 3.4% / 0.21% | 2.7% / 0.17% |
+  | none | 2.0% / 0.13% | 0.2% / 0.01% |
+
+  A minimised window costs 0.7% of a core with the glide on (Qt stops drawing it), so the gate doesn't look at the
+  window. The hidden-panel case the review describes (fuel ticking at the gate before block out) didn't show in the
+  replay (0.1%), so the gate's saving there is unmeasured.
+- Alternatives considered: a 400 ms glide (about half the cost, needles jumpier: Dave's call, D-205); no glide.

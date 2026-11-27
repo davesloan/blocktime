@@ -306,7 +306,8 @@ A sketch with made-up numbers; the HTML it was drawn from is `images/dashboard-i
     digits glowing in a dark window.
   - A needle **glides** briefly to each new value (telemetry comes at most once a second, so it would otherwise jump)
     and is still between changes: no continuous animation (budget under 1% CPU). **Since 0.15.1 (D-205)** it glides
-    over the whole second, linearly, so it moves steadily a second behind the sim.
+    over the whole second, linearly, so it moves steadily a second behind the sim. Only while the panel shows (D-232):
+    a gliding needle keeps the window drawing every frame.
 - Open, for the panels' brainstorm: whether a lit lamp means only "switch on", or also warns when the switch is wrong
   for the moment (landing lights off below 10,000 ft); which gauges and lamps each phase's panel shows; how the
   Pre-Flight panel's load sheet and clearance (D-153) take the look (a transponder-style squawk, radio-stack

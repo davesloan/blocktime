@@ -106,6 +106,22 @@ TEST_F(EventLogFiles, WrittenFlightReadsBack) {
     EXPECT_EQ(f->phases.front().phase, "taxi_out");
 
     EXPECT_EQ(loadFlightEvents(dir_, out.flightId).size(), 3u);
+
+    // loadFlightEvents' fast path finds the block_out by text and skips lines by a leading ts (D-230). If the writer's
+    // form changed, the reader would still be right but slow again; this pins the form.
+    bool blockOutSeen = false;
+    for (const auto& file : dailyLogFiles(dir_)) {
+        std::ifstream lines(file, std::ios::binary);
+        std::string text;
+        while (std::getline(lines, text)) {
+            EXPECT_TRUE(text.starts_with(R"({"ts":")")) << text;
+            if (text.find(R"("type":"block_out")") != std::string::npos &&
+                text.find(R"("flight_id":")" + out.flightId + '"') != std::string::npos) {
+                blockOutSeen = true;
+            }
+        }
+    }
+    EXPECT_TRUE(blockOutSeen);
 }
 
 TEST_F(EventLogFiles, TornLastLineIsRepaired) {

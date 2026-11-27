@@ -572,7 +572,7 @@ int main(int argc, char* argv[]) {
         fleet.reset(airline.airplanes(), toQStringList(airline.notices()), fleetSummary());
         ledger.reset(airline.ledger(), airline.cash());
         flights.reload();
-        reviews.onSettled(logFlightId);
+        reviews.onSettled(logFlightId, plannedFlight.takeSettledLines());
     });
     plannedFlight.checkFlown();  // a flight that ended while BlockTime was closed or crashed
     // Flights settle before leases (review 1.4): a flight that blocked in before a lease month is in the cash that

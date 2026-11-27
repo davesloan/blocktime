@@ -39,8 +39,8 @@ int toInt(const std::string& s) {
 std::optional<Wind> atisWind(std::string_view atisText) {
     const std::string text(atisText);
     std::smatch m;
-    if (!std::regex_search(text, m,
-                           std::regex(R"(\bWINDS? (CALM|VRB AT (\d+)|(\d{3}) AT (\d+)(?: GUSTS? (\d+))?))", kIcase))) {
+    static const std::regex winds(R"(\bWINDS? (CALM|VRB AT (\d+)|(\d{3}) AT (\d+)(?: GUSTS? (\d+))?))", kIcase);
+    if (!std::regex_search(text, m, winds)) {
         return std::nullopt;
     }
     Wind w;

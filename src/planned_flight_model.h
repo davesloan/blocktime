@@ -12,12 +12,15 @@
 
 #include <filesystem>
 #include <optional>
+#include <utility>
+#include <vector>
 
 #include <QObject>
 #include <QStringList>
 #include <QVariantList>
 #include <QtQml/qqmlregistration.h>
 
+#include "flight_events.h"
 #include "planned_flight.h"
 #include "planned_flight_display.h"
 #include "planner.h"
@@ -46,6 +49,9 @@ public:
     // checkFlown() again if a flight was flown but couldn't be settled yet: its block_in line was held (D-049),
     // rates.yaml didn't read, or settling failed. The app's minute tick calls it (review 1.2).
     void retryPendingSettle();
+    // The log lines the flight that just settled was measured from, for Claude's review (review 5.1: read once).
+    // Empty after the first call.
+    std::vector<blocktime::LogLine> takeSettledLines() { return std::exchange(settledLines_, {}); }
     void doneForNow() override;  // clears the summary
     void turnaround() override;  // clears the summary and asks for New Flight with the same airplane
 
@@ -69,4 +75,5 @@ private:
     int fuelOnRecordLb_ = 0;
     QString summaryRegistration_;
     bool settlePending_ = false;  // a block in was seen, or the log shows the flight flown, and it isn't settled
+    std::vector<blocktime::LogLine> settledLines_;  // until the settled handler takes them
 };

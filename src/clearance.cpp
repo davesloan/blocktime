@@ -18,10 +18,23 @@ namespace {
 
 constexpr auto kIcase = std::regex::ECMAScript | std::regex::icase;
 
+// Built once (review 5.2): MSVC's std::regex is slow to construct.
+const std::regex kExpectWord(R"(\bexpect\b)", kIcase);
+const std::regex kClimbViaSid(R"(climb via the sid)", kIcase);
+const std::regex kMaintainLevel(R"(maintain (flight level |FL ?)?([\d,]+))", kIcase);
+const std::regex kClearedTo(R"(\bcleared to\b)", kIcase);
+const std::regex kExpectLevel(R"(\bexpect (flight level |FL ?)(\d+)(?: ([\w-]+) minutes? after departure)?)", kIcase);
+const std::regex kRunwayTaxiVia(R"((?:^|[,.]\s*)runway (\w+),? taxi via\s+(.+))", kIcase);
+const std::regex kHoldShortTail(R"(,\s*hold short\b)", kIcase);
+const std::regex kSquawk(R"(squawk (\d{4}))", kIcase);
+const std::regex kSidName(R"(via the (\w+) departure)", kIcase);
+const std::regex kDepartureFrequency(R"(departure on (\d{3}\.\d{1,3}))", kIcase);
+const std::regex kExpectRunway(R"(expect runway (\w+))", kIcase);
+
 // The first capture of `pattern` in `text`, or "".
-std::string capture(const std::string& text, const char* pattern) {
+std::string capture(const std::string& text, const std::regex& pattern) {
     std::smatch m;
-    return std::regex_search(text, m, std::regex(pattern, kIcase)) ? m[1].str() : std::string();
+    return std::regex_search(text, m, pattern) ? m[1].str() : std::string();
 }
 
 // "5000" or "5,000" → "5,000 ft"; a flight level → "FL190".
@@ -29,10 +42,10 @@ std::string initialAltitude(const std::string& words) {
     // Only what comes before the first "expect": "Expect FL350" is the cruise ATC expects, not the climb.
     std::smatch expect;
     const std::string before =
-        std::regex_search(words, expect, std::regex(R"(\bexpect\b)", kIcase)) ? expect.prefix().str() : words;
-    if (std::regex_search(before, std::regex(R"(climb via the sid)", kIcase))) return "Climb via SID";
+        std::regex_search(words, expect, kExpectWord) ? expect.prefix().str() : words;
+    if (std::regex_search(before, kClimbViaSid)) return "Climb via SID";
     std::smatch m;
-    if (!std::regex_search(before, m, std::regex(R"(maintain (flight level |FL ?)?([\d,]+))", kIcase))) return {};
+    if (!std::regex_search(before, m, kMaintainLevel)) return {};
     std::string digits;
     for (char c : m[2].str()) {
         if (c != ',') digits += c;
@@ -68,17 +81,16 @@ int spokenNumber(const std::string& words) {
 
 std::optional<Clearance> parseClearance(std::string_view atcWords) {
     const std::string words(atcWords);
-    if (!std::regex_search(words, std::regex(R"(\bcleared to\b)", kIcase))) return std::nullopt;
+    if (!std::regex_search(words, kClearedTo)) return std::nullopt;
     Clearance c;
-    c.squawk = capture(words, R"(squawk (\d{4}))");
+    c.squawk = capture(words, kSquawk);
     if (c.squawk.empty()) return std::nullopt;
-    c.sid = capture(words, R"(via the (\w+) departure)");
+    c.sid = capture(words, kSidName);
     c.initialAltitude = initialAltitude(words);
-    c.departureFrequency = capture(words, R"(departure on (\d{3}\.\d{1,3}))");
-    c.runway = normalizeRunway(capture(words, R"(expect runway (\w+))"));
+    c.departureFrequency = capture(words, kDepartureFrequency);
+    c.runway = normalizeRunway(capture(words, kExpectRunway));
     std::smatch expect;
-    if (std::regex_search(words, expect,
-                          std::regex(R"(\bexpect (flight level |FL ?)(\d+)(?: ([\w-]+) minutes? after departure)?)", kIcase))) {
+    if (std::regex_search(words, expect, kExpectLevel)) {
         c.expectLevel = "FL" + expect[2].str();
         if (expect[3].matched) {
             std::string spoken = expect[3].str();
@@ -93,12 +105,12 @@ std::optional<TaxiInstruction> parseTaxi(std::string_view atcWords) {
     const std::string words(atcWords);
     std::smatch m;
     // "Runway 8L, taxi via …" at the start of the call or of a phrase: not "cross-runway 1R, then continue taxi via".
-    if (!std::regex_search(words, m, std::regex(R"((?:^|[,.]\s*)runway (\w+),? taxi via\s+(.+))", kIcase))) {
+    if (!std::regex_search(words, m, kRunwayTaxiVia)) {
         return std::nullopt;
     }
     std::string route = m[2].str();
     std::smatch hold;
-    if (std::regex_search(route, hold, std::regex(R"(,\s*hold short\b)", kIcase))) route = hold.prefix().str();
+    if (std::regex_search(route, hold, kHoldShortTail)) route = hold.prefix().str();
     while (!route.empty() && (route.back() == '.' || route.back() == ' ')) route.pop_back();
     if (route.empty()) return std::nullopt;
     return TaxiInstruction{normalizeRunway(m[1].str()), route};

@@ -36,7 +36,7 @@ void AtcCard::setFlight(std::string plannedAt, RoutePlan plan) {
 
 void AtcCard::onMessage(const AtcMessage& m) {
     if (m.time.empty()) return;  // no ATC time to order it by
-    messages_[m.id] = m;
+    messages_[m.id] = Read{m, parseUtc(m.time), readInstructions(m.atc, plan_)};
     rebuild();
 }
 
@@ -62,13 +62,12 @@ void AtcCard::rebuild() {
         Time at;
         Kind kind;
         long long id;
-        const AtcMessage* message;
+        const Read* read;
     };
     std::vector<Step> steps;
-    for (const auto& [id, m] : messages_) {
-        const auto t = parseUtc(m.time);
-        if (!t || (plannedTime_ && *t < *plannedTime_)) continue;  // the previous leg's
-        steps.push_back({*t, Kind::Message, id, &m});
+    for (const auto& [id, r] : messages_) {
+        if (!r.at || (plannedTime_ && *r.at < *plannedTime_)) continue;  // the previous leg's
+        steps.push_back({*r.at, Kind::Message, id, &r});
     }
     for (const std::string& g : goArounds_)
         if (const auto t = parseUtc(g)) steps.push_back({*t, Kind::GoAround, 0, nullptr});
@@ -87,7 +86,8 @@ void AtcCard::rebuild() {
             for (Slot s : {Slot::Taxi, Slot::HoldShort}) slots_[index(s)] = AtcSlot{kTitles[index(s)], "", "", "", false};
             continue;
         }
-        const auto changes = readInstructions(step.message->atc, plan_);
+        const AtcMessage& message = step.read->message;
+        const std::vector<SlotChange>& changes = step.read->changes;
         if (changes.empty()) continue;  // LATEST stays on the last call that changed something
         for (AtcSlot& s : slots_) s.latest = false;
         const bool descendVia = std::any_of(changes.begin(), changes.end(), [](const SlotChange& c) {
@@ -96,10 +96,11 @@ void AtcCard::rebuild() {
         for (const SlotChange& c : changes) {
             if (descendVia && c.slot == Slot::Route) star_ = c.value;
             if (c.slot == Slot::Approach && !c.value.empty()) {
+                static const std::regex runway(R"(\b(\d{2}[LRC]?)\b)");
                 std::smatch m;
-                if (std::regex_search(c.value, m, std::regex(R"(\b(\d{2}[LRC]?)\b)"))) approachRunway_ = m[1].str();
+                if (std::regex_search(c.value, m, runway)) approachRunway_ = m[1].str();
                 if (c.value.starts_with("CLEARED TO LAND")) {
-                    const auto wind = atisWind(step.message->atc);
+                    const auto wind = atisWind(message.atc);
                     landingWind_ = wind ? windText(*wind) : "";
                 }
             }
@@ -112,7 +113,7 @@ void AtcCard::rebuild() {
             if (!c.keepAside || !sameApproach) s.aside = c.aside;
             s.title = c.title;
             s.value = c.value;
-            s.time = c.value.empty() ? "" : step.message->time;
+            s.time = c.value.empty() ? "" : message.time;
             s.latest = true;
         }
     }

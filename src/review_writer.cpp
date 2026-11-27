@@ -34,7 +34,9 @@ std::vector<std::string> missedLabels(const FlightMeasurements& m) {
 ReviewWriter::ReviewWriter(db::Database& db, std::filesystem::path logDir, ReviewClient& client, QObject* parent)
     : QObject(parent), db_(db), logDir_(std::move(logDir)), client_(client) {}
 
-void ReviewWriter::onSettled(const QString& logFlightId) { start(logFlightId); }
+void ReviewWriter::onSettled(const QString& logFlightId, std::vector<LogLine> lines) {
+    start(logFlightId, std::move(lines));
+}
 
 void ReviewWriter::retry(const QString& logFlightId) { start(logFlightId); }
 
@@ -53,7 +55,7 @@ QString ReviewWriter::error(const QString& logFlightId) const {
     return it == errors_.end() ? QString() : it->second;
 }
 
-void ReviewWriter::start(const QString& logFlightId) {
+void ReviewWriter::start(const QString& logFlightId, std::vector<LogLine> lines) {
     const std::string id = logFlightId.toStdString();
     if (writing_.contains(logFlightId) || !isMeasured(db_, id) || hasReview(db_, id)) return;
     if (!client_.hasKey()) {
@@ -62,7 +64,7 @@ void ReviewWriter::start(const QString& logFlightId) {
     }
 
     ReviewInput in;
-    in.events = loadFlightEvents(logDir_, id, kFlightHistoryFiles);  // the last 30 day files
+    in.events = !lines.empty() ? std::move(lines) : loadFlightEvents(logDir_, id, kFlightHistoryFiles);
     if (in.events.empty()) return finish(logFlightId, "The flight's event log is gone");
     const auto measured = loadMeasurements(db_);
     in.measurements = measured.at(id);

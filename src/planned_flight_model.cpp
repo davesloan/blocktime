@@ -126,6 +126,7 @@ void PlannedFlightModel::checkFlown() {
     }
     settlePending_ = false;
     notice_.clear();
+    settledLines_ = std::move(current->flown.lines);
     summaryRegistration_ = q(registration);
     reload();
     summaryFlightId_ = q(result->logFlightId);  // after reload(), which clears it only while a flight is planned

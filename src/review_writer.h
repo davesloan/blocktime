@@ -13,12 +13,14 @@
 #include <map>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <QByteArray>
 #include <QObject>
 #include <QString>
 #include <QtQml/qqmlregistration.h>
 
+#include "flight_events.h"
 #include "review_client.h"
 #include "sqlite_db.h"
 
@@ -32,7 +34,8 @@ public:
                  QObject* parent = nullptr);
 
     // The one automatic try: a flight just settled (at block in, or at startup for one that ended while closed).
-    void onSettled(const QString& logFlightId);
+    // `lines` are the ones settlement measured it from (review 5.1); empty, they're read from the log.
+    void onSettled(const QString& logFlightId, std::vector<blocktime::LogLine> lines = {});
     Q_INVOKABLE void retry(const QString& logFlightId);
 
     // "written", "writing", "failed", "no_key", "missing" (measured, no review, nothing tried in this run) or "none"
@@ -44,7 +47,7 @@ signals:
     void reviewChanged(const QString& logFlightId);
 
 private:
-    void start(const QString& logFlightId);
+    void start(const QString& logFlightId, std::vector<blocktime::LogLine> lines = {});
     void finish(const QString& logFlightId, const QString& error);
 
     blocktime::db::Database& db_;
