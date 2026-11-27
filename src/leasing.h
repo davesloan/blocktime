@@ -34,9 +34,10 @@ struct LeaseOutcome {
 // Leases config airplanes not yet in the database whose lease has started, and charges every lease month that has
 // started and isn't charged, all in date order (ties by registration), one transaction per month. A month that
 // costs more than the cash on its date isn't charged: a new airplane isn't leased, a leased one is returned.
-// Fleet slots (design.md §6, D-083, D-114, D-131): the first two are free, then each earned slot needs 10 more hours
-// flown by Dave than the last (slot 3 at 10 h, slot 4 at 30 h, slot 5 at 60 h, ...).
+// Fleet slots (design.md §6, D-083, D-114, D-240): two to start, then one more for every 10 hours flown by Dave (slot
+// 3 at 10 h, slot 4 at 20 h, ...), at most 20.
 inline constexpr int kStartingSlots = 2;
+inline constexpr int kMaxSlots = 20;
 int slotsEarned(double hoursFlown);
 double hoursForSlot(int n);
 

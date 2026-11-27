@@ -214,14 +214,11 @@ bool postOpeningCash(db::Database& db, const AirlineConfig& config, std::string*
 
 int slotsEarned(double hoursFlown) {
     int n = kStartingSlots;
-    while (hoursForSlot(n + 1) <= hoursFlown) ++n;
+    while (n < kMaxSlots && hoursForSlot(n + 1) <= hoursFlown) ++n;
     return n;
 }
 
-double hoursForSlot(int n) {
-    const int earned = n - kStartingSlots + 1;  // slot 3 is the first earned one
-    return earned <= 1 ? 0.0 : 5.0 * earned * (earned - 1);
-}
+double hoursForSlot(int n) { return n <= kStartingSlots ? 0.0 : 10.0 * (n - kStartingSlots); }
 
 LeaseOutcome settleLeases(db::Database& db, const Catalog& catalog, const AirlineConfig& config, Date today,
                           std::optional<int> slots) {

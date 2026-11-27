@@ -167,6 +167,13 @@ Preview pricePreview(const PriceInput& in, const Rates& r) {
     return p;
 }
 
+MoneyLine costLine(std::string category, std::string label, std::vector<Quantity> quantities, double rateDollars) {
+    double dollars = rateDollars;
+    for (const Quantity& q : quantities) dollars *= q.value;
+    const Cents cents = roundToFiveDollars(static_cast<Cents>(std::llround(dollars * 100)));
+    return {std::move(category), std::move(label), -cents, std::move(quantities), rateDollars, 1, ""};
+}
+
 int crewFor(std::string_view role, bool delivery, int seatsInstalled, double blockHours, int vipAttendantsTimes) {
     int crew = pilotsFor(blockHours);
     if (!delivery && role != "freighter") {

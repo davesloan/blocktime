@@ -71,6 +71,10 @@ struct Preview {
 
 Preview pricePreview(const PriceInput& in, const Rates& rates);
 
+// A cost line worked out from its working, as pricePreview's are: the quantities × rateDollars, rounded to $5 and
+// negative. Used for lines priced outside a flight (instant delivery's fee, D-245).
+MoneyLine costLine(std::string category, std::string label, std::vector<Quantity> quantities, double rateDollars);
+
 int pilotsFor(double blockHours);          // 2; 3 over 8 hours; 4 over 12
 int flightAttendantsFor(int seatsInstalled);  // FAA minimum: 1 per 50 seats or part, none under 20
 // The crew BlockTime pays for (design.md section 10), for SOULS on the in-flight panel (D-203): the pilots for the

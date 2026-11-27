@@ -69,6 +69,7 @@ add_library(blocktime-core STATIC
   src/event_outbox.cpp
   src/block_detector.cpp
   src/catalog.cpp
+  src/fleet_rules.cpp
   src/config_yaml.cpp
   src/csv.cpp
   src/flight_history.cpp
@@ -181,6 +182,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/app_settings_test.cpp
     tests/block_detector_test.cpp
     tests/catalog_test.cpp
+    tests/fleet_rules_test.cpp
     tests/csv_test.cpp
     tests/data_dir_test.cpp
     tests/dates_test.cpp

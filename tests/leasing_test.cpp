@@ -295,22 +295,6 @@ TEST_F(Leasing, TypeSyncWritesSimFolders) {
     EXPECT_EQ(q.text(0), "PMDG 737-800BBJ2");
 }
 
-TEST(Slots, FromHours) {
-    // Two slots to start; the first earned one still comes at 10 h (D-131).
-    EXPECT_EQ(slotsEarned(0), 2);
-    EXPECT_EQ(slotsEarned(9.9), 2);
-    EXPECT_EQ(slotsEarned(10), 3);
-    EXPECT_EQ(slotsEarned(29.9), 3);
-    EXPECT_EQ(slotsEarned(30), 4);
-    EXPECT_EQ(slotsEarned(150), 7);
-    EXPECT_EQ(slotsEarned(279.9), 8);
-    EXPECT_EQ(slotsEarned(280), 9);
-    EXPECT_EQ(slotsEarned(450), 11);
-    EXPECT_DOUBLE_EQ(hoursForSlot(2), 0);
-    EXPECT_DOUBLE_EQ(hoursForSlot(3), 10);
-    EXPECT_DOUBLE_EQ(hoursForSlot(11), 450);
-}
-
 TEST_F(Leasing, NoFreeSlotMeansNoLeaseAndANotice) {
     slots_.reset();  // earned from hours, as in the app
     config_.airplanes = {airplane("N738BT", d(2026, 11, 22), "1_1"), airplane("N738CC", d(2026, 11, 22), "1_2"),
