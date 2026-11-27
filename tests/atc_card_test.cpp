@@ -190,6 +190,15 @@ TEST(AtcCard, ClearedKeepsTheExpectedTransition) {
     EXPECT_EQ(s[3], slot("APPROACH", "CLEARED ILS 30L", "KLIDE", "2026-11-25T19:50:00Z", true));
 }
 
+// Review fix: a clearance for another approach doesn't inherit the expected one's transition.
+TEST(AtcCard, ClearedForAnotherApproachDropsTheTransition) {
+    AtcCard c = card();
+    c.onMessage(msg(1, "2026-11-25T19:40:00Z", "Expect the ILS runway 30L approach via KLIDE transition"));
+    c.onMessage(msg(2, "2026-11-25T19:50:00Z", "Cleared for the RNAV-Z runway 30R approach."));
+    const auto s = c.slotsFor(CardStage::Airborne);
+    EXPECT_EQ(s[3], slot("APPROACH", "CLEARED RNAV-Z 30R", "", "2026-11-25T19:50:00Z", true));
+}
+
 TEST(AtcCard, ContinueTaxiKeepsTheRunway) {
     AtcCard c;
     c.setFlight("2026-11-24T23:00:00Z", RoutePlan{"RADYR2", ""});  // KLAS → KSAN

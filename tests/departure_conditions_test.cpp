@@ -106,6 +106,7 @@ TEST(AtisReaders, ApproachesAndRunways) {
     EXPECT_EQ(atisApproaches(ksjc), "ILS 30L · RNAV-Z 30R");
     EXPECT_EQ(atisApproaches("SWEETWATER VISUAL RWY 27 APCH IN USE."), "SWEETWATER VISUAL 27");  // 0.15.1
     EXPECT_EQ(atisApproaches("ILS RWY 30L AND VISUAL RWY 30R APCHS IN USE."), "ILS 30L · VISUAL 30R");
+    EXPECT_EQ(atisApproaches("EXPECT VISUAL RWY 27."), "VISUAL 27");
     EXPECT_EQ(runwayList("30L,30R"), "30L 30R");
     EXPECT_EQ(runwayList("27"), "27");
     EXPECT_EQ(runwayList(""), "");

@@ -122,13 +122,12 @@ std::string atisApproaches(std::string_view atisText) {
     const std::string text(atisText);
     // A named visual approach keeps its name: "SWEETWATER VISUAL RWY 27" (0.15.1). "VISUAL APCHS" has no runway.
     static const std::regex approach(
-        R"(\b(?:(\w+) (?=VISUAL))?(ILS|LOC|RNAV(?:-[A-Z])?|GPS|VOR|VISUAL) (?:RWY|RUNWAY) (\w+))", kIcase);
+        R"(\b(?:(?!(?:A|AN|THE|EXPECT|AND|OR) )(\w+) (?=VISUAL))?(ILS|LOC|RNAV(?:-[A-Z])?|GPS|VOR|VISUAL) (?:RWY|RUNWAY) (\w+))",
+        kIcase);
     std::string out;
     for (std::sregex_iterator it(text.begin(), text.end(), approach), end; it != end; ++it) {
-        std::string name = (*it)[1].matched ? (*it)[1].str() + " " : "";
-        std::string type = name + (*it)[2].str();
+        std::string type = ((*it)[1].matched ? (*it)[1].str() + " " : "") + (*it)[2].str();
         for (char& c : type) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-        if (type.starts_with("AND ") || type.starts_with("THE ") || type.starts_with("OR ")) type.erase(0, type.find(' ') + 1);
         out += (out.empty() ? "" : " · ") + type + " " + (*it)[3].str();
     }
     return out;

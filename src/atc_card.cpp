@@ -106,9 +106,12 @@ void AtcCard::rebuild() {
         }
         for (const SlotChange& c : changes) {
             AtcSlot& s = slots_[index(c.slot)];
+            // A clearance keeps the expected transition only for the approach that was expected (0.15.1).
+            const bool sameApproach = c.slot != Slot::Approach ||
+                                      (c.value.starts_with("CLEARED ") && s.value == "EXP " + c.value.substr(8));
+            if (!c.keepAside || !sameApproach) s.aside = c.aside;
             s.title = c.title;
             s.value = c.value;
-            if (!c.keepAside) s.aside = c.aside;
             s.time = c.value.empty() ? "" : step.message->time;
             s.latest = true;
         }

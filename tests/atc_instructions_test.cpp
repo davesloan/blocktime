@@ -159,6 +159,20 @@ TEST(AtcInstructions, NamedVisualApproach) {
               (std::vector<SlotChange>{cleared("CLEARED SWEETWATER VISUAL 27")}));
 }
 
+// Review fixes: an expect call's later "via" is a transition only with the word; "via the X" in a clearance; no
+// articles or verbs as a visual approach's name.
+TEST(AtcInstructions, ApproachReadersDontOverreach) {
+    EXPECT_EQ(read("Expect the ILS runway 30L approach via radar vectors"),
+              (std::vector<SlotChange>{approach("EXP ILS 30L")}));
+    EXPECT_EQ(read("Expect the ILS runway 30L approach into San Jose, descend via the SILCN6 arrival"),
+              (std::vector<SlotChange>{altitude("DESCEND VIA SILCN6"), route("SILCN6"), approach("EXP ILS 30L")}));
+    EXPECT_EQ(read("Cleared for the RNAV-Z runway 27 approach via the KLOMN"),
+              (std::vector<SlotChange>{approach("CLEARED RNAV-Z 27 KLOMN")}));
+    EXPECT_EQ(read("Expect a visual runway 27 approach"), (std::vector<SlotChange>{approach("EXP VISUAL 27")}));
+    EXPECT_EQ(read("Cleared for a visual runway 27 approach"),
+              (std::vector<SlotChange>{cleared("CLEARED VISUAL 27")}));
+}
+
 TEST(AtcInstructions, Direct) {
     EXPECT_EQ(read("Proceed direct KLIDE"), (std::vector<SlotChange>{route("DIRECT KLIDE")}));
     EXPECT_EQ(read("Resume own navigation"), (std::vector<SlotChange>{route("OWN NAV")}));

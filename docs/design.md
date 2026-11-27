@@ -505,7 +505,8 @@ spot only for:
 - **Milestone 12 (D-154):** at block in the dashboard header stays at the top of Live, filled in (block in time,
   final block time, the whole arc coloured, Arrival in progress), with "Parked at …" and the shutdown checklist under
   its status lines; the flight summary appears below it in place of the planned flight.
-- At block in, the app switches by itself to the **flight summary**: score and Claude's evaluation (section 14),
+- At block in the arrival view stays; when Dave clicks **Finish Flight** (D-207, 0.15.1) the app switches to the
+  **flight summary**: score and Claude's evaluation (section 14),
   each income and expense line, and the total gained or lost. Plus the route map. **Built in milestone 6** (the flight
   number and route, the airplane, block out and in, block time, fuel used, the money lines with their total, and the
   track) and **milestone 10** (the score and landing stars in its header, and a Debrief view with the checks, the

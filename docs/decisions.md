@@ -2763,7 +2763,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 ## D-179 — The panels below the dashboard's header look like an instrument panel
 - Date: 2026-11-25
 - Status: Accepted (the look by Dave; Claude's details confirmed by Dave on 2026-11-25). The lamps flash when wrong
-  (D-195). Built with
+  (D-195). The needles glide over the whole second since 0.15.1 (D-205). Built with
   the panels, not in milestone 12.
 - Decided by: Dave + Claude
 - Area: design
@@ -3310,3 +3310,63 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   inside Dave's smallest window.
 - Alternatives considered: replaying cockpit lines as events (replays opened minutes early); keeping the taxi-out
   route on the Arrival's TAXI; 136 px gauges with a scrolling arrival view.
+
+## D-205 — Gauges 180 px, needles gliding over each second
+- Date: 2026-11-26
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: design
+- Decision: After the first flight on 0.15.0 (version 0.15.1), the steam gauges are 180 px (they were 128, D-204) and
+  a needle glides to each new sample over 1 s at a steady pace (linear), so it moves continuously a second behind the
+  sim instead of jumping in 400 ms and resting (D-179, D-196). The arrival view no longer fits a 760 px window: Live
+  scrolls.
+- Why: Dave: the 128 px gauges were hard to read and the needles too jerky. "Being behind 1 s is ok. The airplane is
+  the source of truth." The release app measured 0.26% CPU in a climb replay and a 69 MB private working set, inside
+  the budget (1%, 100 MB).
+- Alternatives considered: a 15 Hz SimConnect feed just for the gauges (smooth and current, but more load on the sim
+  and the app for nothing Dave decides from them); bigger gauges with the header collapsing by itself in flight.
+
+## D-206 — The gate on the panels: GATE before block out, ARR GATE in flight
+- Date: 2026-11-26
+- Status: Accepted (Dave approved the cards; the placement is Claude's call)
+- Decided by: Dave + Claude
+- Area: design
+- Decision: The Pre-Flight panel's DEPARTURE group starts with **GATE** (where to load in: the spot the airplane last
+  parked at, D-148, `Gate 4` shown as `4`) beside ATIS; the group's rows became Gate/ATIS, Runway/Heading,
+  Condition/OAT, Wind, Altimeter. The in-flight panel shows **ARR GATE** (`arrival_gate`'s spot, D-155) last in
+  Cruise, Descent and Approach, Short final and from touchdown (Landed's GATE renamed), a dash until SayIntentions
+  picks it.
+- Why: on the first flight the load-in line was below the fold, under the header and Pre-Flight (D-184 had taken it
+  out of the header), and the arrival gate showed only in taxi in (`Taxiing to …`), though SayIntentions picked it in
+  cruise.
+- Alternatives considered: putting the load-in spot back in the header's origin line; ARR GATE only from the descent.
+
+## D-207 — Finish Flight: the arrival view stays after block in
+- Date: 2026-11-26
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: app
+- Decision: At block in the in-flight panel stays (gauges, the taxi card, the LANDED readouts) with a **Finish Flight**
+  button right of the readouts' placard. Dave clicks it once shut down and deboarded; then the Flight Summary takes
+  the panel's place (this replaces "at block in the Flight Summary takes the panel's place" from D-154 and D-194). The
+  flight is still settled at block in, so money and history never wait on the click. A flight settled at startup
+  (BlockTime closed at block in) goes straight to its summary, and the replay window behaves like Live.
+- Why: Dave wants the arrival information while parking and shutting down, and the summary only when the flight is
+  really over.
+- Alternatives considered: settling at Finish Flight (a forgotten click would leave money unposted); finishing by
+  itself when GSX deboarding completes.
+
+## D-208 — Approach transitions and named visual approaches are read
+- Date: 2026-11-26
+- Status: Accepted (Dave asked for the fix; the details are Claude's)
+- Decided by: Dave + Claude
+- Area: app
+- Decision: The ATC card reads a transition said as "via the KLOMN transition" and, in a clearance, as
+  "approach, via KLOMN" (`CLEARED RNAV-Z 27 KLOMN`). A clearance that names no transition keeps the expect call's
+  transition as its aside (`CLEARED ILS 30L`, aside `KLIDE`). A named visual approach keeps its name, in ATC
+  (`EXP SWEETWATER VISUAL 27`) and in the ATIS's APPROACHES (`SWEETWATER VISUAL 27`); "the visual" and "visual
+  approaches in use" (no runway) add nothing.
+- Why: on the KSJC → KSAN flight the card showed `CLEARED RNAV-Z 27` without KLOMN, and APPROACHES stayed empty for
+  "SWEETWATER VISUAL RWY 27 APCH IN USE".
+- Alternatives considered: clearing the aside when the cleared approach names no transition (loses the transition
+  Dave sets in the FMC).

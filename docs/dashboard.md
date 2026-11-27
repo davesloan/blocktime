@@ -305,7 +305,8 @@ A sketch with made-up numbers; the HTML it was drawn from is `images/dashboard-i
   - Numbers that aren't natural dials (frequency, top of descent, landing time) are **radio-stack readouts**: amber
     digits glowing in a dark window.
   - A needle **glides** briefly to each new value (telemetry comes at most once a second, so it would otherwise jump)
-    and is still between changes: no continuous animation (budget under 1% CPU).
+    and is still between changes: no continuous animation (budget under 1% CPU). **Since 0.15.1 (D-205)** it glides
+    over the whole second, linearly, so it moves steadily a second behind the sim.
 - Open, for the panels' brainstorm: whether a lit lamp means only "switch on", or also warns when the switch is wrong
   for the moment (landing lights off below 10,000 ft); which gauges and lamps each phase's panel shows; how the
   Pre-Flight panel's load sheet and clearance (D-153) take the look (a transponder-style squawk, radio-stack
@@ -331,6 +332,8 @@ nothing. All weights in pounds. No centre of gravity.
 - Cargo is SimBrief's `weights.cargo` (bags and freight together), split with the airplane's hold ratios (D-188).
 
 **Departure** (the EFB's inputs; ATIS polled about every 5 minutes, D-118)
+- **Gate (D-206, 0.15.1):** where to load in, the spot the airplane last parked at (`4` for Gate 4; a dash when
+  unknown), first in the group beside the ATIS letter.
 - **Runway:** the plan's at first, then the ATIS's from SayIntentions, which may differ. When it differs from the plan,
   say so (the plan's SID may be wrong too).
 - Runway **heading** and runway **condition**.
@@ -424,7 +427,9 @@ a performance calculator (the PMDG EFB does it, D-118); reading the PMDG FMC.
 
 - **From block out to block in.** The Pre-Flight panel shows until block out (it was until liftoff, D-188), so the
   beacon lamp and the taxi speed gauge are there for pushback. The taxi route moves from Pre-Flight into the ATC card.
-- At block in the Flight Summary takes the panel's place (D-154, unchanged).
+- **After block in it stays until Finish Flight (D-207, 0.15.1):** the button sits right of the readouts' placard;
+  Dave clicks it once shut down and deboarded, and the Flight Summary takes the panel's place. The flight is settled
+  at block in as before. A flight settled at startup shows its summary at once.
 - On Live and in the replay window, like the Pre-Flight panel.
 
 #### Layout (D-194)
@@ -492,7 +497,8 @@ marker too, so the lamp and the debrief agree? That changes check 2's stored mea
 
 #### Gauges (D-196)
 
-Steam gauges as in D-179 (black faces, metal bezels, a needle that glides to each new value, still otherwise).
+Steam gauges as in D-179 (black faces, metal bezels), 180 px, each needle gliding over the second to the next sample
+(D-205, 0.15.1).
 
 - **Speed.** On the ground below 40 kt: **ground speed, 0 to 40 kt**, with a red arc from 30 to 40 kt (check 3's taxi
   limit). Otherwise **indicated airspeed, 0 to 400 kt**, with the Mach number in a small window. The face switches at
@@ -545,7 +551,9 @@ What each slot shows, from the KSAN → KSJC log (`tests/data/flight-ksan-ksjc`)
 | "Turn left heading 320" (also "fly heading 340") | HEADING (the ROUTE slot renamed) | `320`, aside `LEFT` |
 | "Maintain 210 knots" / "resume normal speed" | SPEED | `210 KT` / empty |
 | "Expect the ILS runway 30L approach via KLIDE transition" | APPROACH | `EXP ILS 30L`, aside `KLIDE` |
-| "Cleared for the ILS runway 30L approach" | APPROACH | `CLEARED ILS 30L` |
+| "Cleared for the ILS runway 30L approach" | APPROACH | `CLEARED ILS 30L`, keeping the expect call's transition as its aside (`KLIDE`, D-208) |
+| "Expect the RNAV-Z runway 27 approach via the KLOMN transition"; "Cleared for the RNAV-Z runway 27 approach, via KLOMN" | APPROACH | `EXP RNAV-Z 27`, aside `KLOMN`; then `CLEARED RNAV-Z 27 KLOMN` (D-208) |
+| "Expect the Sweetwater Visual runway 27 approach" | APPROACH | `EXP SWEETWATER VISUAL 27` (D-208) |
 | "Cleared RNAV Y runway 27 approach, LYNDI transition" (Dave's example) | APPROACH | `CLEARED RNAV-Y 27 LYNDI`: ATC's transition is always shown when given |
 | "Runway 30L, … Cleared to land" | APPROACH | `CLEARED TO LAND 30L` |
 | "Contact Los Angeles Center on 134.575", traffic calls | none | nothing changes: cruise shows the level ATC last gave |
@@ -576,10 +584,13 @@ change:
 |---|---|
 | Departure (block out to liftoff) | RUNWAY (with its heading and source tag, as Pre-Flight), SQUAWK, WIND, ALTIMETER: Pre-Flight's departure values |
 | Climb | CRUISE level; TOP OF CLIMB, TOP OF DESCENT, LANDING **(M15)** |
-| Cruise | DEST ATIS (letter and runways: the destination ATIS is fetched from the `within_200nm` marker, D-200, not from top of descent); TOP OF DESCENT (distance and local time), LANDING (time and the plan's), FUEL AT LANDING (and the plan's) **(M15)** |
+| Cruise | DEST ATIS (letter and runways: the destination ATIS is fetched from the `within_200nm` marker, D-200, not from top of descent), ARR GATE; TOP OF DESCENT (distance and local time), LANDING (time and the plan's), FUEL AT LANDING (and the plan's) **(M15)** |
 | Descent and Approach | **The arrival ATIS** (below) and the plan against ATC: the STAR and the landing runway with the amber `PLAN …` flag when ATC's differ (as D-189 on Pre-Flight) |
 | Short final (the `final_approach` marker, 1,000 ft AGL, to touchdown) | WIND (the tower's from the landing clearance, else the ATIS's), RUNWAY, VREF (with the landing flaps). **(v2)** No HEIGHT: the radio altitude dial shows it |
-| Arrival (touchdown to block in) | LANDING: the stars and the touchdown rate (D-158's rating, as soon as the touchdown and bounces are logged), GATE |
+| Arrival (touchdown to block in, and until Finish Flight) | LANDING: the stars and the touchdown rate (D-158's rating, as soon as the touchdown and bounces are logged), ARR GATE |
+
+**ARR GATE (D-206, 0.15.1)** is last in Cruise, Descent and Approach, Short final and Arrival: `arrival_gate`'s spot
+(`7` for Gate 7, `Parking 70` as it reads), a dash until SayIntentions picks it, usually in cruise.
 
 **The arrival ATIS (after v1).** The destination ATIS gives everything the PMDG EFB's landing calculation asks for and
 what Dave needs to load the approach before ATC says "expect". From the logged KSJC ATIS ("INFO JULIET … ARVG AND
@@ -589,7 +600,7 @@ DPTG RWYS 30L, 30R. WIND VRB AT 4 … TEMP 17 … ALTIM 30.19. ILS RWY 30L AND R
 |---|---|
 | ATIS | `JULIETT` |
 | RUNWAYS | `30L 30R` (arriving) |
-| APPROACHES | `ILS 30L · RNAV-Z 30R` |
+| APPROACHES | `ILS 30L · RNAV-Z 30R`; a named visual keeps its name, `SWEETWATER VISUAL 27` (D-208) |
 | WIND | `VRB 04` |
 | OAT | `17 °C` |
 | ALTIMETER | `30.19 inHg`, aside `SET AT TL` |
@@ -639,7 +650,7 @@ KSAN → KSJC at 1:10 with the header collapsed).
   - in logs from before 0.15.0, ATC lines reach the log at the next fetch, so a replay shows a clearance up to a
     minute after ATC's time.
 - **Sizes:** gauges are 128 px and readout windows 30 px (the Pre-Flight panel's too), so the tallest view (the
-  arrival ATIS) fits a 760 px window with the header collapsed.
+  arrival ATIS) fits a 760 px window with the header collapsed. **0.15.1:** gauges 180 px (D-205); Live scrolls.
 
 #### The header as the passenger view (D-192, milestone 15)
 
@@ -693,7 +704,8 @@ taxi in. The flips and the flashing don't show in offscreen grabs: Dave checks t
 ### After block in (D-154)
 
 The header stays, filled in (real block in time, final block time, the whole arc coloured, every stage green or
-Arrival in progress), with the status lines above. The panel below changes to the **Flight Summary**. Today the whole
+Arrival in progress), with the status lines above. The panel below changes to the **Flight Summary** when Dave
+clicks Finish Flight on the in-flight panel (D-207, 0.15.1); until then the arrival view stays. Today the whole
 page switches to the summary at block in (D-134, `design.md` section 13.7); this keeps the header in place instead.
 
 ## Open before building

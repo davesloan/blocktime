@@ -141,15 +141,16 @@ void readSentence(const std::string& s, const std::string& before, std::vector<S
     }
     // A named visual approach's name ("Sweetwater Visual"), the type, its letter, the runway (0.15.1).
     static const char* kApproach =
-        R"((?:(\w+) (?=visual))?(ILS|LOC|RNAV|GPS|VOR|VISUAL)(?:[- ]([A-Z]))?\s+(?:runway )?(\w+) approach)";
-    if (std::regex_search(s, m, std::regex(std::string(R"(\bexpect (?:the )?)") + kApproach +
-                                               R"((?:.*?\bvia (?:the )?(\w+)(?: transition)?)?)",
+        R"((?:(?!(?:a|an|the|expect|cleared|for|and|or) )(\w+) (?=visual))?)"  // not an article or a verb
+        R"((ILS|LOC|RNAV|GPS|VOR|VISUAL)(?:[- ]([A-Z]))?\s+(?:runway )?(\w+) approach)";
+    if (std::regex_search(s, m, std::regex(std::string(R"(\bexpect (?:the |an? )?)") + kApproach +
+                                               R"((?:.*?\bvia (?:the )?(\w+) transition)?)",
                                            kIcase))) {
         out.push_back({Slot::Approach, "APPROACH", "EXP " + approachType(m) + " " + normalizeRunway(m[4].str()),
                        m[5].matched ? upper(m[5].str()) : ""});
     } else if (std::regex_search(s, m,
-                                 std::regex(std::string(R"(\bcleared (?:for )?(?:the )?)") + kApproach +
-                                                R"((?:,?\s+(?:via )?(?:the )?(\w+) transition|,?\s+via (\w+))?)",
+                                 std::regex(std::string(R"(\bcleared (?:for )?(?:the |an? )?)") + kApproach +
+                                                R"((?:,?\s+(?:via )?(?:the )?(\w+) transition|,?\s+via (?:the )?(\w+))?)",
                                             kIcase))) {
         SlotChange c{Slot::Approach, "APPROACH", "CLEARED " + approachType(m) + " " + normalizeRunway(m[4].str()), ""};
         const std::string transition = m[5].matched ? m[5].str() : m[6].matched ? m[6].str() : "";

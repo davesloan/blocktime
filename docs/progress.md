@@ -22,6 +22,47 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-26 — The first flight's fixes (version 0.15.1)
+
+**Done (Dave's answers to the review below, D-205 to D-208):**
+- **The approach card** reads "via the KLOMN transition" and "approach, via KLOMN" (`CLEARED RNAV-Z 27 KLOMN`). A
+  clearance that names no transition keeps the expected one as its aside, but only for the approach that was
+  expected. Named visual approaches keep their name in ATC (`EXP SWEETWATER VISUAL 27`) and in APPROACHES.
+- **The gate:** Pre-Flight's DEPARTURE starts with GATE (where to load in) beside ATIS. The in-flight panel shows
+  ARR GATE in cruise, the descent, short final and after touchdown.
+- **Finish Flight:** the arrival view stays after block in, with the button right of the LANDED placard. The flight is
+  still settled at block in; the summary shows after the click. A flight settled at startup shows its summary at once.
+- **Gauges** 180 px; each needle glides linearly over the second to the next sample. Live now scrolls in flight.
+- A fresh code review found nothing Critical and two Important issues, both fixed with tests first: a clearance for a
+  different approach kept the expected one's transition, and any later "via" in an expect call was taken as the
+  transition ("via radar vectors"). Two minors were fixed with them: "via the KLOMN" without "transition", and "a" or
+  "EXPECT" read as a visual approach's name.
+
+**Working / verified:**
+- 914 tests pass in debug and release with no warnings; qmllint reports nothing new.
+- Grabs of the KSJC → KSAN replay: GATE 4 on Pre-Flight, `CLEARED RNAV-Z 27 KLOMN` on the approach, and after block in
+  the LANDED readouts with ARR GATE 7 and the Finish Flight button.
+- Release app: 0.26% CPU during a climb replay with the needles gliding, 69 MB private working set (Task Manager's
+  Memory), inside the budget.
+
+**Unverified:**
+- The needles' movement by eye (offscreen grabs don't show it).
+- Finish Flight on Live after a real block in: the summary should appear only after the click.
+
+**Deferred minors (from the review):**
+- At block in the planned flight model settles before the in-flight panel sees block in, so the summary is built and
+  thrown away once, unseen, before the arrival view takes over.
+- The replay window also waits for Finish Flight at the end of a replay (Claude's call, as Live does); a click shows
+  the summary and Replay again.
+
+**On your next flight you should see:**
+- GATE with the spot to load in at, at the top of Pre-Flight's DEPARTURE.
+- ARR GATE once SayIntentions picks the gate in cruise, through to parking.
+- The approach transition on the card: `EXP RNAV-Z 27` with KLOMN beside it, then `CLEARED RNAV-Z 27 KLOMN`.
+- The arrival view staying after block in until you click Finish Flight.
+
+**Next step:** Dave reviews 0.15.1, then closes milestone 14 (push `main`). Then milestone 15 in a new session.
+
 ## 2026-11-26 — First flight on 0.15.0 (KSJC → KSAN): review of the event log
 
 **Done:**

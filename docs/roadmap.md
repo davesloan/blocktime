@@ -180,7 +180,9 @@ mockups (D-184) and closed by him on 2026-11-26 after trying it on replays.
 **Plan:** `docs/plans/2026-11-26-milestone-13-preflight-panel.md`.
 
 **Built in 0.14.0** (D-187..D-190): the mockup approved by Dave, then built to it and checked on replays of Dave's
-KSAN → KSJC leg. Closed by Dave on 2026-11-26.
+KSAN → KSJC leg. Closed by Dave on 2026-11-26, then reopened for the first flight's fixes: **0.15.1** (D-205..D-208:
+180 px gauges gliding over each second, the GATE and ARR GATE cards, Finish Flight, approach transitions and named
+visual approaches). Dave reviews the app before closing it again.
 
 ### The in-flight brainstorm (2026-11-26)
 
