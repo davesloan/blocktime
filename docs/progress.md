@@ -22,6 +22,36 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-26 — First flight on 0.15.0 (KSJC → KSAN): review of the event log
+
+**Done:**
+- Reviewed Dave's test flight (`events-2026-11-27.jsonl`, flight 8, KSJC Gate 4 → KSAN Gate 7, block 1:12, score 86)
+  against his notes. Nothing is lost or mis-settled: block out/in, the phases, the markers, the arrival gate, the
+  debrief and the money all match the log.
+
+**Broken (found from the log, not fixed yet):**
+- **The approach's transition never shows.** "Expect the RNAV-Z runway 27 approach via **the** KLOMN transition" (the
+  "the" defeats `via (\w+) transition`), then "Cleared for the RNAV-Z runway 27 approach, **via KLOMN**" (no word
+  "transition"), and the cleared call also wipes the expected call's aside. The card showed `CLEARED RNAV-Z 27`.
+- **Named visual approaches aren't read**, in ATC ("Expect the Sweetwater Visual runway 27 approach") or in the ATIS
+  ("SWEETWATER VISUAL RWY 27 APCH IN USE"): the APPROACHES readout stayed empty on the arrival.
+- **The load-in gate was off screen.** "Load in at KSJC, …, Gate 4" is still in the planned flight panel, but that
+  panel now sits under the header and the Pre-Flight panel, below the fold. D-184 had taken the gate out of the header.
+- **The expected arrival gate isn't shown before taxi in** (D-184 moved it to the status line's `Taxiing to …`).
+  SayIntentions picked Terminal 1 Gate 7 at 01:37Z, in cruise.
+
+**Working as designed, but noted:**
+- `Arriving ~6:41 PM` all flight: block out plus SimBrief's est_block (1:44, with its default 20 min taxi out and 20 min
+  taxi in; the real ones were 11 and 2). On time / early / late is milestone 15, not built yet.
+- The gauges update once a second (the recorder's 1 Hz samples) with a 400 ms glide (D-179).
+- Landing lights came on 70 s after 10,000 ft: the lamp flashed for 10 s and the debrief took 6 points.
+- A 55 s sim freeze at the top of descent (`sim_unresponsive`): the descent phase was logged late with its true time.
+
+**Decisions for Dave (asked in the reply):** gauge size, gauge update rate, the gate cards, and a Finish Flight button
+that keeps the arrival view up after block in.
+
+**Next step:** Dave's answers, then the fixes as 0.15.1 before milestone 15.
+
 ## 2026-11-26 — Milestone 14 closed (0.15.0)
 
 **Done:**
