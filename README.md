@@ -210,6 +210,8 @@ while the app is open. A month you can't pay returns the airplane (design.md §5
   `docs/notes/probe-flight.md`).
 - `--grab <file.png> [--page <n>]` is a developer check of the screens: it saves the window to a PNG after 6 s and
   quits (`docs/notes/qt-setup.md`).
+- `--dev` is developer mode (D-211): Live also shows the old flight tiles (raw sim values) and the event feed under
+  the panels. Without it they're hidden. It works with `--demo` and `--replay` too.
 - `--demo` shows made-up live values and a made-up departure in Flight progress, and records nothing, to look at the
   UI without the sim. The Flights, Fleet and
   Money screens still show your real data, and leases are charged as usual.

@@ -28,7 +28,7 @@ struct TaxiTimes {
 class PlanTimeline {
 public:
     // fixes[k] sits at route.pointNm(k + 1); the origin (0 NM) is 0 s and takeoffFuelLb. Empty when there are no
-    // fixes, the route doesn't match them, or the last fix has no elapsed time or fuel.
+    // fixes or the last fix has no elapsed time or fuel (a plan with times but no fuel gets no predictions either).
     PlanTimeline(const std::vector<PlanFix>& fixes, const RouteProgress& route, int takeoffFuelLb);
     PlanTimeline() = default;
 

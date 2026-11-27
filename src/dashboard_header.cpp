@@ -84,6 +84,7 @@ void DashboardHeader::refreshFlight() {
         arc_.reset();
         airborne_ = false;
         liftoff_ = touchdown_ = blockIn_ = QDateTime();
+        sampleAt_.reset();
         parking_.clear();
         if (settledBefore_) progress_.finish();  // its summary: the whole route was flown
         StatusContext c;
@@ -109,6 +110,7 @@ void DashboardHeader::resetFlight() {
     arc_.reset();
     airborne_ = false;
     liftoff_ = touchdown_ = blockIn_ = QDateTime();
+    sampleAt_.reset();
     parking_.clear();
 }
 
@@ -116,6 +118,7 @@ void DashboardHeader::onSample() {
     if (!airborne_) return;
     const TelemetrySample& s = bridge_.lastSample();
     progress_.update(s.latitudeDeg, s.longitudeDeg);
+    sampleAt_ = bridge_.now();
     arc_.record(progress_.share(), bridge_.altitudeFt());
     emit changed();
 }
@@ -128,7 +131,9 @@ void DashboardHeader::onFlightEvent(const QString& type, const QVariantMap& data
     }
     if (type != "liftoff") return;
     airborne_ = true;
-    touchdown_ = QDateTime();  // a touch and go, or a bounce before the go-around
+    // The recorder logs liftoff once per flight, so this only clears a touchdown in tests; a balked landing after
+    // ground contact stays on the ground branch (rare, not handled).
+    touchdown_ = QDateTime();
     liftoff_ = fromIso(data.value("time").toString());
     emit changed();
 }
@@ -192,6 +197,7 @@ Predictions DashboardHeader::predictions() const {
     f.blockOut = blockOutPoint();
     if (liftoff_.isValid()) f.liftoff = toPoint(liftoff_);
     if (touchdown_.isValid()) f.touchdown = toPoint(touchdown_);
+    if (f.liftoff && !f.touchdown && sampleAt_ && *sampleAt_ >= *f.liftoff) f.now = *sampleAt_;
     f.flownNm = progress_.flownNm();
     f.fuelLb = static_cast<int>(std::lround(bridge_.fuelLb()));
     f.phase = bridge_.phaseCode();

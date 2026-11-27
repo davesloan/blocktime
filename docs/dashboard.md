@@ -2,7 +2,7 @@
 
 The design for the **Live Flight Screen**, called **the dashboard** for short, from the brainstorm with Dave on
 2026-11-24. It is the first piece of "deepening the live flight" (`roadmap.md`, after the MVP) and replaces today's
-three-column Live (D-139) when it's built. The header and status lines are built (milestone 12, version 0.13.0), and so are the Pre-Flight panel and the collapsing header (milestone 13, version 0.14.0); the in-flight panels aren't yet. Decisions D-150 to D-154 and D-179; built in milestones 12 and 13 (D-163), checked with replays
+three-column Live (D-139) when it's built. The header and status lines are built (milestone 12, version 0.13.0), and so are the Pre-Flight panel and the collapsing header (milestone 13, version 0.14.0); so are the in-flight panel (milestone 14, version 0.15.0) and the predictions with the passenger header and `--dev` (milestone 15, version 0.16.0). Decisions D-150 to D-154 and D-179; built in milestones 12 and 13 (D-163), checked with replays
 (`replay.md`). Nothing on the dashboard reads the wall clock (D-166).
 
 The header, the Pre-Flight panel and the in-flight panel (brainstorm of 2026-11-26, D-191 to D-198: milestones 14
@@ -185,7 +185,7 @@ images `images/dashboard-header-v2-*.png`). It's about 130 px shorter than the f
 | Airport names | the airport table, as stored; long names are cut with `…` |
 | Block clock | `Plan 1:05` (the plan's block time, greyed) before block out, then the running clock, then the final time |
 | Origin line (D-184) | `Departing soon` until liftoff, then `Departed 1:22 PM`: block out's time. A summary shown at app start has no block events, so just `Departed` |
-| Destination line (D-184) | `Arriving ~2:27 PM` until block in, then `Arrived 2:24 PM · Gate C11`: block in's time (the brake set) and its spot. The estimate, until the predictions (D-120): before block out, now plus the plan's block time; from block out, block out plus the plan's block time; no plan, the line is empty. At app start with a summary: `Arrived`. **Milestone 15 changes it** to `Arrival 2:27 PM` with `On time` / `Early ~4m` / `Delayed ~4m` under it (D-192, "The header as the passenger view" below) |
+| Destination line (D-184; **since 0.16.0 D-192:** `Arrival 2:27 PM` with `On time` / `Early ~4m` / `Delayed ~4m` under it, see "The header as the passenger view") | As first built: `Arriving ~2:27 PM` until block in, then `Arrived 2:24 PM · Gate C11`: block in's time (the brake set) and its spot. The estimate, until the predictions (D-120): before block out, now plus the plan's block time; from block out, block out plus the plan's block time; no plan, the line is empty. At app start with a summary: `Arrived`. **Milestone 15 changes it** to `Arrival 2:27 PM` with `On time` / `Early ~4m` / `Delayed ~4m` under it (D-192, "The header as the passenger view" below) |
 | Marker | none: the altitude and speed above it went (D-184); the steam gauges will show them (D-179) |
 | `127 NM flown · 103 NM to go` | route progress, below |
 | Pill | the six stages; the marker's place from the current phase, and in Pre-Flight from GSX boarding |
@@ -504,7 +504,7 @@ sample (D-205, 0.15.1).
   limit). Otherwise **indicated airspeed, 0 to 400 kt**, with the Mach number in a small window. The face switches at
   40 kt, both ways (takeoff roll and landing rollout); the switch flips the gauge (below). An amber bug marks **VREF**
   (the `cockpit` event's `vref_kt`) from the Approach phase to touchdown, and the plan's cruise speed in cruise
-  (milestone 15, with the other plan values).
+  (0.16.0: the navlog's planned indicated airspeed at the next fix, D-213).
 - **Altitude (D-202).** Three hands on a 0–9 dial, read like a clock, with no drum:
   - a short, wide hand for the ten thousands, like the hour hand (at FL370 it points just past 3);
   - a long hand for the thousands, like the minute hand (at FL370 it points at 7);
@@ -523,9 +523,9 @@ sample (D-205, 0.15.1).
   (or by the 2,000 ft rule once the airplane has been above 3,000 ft). The setting window is on both faces.
 - **Vertical speed.** 0 at nine o'clock, ±6,000 fpm, as in D-179's sketch.
 - **Fuel.** Total fuel in lb, from 0 to the block-out fuel rounded up to 6,000 lb, with a red low-fuel arc up to
-  SimBrief's final reserve. **(v2)** A window shows the pounds (`7,410`). Milestone 15 adds the amber bug at the
-  plan's fuel for this point; its `+200` / `−300` against the plan needs another place, since the window now holds the
-  pounds.
+  SimBrief's final reserve. **(v2)** A window shows the pounds (`7,410`). **0.16.0:** an amber bug at the plan's fuel
+  for this point, from block out to touchdown. The difference in pounds isn't shown separately: FUEL AT LANDING against
+  its `PLAN` tag is the same number (D-213).
 
 #### The ATC card (D-197)
 
@@ -571,8 +571,8 @@ What each slot shows, from the KSAN → KSJC log (`tests/data/flight-ksan-ksjc`)
 
 #### Phase readouts (D-194)
 
-The readouts change with the phase. **(M15)** marks what needs the predictions; milestone 14 leaves those out and
-shows what it has.
+The readouts change with the phase. **(M15)** marks what needs the predictions, built in 0.16.0. They tick in place
+and never flip (D-213), and show a dash without a plan's navlog times.
 
 **(v2) In every phase, first** (Dave, D-203: what ATC asks for in an emergency). They never move or flip at a phase
 change:
@@ -586,8 +586,8 @@ change:
 | Phase | Readouts |
 |---|---|
 | Departure (block out to liftoff) | RUNWAY (with its heading and source tag, as Pre-Flight), SQUAWK, WIND, ALTIMETER: Pre-Flight's departure values |
-| Climb | CRUISE level; TOP OF CLIMB, TOP OF DESCENT, LANDING **(M15)** |
-| Cruise | DEST ATIS (letter and runways: the destination ATIS is fetched from the `within_200nm` marker, D-200, not from top of descent), ARR GATE; TOP OF DESCENT (distance and local time), LANDING (time and the plan's), FUEL AT LANDING (and the plan's) **(M15)** |
+| Climb | CRUISE level; TOP OF CLIMB (`42 NM`, its local time beside it), TOP OF DESCENT (the same), LANDING (`11:58 AM`, `PLAN 12:07 PM` beside it) **(M15)** |
+| Cruise | CRUISE level, DEST ATIS (letter and runways: the destination ATIS is fetched from the `within_200nm` marker, D-200, not from top of descent); TOP OF DESCENT, LANDING, FUEL AT LANDING (`7,183 LB`, `PLAN 7,040` beside it) **(M15)**; ARR GATE. Two rows of four (D-213) |
 | Descent and Approach | **The arrival ATIS** (below) and the plan against ATC: the STAR and the landing runway with the amber `PLAN …` flag when ATC's differ (as D-189 on Pre-Flight) |
 | Short final (the `final_approach` marker, 1,000 ft AGL, to touchdown) | WIND (the tower's from the landing clearance, else the ATIS's), RUNWAY, VREF (with the landing flaps). **(v2)** No HEIGHT: the radio altitude dial shows it |
 | Arrival (touchdown to block in, and until Finish Flight) | LANDING: the stars, the touchdown rate and the G (`−562 FPM · 1.41 G`, D-209; D-158's rating, as soon as the touchdown and bounces are logged), ARR GATE |
@@ -655,7 +655,7 @@ KSAN → KSJC at 1:10 with the header collapsed).
 - **Sizes:** gauges are 128 px and readout windows 30 px (the Pre-Flight panel's too), so the tallest view (the
   arrival ATIS) fits a 760 px window with the header collapsed. **0.15.1:** gauges 200 px (D-205, D-209); Live scrolls.
 
-#### The header as the passenger view (D-192, milestone 15)
+#### The header as the passenger view (D-192, milestone 15, built in 0.16.0)
 
 The destination line becomes the arrivals board:
 
@@ -674,8 +674,10 @@ Delayed ~3m
   **D-212:** the block time here is Dave's taxi out + the plan's enroute time + Dave's taxi in (below).
 - **Before block out:** `Arrival` is now plus the plan's block time (with Dave's taxi times, D-212), with no line
   under it.
-- **Within 2 minutes either way it reads `On time`** (Claude's call: it keeps the line from flickering).
-- **At block in it freezes:** `Arrived 12:35 PM · Gate 4`, and `Delayed 3m` (or `Early 2m`, `On time`) without the `~`.
+- **Within 2 minutes either way it reads `On time`** (Claude's call: it keeps the line from flickering). The band is
+  on the rounded minutes: 2:29 late reads `On time`, 2:30 reads `Delayed ~3m`. Airborne, the estimate moves only with
+  each sample (the clock and the distance flown together), so the line can't flicker between samples.
+- **At block in it freezes:** `Arrived 12:35 PM · Gate 4`, and `Delayed 3m` (or `Early 4m`, `On time`) without the `~`.
 - **Collapsed,** the On time / Early / Delayed line shows small under the destination code (as in the v1 mockup).
 - **The distance line adds the altitude and the speed (Dave, D-210):** `127 NM flown · 103 NM to go · FL350 · M.74`.
   Feet below the transition altitude (`12,000 FT`), a flight level above it, as the header's other altitudes; the
@@ -683,7 +685,7 @@ Delayed ~3m
   0.66).
 - The block clock, origin line and the rest of the header are unchanged.
 
-#### The predictions (D-192, milestone 15; refines D-120)
+#### The predictions (D-192, milestone 15, built in 0.16.0; refines D-120)
 
 From the stored SimBrief navlog (D-182 already reads its fixes) and the route progress the header computes:
 
@@ -695,9 +697,12 @@ From the stored SimBrief navlog (D-182 already reads its fixes) and the route pr
   time (now plus the plan's time from here to there). After TOD is passed it goes. The TOD tick on the header's arc
   (D-182's open item) comes with it.
 - **Landing:** the arrival time less the plan's taxi-in, with the plan's landing time beside it.
-- **Fuel:** the plan's fuel on board at the current position (the navlog's planned fuel, interpolated) is the fuel
-  gauge's bug; the difference is its window; FUEL AT LANDING is the current fuel less the plan's burn from here.
-- **The plan's cruise speed** for the airspeed gauge's bug in cruise.
+- **Fuel:** the plan's fuel on board at the current position (the navlog's planned fuel, interpolated; before liftoff
+  the takeoff fuel, `fuel.plan_ramp − fuel.taxi`) is the fuel gauge's bug; FUEL AT LANDING is the current fuel less
+  the plan's burn from here (D-213: no separate difference).
+- **The plan's cruise speed** for the airspeed gauge's bug in cruise: the planned IAS at the next fix (D-213).
+- **A taxi that runs long counts as done:** the remaining taxi never goes below 0, so the arrival is never before now
+  plus the rest of the flight, and `Delayed` grows.
 - **The taxi times are Dave's own (D-212):** taxi out from block out to the start of the takeoff roll at the origin,
   taxi in from touchdown to block in at the arrival airport, each the median of his last 5 completed flights there
   (fewer if that's all there is); with none, SimBrief's `times.taxi_out` / `times.taxi_in`. They feed the arrival
@@ -705,8 +710,11 @@ From the stored SimBrief navlog (D-182 already reads its fixes) and the route pr
 - **One calculation:** a plain C++ class in `blocktime-core` (with tests) computes every prediction from the navlog's
   elapsed time and fuel at each fix, the route progress, the taxi times and the clock; the header and the in-flight
   panel read it. The PMDG FMC's own predictions are not read.
-- Left to the builder: smoothing, and what shows without a plan (most likely: no predictions, the header's line
-  empty).
+- **As built (0.16.0):** no smoothing (the times show whole minutes; the 2-minute band keeps the line from flickering).
+  A plan without navlog times gets no predictions: the header keeps block out plus the plan's block time, without the
+  `~`, and the readouts show a dash. A replay counts only the taxi times of flights that blocked in before it (D-213).
+  The calculation is `predictions.h` (`PlanTimeline`, `predict`); the taxi history is `taxi_history.h`.
+- **The distance line's altitude and speed** show from liftoff to touchdown (D-213).
 
 #### Testing
 

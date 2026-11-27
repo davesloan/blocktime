@@ -217,6 +217,9 @@ D-210). The taxi times are Dave's own, the median of his last 5 at the airport, 
 (D-212). Last, developer mode: `--dev` shows Live's flight tiles and event feed, hidden without it (D-211). Checked
 on replays; no sim test.
 
+**Built in 0.16.0** (plan `docs/plans/2026-11-26-milestone-15-predictions.md`), checked on replays of the KSAN → KSJC
+leg.
+
 Milestone 15 is the last milestone to the MVP; milestone 16 (developer mode) was folded into it (D-211). What comes
 next is a new brainstorm, starting from "After the MVP" below.
 

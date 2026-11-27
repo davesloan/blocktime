@@ -22,6 +22,86 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-26 — Milestone 15 built: the predictions, the passenger header and `--dev` (version 0.16.0)
+
+**Done (D-192, D-210 to D-213; plan `docs/plans/2026-11-26-milestone-15-predictions.md`):**
+- **Dave's call first:** developer mode joined this milestone as a `--dev` flag and milestone 16 was dropped (D-211).
+  Milestone 15 is the last milestone to the MVP.
+- **Taxi times from Dave's own flights (D-212):** the median of the last 5 completed flights at the airport (taxi out
+  from block out to the takeoff roll, taxi in from touchdown to block in), SimBrief's `times.taxi_out` / `taxi_in`
+  where there are none. Flights without phase rows (Dave's first three) are skipped. A replay only counts flights
+  that blocked in before it.
+- **The predictions** (`predictions.h`): the plan's elapsed time and fuel against the distance along the route, from
+  the navlog's fixes. They give:
+  - the arrival time;
+  - the On time reference: block out + taxi out + the plan's enroute time + taxi in;
+  - top of climb and top of descent, as distances and times;
+  - the landing time;
+  - the plan's fuel here and fuel at landing;
+  - the plan's cruise IAS.
+- **The header** is the arrivals board:
+  - `Arrival 12:18 PM` with `On time` / `Early ~9m` (green) / `Delayed ~3m` (red) under it, and in small type under
+    KSJC when collapsed;
+  - `Arrived 12:01 PM · Gate 4`, `Early 26m` at block in;
+  - `… · FL400 · M.80` on the distance line from liftoff to touchdown;
+  - a tick on the arc at the plan's top of descent.
+- **The in-flight panel:**
+  - the climb gains TOP OF CLIMB, TOP OF DESCENT and LANDING;
+  - the cruise gains TOP OF DESCENT, LANDING and FUEL AT LANDING (two rows of four);
+  - the airspeed bug shows the plan's cruise IAS in cruise, and the fuel gauge gets a bug at the plan's fuel.
+- **`--dev`** shows Live's old flight tiles and event feed, and they're hidden without it. It works with `--replay`
+  and `--demo`.
+- **Code review:** a fresh review found nothing Critical and one Important issue, fixed with a test first. Between
+  samples the 1 s tick moved the clock while the distance flown stood still, so the arrival saw-toothed by a second.
+  At the 2-minute band's edge, that would have flashed On time / Delayed every second. Airborne, the predictions now
+  run on the last sample's time, so a sim freeze holds the estimate. The spec's "or `Early 2m`" (impossible: it reads
+  On time) and two code comments that didn't match the code were corrected.
+
+**Working / verified:**
+- 953 tests pass in debug and release with no warnings (914 at the start). qmllint reports nothing new.
+- Grabs of the KSAN → KSJC replay:
+  - in cruise, `128 NM flown · 240 NM to go · FL400 · M.80`, the TOD tick, and `Arrival 12:18 PM` `Early ~9m`;
+  - TOP OF DESCENT 135 NM at 11:33 AM;
+  - LANDING `11:58 AM` against PLAN 12:07 PM: the real touchdown was at 11:58:59;
+  - FUEL AT LANDING 7,183 LB against PLAN 7,040;
+  - the bugs at 240 kt and about 9,450 lb;
+  - at block in, `Arrived 12:01 PM · Gate 4` `Early 26m`. That flight had no history at either airport, so it used
+    SimBrief's 20 + 20 min against the real 9 + 2: the young airline padding its schedule;
+  - `--dev` shows the tiles and the feed; without it the page ends at the planned flight panel.
+- Release app replaying the climb at 1× (offscreen, software renderer): 0.38% CPU, 46 MB private working set.
+
+**Unverified:**
+- The header's line on a real flight on Live (only replays were checked). The first flights out of and into an airport
+  read early by SimBrief's padding; it shrinks as the history fills.
+- LivePage.qml:78 logs a QML "binding loop" warning for the page's ColumnLayout height in grabs. It's there with the
+  old header too (it isn't from this milestone) and nothing visible is wrong.
+
+**Deferred minors (from the review, D-174):**
+- The takeoff roll counts as taxi-out time in the estimate (taxi out ends at liftoff there, but at the roll in the
+  history), so the estimate runs about 30–45 s late. It's inside the 2-minute band.
+- A missing `touchdown` event (if fast sampling never armed) leaves the airborne estimate running through the taxi in
+  until block in freezes it. A balked landing after ground contact stays on the ground branch.
+- Re-importing a SimBrief plan after liftoff resets the header's route progress for the rest of the flight (the same
+  was true before; the predictions make it visible).
+- A replay seek now rebuilds the in-flight panel about twice per sample (the header's change and the sample's).
+- A plan with navlog times but no fuel values gets no predictions at all, not only no fuel ones.
+
+**On your next flight you should see:**
+- At the gate: `Arrival h:mm` under the destination, with no line under it.
+- At pushback: `On time` under it. From then on it may drift to `Early ~Nm` (green) or `Delayed ~Nm` (red), and at
+  block in it freezes without the `~`. Out of KSJC and into KSAN you already have history, so expect it within a few
+  minutes of the truth.
+- In the climb: TOP OF CLIMB and TOP OF DESCENT with distances and local times, and LANDING with the plan's time.
+- In cruise: TOP OF DESCENT, LANDING and FUEL AT LANDING; an amber bug on the airspeed gauge at the planned IAS and one
+  on the fuel gauge at the plan's fuel.
+- The header's distance line ends with the altitude and the speed from liftoff to touchdown.
+- No tiles or event feed on Live unless you start BlockTime with `--dev`.
+
+**Decisions waiting on Dave:** none (D-211 to D-213 accepted).
+
+**Next step:** Dave reviews 0.16.0 and closes milestone 15 (push `main`, D-121). After that, a new brainstorm on what
+comes after the MVP, starting from `roadmap.md` "After the MVP".
+
 ## 2026-11-26 — Dave's review of 0.15.1: gauges 200 px, a 0-500 ft radio altitude, the G on LANDING
 
 **Done (D-209, D-210):**

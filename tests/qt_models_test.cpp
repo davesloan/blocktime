@@ -2614,6 +2614,25 @@ TEST(DashboardHeader, TodShare) {
     EXPECT_DOUBLE_EQ(noFixes.h.todShare(), -1.0);
 }
 
+// Review finding 1: between samples the clock moves but the distance flown doesn't. Airborne, the predictions run on
+// the last sample's time, so the 1 s tick can't saw-tooth the arrival across a minute or the 2-minute band.
+TEST(DashboardHeader, ArrivalStillBetweenSamples) {
+    qtApp();
+    const PlannedFlightView v = ksjcView();
+    HeaderRig r(v);
+    r.blockOut();
+    r.now += std::chrono::seconds(540);
+    r.liftoff();
+    r.phase("climb");
+    r.at(v.planFixes[0].at.lat, v.planFixes[0].at.lon);
+    const auto atSample = r.h.predictions().arrival;
+    ASSERT_TRUE(atSample.has_value());
+    r.now += std::chrono::milliseconds(900);  // the timer's tick, before the next sample
+    EXPECT_EQ(r.h.predictions().arrival, atSample);
+    r.now += std::chrono::seconds(30);  // no samples for 30 s: a sim freeze holds the estimate
+    EXPECT_EQ(r.h.predictions().arrival, atSample);
+}
+
 // Review Focus 1: a plan without navlog times keeps the old estimate and predicts nothing.
 TEST(DashboardHeader, NoNavlogTimesFallsBack) {
     qtApp();
@@ -3221,7 +3240,8 @@ TEST(InFlightModel, PredictionReadoutsFollowTheHeader) {
     ASSERT_FALSE(first["value"].toString().isEmpty());
     ASSERT_TRUE(first["ticks"].toBool());
     r.now += std::chrono::minutes(5);
-    emit r.h.changed();  // the header's one-second tick, with no new sample
+    r.at(v.planFixes[0].at.lat, v.planFixes[0].at.lon);  // holding: the next sample 5 minutes on
+    emit r.h.changed();                                  // and the header's tick
     const QVariantMap later = readoutTitled(m, "TOP OF DESCENT");
     EXPECT_EQ(later["value"], first["value"]);
     EXPECT_NE(later["tag"], first["tag"]);  // the time slipped 5 minutes

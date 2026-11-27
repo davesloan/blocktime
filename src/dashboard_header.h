@@ -118,6 +118,9 @@ private:
     blocktime::PlanTimeline timeline_;  // the plan's times and fuel along the route
     bool airborne_ = false;  // from liftoff to block in
     QDateTime liftoff_, touchdown_, blockIn_;
+    // The latest sample's time: airborne, the predictions run on it, so the clock and the distance flown move
+    // together and the 1 s tick can't saw-tooth the estimate (review finding 1); a sim freeze holds it.
+    std::optional<blocktime::TimePoint> sampleAt_;
     QString parking_;
     QTimer timer_;  // once a second, only while a clock or an estimate moves
 };
