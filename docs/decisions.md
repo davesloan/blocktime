@@ -3268,7 +3268,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-204 — Milestone 14's calls made while building
 - Date: 2026-11-26
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-26)
 - Decided by: Claude
 - Area: app
 - Decision (the in-flight panel, 0.15.0):
@@ -3284,7 +3284,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   - **The first-fix lamps (after the code review):** the beacon, the strobes after taxi in, the APU after the
     transition altitude and STD in the climb stop at the first fix, as checks 1, 12, 13 and 7 measure. As D-195's table
     was written, they would have flashed for an APU started on taxi in or strobes back on to cross a runway, which the
-    debrief doesn't score (D-195's anti-goal). This changes the approved table: Dave to confirm.
+    debrief doesn't score (D-195's anti-goal). This changes D-195's table; Dave confirmed it.
   - **A retried flight (D-108):** after an interruption the lamp windows, the altitude face and the landing facts
     start over; the cockpit's last state is kept.
   - **The taxi readers:** a crossing ("cross-runway 1R, then continue taxi via …") is not a taxi instruction for the

@@ -22,6 +22,27 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-26 — Milestone 14 closed (0.15.0)
+
+**Done:**
+- Dave approved D-204 (now Accepted), including the first-fix lamps that change D-195's table, and closed the
+  milestone. A fresh release build is in `buildd-release` for his next flight. `main` pushed to `origin` (D-121).
+
+**Unverified:**
+- The items in the entry below: the flips, the wave and the flashing by eye; the cockpit lines reaching the app on a
+  real flight; the panel's fit on Live; SayIntentions' wording beyond the fixtures.
+
+**On your next flight you should see:**
+- The in-flight panel from block out: the beacon lamp and the ground speed gauge for the push.
+- The clearance and each ATC instruction on the ATC card within about 30 s, with LATEST on what the last call changed.
+- DEST ATIS from 200 nm out, then the arrival ATIS readouts in the descent.
+- Lamps flashing only while a switch is wrong by the debrief's rules, and stopping once fixed.
+- The radio altitude face below 2,000 ft on approach.
+
+**Next step:**
+- Milestone 15, the predictions and the passenger header (`roadmap.md`), in a new session (D-121), starting from this
+  entry.
+
 ## 2026-11-26 — Milestone 14 built: the in-flight panel (version 0.15.0)
 
 **Done:**

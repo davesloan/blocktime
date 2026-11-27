@@ -201,7 +201,7 @@ first, with what changed after v1. Also (D-200): ATC fetched every 30 s from blo
 
 **Built in 0.15.0** (D-201..D-204): to Dave's approved mockup v2, with his additions (souls on board and fuel
 remaining in every phase, the pounds on the fuel gauge, the radio altitude face, D-203). Checked on replays of the
-KSAN → KSJC leg; waiting for Dave to try it.
+KSAN → KSJC leg. Closed by Dave on 2026-11-26.
 
 ### Milestone 15 — The predictions and the passenger header
 
