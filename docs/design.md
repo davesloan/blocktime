@@ -306,7 +306,8 @@ Fixed rates, the same at every airport. No leases, discounts or airport-size pri
   flight (D-110). Fuel charged = fuel at block out − fuel on record: the fuel **added**, never below zero, at the
   price locked when the flight was planned. Fuel can't be removed: extra stays on board and isn't charged again. A
   departure with more than 300 lb less than on record isn't accepted (section 13.4). Preview warns if landing weight
-  approaches MLW.
+  approaches MLW. Once a plan is imported, the preview's fuel line is the fuel to add the same way: the plan's ramp
+  fuel − fuel on record, never below zero (D-223); before a plan it shows "+ fuel".
 - **Settled money (D-109).** At block in, pilots, flight attendants and maintenance are charged for the real block
   time. Every other line (fares, cargo, charter, landing, gate, handling, ATC, catering) is as previewed, from the
   planned distance and the plan's block time.

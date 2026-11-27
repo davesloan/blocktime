@@ -230,14 +230,14 @@ other numbers. Not in milestone 12: the header stays flat.
 ## Next, after the MVP (brainstorm of 2026-11-27)
 
 Dave's order: the technical review, then dispatch and the summary, then Journeys; the Flight Board after rotations.
-The review is done (`docs/reviews/2026-11-27-technical-review.md`) and its fix order approved (D-225): steps 1 and 2
-are built. Agreed with Dave on 2026-11-27, with the money item's place Claude's suggestion. Each milestone still gets
+The review is done (`docs/reviews/2026-11-27-technical-review.md`) and its fix order approved (D-225): steps 1, 2
+and 3 are built. Agreed with Dave on 2026-11-27, with the money item's place Claude's suggestion. Each milestone still gets
 its own plan in `docs/plans/` first.
 
-1. **Fix step 3 — groundwork for dispatch.** One `PriceInput` builder (review 4.3), money lines that carry their
-   workings (4.4), the migration runner's rebuild support (1.5) and one rebuild migration for the lookups (2.1).
-   Dave's calls for this step are made: the accepted money is locked (D-222), the preview's fuel is the fuel to add
-   (D-223).
+1. **Fix step 3 — groundwork for dispatch.** Built (D-238): the preview's fuel is the fuel to add (D-223), the
+   money inputs priced one way with a test that New Flight and the planned flight agree (review 4.3), money lines
+   that carry their workings (4.4), the migration runner's rebuild support (1.5) and migration 10's lookups (2.1).
+   The accepted money (D-222) is stored in milestone 16.
 2. **Milestone 16 — dispatch on Your Flight** (`docs/dispatch.md`, D-214, D-215, D-233, D-234). Live renamed Your
    Flight; the form with fully loaded, additional fuel and remembered routes; the dispatch report (the ring, the
    split-flap board, load and plan); the import check against the rolled loads; Accept; View Dispatch Report; money

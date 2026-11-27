@@ -22,6 +22,51 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-27 — Fix step 3: groundwork for dispatch and the money item
+
+**Done:** step 3 of the review's fix order (plan `docs/plans/2026-11-27-fix-step-3.md`), all but its item 4, which
+belongs inside milestone 16.
+- D-223 (4.1): once a plan is in, the preview's fuel line is the fuel to add (ramp fuel − fuel on record, ≥ 0), which
+  is what settlement charges. A replay's estimate uses the fuel on record at that flight's block out.
+- 4.3: `PriceInput` carries raw facts and `pricePreview` works out the block time and fuel; a test checks New Flight's
+  preview equals the planned flight's for passenger, delivery, VIP and charter flights.
+- 4.4: each money line carries its working (quantities × rate / basis), the amount is computed from it, and
+  `workingText()` formats it ("2.5 h × 2 pilots × $250"). One adapter, `moneyLinesToQml`, replaces three copies; Live's
+  estimate passes income and costs apart.
+- 1.5: rebuild migrations run with foreign keys off and must pass `foreign_key_check` before committing.
+- 2.1: migration 10 (schema 10) turns flight kinds and return reasons into lookup tables (`flight_kind`,
+  `return_reason`), rebuilding `airplane`, `planned_flight` and `flight`.
+- Code review (a fresh reviewer on the diff): nothing Critical or Important. The reviewer checked migration 10
+  against migrations 2–6 column by column and simulated the reordered arithmetic: no $5-rounded amount changes.
+  Minor points left for later: a schema-equality test for rebuilds; the invariant test's multiplication order; hours
+  to one decimal can visibly disagree with the amount; the fuel working can't show "ramp − on board = added" yet
+  (both noted in D-238 for the dispatch milestone); the ATC working has no "/ nm"; fuel could be priced in integer
+  cents.
+
+**Working / verified:** debug and release build with no warnings; 995 tests pass in both. qmllint: the same one info
+line. Migration 10 run by the release build on a copy of Dave's airline: the backup `blocktime.before-schema-10.db`
+was made first, all 28 tables identical before and after, `foreign_key_check` empty, `integrity_check` ok, and Fleet
+shows the same two airplanes.
+
+**Unverified:** Live's estimate panel wasn't seen on screen (it shows only before departure, and neither `--demo` nor
+a replay reaches it); a Qt test covers it. On your next flight you should see:
+1. The app starts normally; `%LOCALAPPDATA%\BlockTime` gains `blocktime.before-schema-10.db` (the backup).
+2. Before the plan is imported, Live's estimate says "Total + fuel", as before.
+3. After Import, the fuel line is the plan's block fuel less what the airplane has on record, not the en-route burn,
+   so on a leg where the tanks are low it's larger than before; the settled fuel line at block in should be close.
+4. The income lines are green and the costs white, in the same order as before.
+
+**Waiting on Dave:** D-238 (Proposed), Claude's calls in this step:
+- No shared builder for the money inputs; the agreement test guards the two copies instead.
+- How the working is stored and shown (rates in whole dollars when they can be, quantities to one decimal).
+- Migration 10 leaves family, role and the monthly lease as they are (the lease waits for D-219 in fix step 4).
+
+**Next step:** milestone 16 (dispatch on Your Flight) in a new session: its plan from `docs/dispatch.md`, including
+the review's item 3.4 (`LiveStage`, the `PlannedFlightModel` split, the accepted state, 4.6 and 4.7) and D-222's
+stored accepted lines.
+
+---
+
 ## 2026-11-27 — Accept marks a flight's start; one log file per flight (decided, not built)
 
 **Done (in chat with Dave, no code):**

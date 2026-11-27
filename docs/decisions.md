@@ -3877,3 +3877,35 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   try.
 - Alternatives considered: keep the daily logs and read from the Accept marker (still crosses midnight); readers that
   understand both layouts forever (two code paths for one fact).
+
+## D-238 — Fix step 3's calls: pricing from raw facts, lines with workings, migration 10's scope
+- Date: 2026-11-27
+- Status: Proposed
+- Decided by: Claude
+- Area: app, data
+- Decision:
+  - **No shared builder for the money inputs (review 4.3).** `PriceInput` carries the raw facts (cruise speed, the
+    plan's block time and ramp fuel, the fuel on record, the fuel added at settlement) and `pricePreview` works out the
+    block time and the fuel to add (D-223), so New Flight's draft and `priceInput(PlannedFlightView)` only copy fields.
+    A test checks that a draft's preview equals the planned flight's right after it's created, for passenger, delivery,
+    VIP and charter flights (the test airline has no freighter).
+  - **Lines carry their working (review 4.4).** Each `MoneyLine` holds its quantities and a rate per a basis and unit
+    ("5,900 lb × $41 / 100 lb"); the amount is computed from them, so the two can't disagree. Rates show whole dollars
+    bare, else two decimals, up to four only when needed; quantities show one decimal at most. Lines read back from
+    the ledger have no working until D-222 stores the accepted ones. One adapter, `moneyLinesToQml`, gives QML
+    `{category, label, amount, working}`. Not yet carried: the fuel line's derivation ("9,200 lb block fuel − 3,300 lb
+    on board = 5,900 lb added", dispatch.md), and hours precise enough that "2.96 h" doesn't show as "3 h". The
+    dispatch milestone adds both when the working is first shown.
+  - **Rebuild migrations (review 1.5).** A migration flagged `rebuild` runs with foreign keys off, must leave
+    `PRAGMA foreign_key_check` empty before it commits, and turns them back on whatever happens.
+  - **Migration 10's scope (review 2.1).** Only the flight kinds (`flight_kind`) and return reasons (`return_reason`)
+    become lookups. `aircraft_type.family` and `role` stay `CHECK`s (D-039 fixes the families; every type has a role,
+    D-090). `airplane.monthly_lease_cents` waits for D-219's per-hour lease (review 2.2, fix step 4). The cargo rule
+    `CHECK (cargo_lb = 0 OR kind IN ('passenger', 'cargo'))` stays, since it names two kinds rather than the set.
+- Why: The review asked for one builder, but once the logic moved into pricing there was nothing left to share; the
+  agreement test is what catches a field one copy misses. The working is needed by the dispatch report and summary
+  (dispatch.md), and computing the amount from it keeps the explanation honest. The other `CHECK`s aren't sets that
+  grow, or are reshaped by a later decision anyway.
+- Alternatives considered: a builder function taking the airplane's facts (a long parameter list duplicating
+  `PriceInput`); a free-text basis string per line (can't be checked against the amount); turning family, role and the
+  lease into lookups in the same rebuild.
