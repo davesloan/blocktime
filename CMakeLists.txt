@@ -243,7 +243,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/plan_brief_test.cpp
     tests/preflight_log_test.cpp)
   target_link_libraries(blocktime-tests PRIVATE blocktime-core GTest::gtest_main)
-  # Tests read the repo's config files (config/catalog.yaml, config/airline.example.yaml).
+  # Tests read the repo's data and config files (data/aircraft, config/airline.example.yaml).
   target_compile_definitions(blocktime-tests PRIVATE BLOCKTIME_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
   gtest_discover_tests(blocktime-tests)
 endif()
@@ -369,6 +369,12 @@ add_custom_command(TARGET blocktime-app POST_BUILD
           --no-system-d3d-compiler --no-opengl-sw --no-compiler-runtime
           --skip-plugin-types position --verbose 0 "$<TARGET_FILE:blocktime-app>"
   COMMENT "windeployqt blocktime-app"
+  VERBATIM)
+# The supported aircraft (D-243) ship next to the exe: data\aircraft\*.yaml, refreshed on every build.
+add_custom_command(TARGET blocktime-app POST_BUILD
+  COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/data/aircraft"
+          "$<TARGET_FILE_DIR:blocktime-app>/data/aircraft"
+  COMMENT "Copy data/aircraft next to blocktime-app"
   VERBATIM)
 
 # The debrief replay tool (docs/debrief.md section 8): the checks, the score and Claude's request for a flight in a

@@ -18,7 +18,7 @@ std::string folderOf(const std::filesystem::path& file) { return file.parent_pat
 }  // namespace
 
 AirlinePaths defaultAirlinePaths() {
-    return {defaultAirlineDatabaseFile(), defaultCatalogFile(), defaultAirlineConfigFile()};
+    return {defaultAirlineDatabaseFile(), defaultCatalogDir(), defaultAirlineConfigFile()};
 }
 
 AirlineSession AirlineSession::start(const AirlinePaths& paths, Date today, std::ostream& warnings) {
@@ -48,11 +48,12 @@ AirlineSession AirlineSession::open(const AirlinePaths& paths, std::ostream& war
     }
 
     std::string error;
-    if (!std::filesystem::exists(paths.catalog)) {
-        s.startNotices_.push_back(std::format("No catalog.yaml in {}. Copy config\\catalog.yaml there (README).",
-                                              folderOf(paths.catalog)));
-    } else if (s.catalog_ = loadCatalog(paths.catalog, &error); !s.catalog_) {
-        s.startNotices_.push_back(error);
+    // The supported aircraft (D-243), shipped next to the executable. A file that doesn't parse is skipped.
+    if (Catalog catalog = loadCatalogDir(paths.catalog, &s.startNotices_); !catalog.types.empty()) {
+        s.catalog_ = std::move(catalog);
+    } else {
+        s.startNotices_.push_back(std::format("No aircraft files in {}. Reinstall BlockTime (README).",
+                                              paths.catalog.string()));
     }
     if (!std::filesystem::exists(paths.airlineConfig)) {
         s.startNotices_.push_back(std::format(

@@ -1,0 +1,25 @@
+# BlockTime supported aircraft (D-243): one type and its layouts. Shipped with the app in data/aircraft/.
+#
+# A layout's holds give each hold's share of SimBrief's Max Cargo Weight: an airplane's hold maximums are SimBrief's
+# total split in these proportions (D-242). ratio splits a flight's load between the holds (design.md §11).
+# Money in whole dollars (multiples of $5). simbrief_base_types are the airframe page's Base Type values.
+# Numbers marked "estimate" are placeholders until they're read from SimBrief or the PMDG load pages.
+
+code: 777-300ER
+family: "777"
+role: airliner
+turnaround_min: 60
+cruise_speed_kt: 490      # estimate
+lease_per_month: 385000
+sim_folder: PMDG 777-300ER
+wingspan_m: 64.8          # for the arrival gate's size (D-147)
+simbrief_base_types: [B77W]   # estimate: confirm from a SimBrief screenshot
+factory: KPAE
+delivery_fee_per_nm: 18   # about 25 lb per nm at $0.70 per lb (D-246)
+layouts:
+  - name: 777-300ER Standard
+    cabins: { business: 42, economy: 328 }      # estimate, split; the 370 total is N916SX's SimBrief max passengers
+    holds:   # N916SX's 82,020 lb max cargo, split 10:8:2 (estimate)
+      - { hold: forward, share_lb: 41010, ratio: 10 }
+      - { hold: aft, share_lb: 32808, ratio: 8 }
+      - { hold: bulk, share_lb: 8202, ratio: 2 }

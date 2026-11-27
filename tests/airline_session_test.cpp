@@ -34,12 +34,11 @@ protected:
                ("blocktime-test-" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
         fs::remove_all(dir_);
         fs::create_directories(dir_);
-        paths_ = {dir_ / "blocktime.db", dir_ / "catalog.yaml", dir_ / "airline.yaml"};
+        paths_ = {dir_ / "blocktime.db", BLOCKTIME_SOURCE_DIR "/data/aircraft", dir_ / "airline.yaml"};
     }
     void TearDown() override { fs::remove_all(dir_); }
 
     void copyConfig() {
-        fs::copy_file(BLOCKTIME_SOURCE_DIR "/config/catalog.yaml", paths_.catalog);
         fs::copy_file(BLOCKTIME_SOURCE_DIR "/config/airline.example.yaml", paths_.airlineConfig);
     }
 
@@ -72,7 +71,6 @@ TEST_F(AirlineSessionTest, FreshStartLeasesTheExample) {
 }
 
 TEST_F(AirlineSessionTest, MissingConfigIsANotice) {
-    fs::copy_file(BLOCKTIME_SOURCE_DIR "/config/catalog.yaml", paths_.catalog);
     importKbfi();
     AirlineSession session = AirlineSession::start(paths_, d(2026, 11, 22), warnings_);
     EXPECT_TRUE(hasNoticeStartingWith(session, "No airline.yaml in ")) << ::testing::PrintToString(session.notices());

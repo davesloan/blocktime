@@ -8,7 +8,8 @@
 #include <format>
 #include <set>
 
-#include "app_settings.h"
+#include <windows.h>
+
 #include "config_yaml.h"
 
 namespace blocktime {
@@ -48,13 +49,18 @@ bool readType(YamlReader& r, const YAML::Node& node, CatalogType& t) {
     t.monthlyLeaseCents = lease * 100;
     if (!r.string(node, "sim_folder", t.simFolder) || !r.number(node, "wingspan_m", t.wingspanM)) return false;
     if (t.wingspanM <= 0) return r.fail(node["wingspan_m"], "wingspan_m must be positive");
-    return true;
+    const YAML::Node bases = node["simbrief_base_types"];
+    if (!bases.IsSequence() || bases.size() == 0) {
+        return r.fail(node, "needs simbrief_base_types, a list like [B738]");
+    }
+    for (const YAML::Node& b : bases) t.simbriefBaseTypes.push_back(b.as<std::string>());
+    if (!r.string(node, "factory", t.factoryIcao)) return false;
+    return positive(r, node, "delivery_fee_per_nm", t.deliveryFeePerNmDollars);
 }
 
-bool readAirframe(YamlReader& r, const YAML::Node& node, const Catalog& catalog, CatalogAirframe& a) {
-    if (!r.string(node, "name", a.name) || !r.string(node, "type", a.typeCode)) return false;
-    const CatalogType* type = catalog.type(a.typeCode);
-    if (!type) return r.fail(node["type"], std::format("{}: unknown type \"{}\"", a.name, a.typeCode));
+bool readLayout(YamlReader& r, const YAML::Node& node, const CatalogType* type, CatalogAirframe& a) {
+    if (!r.string(node, "name", a.name)) return false;
+    a.typeCode = type->code;
 
     const YAML::Node cabins = node["cabins"];
     if (cabins.IsDefined() && !cabins.IsNull()) {
@@ -92,16 +98,10 @@ bool readAirframe(YamlReader& r, const YAML::Node& node, const Catalog& catalog,
             return r.fail(h["hold"], std::format("{}: hold must be forward, aft, bulk or main_deck", a.name));
         }
         if (!seen.insert(hold.hold).second) return r.fail(h, std::format("{}: hold {} is listed twice", a.name, hold.hold));
-        if (!positive(r, h, "max_lb", hold.maxLb) || !positive(r, h, "ratio", hold.ratio)) return false;
+        if (!positive(r, h, "share_lb", hold.maxLb) || !positive(r, h, "ratio", hold.ratio)) return false;
         a.holds.push_back(hold);
     }
-
-    const YAML::Node limits = node["limits"];
-    if (!limits.IsDefined() || !limits.IsMap()) return r.fail(node, std::format("{}: needs limits", a.name));
-    AirplaneLimits& l = a.limits;
-    return positive(r, limits, "min_runway_ft", l.minRunwayFt) && positive(r, limits, "mlw_lb", l.mlwLb) &&
-           positive(r, limits, "passenger_weight_lb", l.passengerWeightLb) &&
-           positive(r, limits, "bag_weight_lb", l.bagWeightLb) && positive(r, limits, "max_payload_lb", l.maxPayloadLb);
+    return true;
 }
 
 }  // namespace
@@ -117,9 +117,9 @@ const CatalogAirframe* Catalog::airframe(std::string_view name) const {
     return it == airframes.end() ? nullptr : &*it;
 }
 
-std::optional<Catalog> parseCatalog(std::string_view yaml, std::string* error) {
+std::optional<Catalog> parseAircraftFile(std::string_view yaml, std::string_view fileName, std::string* error) {
     std::string message;
-    YamlReader r("catalog.yaml", &message);
+    YamlReader r(std::string(fileName), &message);
     const auto finish = [&]() -> std::optional<Catalog> {
         if (error) *error = message;
         return std::nullopt;
@@ -128,20 +128,15 @@ std::optional<Catalog> parseCatalog(std::string_view yaml, std::string* error) {
     if (!root) return finish();
     try {
         Catalog catalog;
-        const YAML::Node types = (*root)["types"];
-        if (!types.IsSequence()) return r.fail(*root, "missing the types list"), finish();
-        for (const YAML::Node& node : types) {
-            CatalogType t{};
-            if (!readType(r, node, t)) return finish();
-            if (catalog.type(t.code)) return r.fail(node, std::format("type {} is listed twice", t.code)), finish();
-            catalog.types.push_back(t);
-        }
-        const YAML::Node airframes = (*root)["airframes"];
-        if (!airframes.IsSequence()) return r.fail(*root, "missing the airframes list"), finish();
-        for (const YAML::Node& node : airframes) {
+        CatalogType t{};
+        if (!readType(r, *root, t)) return finish();
+        catalog.types.push_back(t);
+        const YAML::Node layouts = (*root)["layouts"];
+        if (!layouts.IsSequence() || layouts.size() == 0) return r.fail(*root, "needs at least one layout"), finish();
+        for (const YAML::Node& node : layouts) {
             CatalogAirframe a;
-            if (!readAirframe(r, node, catalog, a)) return finish();
-            if (catalog.airframe(a.name)) return r.fail(node, std::format("airframe {} is listed twice", a.name)), finish();
+            if (!readLayout(r, node, &catalog.types[0], a)) return finish();
+            if (catalog.airframe(a.name)) return r.fail(node, std::format("layout {} is listed twice", a.name)), finish();
             catalog.airframes.push_back(std::move(a));
         }
         if (error) error->clear();
@@ -152,12 +147,42 @@ std::optional<Catalog> parseCatalog(std::string_view yaml, std::string* error) {
     }
 }
 
-std::optional<Catalog> loadCatalog(const std::filesystem::path& file, std::string* error) {
-    const auto text = config::readFile(file, error);
-    if (!text) return std::nullopt;
-    return parseCatalog(*text, error);
+Catalog loadCatalogDir(const std::filesystem::path& dir, std::vector<std::string>* notices) {
+    std::vector<std::filesystem::path> files;
+    std::error_code ec;
+    for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
+        if (entry.is_regular_file() && entry.path().extension() == ".yaml") files.push_back(entry.path());
+    }
+    std::sort(files.begin(), files.end());
+    Catalog catalog;
+    for (const auto& file : files) {
+        std::string error;
+        const auto text = config::readFile(file, &error);
+        const auto one = text ? parseAircraftFile(*text, file.filename().string(), &error) : std::nullopt;
+        if (!one) {
+            if (notices) notices->push_back(error + " (skipped)");
+            continue;
+        }
+        const bool repeated = catalog.type(one->types[0].code) ||
+                              std::any_of(one->airframes.begin(), one->airframes.end(),
+                                          [&](const CatalogAirframe& a) { return catalog.airframe(a.name) != nullptr; });
+        if (repeated) {
+            if (notices) {
+                notices->push_back(std::format("{}: type {} or one of its layouts is already in another file (skipped)",
+                                               file.filename().string(), one->types[0].code));
+            }
+            continue;
+        }
+        catalog.types.push_back(one->types[0]);
+        catalog.airframes.insert(catalog.airframes.end(), one->airframes.begin(), one->airframes.end());
+    }
+    return catalog;
 }
 
-std::filesystem::path defaultCatalogFile() { return defaultSettingsFile().parent_path() / "catalog.yaml"; }
+std::filesystem::path defaultCatalogDir() {
+    wchar_t buffer[MAX_PATH];
+    const DWORD n = GetModuleFileNameW(nullptr, buffer, MAX_PATH);
+    return std::filesystem::path(std::wstring(buffer, n)).parent_path() / "data" / "aircraft";
+}
 
 }  // namespace blocktime

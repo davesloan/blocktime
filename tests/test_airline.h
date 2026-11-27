@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// A small real airline for tests (milestone 5): the repo's catalog, three airports and two airplanes at KBFI,
+// A small real airline for tests (milestone 5): the repo's aircraft files, three airports and two airplanes at KBFI,
 // leased through the same code the app uses. Used by blocktime-tests and blocktime-qt-tests.
 
 #pragma once
@@ -35,6 +35,7 @@ inline AirlineConfig testAirlineConfig() {
     bbj.locationIcao = "KBFI";
     bbj.awaitingDelivery = true;
     bbj.flightNumber = "8";
+    bbj.limits = {7000, 146300, 190, 55, 36113};  // N814SX's SimBrief airframe
     ConfigAirplane b738 = bbj;
     b738.registration = "N738BT";
     b738.airframe = "737-800 Two-class";
@@ -42,6 +43,7 @@ inline AirlineConfig testAirlineConfig() {
     b738.simbriefAirframeId = "test_738";
     b738.awaitingDelivery = false;
     b738.flightNumber = "";
+    b738.limits = {7000, 146300, 190, 55, 47000};
     c.airplanes = {bbj, b738};
     return c;
 }
@@ -57,8 +59,8 @@ inline void setUpTestAirline(db::Database& db) {
         " ('KBFI', 'Boeing Field', 47.53, -122.302, 21, 'US', 'America/Los_Angeles', 10007),"
         " ('KSAN', 'San Diego International', 32.7336, -117.19, 17, 'US', 'America/Los_Angeles', 9401),"
         " ('KSHT', 'Short Field', 47.0, -120.0, 1000, 'US', 'America/Los_Angeles', 5000)"));
-    const auto catalog = loadCatalog(BLOCKTIME_SOURCE_DIR "/config/catalog.yaml", &error);
-    ASSERT_TRUE(catalog.has_value()) << error;
+    const auto catalog = std::optional<Catalog>(loadCatalogDir(BLOCKTIME_SOURCE_DIR "/data/aircraft", nullptr));
+    ASSERT_EQ(catalog->types.size(), 7u);
     const AirlineConfig config = testAirlineConfig();
     ASSERT_TRUE(syncCatalogTypes(db, *catalog, &error)) << error;
     ASSERT_TRUE(syncFleets(db, config, &error)) << error;

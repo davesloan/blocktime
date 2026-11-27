@@ -2,6 +2,8 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include <filesystem>
+#include <fstream>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -9,156 +11,157 @@
 #include "catalog.h"
 
 using namespace blocktime;
+namespace fs = std::filesystem;
 
 namespace {
 
-const std::string kType = R"(types:
-  - code: 777F
-    family: "777"
-    role: freighter
-    turnaround_min: 60
-    cruise_speed_kt: 490
-    lease_per_month: 3000000
-    sim_folder: PMDG 777F
-    wingspan_m: 64.8
+const std::string kFreighter = R"(code: 777F
+family: "777"
+role: freighter
+turnaround_min: 60
+cruise_speed_kt: 490
+lease_per_month: 500000
+sim_folder: PMDG 777F
+wingspan_m: 64.8
+simbrief_base_types: [B77L]
+factory: KPAE
+delivery_fee_per_nm: 18
+layouts:
+  - name: 777F Freighter
+    holds:
+      - { hold: main_deck, share_lb: 180000, ratio: 40 }
 )";
 
-std::string withAirframes(const std::string& airframes) { return kType + "airframes:\n" + airframes; }
+const std::string k738 = R"(code: 737-800
+family: "737"
+role: airliner
+turnaround_min: 35
+cruise_speed_kt: 450
+lease_per_month: 235000
+sim_folder: PMDG 737-800
+wingspan_m: 35.8
+simbrief_base_types: [B738]
+factory: KBFI
+delivery_fee_per_nm: 8
+layouts:
+  - name: 737-800 Two-class
+    cabins: { business: 16, economy: 144 }
+    holds:
+      - { hold: forward, share_lb: 7500, ratio: 4 }
+      - { hold: aft, share_lb: 9500, ratio: 5 }
+  - name: 737-800 All-economy
+    cabins: { economy: 184 }
+    holds:
+      - { hold: forward, share_lb: 7500, ratio: 4 }
+      - { hold: aft, share_lb: 9500, ratio: 5 }
+)";
 
 std::string parseError(const std::string& yaml) {
     std::string error;
-    EXPECT_FALSE(parseCatalog(yaml, &error).has_value());
+    EXPECT_FALSE(parseAircraftFile(yaml, "test.yaml", &error).has_value());
     return error;
+}
+
+std::string replaced(std::string text, const std::string& from, const std::string& to) {
+    text.replace(text.find(from), from.size(), to);
+    return text;
 }
 
 }  // namespace
 
-TEST(Catalog, ParsesTheRepoCatalog) {
-    std::string error;
-    const auto catalog = loadCatalog(BLOCKTIME_SOURCE_DIR "/config/catalog.yaml", &error);
-    ASSERT_TRUE(catalog.has_value()) << error;
-    const CatalogType* bbj = catalog->type("737-800 BBJ2");
-    ASSERT_NE(bbj, nullptr);
-    EXPECT_EQ(bbj->family, "737");
-    EXPECT_EQ(bbj->role, "executive");
-    EXPECT_EQ(bbj->turnaroundMin, 35);
+TEST(AircraftFiles, ShippedFilesAllLoad) {
+    std::vector<std::string> notices;
+    const Catalog catalog = loadCatalogDir(BLOCKTIME_SOURCE_DIR "/data/aircraft", &notices);
+    EXPECT_TRUE(notices.empty()) << (notices.empty() ? "" : notices[0]);
+    ASSERT_EQ(catalog.types.size(), 7u);
+    EXPECT_EQ(catalog.type("737-600")->simFolder, "PMDG 737-600");
+    EXPECT_EQ(catalog.type("737-800")->simFolder, "PMDG 737-800");
+    EXPECT_EQ(catalog.type("737-800 BBJ2")->simFolder, "PMDG 737-800BBJ2");
+    EXPECT_EQ(catalog.type("737-800 BCF")->simFolder, "PMDG 737-800BCF");
+    EXPECT_EQ(catalog.type("777-200ER")->simFolder, "PMDG 777-200ER");
+    EXPECT_EQ(catalog.type("777-300ER")->simFolder, "PMDG 777-300ER");
+    EXPECT_EQ(catalog.type("777F")->simFolder, "PMDG 777F");
+    EXPECT_EQ(catalog.airframes.size(), 9u);
+
+    // N814SX's SimBrief airframe (docs/notes/simbrief-airframes.md): base type BBJ2, 48 seats, 17,645 lb split 4:5.
+    const CatalogType* bbj = catalog.type("737-800 BBJ2");
+    EXPECT_EQ(bbj->simbriefBaseTypes, std::vector<std::string>{"BBJ2"});
     EXPECT_EQ(bbj->monthlyLeaseCents, 15'000'000);
-
-    const CatalogAirframe* vip = catalog->airframe("737-800 BBJ2 VIP");
+    const CatalogAirframe* vip = catalog.airframe("737-800 BBJ2 VIP");
     ASSERT_NE(vip, nullptr);
-    EXPECT_EQ(vip->typeCode, "737-800 BBJ2");
-    ASSERT_EQ(vip->cabins.size(), 1u);
-    EXPECT_EQ(vip->cabins[0].cabinClass, "economy");
     EXPECT_EQ(vip->cabins[0].seats, 48);
-    ASSERT_EQ(vip->holds.size(), 2u);
-    EXPECT_EQ(vip->holds[0].hold, "forward");
     EXPECT_EQ(vip->holds[0].maxLb, 7842);
-    EXPECT_EQ(vip->holds[0].ratio, 4);
-
-    EXPECT_EQ(catalog->types.size(), 7u);
-    EXPECT_EQ(catalog->airframes.size(), 9u);
-    EXPECT_EQ(catalog->type("747"), nullptr);
+    EXPECT_EQ(vip->holds[1].maxLb, 9803);
+    EXPECT_EQ(catalog.type("777-300ER")->factoryIcao, "KPAE");
+    EXPECT_EQ(catalog.type("777-300ER")->deliveryFeePerNmDollars, 18);
 }
 
-TEST(Catalog, AcceptsAFreighterWithHoldsOnly) {
+TEST(AircraftFiles, ParsesTypeAndLayouts) {
     std::string error;
-    const auto catalog = parseCatalog(withAirframes(R"(  - name: 777F Freighter
-    type: 777F
-    holds:
-      - { hold: main_deck, max_lb: 180000, ratio: 40 }
-    limits: { min_runway_ft: 10000, mlw_lb: 575000, passenger_weight_lb: 190, bag_weight_lb: 55, max_payload_lb: 228700 }
-)"),
-                                      &error);
+    const auto catalog = parseAircraftFile(k738, "pmdg-737-800.yaml", &error);
     ASSERT_TRUE(catalog.has_value()) << error;
-    EXPECT_TRUE(catalog->airframe("777F Freighter")->cabins.empty());
+    ASSERT_EQ(catalog->types.size(), 1u);
+    const CatalogType& t = catalog->types[0];
+    EXPECT_EQ(t.simbriefBaseTypes, std::vector<std::string>{"B738"});
+    EXPECT_EQ(t.factoryIcao, "KBFI");
+    EXPECT_EQ(t.deliveryFeePerNmDollars, 8);
+    EXPECT_EQ(t.turnaroundMin, 35);
+    EXPECT_DOUBLE_EQ(t.wingspanM, 35.8);
+    ASSERT_EQ(catalog->airframes.size(), 2u);
+    const CatalogAirframe& two = catalog->airframes[0];
+    EXPECT_EQ(two.name, "737-800 Two-class");
+    EXPECT_EQ(two.typeCode, "737-800");
+    ASSERT_EQ(two.holds.size(), 2u);
+    EXPECT_EQ(two.holds[0].hold, "forward");
+    EXPECT_EQ(two.holds[0].maxLb, 7500);
+    EXPECT_EQ(two.holds[0].ratio, 4);
+    EXPECT_EQ(two.holds[1].hold, "aft");
+    EXPECT_EQ(two.holds[1].maxLb, 9500);
+    EXPECT_EQ(two.holds[1].ratio, 5);
 }
 
-TEST(Catalog, RejectsCabinsOnAFreighter) {
-    const std::string error = parseError(withAirframes(R"(  - name: 777F Freighter
-    type: 777F
-    cabins: { economy: 10 }
-    holds:
-      - { hold: main_deck, max_lb: 180000, ratio: 40 }
-)"));
+TEST(AircraftFiles, BadFileIsSkippedWithNotice) {
+    const fs::path dir = fs::temp_directory_path() / "blocktime-aircraft-files-test";
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    std::ofstream(dir / "good.yaml") << k738;
+    std::ofstream(dir / "bad.yaml") << "code: [not closed\n";
+    std::vector<std::string> notices;
+    const Catalog catalog = loadCatalogDir(dir, &notices);
+    EXPECT_EQ(catalog.types.size(), 1u);
+    ASSERT_EQ(notices.size(), 1u);
+    EXPECT_NE(notices[0].find("bad.yaml"), std::string::npos) << notices[0];
+    fs::remove_all(dir);
+}
+
+TEST(AircraftFiles, AcceptsAFreighterWithHoldsOnly) {
+    std::string error;
+    const auto catalog = parseAircraftFile(kFreighter, "f.yaml", &error);
+    ASSERT_TRUE(catalog.has_value()) << error;
+    EXPECT_TRUE(catalog->airframes[0].cabins.empty());
+}
+
+TEST(AircraftFiles, RejectsCabinsOnAFreighter) {
+    const std::string error = parseError(replaced(kFreighter, "    holds:", "    cabins: { economy: 10 }\n    holds:"));
     EXPECT_NE(error.find("freighter"), std::string::npos) << error;
-    EXPECT_NE(error.find("cabins"), std::string::npos) << error;
-    EXPECT_EQ(error.rfind("catalog.yaml line ", 0), 0u) << error;
+    EXPECT_EQ(error.rfind("test.yaml line ", 0), 0u) << error;
 }
 
-TEST(Catalog, RejectsUnknownType) {
-    const std::string error = parseError(withAirframes(R"(  - name: Mystery
-    type: 747-400
-    holds:
-      - { hold: forward, max_lb: 1000, ratio: 1 }
-)"));
-    EXPECT_NE(error.find("unknown type"), std::string::npos) << error;
+TEST(AircraftFiles, RejectsLeaseNotMultipleOfFive) {
+    EXPECT_NE(parseError(replaced(kFreighter, "500000", "500001")).find("multiple of 5"), std::string::npos);
 }
 
-TEST(Catalog, RejectsLeaseNotMultipleOfFive) {
-    std::string yaml = withAirframes("  []\n");
-    yaml.replace(yaml.find("3000000"), 7, "3000001");
-    const std::string error = parseError(yaml);
-    EXPECT_NE(error.find("multiple of 5"), std::string::npos) << error;
+TEST(AircraftFiles, RejectsBadRoleAndDuplicateHold) {
+    EXPECT_NE(parseError(replaced(kFreighter, "role: freighter", "role: bomber")).find("role"), std::string::npos);
+    const std::string twice = replaced(kFreighter, "      - { hold: main_deck, share_lb: 180000, ratio: 40 }",
+                                       "      - { hold: forward, share_lb: 1000, ratio: 1 }\n"
+                                       "      - { hold: forward, share_lb: 1000, ratio: 1 }");
+    EXPECT_NE(parseError(twice).find("forward"), std::string::npos);
 }
 
-TEST(Catalog, RejectsBadRoleAndDuplicateHold) {
-    std::string yaml = withAirframes("  []\n");
-    yaml.replace(yaml.find("role: freighter"), 15, "role: bomber");
-    EXPECT_NE(parseError(yaml).find("role"), std::string::npos);
-
-    const std::string error = parseError(withAirframes(R"(  - name: Twice
-    type: 777F
-    holds:
-      - { hold: forward, max_lb: 1000, ratio: 1 }
-      - { hold: forward, max_lb: 1000, ratio: 1 }
-)"));
-    EXPECT_NE(error.find("forward"), std::string::npos) << error;
-}
-
-TEST(Catalog, AirframeLimitsAreRead) {
-    std::string error;
-    const auto catalog = loadCatalog(BLOCKTIME_SOURCE_DIR "/config/catalog.yaml", &error);
-    ASSERT_TRUE(catalog.has_value()) << error;
-    const AirplaneLimits& l = catalog->airframe("737-800 BBJ2 VIP")->limits;
-    EXPECT_EQ(l.minRunwayFt, 7000);
-    EXPECT_EQ(l.mlwLb, 146300);
-    EXPECT_EQ(l.passengerWeightLb, 190);
-    EXPECT_EQ(l.bagWeightLb, 55);
-    EXPECT_EQ(l.maxPayloadLb, 36113);
-}
-
-TEST(Catalog, TypesHaveSimFolders) {
-    std::string error;
-    const auto catalog = loadCatalog(BLOCKTIME_SOURCE_DIR "/config/catalog.yaml", &error);
-    ASSERT_TRUE(catalog.has_value()) << error;
-    EXPECT_EQ(catalog->type("737-800 BBJ2")->simFolder, "PMDG 737-800BBJ2");
-    EXPECT_EQ(catalog->type("737-800")->simFolder, "PMDG 737-800");
-    EXPECT_EQ(catalog->type("777-200ER")->simFolder, "PMDG 777-200ER");
-}
-
-TEST(Catalog, SimFolderIsRequired) {
-    const std::string line = "    sim_folder: PMDG 777F\n";
-    std::string yaml = kType;
-    yaml.replace(yaml.find(line), line.size(), "");
-    std::string error;
-    EXPECT_FALSE(parseCatalog(yaml + "airframes: []\n", &error).has_value());
-    EXPECT_NE(error.find("sim_folder"), std::string::npos) << error;
-}
-
-TEST(Catalog, ReadsWingspan) {
-    std::string error;
-    const auto catalog = loadCatalog(BLOCKTIME_SOURCE_DIR "/config/catalog.yaml", &error);
-    ASSERT_TRUE(catalog.has_value()) << error;
-    EXPECT_DOUBLE_EQ(catalog->type("737-800 BBJ2")->wingspanM, 35.8);
-    EXPECT_DOUBLE_EQ(catalog->type("777-300ER")->wingspanM, 64.8);
-    EXPECT_DOUBLE_EQ(catalog->type("737-600")->wingspanM, 34.3);
-}
-
-TEST(Catalog, WingspanIsRequired) {
-    const std::string line = "    wingspan_m: 64.8\n";
-    std::string yaml = kType;
-    yaml.replace(yaml.find(line), line.size(), "");
-    std::string error;
-    EXPECT_FALSE(parseCatalog(yaml + "airframes: []\n", &error).has_value());
-    EXPECT_NE(error.find("wingspan_m"), std::string::npos) << error;
+TEST(AircraftFiles, RequiresSimFolderBaseTypesAndFactory) {
+    EXPECT_NE(parseError(replaced(kFreighter, "sim_folder: PMDG 777F\n", "")).find("sim_folder"), std::string::npos);
+    EXPECT_NE(parseError(replaced(kFreighter, "simbrief_base_types: [B77L]\n", "")).find("simbrief_base_types"),
+              std::string::npos);
+    EXPECT_NE(parseError(replaced(kFreighter, "factory: KPAE\n", "")).find("factory"), std::string::npos);
 }

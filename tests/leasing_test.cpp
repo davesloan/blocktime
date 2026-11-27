@@ -31,6 +31,7 @@ ConfigAirplane airplane(const std::string& registration, Date leasedOn, const st
     a.leasedOn = leasedOn;
     a.locationIcao = "KBFI";
     a.awaitingDelivery = true;
+    a.limits = {7000, 146300, 190, 55, 36113};  // N814SX's SimBrief airframe
     return a;
 }
 
@@ -44,9 +45,8 @@ protected:
             " longest_runway_ft) VALUES"
             " ('KBFI', 'Boeing Field', 47.53, -122.30, 21, 'US', 'America/Los_Angeles', 10007),"
             " ('KSAN', 'San Diego', 32.73, -117.19, 17, 'US', 'America/Los_Angeles', 9401)"));
-        auto catalog = loadCatalog(BLOCKTIME_SOURCE_DIR "/config/catalog.yaml", &error);
-        ASSERT_TRUE(catalog.has_value()) << error;
-        catalog_ = *catalog;
+        catalog_ = loadCatalogDir(BLOCKTIME_SOURCE_DIR "/data/aircraft", nullptr);
+        ASSERT_EQ(catalog_.types.size(), 7u);
         config_.identity = {"BlockTime Air", "BTA", "BLOCKTIME"};
         config_.foundedOn = d(2026, 11, 22);
         config_.startingCashCents = 500'000'000;
@@ -201,7 +201,7 @@ TEST_F(Leasing, UnknownAirportOrAirframeIsANotice) {
     EXPECT_EQ(outcome.leased, 0);
     ASSERT_EQ(outcome.notices.size(), 2u);
     EXPECT_EQ(outcome.notices[0], "N738AA: KXXX isn't in the airport data. Run blocktime-import (README).");
-    EXPECT_EQ(outcome.notices[1], "N738BB: no airframe \"737-800 BBJ\" in catalog.yaml.");
+    EXPECT_EQ(outcome.notices[1], "N738BB: no layout \"737-800 BBJ\" in the aircraft files.");
 }
 
 TEST_F(Leasing, TypesRefreshFromCatalog) {
@@ -264,7 +264,7 @@ TEST_F(Leasing, TransactionThatCantStartWritesNothing) {
     EXPECT_EQ(count("SELECT COUNT(*) FROM ledger_line WHERE category = 'lease'"), 0);
 }
 
-TEST_F(Leasing, LeaseCopiesLimitsWithOverrides) {
+TEST_F(Leasing, LeaseCopiesTheAirplanesLimits) {
     config_.airplanes[0].limits.mlwLb = 140000;
     settle(d(2026, 11, 22));
     const auto id = count("SELECT airplane_id FROM airplane WHERE registration = 'N738BT'");
@@ -274,19 +274,6 @@ TEST_F(Leasing, LeaseCopiesLimitsWithOverrides) {
     EXPECT_EQ(limits->mlwLb, 140000);
     EXPECT_EQ(limits->passengerWeightLb, 190);
     EXPECT_EQ(limits->bagWeightLb, 55);
-    EXPECT_EQ(limits->maxPayloadLb, 36113);
-}
-
-TEST_F(Leasing, AirplaneLeasedBeforeLimitsGetsThem) {
-    settle(d(2026, 11, 22));
-    const auto id = count("SELECT airplane_id FROM airplane WHERE registration = 'N738BT'");
-    ASSERT_TRUE(db_.exec("DELETE FROM airplane_limits"));
-    ASSERT_FALSE(airplaneLimits(db_, id).has_value());
-    std::string error;
-    ASSERT_TRUE(fillMissingLimits(db_, catalog_, config_, &error)) << error;
-    const auto limits = airplaneLimits(db_, id);
-    ASSERT_TRUE(limits.has_value());
-    EXPECT_EQ(limits->mlwLb, 146300);
     EXPECT_EQ(limits->maxPayloadLb, 36113);
 }
 

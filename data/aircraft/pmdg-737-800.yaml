@@ -1,0 +1,29 @@
+# BlockTime supported aircraft (D-243): one type and its layouts. Shipped with the app in data/aircraft/.
+#
+# A layout's holds give each hold's share of SimBrief's Max Cargo Weight: an airplane's hold maximums are SimBrief's
+# total split in these proportions (D-242). ratio splits a flight's load between the holds (design.md §11).
+# Money in whole dollars (multiples of $5). simbrief_base_types are the airframe page's Base Type values.
+# Numbers marked "estimate" are placeholders until they're read from SimBrief or the PMDG load pages.
+
+code: 737-800
+family: "737"
+role: airliner
+turnaround_min: 35
+cruise_speed_kt: 450      # estimate
+lease_per_month: 235000
+sim_folder: PMDG 737-800
+wingspan_m: 35.8          # for the arrival gate's size (D-147)
+simbrief_base_types: [B738]   # estimate: confirm from a SimBrief screenshot
+factory: KBFI
+delivery_fee_per_nm: 8    # about 11 lb per nm at $0.70 per lb (D-246)
+layouts:
+  - name: 737-800 Two-class
+    cabins: { business: 16, economy: 144 }      # estimate
+    holds:
+      - { hold: forward, share_lb: 7500, ratio: 4 }   # estimate
+      - { hold: aft, share_lb: 9500, ratio: 5 }       # estimate
+  - name: 737-800 All-economy
+    cabins: { economy: 184 }                    # estimate
+    holds:
+      - { hold: forward, share_lb: 7500, ratio: 4 }   # estimate
+      - { hold: aft, share_lb: 9500, ratio: 5 }       # estimate

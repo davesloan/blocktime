@@ -145,7 +145,8 @@ std::optional<std::int64_t> insertAirplane(db::Database& db, const ConfigAirplan
             return std::nullopt;
         }
     }
-    if (!insertLimits(db, id, withOverrides(airframe.limits, a.limits), error)) return std::nullopt;
+    // Until leasing moves into the app (milestone 15b), a config airplane's limits are its own values only.
+    if (!insertLimits(db, id, withOverrides(AirplaneLimits{}, a.limits), error)) return std::nullopt;
     if (!postLeaseMonth(db, id, a.leasedOn, type.monthlyLeaseCents, error)) return std::nullopt;
     return id;
 }
@@ -280,7 +281,7 @@ LeaseOutcome settleLeases(db::Database& db, const Catalog& catalog, const Airlin
             const CatalogAirframe* airframe = catalog.airframe(a.airframe);
             const CatalogType* type = airframe ? catalog.type(airframe->typeCode) : nullptr;
             if (!airframe || !type) {
-                outcome.notices.push_back(std::format("{}: no airframe \"{}\" in catalog.yaml.", a.registration, a.airframe));
+                outcome.notices.push_back(std::format("{}: no layout \"{}\" in the aircraft files.", a.registration, a.airframe));
                 continue;
             }
             const auto airportId = idOf(db, "SELECT airport_id FROM airport WHERE icao_code = ?", a.locationIcao);
@@ -366,30 +367,8 @@ LeaseOutcome settleLeases(db::Database& db, const Catalog& catalog, const Airlin
     return outcome;
 }
 
-bool fillMissingLimits(db::Database& db, const Catalog& catalog, const AirlineConfig& config, std::string* error) {
-    struct Missing {
-        std::int64_t id;
-        std::string registration, airframe;
-    };
-    std::vector<Missing> missing;
-    {
-        db::Statement q(db, "SELECT airplane_id, registration, airframe_name FROM airplane"
-                            " WHERE airplane_id NOT IN (SELECT airplane_id FROM airplane_limits)");
-        while (q.next()) missing.push_back({q.integer(0), q.text(1), q.text(2)});
-    }
-    std::string message;
-    for (const Missing& m : missing) {
-        const CatalogAirframe* airframe = catalog.airframe(m.airframe);
-        if (!airframe) continue;  // happy path only (D-099)
-        LimitOverrides overrides;
-        for (const ConfigAirplane& a : config.airplanes) {
-            if (a.registration == m.registration) overrides = a.limits;
-        }
-        if (!insertLimits(db, m.id, withOverrides(airframe->limits, overrides), message)) {
-            if (error) *error = message;
-            return false;
-        }
-    }
+bool fillMissingLimits(db::Database&, const Catalog&, const AirlineConfig&, std::string*) {
+    // The catalog's default limits are gone (D-242); every airplane already has its own. Removed in milestone 15b.
     return true;
 }
 
