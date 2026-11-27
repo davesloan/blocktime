@@ -22,6 +22,16 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-27 — Milestone 15 closed (0.16.0)
+
+**Done:** Dave closed milestone 15 without a further review and asked for the push; `main` is on `origin` (D-121).
+Anything he finds goes to a new session. The roadmap to the MVP is complete.
+
+**Unverified:** everything in the entry below is checked on replays only; its "On your next flight you should see"
+list still applies.
+
+**Next step:** a new session for the brainstorm on what comes after the MVP (`roadmap.md`, "After the MVP").
+
 ## 2026-11-26 — Milestone 15 built: the predictions, the passenger header and `--dev` (version 0.16.0)
 
 **Done (D-192, D-210 to D-213; plan `docs/plans/2026-11-26-milestone-15-predictions.md`):**
