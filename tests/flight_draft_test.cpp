@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -127,4 +128,41 @@ TEST(Draft, HoldsSplitBagsAndCargo) {
     int total = 0;
     for (const HoldLoad& h : d.holds()) total += h.weightLb;
     EXPECT_EQ(total, bagsLb(d.loads().cabins, d.airplane().limits) + d.loads().cargoLb);
+}
+
+// Review 4.3: New Flight's preview is what the planned flight shows once it's created, for every kind the test
+// airplanes fly. (No freighter in the test airline, so no cargo flight.)
+TEST(Draft, PreviewMatchesThePlannedFlight) {
+    db::Database db = test::testAirline();
+    const auto same = [&](FlightDraft& d) {
+        d.setDestination(checkDestination(db, d.airplane(), "KSAN"));
+        d.setFlightNumber("101");
+        const auto draft = d.preview();
+        ASSERT_TRUE(draft.has_value());
+        std::string error;
+        ASSERT_TRUE(createPlannedFlight(db, d.toNew("2026-11-23T14:00:00Z", {}), &error).has_value()) << error;
+        const Preview planned = pricePreview(priceInput(*currentPlannedFlight(db)), Rates{});
+        const auto flat = [](const Preview& p) {
+            std::vector<std::string> out;
+            for (const auto* lines : {&p.income, &p.costs}) {
+                for (const MoneyLine& m : *lines) out.push_back(m.category + " " + m.label + " " + std::to_string(m.cents));
+            }
+            return out;
+        };
+        EXPECT_EQ(flat(*draft), flat(planned)) << "kind " << static_cast<int>(d.kind());
+        EXPECT_EQ(draft->totalCents, planned.totalCents);
+        EXPECT_EQ(draft->fuelIncluded, planned.fuelIncluded);
+        ASSERT_TRUE(cancelPlannedFlight(db, &error)) << error;
+    };
+    Rolls rolls;
+    FlightDraft airliner = draftFor(db, "N738BT", rolls);  // passengers with belly cargo
+    same(airliner);
+    FlightDraft delivery = draftFor(db, "N814SX", rolls);
+    same(delivery);
+    ASSERT_TRUE(db.exec("UPDATE airplane SET awaiting_delivery = 0 WHERE registration = 'N814SX'"));
+    for (FlightKind kind : {FlightKind::Vip, FlightKind::Charter}) {
+        FlightDraft d = draftFor(db, "N814SX", rolls);
+        d.setKind(kind);
+        same(d);
+    }
 }

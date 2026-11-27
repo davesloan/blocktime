@@ -188,20 +188,26 @@ TEST(Planned, SurvivesReopening) {
 
 TEST(Planned, PriceInputUsesThePlanOnceImported) {
     db::Database db = test::testAirline();
+    ASSERT_TRUE(db.exec("UPDATE airplane SET fuel_on_board_lb = 3300 WHERE registration = 'N814SX'"));
     std::string error;
     const auto id = createPlannedFlight(db, vipToKsan(db), &error);
     ASSERT_TRUE(id.has_value()) << error;
     PriceInput in = priceInput(*currentPlannedFlight(db));
-    EXPECT_NEAR(in.blockHours, 2.54, 0.01);
-    EXPECT_FALSE(in.fuelBurnLb.has_value());
+    EXPECT_NEAR(blockHoursFor(in), 2.54, 0.01);
+    EXPECT_FALSE(in.planBlockS.has_value());
+    EXPECT_FALSE(in.planRampFuelLb.has_value());
+    EXPECT_EQ(in.fuelOnRecordLb, 3300);
     EXPECT_EQ(in.mlwLb, 146300);
     EXPECT_EQ(in.role, "executive");
     EXPECT_EQ(in.kind, FlightKind::Vip);
 
-    ASSERT_TRUE(storeSimbriefPlan(db, *id, fixturePlan(), fixture("ofp_v2_min.json"), "2026-11-23T14:05:00Z", &error));
+    const SimbriefPlan plan = fixturePlan();
+    ASSERT_TRUE(storeSimbriefPlan(db, *id, plan, fixture("ofp_v2_min.json"), "2026-11-23T14:05:00Z", &error));
     in = priceInput(*currentPlannedFlight(db));
-    EXPECT_NEAR(in.blockHours, 2.5167, 0.0001);
-    EXPECT_EQ(in.fuelBurnLb, 10900);
+    EXPECT_NEAR(blockHoursFor(in), 2.5167, 0.0001);
+    EXPECT_EQ(in.planBlockS, plan.estBlockS);
+    EXPECT_EQ(in.planRampFuelLb, plan.rampFuelLb);
+    EXPECT_EQ(in.fuelOnRecordLb, 3300);
 }
 
 TEST(Planned, NearMlw) {
@@ -367,6 +373,15 @@ TEST(Planned, ViewCarriesTaxiTimes) {
     EXPECT_EQ(f->taxiInS, 1200);  // no flights into KSAN yet: the plan's
     EXPECT_EQ(f->planFixes.size(), 17u);
     EXPECT_EQ(f->route.size(), 19u);  // the origin, the fixes, the destination
+}
+
+// Review Focus 5: a replay's estimate uses the fuel on record when that flight was flown, not today's.
+TEST(Planned, FlownViewUsesTheFlightsFuelOnRecord) {
+    db::Database db = test::testAirline();
+    flownTo(db, "flown", "KBFI", "2026-11-20T12:00:00Z", "");
+    ASSERT_TRUE(db.exec("UPDATE flight SET fuel_on_record_lb = 2100 WHERE log_flight_id = 'flown'"));
+    ASSERT_TRUE(db.exec("UPDATE airplane SET fuel_on_board_lb = 7777 WHERE registration = 'N814SX'"));
+    EXPECT_EQ(flownFlightView(db, "flown")->fuelOnRecordLb, 2100);
 }
 
 // A replay doesn't feed on its own taxi time (Review Focus 4).

@@ -85,6 +85,9 @@ struct PlannedFlightView {
     int cargoLb = 0;
     double distanceNm = 0;
     Cents fuelPriceCentsPer100Lb = 0;
+    // The fuel BlockTime had on record for the airplane: today's for a planned flight, the one at block out for a
+    // settled flight (its replay).
+    int fuelOnRecordLb = 0;
     std::string plannedAt, originRunway, destinationRunway;  // runways "" = none from the ATIS
     // Where the airplane last parked ("Gate E7"), if its latest flight ended at this origin; "" otherwise (D-148).
     std::string loadInParking;
@@ -110,7 +113,8 @@ bool cancelPlannedFlight(db::Database& db, std::string* error);  // deletes it w
 bool storeSimbriefPlan(db::Database& db, std::int64_t plannedFlightId, const SimbriefPlan& plan,
                        std::string_view ofpJson, std::string_view importedAt, std::string* error);
 
-// The money inputs: SimBrief's block time and en-route burn once a plan is in, else the estimate and no fuel (D-104).
+// The money inputs: SimBrief's block time and the fuel to add once a plan is in (D-223), else the estimate and no
+// fuel (D-104). New Flight's draft fills the same fields; a test checks they agree (review 4.3).
 PriceInput priceInput(const PlannedFlightView& flight);
 
 // What the recorder checks a brake release against (D-088): the type's sim folder, the origin's position and the

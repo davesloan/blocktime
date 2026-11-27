@@ -155,7 +155,7 @@ std::optional<SettledFlight> settleFlight(db::Database& db, const PlannedFlightV
 
     PriceInput in = priceInput(planned);
     in.actualBlockHours = static_cast<double>(flown.blockS) / 3600.0;
-    in.fuelBurnLb = std::max(0, flown.fuelOutLb - fuelOnRecord);  // fuel added, not burned (design.md §11)
+    in.fuelAddedLb = std::max(0, flown.fuelOutLb - fuelOnRecord);  // fuel added, not burned (design.md §11)
     SettledFlight settled;
     settled.logFlightId = flown.logFlightId;
     settled.arrivalIcao = arrival->icao;

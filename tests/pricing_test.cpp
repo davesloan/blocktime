@@ -14,7 +14,7 @@ using namespace blocktime;
 
 namespace {
 
-// 900 nm, 2.5 h, BBJ2 MLW, no fuel: the base of every test (design.md §10-12).
+// 900 nm at 450 kt (2.5 h), BBJ2 MLW, no plan so no fuel: the base of every test (design.md §10-12).
 PriceInput vip() {
     PriceInput in;
     in.kind = FlightKind::Vip;
@@ -23,7 +23,7 @@ PriceInput vip() {
     in.seatsInstalled = 48;
     in.cabins = {{"economy", 46}};
     in.distanceNm = 900;
-    in.blockHours = 2.5;
+    in.cruiseSpeedKt = 450;
     in.mlwLb = 146300;
     in.fuelPriceCentsPer100Lb = 4100;
     return in;
@@ -63,7 +63,7 @@ TEST(Pricing, CharterFlight) {
 TEST(Pricing, CharterTwoHourMinimum) {
     PriceInput in = vip();
     in.kind = FlightKind::Charter;
-    in.blockHours = 1.5;
+    in.planBlockS = 5400;
     EXPECT_EQ(lines(pricePreview(in, Rates{}).income), (Lines{"Charter 15000"}));
 }
 
@@ -92,9 +92,9 @@ TEST(Pricing, DeliveryIsALoss) {
     EXPECT_EQ(p.totalCents, -356'000);
 }
 
-TEST(Pricing, FuelLineWhenBurnKnown) {
+TEST(Pricing, FuelLineWhenFuelAddedKnown) {
     PriceInput in = vip();
-    in.fuelBurnLb = 6000;
+    in.fuelAddedLb = 6000;
     const Preview p = pricePreview(in, Rates{});
     ASSERT_FALSE(p.costs.empty());
     EXPECT_EQ(lines(p.costs)[0], "Fuel -2460");
@@ -122,7 +122,7 @@ TEST(Pricing, CateringBands) {
     in.role = "airliner";
     in.kind = FlightKind::Passenger;
     const auto catering = [&](double hours) {
-        in.blockHours = hours;
+        in.planBlockS = static_cast<int>(hours * 3600);
         for (const MoneyLine& m : pricePreview(in, Rates{}).costs) {
             if (m.label == "Catering") return m.cents / 100;
         }
@@ -152,7 +152,7 @@ TEST(Pricing, ActualBlockHoursOnlyChangeCrewAndMaintenance) {
     in.role = "airliner";
     in.seatsInstalled = 160;
     in.cabins = {{"economy", 140}};
-    in.blockHours = 2.0;
+    in.planBlockS = 7200;
     const Preview planned = pricePreview(in, Rates{});
     in.actualBlockHours = 3.5;
     const Preview actual = pricePreview(in, Rates{});
@@ -164,7 +164,7 @@ TEST(Pricing, ActualBlockHoursOnlyChangeCrewAndMaintenance) {
 
 TEST(Pricing, ActualBlockHoursChangeThePilotCount) {
     PriceInput in = vip();
-    in.blockHours = 7.5;
+    in.planBlockS = 27000;
     in.actualBlockHours = 8.5;  // three pilots, at the VIP rate
     for (const MoneyLine& m : pricePreview(in, Rates{}).costs) {
         if (m.label == "Pilots") EXPECT_EQ(m.cents, -3 * 25000 * 85 / 10);
@@ -173,7 +173,7 @@ TEST(Pricing, ActualBlockHoursChangeThePilotCount) {
 
 TEST(Pricing, LinesCarryTheirCategory) {
     PriceInput in = vip();
-    in.fuelBurnLb = 6000;
+    in.fuelAddedLb = 6000;
     const Preview p = pricePreview(in, Rates{});
     std::vector<std::string> codes;
     for (const MoneyLine& m : p.income) codes.push_back(m.category);
@@ -201,7 +201,7 @@ TEST(Pricing, EveryKindsCategories) {
 
 TEST(Pricing, RatesAreUsed) {
     PriceInput in = vip();
-    in.fuelBurnLb = 6000;
+    in.fuelAddedLb = 6000;
     Rates rates;
     rates.fuelPer100Lb = 8200;
     in.fuelPriceCentsPer100Lb = rates.fuelPer100Lb;  // the planned flight's locked price is what's charged
@@ -211,6 +211,53 @@ TEST(Pricing, RatesAreUsed) {
 }
 
 TEST(Pricing, EstimatedBlockHours) { EXPECT_DOUBLE_EQ(estimatedBlockHours(900, 450), 2.5); }
+
+// D-223: once a plan is in, the fuel line is the plan's ramp fuel less the fuel on record.
+TEST(Pricing, FuelIsTheFuelToAdd) {
+    PriceInput in = vip();
+    in.planBlockS = 9000;
+    in.planRampFuelLb = 9200;
+    in.fuelOnRecordLb = 3300;
+    const Preview p = pricePreview(in, Rates{});
+    ASSERT_FALSE(p.costs.empty());
+    EXPECT_EQ(lines(p.costs)[0], "Fuel -2420");  // 5,900 lb × $0.41 = $2,419
+    EXPECT_TRUE(p.fuelIncluded);
+}
+
+// Review Focus 1: the airplane already holds the plan's fuel. Nothing to buy, but the fuel is known.
+TEST(Pricing, NoFuelToAddLeavesTheLineOut) {
+    PriceInput in = vip();
+    in.planBlockS = 9000;
+    in.planRampFuelLb = 3000;
+    in.fuelOnRecordLb = 3300;
+    const Preview p = pricePreview(in, Rates{});
+    for (const MoneyLine& m : p.costs) EXPECT_NE(m.category, "fuel");
+    EXPECT_TRUE(p.fuelIncluded);
+}
+
+// Settlement charges the fuel really added (D-109), whatever the plan said.
+TEST(Pricing, FuelAddedReplacesThePlan) {
+    PriceInput in = vip();
+    in.planBlockS = 9000;
+    in.planRampFuelLb = 9200;
+    in.fuelOnRecordLb = 3300;
+    in.fuelAddedLb = 6000;
+    EXPECT_EQ(lines(pricePreview(in, Rates{}).costs)[0], "Fuel -2460");
+}
+
+TEST(Pricing, EstimateWithoutAPlan) {
+    const PriceInput in = vip();
+    EXPECT_DOUBLE_EQ(blockHoursFor(in), 2.5);
+    const Preview p = pricePreview(in, Rates{});
+    for (const MoneyLine& m : p.costs) EXPECT_NE(m.category, "fuel");
+    EXPECT_FALSE(p.fuelIncluded);
+}
+
+TEST(Pricing, PlanBlockTimeReplacesTheEstimate) {
+    PriceInput in = vip();
+    in.planBlockS = 9060;
+    EXPECT_DOUBLE_EQ(blockHoursFor(in), 9060 / 3600.0);
+}
 
 // SOULS on the in-flight panel (D-203): the crew BlockTime pays for (design.md section 10).
 TEST(Pricing, CrewFor) {

@@ -26,12 +26,19 @@ struct PriceInput {
     std::vector<CabinLoad> cabins;
     int cargoLb = 0;
     double distanceNm = 0;  // great-circle (design.md §15)
-    double blockHours = 0;  // the estimate, or the plan's block time
-    // A settled flight's real block time (D-109): replaces blockHours for pilots (and their count), flight
+    // The block time is the plan's once one is in, else the estimate from the distance and cruise speed (D-104).
+    int cruiseSpeedKt = 0;
+    std::optional<int> planBlockS;
+    // A settled flight's real block time (D-109): replaces the block time for pilots (and their count), flight
     // attendants and maintenance only. Fares, catering and the rest stay as previewed.
     std::optional<double> actualBlockHours;
     int mlwLb = 0;
-    std::optional<int> fuelBurnLb;  // unknown before a plan: the preview says "+ fuel"
+    // The fuel charged. Before a plan it's unknown and the preview says "+ fuel". With a plan it's the fuel to add:
+    // the plan's ramp fuel less the fuel on record, never below 0 (D-223). A settled flight charges the fuel really
+    // added (D-109), which replaces the plan's.
+    std::optional<int> planRampFuelLb;
+    int fuelOnRecordLb = 0;
+    std::optional<int> fuelAddedLb;
     Cents fuelPriceCentsPer100Lb = 0;
 };
 
@@ -56,5 +63,6 @@ int flightAttendantsFor(int seatsInstalled);  // FAA minimum: 1 per 50 seats or 
 // or a delivery flies the pilots only.
 int crewFor(std::string_view role, bool delivery, int seatsInstalled, double blockHours, int vipAttendantsTimes);
 double estimatedBlockHours(double distanceNm, int cruiseSpeedKt);  // before a plan: distance / speed + 30 min
+double blockHoursFor(const PriceInput& in);  // the plan's block time, else the estimate
 
 }  // namespace blocktime

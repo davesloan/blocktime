@@ -36,12 +36,16 @@ double estimatedBlockHours(double distanceNm, int cruiseSpeedKt) {
     return distanceNm / cruiseSpeedKt + kTaxiAndClimbHours;
 }
 
+double blockHoursFor(const PriceInput& in) {
+    return in.planBlockS ? *in.planBlockS / 3600.0 : estimatedBlockHours(in.distanceNm, in.cruiseSpeedKt);
+}
+
 Preview pricePreview(const PriceInput& in, const Rates& r) {
     Preview p;
     const FamilyRates& f = in.family == "777" ? r.widebody : r.narrowbody;
     const bool vip = in.role == "executive";
     const bool delivery = in.kind == FlightKind::Delivery;
-    const double h = in.blockHours;
+    const double h = blockHoursFor(in);
     const double crewH = in.actualBlockHours.value_or(h);  // D-109
     int people = 0;
     for (const CabinLoad& c : in.cabins) people += c.passengers;
@@ -65,9 +69,11 @@ Preview pricePreview(const PriceInput& in, const Rates& r) {
     }
 
     // Costs.
-    if (in.fuelBurnLb) {
+    std::optional<int> fuelLb = in.fuelAddedLb;
+    if (!fuelLb && in.planRampFuelLb) fuelLb = std::max(0, *in.planRampFuelLb - in.fuelOnRecordLb);  // D-223
+    if (fuelLb) {
         add(p.costs, "fuel", "Fuel",
-            -static_cast<double>(*in.fuelBurnLb) / 100.0 * static_cast<double>(in.fuelPriceCentsPer100Lb) / 100.0);
+            -static_cast<double>(*fuelLb) / 100.0 * static_cast<double>(in.fuelPriceCentsPer100Lb) / 100.0);
         p.fuelIncluded = true;
     }
     add(p.costs, "landing_fee", "Landing fee", -r.landingPer1000LbMlw * in.mlwLb / 1000.0);

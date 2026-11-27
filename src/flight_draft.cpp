@@ -50,7 +50,7 @@ std::optional<Preview> FlightDraft::preview() const {
     in.cabins = l.cabins;
     in.cargoLb = l.cargoLb;
     in.distanceNm = destination_.distanceNm;
-    in.blockHours = estimatedBlockHours(destination_.distanceNm, airplane_.cruiseSpeedKt);
+    in.cruiseSpeedKt = airplane_.cruiseSpeedKt;  // no plan yet: the estimate, no fuel
     in.mlwLb = airplane_.limits.mlwLb;
     in.fuelPriceCentsPer100Lb = rates_.fuelPer100Lb;
     return pricePreview(in, rates_);

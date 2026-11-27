@@ -193,12 +193,13 @@ struct ViewTables {
     const char* cabins;       // "planned_flight_cabin" or "flight_cabin"
     const char* plan;         // "simbrief_plan" or "flight_plan"
     const char* parking;      // the start's spot: "NULL" for a planned flight, origin_parking for a flown one
+    const char* fuelOnRecord;  // the airplane's fuel now, or the flight's at block out
 };
 
 constexpr ViewTables kPlannedTables{"planned_flight", "planned_flight_id", "destination_airport_id",
-                                    "planned_flight_cabin", "simbrief_plan", "NULL"};
+                                    "planned_flight_cabin", "simbrief_plan", "NULL", "a.fuel_on_board_lb"};
 constexpr ViewTables kFlownTables{"flight", "flight_id", "planned_destination_airport_id", "flight_cabin",
-                                  "flight_plan", "f.origin_parking"};
+                                  "flight_plan", "f.origin_parking", "f.fuel_on_record_lb"};
 
 // The first row of `t.flight` matching `where` (bound to `whereValue` if not empty), as a view.
 std::optional<PlannedFlightView> readFlightView(db::Database& db, const ViewTables& t, const std::string& where,
@@ -209,7 +210,7 @@ std::optional<PlannedFlightView> readFlightView(db::Database& db, const ViewTabl
                     " f.cargo_lb, f.fuel_price_cents_per_100lb, f.planned_at, COALESCE(f.origin_runway, ''),"
                     " COALESCE(f.destination_runway, ''), o.latitude, o.longitude, d.latitude, d.longitude,"
                     " a.airplane_id, COALESCE(" + t.parking + ", ''), IIF(o.city = '', o.name, o.city),"
-                    " IIF(d.city = '', d.name, d.city)"
+                    " IIF(d.city = '', d.name, d.city), " + t.fuelOnRecord +
                     " FROM " + t.flight + " f JOIN airplane a USING (airplane_id)"
                     " JOIN aircraft_type t USING (aircraft_type_id)"
                     " JOIN airport o ON o.airport_id = f.origin_airport_id"
@@ -240,6 +241,7 @@ std::optional<PlannedFlightView> readFlightView(db::Database& db, const ViewTabl
     v.loadInParking = q.text(23);
     v.originCity = q.text(24);
     v.destinationCity = q.text(25);
+    v.fuelOnRecordLb = static_cast<int>(q.integer(26));
     const std::int64_t airplaneId = q.integer(22);
     for (const Cabin& c : cabinsOf(db, airplaneId)) v.seatsInstalled += c.seats;
     v.limits = airplaneLimits(db, airplaneId).value_or(AirplaneLimits{});
@@ -395,11 +397,11 @@ PriceInput priceInput(const PlannedFlightView& f) {
     in.distanceNm = f.distanceNm;
     in.mlwLb = f.limits.mlwLb;
     in.fuelPriceCentsPer100Lb = f.fuelPriceCentsPer100Lb;
+    in.cruiseSpeedKt = f.cruiseSpeedKt;
+    in.fuelOnRecordLb = f.fuelOnRecordLb;
     if (f.plan) {
-        in.blockHours = f.plan->estBlockS / 3600.0;
-        in.fuelBurnLb = f.plan->enrouteBurnLb;
-    } else {
-        in.blockHours = estimatedBlockHours(f.distanceNm, f.cruiseSpeedKt);
+        in.planBlockS = f.plan->estBlockS;
+        in.planRampFuelLb = f.plan->rampFuelLb;
     }
     return in;
 }
