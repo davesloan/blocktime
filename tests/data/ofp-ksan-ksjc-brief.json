@@ -42,6 +42,9 @@
     "plan_rwy": "30L"
   },
   "times": {
-    "endurance": "02:41:00"
+    "endurance": "02:41:00",
+    "taxi_out": "00:20:00",
+    "taxi_in": "00:20:00",
+    "est_time_enroute": "01:04:36"
   }
-}
+}

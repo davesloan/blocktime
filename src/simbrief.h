@@ -40,6 +40,22 @@ struct RoutePoint {
     double lat = 0, lon = 0;
 };
 
+// A navlog fix with the plan's times, fuel and speed there, for the predictions (D-192, D-212).
+struct PlanFix {
+    RoutePoint at;
+    std::string ident;  // "TOC", "TOD", "KSJC"
+    int elapsedS = -1;  // time_total: from takeoff; -1 = missing
+    int fuelLb = -1;    // fuel_plan_onboard; -1 = missing
+    int iasKt = 0;      // ind_airspeed; 0 = missing
+    std::string stage;  // "CLB", "CRZ", "DSC"
+};
+
+// The navlog's fixes with their plan values: the same fixes, in the same order, as parseNavlog.
+std::vector<PlanFix> parsePlanFixes(std::string_view ofpJson);
+
+// An OFP duration: seconds ("9660") or "02:41:00", as Dave's stored OFPs have it; nullopt when it can't be read.
+std::optional<int> ofpSeconds(std::string_view s);
+
 // The fixes of a plan's navlog, in order (D-182). Dave's stored plans have `navlog` as an array of fixes; `{"fix":
 // [...]}` is read too. Fixes whose position doesn't parse are skipped; no navlog or bad JSON gives none.
 std::vector<RoutePoint> parseNavlog(std::string_view ofpJson);

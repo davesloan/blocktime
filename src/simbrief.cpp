@@ -90,9 +90,23 @@ std::string ofpFetchUrl(std::string_view userId) {
     return "https://www.simbrief.com/api/xml.fetcher.php?userid=" + percentEncode(userId) + "&json=v2&client=BlockTime";
 }
 
-std::vector<RoutePoint> parseNavlog(std::string_view ofpJson) {
+std::optional<int> ofpSeconds(std::string_view s) {
+    if (s.find(':') == std::string_view::npos) return number(s);
+    int total = 0;
+    std::size_t start = 0;
+    while (true) {
+        const std::size_t colon = s.find(':', start);
+        const auto part = number(s.substr(start, colon == std::string_view::npos ? std::string_view::npos : colon - start));
+        if (!part) return std::nullopt;
+        total = total * 60 + *part;
+        if (colon == std::string_view::npos) return total;
+        start = colon + 1;
+    }
+}
+
+std::vector<PlanFix> parsePlanFixes(std::string_view ofpJson) {
     const json root = json::parse(ofpJson, nullptr, false);
-    std::vector<RoutePoint> out;
+    std::vector<PlanFix> out;
     if (!root.is_object()) return out;
     const auto nav = root.find("navlog");
     if (nav == root.end()) return out;
@@ -103,11 +117,33 @@ std::vector<RoutePoint> parseNavlog(std::string_view ofpJson) {
         fixes = &*f;
     }
     if (!fixes->is_array()) return out;
+    // A fix's value as text: OFP values are strings, but a number is accepted too.
+    const auto field = [](const json& fix, const char* key) -> std::string {
+        const auto f = fix.find(key);
+        if (f == fix.end()) return {};
+        if (f->is_string()) return f->get<std::string>();
+        if (f->is_number_integer()) return std::to_string(f->get<long long>());
+        return {};
+    };
     for (const json& fix : *fixes) {
         if (!fix.is_object()) continue;
         const auto lat = degrees(fix, "pos_lat"), lon = degrees(fix, "pos_long");
-        if (lat && lon) out.push_back({*lat, *lon});
+        if (!lat || !lon) continue;
+        PlanFix p;
+        p.at = {*lat, *lon};
+        p.ident = field(fix, "ident");
+        p.stage = field(fix, "stage");
+        p.elapsedS = ofpSeconds(field(fix, "time_total")).value_or(-1);
+        p.fuelLb = number(field(fix, "fuel_plan_onboard")).value_or(-1);
+        p.iasKt = number(field(fix, "ind_airspeed")).value_or(0);
+        out.push_back(std::move(p));
     }
+    return out;
+}
+
+std::vector<RoutePoint> parseNavlog(std::string_view ofpJson) {
+    std::vector<RoutePoint> out;
+    for (const PlanFix& f : parsePlanFixes(ofpJson)) out.push_back(f.at);
     return out;
 }
 

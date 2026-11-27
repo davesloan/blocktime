@@ -31,6 +31,8 @@ struct PlanBrief {
     int reserveLb = 0;               // fuel.reserve: the fuel gauge's red arc
     int rampLb = 0, taxiLb = 0;      // fuel.plan_ramp, fuel.taxi: the takeoff fuel ENDURANCE is for
     int enduranceS = 0;              // times.endurance: seconds, or "HH:MM:SS" as Dave's stored OFPs have it
+    // times.taxi_out, taxi_in, est_time_enroute: the predictions' fallback taxi times and the plan's enroute time
+    int taxiOutS = 0, taxiInS = 0, enrouteS = 0;
 };
 
 // Missing fields stay empty or 0; anything that isn't JSON gives an empty brief.

@@ -10,103 +10,154 @@
       "ident": "WNFLD",
       "pos_lat": "32.798008",
       "pos_long": "-117.315969",
-      "stage": "CLB"
+      "stage": "CLB",
+      "time_total": "00:03:06",
+      "fuel_plan_onboard": "12084",
+      "ind_airspeed": "250"
     },
     {
       "ident": "KERNL",
       "pos_lat": "32.929667",
       "pos_long": "-117.520306",
-      "stage": "CLB"
+      "stage": "CLB",
+      "time_total": "00:05:27",
+      "fuel_plan_onboard": "11524",
+      "ind_airspeed": "280"
     },
     {
       "ident": "GYWNN",
       "pos_lat": "33.063456",
       "pos_long": "-117.729231",
-      "stage": "CLB"
+      "stage": "CLB",
+      "time_total": "00:07:27",
+      "fuel_plan_onboard": "11108",
+      "ind_airspeed": "280"
     },
     {
       "ident": "PADRZ",
       "pos_lat": "33.193889",
       "pos_long": "-117.861944",
-      "stage": "CLB"
+      "stage": "CLB",
+      "time_total": "00:08:47",
+      "fuel_plan_onboard": "10868",
+      "ind_airspeed": "280"
     },
     {
       "ident": "IKAYE",
       "pos_lat": "34.143056",
       "pos_long": "-119.010278",
-      "stage": "CLB"
+      "stage": "CLB",
+      "time_total": "00:18:47",
+      "fuel_plan_onboard": "9460",
+      "ind_airspeed": "237"
     },
     {
       "ident": "TOC",
       "pos_lat": "34.190529",
       "pos_long": "-119.066769",
-      "stage": "CLB"
+      "stage": "CLB",
+      "time_total": "00:19:12",
+      "fuel_plan_onboard": "9401",
+      "ind_airspeed": "235"
     },
     {
       "ident": "TESEA",
       "pos_lat": "35.171919",
       "pos_long": "-120.256353",
-      "stage": "CRZ"
+      "stage": "CRZ",
+      "time_total": "00:31:42",
+      "fuel_plan_onboard": "8439",
+      "ind_airspeed": "240"
     },
     {
       "ident": "SCTRR",
       "pos_lat": "35.526608",
       "pos_long": "-120.581858",
-      "stage": "CRZ"
+      "stage": "CRZ",
+      "time_total": "00:35:54",
+      "fuel_plan_onboard": "8117",
+      "ind_airspeed": "240"
     },
     {
       "ident": "TOD",
       "pos_lat": "35.863519",
       "pos_long": "-120.846736",
-      "stage": "CRZ"
+      "stage": "CRZ",
+      "time_total": "00:39:38",
+      "fuel_plan_onboard": "7827",
+      "ind_airspeed": "240"
     },
     {
       "ident": "TROXX",
       "pos_lat": "36.008081",
       "pos_long": "-120.961222",
-      "stage": "DSC"
+      "stage": "DSC",
+      "time_total": "00:41:43",
+      "fuel_plan_onboard": "7771",
+      "ind_airspeed": "257"
     },
     {
       "ident": "SILCN",
       "pos_lat": "36.353644",
       "pos_long": "-121.290786",
-      "stage": "DSC"
+      "stage": "DSC",
+      "time_total": "00:47:09",
+      "fuel_plan_onboard": "7625",
+      "ind_airspeed": "280"
     },
     {
       "ident": "VLLEY",
       "pos_lat": "36.498853",
       "pos_long": "-121.430831",
-      "stage": "DSC"
+      "stage": "DSC",
+      "time_total": "00:49:27",
+      "fuel_plan_onboard": "7563",
+      "ind_airspeed": "280"
     },
     {
       "ident": "GUUYY",
       "pos_lat": "36.737000",
       "pos_long": "-121.531403",
-      "stage": "DSC"
+      "stage": "DSC",
+      "time_total": "00:52:35",
+      "fuel_plan_onboard": "7479",
+      "ind_airspeed": "280"
     },
     {
       "ident": "WLSSN",
       "pos_lat": "36.925028",
       "pos_long": "-121.611369",
-      "stage": "DSC"
+      "stage": "DSC",
+      "time_total": "00:55:05",
+      "fuel_plan_onboard": "7412",
+      "ind_airspeed": "280"
     },
     {
       "ident": "GSTEE",
       "pos_lat": "37.062486",
       "pos_long": "-121.669731",
-      "stage": "DSC"
+      "stage": "DSC",
+      "time_total": "00:56:58",
+      "fuel_plan_onboard": "7362",
+      "ind_airspeed": "250"
     },
     {
       "ident": "KLIDE",
       "pos_lat": "37.164175",
       "pos_long": "-121.713050",
-      "stage": "DSC"
+      "stage": "DSC",
+      "time_total": "00:58:13",
+      "fuel_plan_onboard": "7328",
+      "ind_airspeed": "250"
     },
     {
       "ident": "KSJC",
       "pos_lat": "37.362994",
       "pos_long": "-121.928619",
-      "stage": "DSC"
+      "stage": "DSC",
+      "time_total": "01:04:36",
+      "fuel_plan_onboard": "7040",
+      "ind_airspeed": "250"
     }
   ],
   "origin": {

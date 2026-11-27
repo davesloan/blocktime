@@ -181,3 +181,44 @@ TEST(Simbrief, NavlogMissingIsEmpty) {
     EXPECT_TRUE(parseNavlog("not json").empty());
     EXPECT_TRUE(parseNavlog(R"({"navlog":[{"pos_lat":"x","pos_long":"2"}]})").empty());
 }
+
+// The predictions' plan (D-192, D-212): each fix's elapsed time, fuel and speed, from Dave's stored KSAN → KSJC OFP.
+TEST(Simbrief, PlanFixesFromNavlog) {
+    const std::vector<PlanFix> fixes = parsePlanFixes(fixture("ofp-ksan-ksjc-navlog.json"));
+    ASSERT_EQ(fixes.size(), 17u);
+    EXPECT_EQ(fixes[5].ident, "TOC");
+    EXPECT_EQ(fixes[5].elapsedS, 19 * 60 + 12);
+    EXPECT_EQ(fixes[5].fuelLb, 9401);
+    EXPECT_EQ(fixes[5].iasKt, 235);
+    EXPECT_EQ(fixes[5].stage, "CLB");
+    EXPECT_EQ(fixes[8].ident, "TOD");
+    EXPECT_EQ(fixes[8].elapsedS, 39 * 60 + 38);
+    EXPECT_EQ(fixes.back().ident, "KSJC");
+    EXPECT_EQ(fixes.back().elapsedS, 3600 + 4 * 60 + 36);  // times.est_time_enroute
+    EXPECT_EQ(fixes.back().fuelLb, 7040);
+}
+
+TEST(Simbrief, PlanFixesMatchNavlog) {
+    const std::string ofp = fixture("ofp-ksan-ksjc-navlog.json");
+    const std::vector<PlanFix> fixes = parsePlanFixes(ofp);
+    const std::vector<RoutePoint> route = parseNavlog(ofp);
+    ASSERT_EQ(fixes.size(), route.size());
+    for (std::size_t i = 0; i < route.size(); ++i) {
+        EXPECT_DOUBLE_EQ(fixes[i].at.lat, route[i].lat);
+        EXPECT_DOUBLE_EQ(fixes[i].at.lon, route[i].lon);
+    }
+}
+
+TEST(Simbrief, PlanFixesWithoutTimes) {
+    const auto fixes = parsePlanFixes(
+        R"({"navlog":[{"ident":"A","pos_lat":"1","pos_long":"2"},)"
+        R"({"ident":"B","pos_lat":"1","pos_long":"3","time_total":"00:22:00","fuel_plan_onboard":"9000"},)"
+        R"({"ident":"C","pos_lat":"1","pos_long":"4","time_total":"1320"}]})");
+    ASSERT_EQ(fixes.size(), 3u);
+    EXPECT_EQ(fixes[0].elapsedS, -1);
+    EXPECT_EQ(fixes[0].fuelLb, -1);
+    EXPECT_EQ(fixes[0].iasKt, 0);
+    EXPECT_EQ(fixes[1].elapsedS, 1320);
+    EXPECT_EQ(fixes[1].fuelLb, 9000);
+    EXPECT_EQ(fixes[2].elapsedS, 1320);
+}

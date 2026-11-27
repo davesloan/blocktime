@@ -145,3 +145,11 @@ TEST(PlanBrief, FuelRemaining) {
     EXPECT_FALSE(fuelRemainingMinutes(13420, noEndurance).has_value());
     EXPECT_FALSE(fuelRemainingMinutes(13420, PlanBrief{}).has_value());
 }
+
+// The predictions' fallback taxi times and the plan's enroute time (D-212).
+TEST(PlanBrief, TaxiAndEnrouteTimes) {
+    const PlanBrief b = parsePlanBrief(fixture("ofp-ksan-ksjc-brief.json"));
+    EXPECT_EQ(b.taxiOutS, 1200);
+    EXPECT_EQ(b.taxiInS, 1200);
+    EXPECT_EQ(b.enrouteS, 3600 + 4 * 60 + 36);
+}

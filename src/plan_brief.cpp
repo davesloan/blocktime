@@ -10,6 +10,7 @@
 #include <nlohmann/json.hpp>
 
 #include "sayintentions.h"
+#include "simbrief.h"
 
 namespace blocktime {
 
@@ -44,27 +45,6 @@ int number(const json* j) {
     return value;
 }
 
-// "9660" seconds, or "02:41:00" (how Dave's stored OFPs have it); 0 when it can't be read.
-int seconds(const std::string& s) {
-    if (s.find(':') == std::string::npos) {
-        int value = 0;
-        std::from_chars(s.data(), s.data() + s.size(), value);
-        return value;
-    }
-    int total = 0;
-    std::size_t start = 0;
-    while (start <= s.size()) {
-        const std::size_t colon = s.find(':', start);
-        const std::string part = s.substr(start, colon == std::string::npos ? std::string::npos : colon - start);
-        int value = 0;
-        if (std::from_chars(part.data(), part.data() + part.size(), value).ec != std::errc{}) return 0;
-        total = total * 60 + value;
-        if (colon == std::string::npos) break;
-        start = colon + 1;
-    }
-    return total;
-}
-
 }  // namespace
 
 PlanBrief parsePlanBrief(std::string_view ofpJson) {
@@ -88,7 +68,11 @@ PlanBrief parsePlanBrief(std::string_view ofpJson) {
     b.reserveLb = number(at(root, {"fuel", "reserve"}));
     b.rampLb = number(at(root, {"fuel", "plan_ramp"}));
     b.taxiLb = number(at(root, {"fuel", "taxi"}));
-    b.enduranceS = seconds(text(at(root, {"times", "endurance"})));
+    const auto duration = [&](const char* key) { return ofpSeconds(text(at(root, {"times", key}))).value_or(0); };
+    b.enduranceS = duration("endurance");
+    b.taxiOutS = duration("taxi_out");
+    b.taxiInS = duration("taxi_in");
+    b.enrouteS = duration("est_time_enroute");
     return b;
 }
 
