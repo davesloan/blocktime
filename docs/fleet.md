@@ -274,6 +274,7 @@ lease_per_month: 235000   # whole dollars, multiple of $5
 sim_folder: PMDG 737-800  # the matching check (D-112)
 wingspan_m: 35.8          # the arrival gate's size (D-147)
 simbrief_base_types: [B738]
+factory: KBFI             # where a factory delivery starts (design.md §6)
 delivery_fee_per_nm: 8    # instant delivery's stand-in for fuel: whole dollars per great-circle nm
 layouts:
   - name: 737-800 Two-class
