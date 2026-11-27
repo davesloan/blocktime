@@ -3265,3 +3265,38 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   - fuel remaining at the present burn, or never going back up (it would freeze at the climb's figure);
   - a linear 0–3 dial (the flare unreadable);
   - the ATC card beside the readouts, with tags in the windows.
+
+## D-204 — Milestone 14's calls made while building
+- Date: 2026-11-26
+- Status: Proposed
+- Decided by: Claude
+- Area: app
+- Decision (the in-flight panel, 0.15.0):
+  - **Cockpit lines in replays** are state, like samples: they don't move the replay's start 15 s before the first
+    event (D-178), and the ones before it are kept at the start so the lamps open with the cockpit as it was. The
+    recorder hands each `cockpit` line to the app as it writes it.
+  - **The ATC card:**
+    - touchdown clears TAXI and HOLD SHORT, so the taxi in starts empty instead of showing the taxi-out route;
+    - a cleared slot has no time;
+    - the clearance's changes come ROUTE then ALTITUDE, as ATC says them.
+  - **The gear lamp:** a go-around after the last `final_approach` marker closes its window, so it doesn't flash in
+    the go-around climb (the debrief judges only the approach that lands).
+  - **The readouts:**
+    - a flagged RUNWAY or LANDING RWY tag drops the heading (`PLAN 27`);
+    - the arrival ATIS readout carries no time.
+  - **Shared code:**
+    - `crewFor` takes a delivery flag (a delivery flies the pilots only, as pricing has it);
+    - `price()` keeps its own split of pilots and attendants, since it needs both rates;
+    - Pre-Flight's runway tag moves into `departureView`, so both panels share it.
+  - **Per-flight state:** the panel's state resets on a new planned flight, not at block out, so the engine start
+    and the gate's cockpit state reach the beacon and belt lamps.
+  - **Sizes:** gauges 128 px, row gaps 6 px, and readout windows 30 px on both panels, so the arrival view fits a
+    760 px window on Live with the header collapsed.
+  - **Implementation details:**
+    - the cards and lamps are fixed QML slots fed by index (a list model would recreate them every second and lose
+      the flips);
+    - `AtcCard::slots` is `slotsFor`, since `slots` is a Qt macro.
+- Why: Each keeps the panel and the debrief in agreement, keeps a replay true to the flight, or keeps the panel
+  inside Dave's smallest window.
+- Alternatives considered: replaying cockpit lines as events (replays opened minutes early); keeping the taxi-out
+  route on the Arrival's TAXI; 136 px gauges with a scrolling arrival view.

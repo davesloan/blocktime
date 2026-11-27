@@ -609,6 +609,35 @@ alphabet with its own spelling (ALFA, BRAVO, … JULIETT, … XRAY, … ZULU; Da
   each starting about 60 ms after the one to its left, by position whatever the row (Claude's call).
 - Within the no-continuous-animation rule: it runs only on a change.
 
+#### As built (milestone 14, 0.15.0)
+
+To the approved mockup v2. The app's own look on the approach call is `images/dashboard-inflight-built.png` (a replay of
+KSAN → KSJC at 1:10 with the header collapsed).
+- Code:
+  - `cockpit_reading.h`: the debrief's reading of the cockpit and altimeter lines and the windows' times, shared with
+    the lamps;
+  - `LampBoard` (`lamps.h`);
+  - `readInstructions` (`atc_instructions.h`) and `AtcCard` (`atc_card.h`, `slotsFor()`, since `slots` is a Qt macro);
+  - `inFlightReadouts` and `panelPhase` (`inflight_readouts.h`);
+  - `AltitudeFace` (`altitude_face.h`);
+  - `fuelRemainingMinutes` (`plan_brief.h`), `crewFor` (`pricing.h`), `landingFacts` / `landingStars` (the
+    debrief's);
+  - `InFlightModel`, and `qml/InFlightPanel.qml` with `Lamp`, `FlipCard`, `SteamGauge` (plus `GaugeScale`,
+    `GaugeArc`, `GaugeNeedle`, `GaugeWindow`), `SpeedGauge`, `AltitudeGauge`, `VsiGauge` and `FuelGauge`.
+- **Cockpit lines reach the app.** They are written to the log and handed to the app, and replays play them. In a
+  replay they're state, like samples: they don't move the start 15 s before the first event, and the ones before it
+  are kept at the start.
+- **Rebuilds don't flip.** The cards and lamps are fixed slots fed by index, so the lists rebuilt with every sample
+  never recreate them. A replay seek holds the model's `animate` off until the event loop has drawn the result, so it
+  doesn't flip.
+- **The ATC card:**
+  - touchdown clears TAXI and HOLD SHORT, so the taxi in starts empty;
+  - a slot without a qualifier shows ATC's time of the call;
+  - in logs from before 0.15.0, ATC lines reach the log at the next fetch, so a replay shows a clearance up to a
+    minute after ATC's time.
+- **Sizes:** gauges are 128 px and readout windows 30 px (the Pre-Flight panel's too), so the tallest view (the
+  arrival ATIS) fits a 760 px window with the header collapsed.
+
 #### The header as the passenger view (D-192, milestone 15)
 
 The destination line becomes the arrivals board:
