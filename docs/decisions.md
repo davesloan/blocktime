@@ -3837,9 +3837,10 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   - **The replay** starts 30 s before the first real event after the marker: a GSX service requested, the beacon
     on, or block out, whichever is first (was 15 s before the first event, D-178). **Doors don't count:** GSX can
     open and close them over and over (Dave).
-  - **The debrief:** whether its lead-in also starts at the marker, instead of D-162's 30 minutes before block out,
-    is left to milestone 16's plan, for Dave to confirm there. Check 1 needs the cockpit state at the push, which the
-    snapshot gives.
+  - **The debrief's lead-in starts at the marker too** (Dave, the same day), instead of D-162's 30 minutes before
+    block out. Check 1 needs the cockpit state at the push, which the snapshot gives. It applies to flights settled
+    from milestone 16 on: stored measurements are never re-measured, and a split old flight's file starts where
+    today's lead-in does, so re-running the debrief on it gives the same result.
   - **Re-accepts and retries:** the flight starts at the last `flight_accepted` for its planned flight. An
     interrupted attempt (D-072) keeps its plan and its Accept, so a retry starts no earlier than the interruption.
   - **Flights flown before it** have no marker. They keep today's rule, which the splitter applies once (D-237).

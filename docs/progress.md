@@ -32,8 +32,9 @@ Newest entries at the top. Add an entry at the end of every working session.
   outside a flight go to a daily file. A one-time splitter copies the old daily logs, which stay untouched.
 - Both added to milestone 16 in the roadmap, `dispatch.md`, and pointers in `recorder.md` and `replay.md`.
 
-**Open for milestone 16's plan:** whether the debrief's lead-in also starts at Accept (D-162's 30 minutes today);
-file names and folders; how the splitter runs.
+**Dave's call:** the debrief's lead-in starts at Accept too (in D-236), for flights settled from milestone 16 on.
+
+**Open for milestone 16's plan:** file names and folders; how the splitter runs.
 
 **Next step:** unchanged, fix step 3.
 

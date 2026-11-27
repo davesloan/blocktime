@@ -90,7 +90,8 @@ All of it goes in the event log as facts; nothing is judged here.
   sampling stays on until then (Claude's call: a separate event, so the touchdown line on Live isn't delayed).
 - **`cockpit` carries `pmdg`** (whether PMDG data arrived this session), so a missing value reads as "no PMDG data",
   not as "off". **A `cockpit` snapshot is written at block out** (as built, D-162): the lines are change-based, so
-  after a long turnaround the state at the push would otherwise be older than the 30-minute lead-in.
+  after a long turnaround the state at the push would otherwise be older than the 30-minute lead-in. **From milestone
+  16 (D-236)** the lead-in starts at the flight's Accept, with a snapshot written there.
 - **The pitch is stored as the sim gives it** (`sim_pitch_tenths`); the scoring flips it (as built, D-162), so if the
   sim check shows the sign the other way round, one constant changes and every flight re-scores.
 - **The PMDG reader** moves out of `--probe`: a small normal-running part subscribes to the 737's or the 777's
