@@ -326,6 +326,9 @@ with none the runway is `""`. The offsets are logged as information only.
 
 - Append-only JSON Lines files, one per UTC day: `%LOCALAPPDATA%\BlockTime\events\events-YYYY-MM-DD.jsonl` (D-020).
   The event types implemented so far are listed below.
+- **Planned for milestone 16, not built:** Accept writes `flight_accepted` with a snapshot (D-236), and each flight
+  gets its own file from Accept to the end of deboarding. Lines outside a flight go to a daily file, and a one-time
+  splitter copies the old daily logs, which stay untouched (D-237).
 - One record per event, each with a timestamp (UTC), event type, and payload.
 - Example event types: `sim_connected`, `sim_disconnected`, `block_out`, `phase_changed`, `level_off`,
   `touchdown`, `go_around`, `block_in`, `flight_interrupted`, `telemetry` (periodic live sample).

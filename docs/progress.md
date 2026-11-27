@@ -22,6 +22,50 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-27 — Accept marks a flight's start; one log file per flight (decided, not built)
+
+**Done (in chat with Dave, no code):**
+- D-236: Accept writes `flight_accepted` with a snapshot, and the flight's lines start there. The replay starts 30 s
+  before the first GSX request, beacon or block out after it. Doors don't count, because GSX can cycle them.
+  Supersedes D-177 and D-178 from milestone 16.
+- D-237: each flight gets its own log file from Accept to the end of deboarding, written by the recorder. Lines
+  outside a flight go to a daily file. A one-time splitter copies the old daily logs, which stay untouched.
+- Both added to milestone 16 in the roadmap, `dispatch.md`, and pointers in `recorder.md` and `replay.md`.
+
+**Open for milestone 16's plan:** whether the debrief's lead-in also starts at Accept (D-162's 30 minutes today);
+file names and folders; how the splitter runs.
+
+**Next step:** unchanged, fix step 3.
+
+---
+
+## 2026-11-27 — Brainstorm: dispatch, the summary and the debrief designed
+
+**Done (a brainstorm in chat with Dave, no code):**
+- Designed dispatch on **Your Flight** (Live renamed), the **dispatch report**, the **flight summary** and the
+  **debrief**: `docs/dispatch.md`, decisions D-233 to D-235, mockups on the design canvas
+  https://claude.ai/artifact/N81DAojKWXThKyjb9itke7 (boards `Final`, `Summary`, `Debrief`).
+- The money direction from the same brainstorm (D-214 to D-221) was committed with the review.
+- **Numbering fix:** D-233 and D-234 were first committed (in 7f4fb1a) as a second D-222 and D-223, written while the
+  review session was numbering its own; renumbered. D-222 and D-223 are the review's (accepted money locked; the
+  preview's fuel). D-233 now says how a re-import after Accept works with D-222.
+- Pointers added in `design.md` §13.1 and §13.7 and `debrief.md` §6 to the redesign; `dispatch.md` linked from
+  `docs/README.md`; the roadmap's item 2 marked designed.
+
+**Unverified:** nothing built.
+
+**Claude's calls, confirmed by Dave the same day (`dispatch.md`, "Calls made by Claude"):**
+- Copy route moves to the dispatch report's plan card.
+- A losing flight's ring: the circle is the costs, "Loss" in red in the centre.
+- Re-import after Accept replaces the accepted breakdown without asking again.
+- Cargo tolerance on import: about 1% or 100 lb.
+- Milestones on the summary are new work: which ones, and in the dispatch milestone or later.
+
+**Next step:** the review's fix step 3 (groundwork for dispatch), then the dispatch milestone's plan from
+`docs/dispatch.md`.
+
+---
+
 ## 2026-11-27 — Fix step 2: make block in fast
 
 **Done:** step 2 of the review's fix order (plan `docs/plans/2026-11-27-fix-step-2.md`), measured before and after.

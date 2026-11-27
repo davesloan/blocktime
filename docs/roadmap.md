@@ -229,16 +229,38 @@ other numbers. Not in milestone 12: the header stays flat.
 
 ## Next, after the MVP (brainstorm of 2026-11-27)
 
-Dave's order:
+Dave's order: the technical review, then dispatch and the summary, then Journeys; the Flight Board after rotations.
+The review is done (`docs/reviews/2026-11-27-technical-review.md`) and its fix order approved (D-225): steps 1 and 2
+are built. Agreed with Dave on 2026-11-27, with the money item's place Claude's suggestion. Each milestone still gets
+its own plan in `docs/plans/` first.
 
-1. **An in-depth technical review** of the code base as it stands at 0.16.0.
-2. **Dispatch and the flight summary** (D-214, D-215): New Flight with Maximize payload, the plan review with how each
-   money line was reached, Accept before Live's Pre-Flight; then the summary page revised. Designed in the
-   brainstorm before its plan.
-3. **Journeys** (design.md §16), without the Flight Board. The Flight Board comes after rotations.
+1. **Fix step 3 — groundwork for dispatch.** One `PriceInput` builder (review 4.3), money lines that carry their
+   workings (4.4), the migration runner's rebuild support (1.5) and one rebuild migration for the lookups (2.1).
+   Dave's calls for this step are made: the accepted money is locked (D-222), the preview's fuel is the fuel to add
+   (D-223).
+2. **Milestone 16 — dispatch on Your Flight** (`docs/dispatch.md`, D-214, D-215, D-233, D-234). Live renamed Your
+   Flight; the form with fully loaded, additional fuel and remembered routes; the dispatch report (the ring, the
+   split-flap board, load and plan); the import check against the rolled loads; Accept; View Dispatch Report; money
+   and Re-import locked at block out; Settle Up. Includes the review's `LiveStage` and `PlannedFlightModel` split
+   (3.1, 3.2), the accepted state and reopening the form (4.5), and 4.6 and 4.7. Also the log changes that Accept
+   makes possible: Accept marks the flight's start in the log (D-236), each flight gets its own log file, and a
+   one-time splitter copies the old daily logs, which stay untouched (D-237).
+3. **Milestone 17 — the summary and the debrief restyled** (`docs/dispatch.md`, D-235). The map with the altitude
+   track, the score and "what this flight moved forward" cards, the settled money with its changes from the dispatch
+   report, the debrief with Claude's review (…more), the checks as lamps under the stages, and the landing. Which
+   milestones the summary shows is settled in its plan.
+4. **Milestone 18 — the money item** (D-216 to D-221). Fares towards real ones, the lease charged by use, the
+   flights-per-month setting (default 20). A short brainstorm first to set the numbers, checked against Dave's real
+   flights; after milestone 16, since the dispatch report shows every line's working. A per-use lease needs the
+   review's `lease` table (2.2).
+5. **Fix step 4 — groundwork for Journeys.** Tracks in the database with a backfill (2.3), the `LiveFlight` object
+   (3.3), the `Recorder::run` split with a re-record test (3.5).
+6. **Milestone 19 — Journeys** (design.md §16), without the Flight Board.
+7. **Then** rotations and background flying (sections 7–8, D-075), and after them the Flight Board (D-144). The
+   settings screen and the MCP server for Claude (D-186), timing open.
 
-Also from this brainstorm, timing open: **the money item** (D-216 to D-218), fares towards real ones and the
-earnings target, checked against Dave's real flights.
+**Fix step 5** (the docs, dead code, the shared windows and accessors, the rest of the review's §6 and §7) runs
+alongside, a little at a time.
 
 ## After the MVP (not ordered)
 

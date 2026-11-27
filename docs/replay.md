@@ -70,6 +70,8 @@ When the log is gone or the flight isn't in it, the window says so in place of L
   before them (D-178). The last telemetry sample before that point opens the replay, so Live shows the aircraft where
   it was. When the previous leg blocked in inside those 30 minutes, nothing before its block in plays, and deboarding
   before block out is left out: on the day Live showed both on the previous leg's Arrival (D-177).
+  **From milestone 16 (D-236):** 30 s before the first GSX request, beacon or block out after the flight's Accept;
+  doors don't count.
 - **Where it ends:** at block in Live shows that flight's Flight Summary, as a real flight does, with the bar's
   **Replay again** and **Close** in place of At Gate Turnaround and Done for now. The debrief's **Retry** is hidden:
   it calls Claude.

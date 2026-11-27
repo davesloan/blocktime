@@ -208,6 +208,8 @@ lands ★3: 100 − 30 − 8 = **62**. (The spike itself missed check 6: measure
 
 ## 6. Where it shows
 
+> **Restyled after the MVP:** `docs/dispatch.md` (D-235) redesigns the debrief's screen; not built yet.
+
 **The Flight Summary** (Live at block in, and Flights for any flight with checks):
 
 ```

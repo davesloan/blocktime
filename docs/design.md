@@ -357,6 +357,9 @@ here, including delivery and free flights.
 
 ### 13.1 New Flight
 
+> **Redesigned after the MVP, not built yet:** New Flight, planning and the summary move to Your Flight's dispatch
+> report (`docs/dispatch.md`, D-233 to D-235). Sections 13.1–13.3 and 13.7 describe what's built today.
+
 1. Dave clicks a parked aircraft and chooses **New Flight**.
 2. He enters the destination's ICAO code. The app checks the runway length (section 4).
 3. **Flight number (D-106):** each airplane has a default flight number for its free flights (the BBJ2 is always
@@ -501,6 +504,8 @@ spot only for:
   spot (section 13.3).
 
 ### 13.7 After the flight
+
+> **Redesigned after the MVP:** the summary and debrief in `docs/dispatch.md` (D-235), not built yet.
 
 - **Milestone 12 (D-154):** at block in the dashboard header stays at the top of Live, filled in (block in time,
   final block time, the whole arc coloured, Arrival in progress), with "Parked at …" and the shutdown checklist under

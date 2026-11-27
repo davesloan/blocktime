@@ -2734,7 +2734,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-177 — A replay starts after the previous leg's arrival
 - Date: 2026-11-25
-- Status: Accepted
+- Status: Superseded by D-236 (the flight starts at Accept) from milestone 16; the splitter applies it once (D-237)
 - Decided by: Claude (from Dave's report)
 - Area: app
 - Decision: When the previous flight blocked in within the 30 minutes before block out, the replay starts after that
@@ -2748,7 +2748,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-178 — A replay starts 15 seconds before the flight's first event
 - Date: 2026-11-25
-- Status: Accepted
+- Status: Superseded by D-236 from milestone 16 (30 s before the first real event after Accept; doors don't count)
 - Decided by: Dave
 - Area: app
 - Decision: The replay starts 15 s before the first line that isn't telemetry (a GSX service, a phase, block out, ATC),
@@ -3741,9 +3741,9 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   replay (0.1%), so the gate's saving there is unmeasured.
 - Alternatives considered: a 400 ms glide (about half the cost, needles jumpier: Dave's call, D-205); no glide.
 
-## D-222 — Dispatch on Your Flight: the flow
+## D-233 — Dispatch on Your Flight: the flow
 - Date: 2026-11-27
-- Status: Accepted (design doc follows with the summary's)
+- Status: Accepted (design: `docs/dispatch.md`). First committed by mistake as a second D-222; renumbered.
 - Decided by: Dave + Claude
 - Area: design
 - Decision (refines D-214):
@@ -3759,7 +3759,9 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   - **Import from SimBrief** (Re-import after the first) checks the plan against the flight: passengers exactly,
     cargo within about 1% or 100 lb, destination, airplane and flight number. A mismatch is refused, saying what to
     regenerate, with Open SimBrief pre-filled with the right values; a refused re-import keeps the plan already
-    imported. A re-import changes fuel, route, block time and the money lines that follow; never the loads.
+    imported. A re-import changes fuel, route, block time and the money lines that follow; never the loads. After
+    Accept it replaces the accepted breakdown (D-222) without asking again, worked out with the rates locked at
+    acceptance.
   - **Accept** puts Your Flight into Pre-Flight. **Cancel flight** stays until block out.
   - **Money locks at block out**, and so does Re-import: after block out nothing a re-import could change matters
     (fuel and crew are fixed, a reroute's time is settled at block in, a diversion closes where Dave parks).
@@ -3774,9 +3776,9 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Alternatives considered: a three-step dialog (A); a Dispatch page in the sidebar (B); re-import allowed until block
   in (Dave asked what it could change after block out: nothing).
 
-## D-223 — The dispatch report's look: the ring, the flipboard, load and plan
+## D-234 — The dispatch report's look: the ring, the flipboard, load and plan
 - Date: 2026-11-27
-- Status: Accepted (Dave: "perfection")
+- Status: Accepted (Dave: "perfection"; design: `docs/dispatch.md`). First committed by mistake as a second D-223; renumbered.
 - Decided by: Dave + Claude
 - Area: design
 - Decision: The mockup "The dispatch report" on the canvas https://claude.ai/artifact/N81DAojKWXThKyjb9itke7 (board
@@ -3801,3 +3803,76 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: "It has to have a cool factor"; the ring echoes the gauges and the board the Flight Board to come.
 - Alternatives considered: A (instrument panel with lamps), B (vertical waterfall), B2 (stacked horizontal bars),
   C (costs on a flight timeline), a grouped list.
+
+## D-235 — The flight summary and the debrief: the look
+- Date: 2026-11-27
+- Status: Accepted (Dave: "I love it. no notes" and "perfect"; design: `docs/dispatch.md`)
+- Decided by: Dave + Claude
+- Area: design
+- Decision: The mockups "Flight summary" and "Debrief" on the canvas https://claude.ai/artifact/N81DAojKWXThKyjb9itke7
+  (boards `Summary` and `Debrief`) are the design.
+  - **Summary:** the header with Replay, Done for now and At Gate Turnaround; the map with the altitude-coloured track
+    and block, fuel used and out/in readouts over it (each against the plan); a score card (score ring, stars,
+    touchdown sink and G, a line on the touchdown, Debrief) and a "what this flight moved forward" card (hours with a
+    bar to the next slot, this flight's share shown, and small milestones, with the new cash balance); then the money
+    as on the dispatch report, settled, with an amber tag on each row that moved since the dispatch report and why.
+    The board flips in once when Settle Up reveals it.
+  - **Debrief:** replaces the summary in place on Your Flight and Flights, with ← Summary (not a modal: it's long,
+    and Flights shows it too). The score ring with how it was reached and the last-10 average; Claude's review with
+    a "…more" link that expands to the full review, and the "to work on" items as chips; the checks as the dashboard's
+    glass lamps under the six-stage bar, each clickable for what was measured and what passes (green passed, red
+    missed, dark not checked); the landing as a top-down runway with the touchdown and aim-point zone, the stars,
+    and tiles for sink, G, bounce, speed against VREF, pitch, bank and wind.
+- Why: the payoff moment of the game; the same ring, board and lamps as the dispatch report and the dashboard.
+- Alternatives considered: a debrief modal; the money as the summary's hero (it was the dispatch report's).
+
+## D-236 — Accept marks the start of a flight in the log
+- Date: 2026-11-27
+- Status: Accepted (built in milestone 16)
+- Decided by: Dave + Claude
+- Area: recorder
+- Decision: Accept on the dispatch report (D-233) writes a `flight_accepted` line with the planned flight's id, and
+  a telemetry and cockpit snapshot, so a reader starting there knows the state. That line is where the flight's
+  lines start, replacing today's guess (30 minutes before block out, no earlier than the previous block in; D-177).
+  - **The replay** starts 30 s before the first real event after the marker: a GSX service requested, the beacon
+    on, or block out, whichever is first (was 15 s before the first event, D-178). **Doors don't count:** GSX can
+    open and close them over and over (Dave).
+  - **The debrief:** whether its lead-in also starts at the marker, instead of D-162's 30 minutes before block out,
+    is left to milestone 16's plan, for Dave to confirm there. Check 1 needs the cockpit state at the push, which the
+    snapshot gives.
+  - **Re-accepts and retries:** the flight starts at the last `flight_accepted` for its planned flight. An
+    interrupted attempt (D-072) keeps its plan and its Accept, so a retry starts no earlier than the interruption.
+  - **Flights flown before it** have no marker. They keep today's rule, which the splitter applies once (D-237).
+  - **The flight id doesn't change:** it stays the parking brake release time.
+- Why: the start was guessed backwards from block out. It could open on the previous leg's arrival or on a long idle
+  wait at the gate, and a fixed 30-minute lead-in can miss the start of a long GSX boarding. Accept is the moment Dave
+  commits to the flight, and the moment the money locks in (D-222).
+- Alternatives considered: the first door opening (unreliable with GSX); keeping the lead-in heuristic.
+
+## D-237 — One log file per flight; old logs split once and kept
+- Date: 2026-11-27
+- Status: Accepted (built in milestone 16)
+- Decided by: Dave + Claude
+- Area: recorder
+- Decision: From Accept, the recorder writes the flight's lines to a file of its own. Only the recorder writes the
+  log (D-008): the app tells it about Accept, and it switches files, so no line falls between two files.
+  - **When the file starts:** it opens with the `flight_accepted` line and its snapshot (D-236).
+  - **When it ends:** it stays open through block in, the ATC log fetched after it (review 5.4) and deboarding
+    (D-137). It closes when deboarding ends, at the next Accept, or when the flight is cancelled. A cancelled
+    flight's file is kept like any other.
+  - **Lines outside a flight** still go to a daily "between flights" file: the sim connecting, waiting at the gate
+    before Accept, after deboarding. Nothing is lost.
+  - **An interrupted attempt and its retry** share the Accept, so they share the file. Readers already tell flights
+    apart by `flight_id`.
+  - **Readers** (settling, recovery after a crash, the debrief, the replay, the Flights map) read the flight's one
+    file. A flight can no longer cross a file, and the "last 7 / last 30 files" limits go away.
+  - **A one-time splitter** copies each flight in the old daily logs into a file of its own, using today's start
+    rule. **The old daily logs stay where they are, untouched** (never deleted, D-224), so a bad split can be
+    redone from them. After the split, the readers only know the new layout.
+  - File names, folders and how the splitter runs are settled in milestone 16's plan. The recorder spec
+    (`recorder.md`) and `database.md`, where it applies, are updated when it's built.
+- Why: one flight in one file makes every reader simpler and faster. The midnight and lookback cases disappear, and
+  so does the work fix step 2 did to step back across files (D-230). Keeping the originals makes the split safe to
+  try.
+- Alternatives considered: keep the daily logs and read from the Accept marker (still crosses midnight); readers that
+  understand both layouts forever (two code paths for one fact).
