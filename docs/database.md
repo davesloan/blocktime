@@ -20,7 +20,7 @@ schema change updates it in the same commit.
 | Coordinates | `REAL` degrees, with range checks. |
 | History | Ledger lines and flights are written once and never updated or deleted. A correction is a new, reversing line. |
 | Changes | Anything that touches several tables (leasing an airplane, a month's lease charges) runs in one transaction. |
-| Migrations | Numbered, each in a transaction, tracked with `PRAGMA user_version`. Tests build an empty database through every migration. Before running any pending migration on an existing airline, `openAirlineDatabase` copies it to `blocktime.before-schema-N.db` with `VACUUM INTO`, and doesn't migrate if it can't (D-226). |
+| Migrations | Numbered, each in a transaction, tracked with `PRAGMA user_version`. Tests build an empty database through every migration. Before running any pending migration on an existing airline, `openAirlineDatabase` copies it to `blocktime.before-schema-N.db` with `VACUUM INTO`, and doesn't migrate if it can't (D-226). A migration that rebuilds a table (SQLite's 12-step recipe) runs with foreign keys off and must leave `PRAGMA foreign_key_check` empty before it commits (review 1.5, D-238). |
 
 Connection settings: `foreign_keys = ON`, `journal_mode = WAL` (the UI can read while the airline writes),
 `synchronous = FULL` (money is never lost to a power cut; the cost is a few milliseconds per transaction).
@@ -70,6 +70,9 @@ erDiagram
     flight_debrief ||--o| flight_landing : "the touchdown"
     flight_debrief ||--o| flight_review : "Claude's review"
     flight_review ||--o{ flight_review_item : "what to work on"
+    flight_kind ||--o{ planned_flight : "kind (m10)"
+    flight_kind ||--o{ flight : "kind (m10)"
+    return_reason ||--o{ airplane : "why returned (m10)"
 ```
 
 ## Tables
@@ -125,9 +128,10 @@ One leased plane, its lease terms, and where it is now.
 | `awaiting_delivery` | INTEGER | boolean; **current state**: 1 until the factory delivery flight is settled (milestone 6) |
 | `free_flight_number` | TEXT NULL | added in schema 3 (D-106): the default flight number of its free flights, 1–4 digits, unique (a unique index; several NULLs are allowed). NULL means none is set, and New Flight's field starts empty. Set from `airline.yaml` at every start |
 | `returned_on` | TEXT NULL | calendar date the lease ended; NULL while the airplane is still leased |
-| `return_reason` | TEXT NULL | `CHECK (return_reason IN ('unpaid'))`; set together with `returned_on` (`CHECK ((returned_on IS NULL) = (return_reason IS NULL))`). `'returned'` (Dave returns it, with a prorated refund) comes with the settings screen |
+| `return_reason` | TEXT NULL | FK → `return_reason`, `ON DELETE RESTRICT` (schema 10; a `CHECK` before); set together with `returned_on` (`CHECK ((returned_on IS NULL) = (return_reason IS NULL))`). `'returned'` (Dave returns it, with a prorated refund) comes with the settings screen, as a row in `return_reason` |
 
-Indexes: `aircraft_type_id`, `fleet_id`, `location_airport_id` (New Flight lists what's parked at an airport).
+Indexes: `aircraft_type_id`, `fleet_id`, `location_airport_id` (New Flight lists what's parked at an airport),
+`return_reason`.
 
 An airplane is **in the fleet** while `returned_on` is NULL. A returned airplane stays in the database: its lease
 charges (and later its flights) point at it.
@@ -293,7 +297,7 @@ one exists); `UNIQUE (airplane_id)` is the part the schema can say.
 | `origin_airport_id` | INTEGER | FK → `airport`, `ON DELETE RESTRICT`; indexed. Where the airplane was parked when the flight was planned |
 | `destination_airport_id` | INTEGER | FK → `airport`, `ON DELETE RESTRICT`; indexed. `CHECK (destination_airport_id <> origin_airport_id)` |
 | `flight_number` | TEXT | 1–4 digits (D-102) |
-| `kind` | TEXT | `CHECK (kind IN ('passenger', 'vip', 'charter', 'cargo', 'delivery'))` (design.md §13.1) |
+| `kind` | TEXT | FK → `flight_kind`, `ON DELETE RESTRICT`; indexed (schema 10; a `CHECK` before). `passenger`, `vip`, `charter`, `cargo`, `delivery` (design.md §13.1) |
 | `cargo_lb` | INTEGER | ≥ 0; belly cargo on a passenger flight, or a freighter's load. `CHECK (cargo_lb = 0 OR kind IN ('passenger', 'cargo'))`. 0 on a passenger flight means belly cargo wasn't chosen |
 | `fuel_price_cents_per_100lb` | INTEGER | > 0; locked when planned (design.md §11) |
 | `planned_at` | TEXT | UTC instant Dave pressed Plan flight; an imported OFP must be generated after it (D-105) |
@@ -369,7 +373,7 @@ The planned flight it came from is deleted in the same transaction.
 | `log_flight_id` | TEXT | `UNIQUE`, not empty: the event log's `flight_id` (the block-out time with milliseconds). A flight can't be settled twice (D-113) |
 | `airplane_id` | INTEGER | FK → `airplane`, `ON DELETE RESTRICT`; indexed |
 | `flight_number` | TEXT | 1–4 digits, as planned |
-| `kind` | TEXT | the same `CHECK` as `planned_flight.kind` |
+| `kind` | TEXT | FK → `flight_kind`, `ON DELETE RESTRICT`; indexed (`flight_kind_code`), as `planned_flight.kind` |
 | `origin_airport_id` | INTEGER | FK → `airport`, `ON DELETE RESTRICT`; indexed |
 | `planned_destination_airport_id` | INTEGER | FK → `airport`, `ON DELETE RESTRICT`; indexed |
 | `arrival_airport_id` | INTEGER | FK → `airport`, `ON DELETE RESTRICT`; indexed. Where it parked: the imported airport nearest the block-in position (D-113). Differs from the planned destination after a diversion |
@@ -556,3 +560,17 @@ this flight".
 
 Migration 9 adds `airport.city` (D-181), empty until `blocktime-import` runs again; the dashboard shows the airport's
 name for an empty city.
+
+## Growing sets become lookups (schema version 10)
+
+Migration 10 (review 2.1, D-238) is the first rebuild migration. It adds two lookup tables, seeded by the migration,
+and rebuilds `airplane`, `planned_flight` and `flight` so their columns point at them:
+
+- **`flight_kind`** (`code` TEXT PK): `passenger`, `vip`, `charter`, `cargo`, `delivery`. `planned_flight.kind` and
+  `flight.kind` are foreign keys to it, so positioning legs or background flights are a new row, not a rebuild. The
+  rule `CHECK (cargo_lb = 0 OR kind IN ('passenger', 'cargo'))` stays: it's about two kinds, not the set.
+- **`return_reason`** (`code` TEXT PK): `unpaid`. `airplane.return_reason` is a foreign key to it.
+
+Every other column, rule and index is as before, in the same column order; the three new foreign keys are indexed.
+`aircraft_type.family` and `role` stay `CHECK`s (D-039 fixes the families; every type has a role, D-090), and
+`airplane.monthly_lease_cents` waits for D-219's per-hour lease (review 2.2).

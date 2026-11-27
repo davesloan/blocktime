@@ -65,12 +65,12 @@ protected:
 
 }  // namespace
 
-TEST(AirlineDb, EmptyDatabaseMigratesToVersion9) {
+TEST(AirlineDb, EmptyDatabaseMigratesToVersion10) {
     db::Database d = db::Database::openInMemory();
     std::string error;
     EXPECT_TRUE(migrateAirlineDatabase(d, &error)) << error;
-    EXPECT_EQ(d.userVersion(), 9);
-    EXPECT_EQ(kAirlineSchemaVersion, 9);
+    EXPECT_EQ(d.userVersion(), 10);
+    EXPECT_EQ(kAirlineSchemaVersion, 10);
 }
 
 TEST(AirlineDb, ForeignKeysAreOn) {
@@ -212,6 +212,9 @@ TEST(AirlineDb, QueryPlansUseIndexes) {
              "SELECT flight_id FROM flight_check_skip WHERE part = 'taxi_max_kt'",
              "SELECT flight_id FROM flight_check_skip WHERE reason = 'no_atis'",
              "SELECT text FROM flight_review_item WHERE flight_id = 1 ORDER BY seq",
+             "SELECT flight_id FROM flight WHERE kind = 'vip'",
+             "SELECT planned_flight_id FROM planned_flight WHERE kind = 'vip'",
+             "SELECT airplane_id FROM airplane WHERE return_reason = 'unpaid'",
          }) {
         const std::string plan = queryPlan(d, sql);
         EXPECT_NE(plan.find("USING"), std::string::npos) << sql << "\n" << plan;
@@ -520,7 +523,7 @@ TEST(AirlineDb, Migration9AddsCity) {
     ASSERT_TRUE(d.exec("INSERT INTO airport (icao_code, name, latitude, longitude, elevation_ft, country_code,"
                        " time_zone, longest_runway_ft) VALUES ('KSAN', 'San Diego International', 32.73, -117.19,"
                        " 17, 'US', 'America/Los_Angeles', 9401)"));
-    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 9, &error)) << error;
     EXPECT_EQ(d.userVersion(), 9);
     db::Statement q(d, "SELECT city FROM airport WHERE icao_code = 'KSAN'");
     ASSERT_TRUE(q.next()) << q.error();
@@ -686,4 +689,45 @@ TEST(AirlineDb, PlainMigrationKeepsForeignKeysOn) {
     EXPECT_FALSE(detail::applyMigration(d, {10, "DELETE FROM airplane WHERE airplane_id = 1", false}, &error));
     EXPECT_EQ(d.userVersion(), 9);
     EXPECT_EQ(foreignKeysOn(d), 1);
+}
+
+// Migration 10 (review 2.1): every row of a real airline survives the rebuild of airplane, planned_flight and flight,
+// cascading children included (Review Focus 2).
+TEST(AirlineDb, Migration10KeepsEveryRow) {
+    db::Database d = filledAt9();
+    auto before = snapshot(d);
+    std::string error;
+    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    EXPECT_EQ(d.userVersion(), 10);
+    auto after = snapshot(d);
+    EXPECT_EQ(after["flight_kind"], (std::vector<std::string>{"passenger|", "vip|", "charter|", "cargo|", "delivery|"}));
+    EXPECT_EQ(after["return_reason"], (std::vector<std::string>{"unpaid|"}));
+    after.erase("flight_kind");
+    after.erase("return_reason");
+    EXPECT_EQ(after, before);
+    db::Statement fk(d, "PRAGMA foreign_key_check");
+    EXPECT_FALSE(fk.next());
+    db::Statement integrity(d, "PRAGMA integrity_check");
+    ASSERT_TRUE(integrity.next());
+    EXPECT_EQ(integrity.text(0), "ok");
+    EXPECT_EQ(foreignKeysOn(d), 1);
+}
+
+// The kinds and return reasons are lookups now: a new one is a row, not a rebuild.
+TEST(AirlineDb, Migration10Lookups) {
+    db::Database d = filledAt9();
+    std::string error;
+    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    EXPECT_FALSE(insertFlight(d, "third", "positioning", "2026-11-24T10:00:00Z", "2026-11-24T11:00:00Z", 9000));
+    EXPECT_FALSE(d.exec("UPDATE planned_flight SET kind = 'positioning'"));
+    ASSERT_TRUE(d.exec("INSERT INTO flight_kind (code) VALUES ('positioning')"));
+    EXPECT_TRUE(insertFlight(d, "third", "positioning", "2026-11-24T10:00:00Z", "2026-11-24T11:00:00Z", 9000));
+    EXPECT_TRUE(d.exec("UPDATE planned_flight SET kind = 'positioning'"));
+    EXPECT_FALSE(d.exec("UPDATE airplane SET return_reason = 'sold' WHERE airplane_id = 2"));
+    ASSERT_TRUE(d.exec("INSERT INTO return_reason (code) VALUES ('sold')"));
+    EXPECT_TRUE(d.exec("UPDATE airplane SET return_reason = 'sold' WHERE airplane_id = 2"));
+    // The rules that stay: a return needs both columns, and only passenger and cargo flights carry cargo.
+    EXPECT_FALSE(d.exec("UPDATE airplane SET return_reason = NULL WHERE airplane_id = 2"));
+    EXPECT_FALSE(d.exec("UPDATE planned_flight SET kind = 'vip', cargo_lb = 100"));
+    EXPECT_FALSE(d.exec("DELETE FROM flight_kind WHERE code = 'vip'"));  // flights use it
 }
