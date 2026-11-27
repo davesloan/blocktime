@@ -32,6 +32,7 @@
 #include "dashboard_header.h"
 #include "event_feed_model.h"
 #include "flight_watcher.h"
+#include "add_aircraft_model.h"
 #include "fleet_model.h"
 #include "ledger_model.h"
 #include "money_lines_qml.h"
@@ -3338,4 +3339,141 @@ TEST(MoneyLinesToQml, CarriesTheWorking) {
     EXPECT_EQ(first["working"].toString(), QString::fromUtf8("2.5 h × 2 pilots × $250"));
     EXPECT_EQ(out[1].toMap()["working"].toString(), "");
     EXPECT_EQ(out[1].toMap()["amount"].toString(), "-$500");
+}
+
+// --- AddAircraftModel (D-242, D-245) -------------------------------------------------------------------------------
+
+namespace {
+
+std::string readTestFile(const char* name) {
+    std::ifstream in(std::string(BLOCKTIME_SOURCE_DIR "/tests/data/") + name, std::ios::binary);
+    std::stringstream text;
+    text << in.rdbuf();
+    return text.str();
+}
+
+// The test airline with 10 hours flown, so a third slot is open.
+db::Database airlineWithASlot() {
+    db::Database db = test::testAirline();
+    EXPECT_TRUE(db.exec(
+        "INSERT INTO flight (log_flight_id, airplane_id, flight_number, kind, origin_airport_id,"
+        " planned_destination_airport_id, arrival_airport_id, cargo_lb, fuel_price_cents_per_100lb, planned_at,"
+        " block_out_at, block_in_at, fuel_on_record_lb, fuel_out_lb, fuel_in_lb)"
+        " SELECT 'ten', airplane_id, '1', 'vip', 1, 2, 2, 0, 4100, '2026-11-23T00:00:00Z',"
+        " '2026-11-23T01:00:00Z', '2026-11-23T11:00:00Z', 0, 20000, 5000 FROM airplane WHERE registration = 'N814SX'"));
+    return db;
+}
+
+const blocktime::Catalog& shippedAircraft() {
+    static const blocktime::Catalog catalog = blocktime::loadCatalogDir(BLOCKTIME_SOURCE_DIR "/data/aircraft", nullptr);
+    return catalog;
+}
+
+blocktime::Date day27() { return blocktime::Date{std::chrono::year{2026}, std::chrono::month{11}, std::chrono::day{27}}; }
+
+QVariantMap fieldNamed(const AddAircraftModel& m, const QString& key) {
+    for (const QVariant& f : m.fields()) {
+        if (f.toMap()["key"].toString() == key) return f.toMap();
+    }
+    return {};
+}
+
+}  // namespace
+
+TEST(AddAircraft, ReadFillsFormAndPreselects) {
+    db::Database db = airlineWithASlot();
+    FakeReviewClient claude;
+    AddAircraftModel m(db, shippedAircraft(), kRatesFile, claude, day27);
+    m.readImage(QByteArray("png bytes"), "image/png");
+    EXPECT_EQ(m.state(), "reading");
+    ASSERT_EQ(claude.bodies.size(), 1u);
+    claude.answer(200, readTestFile("airframe_read_ok.json"));
+    EXPECT_EQ(m.state(), "read");
+    EXPECT_EQ(fieldNamed(m, "registration")["value"].toString(), "N738SX");
+    EXPECT_FALSE(fieldNamed(m, "registration")["missing"].toBool());
+    ASSERT_GE(m.layoutIndex(), 0);
+    EXPECT_EQ(m.layouts()[m.layoutIndex()].toMap()["name"].toString(), "737-800 Two-class");
+    const QVariantList holds = m.holds();
+    ASSERT_EQ(holds.size(), 2);
+    EXPECT_EQ(holds[0].toMap()["lb"].toString(), "7,941");
+    EXPECT_EQ(holds[1].toMap()["lb"].toString(), "10,059");
+    EXPECT_EQ(m.refusal(), "");
+}
+
+// Review Focus 1: a field Claude couldn't read blocks Lease until Dave types it in.
+TEST(AddAircraft, MissingFieldBlocksLease) {
+    db::Database db = airlineWithASlot();
+    FakeReviewClient claude;
+    AddAircraftModel m(db, shippedAircraft(), kRatesFile, claude, day27);
+    m.readImage(QByteArray("png bytes"), "image/png");
+    claude.answer(200, readTestFile("airframe_read_partial.json"));
+    EXPECT_TRUE(fieldNamed(m, "mlwLb")["missing"].toBool());
+    EXPECT_TRUE(m.refusal().contains("Max Landing Weight")) << m.refusal().toStdString();
+    m.setField("mlwLb", "146,300");
+    EXPECT_FALSE(fieldNamed(m, "mlwLb")["missing"].toBool());
+    EXPECT_EQ(m.refusal(), "");
+}
+
+TEST(AddAircraft, InstantDeliveryPrice) {
+    db::Database db = airlineWithASlot();
+    FakeReviewClient claude;
+    AddAircraftModel m(db, shippedAircraft(), kRatesFile, claude, day27);
+    m.readImage(QByteArray("png bytes"), "image/png");
+    claude.answer(200, readTestFile("airframe_read_ok.json"));
+    EXPECT_TRUE(m.deliveryLines().isEmpty());  // factory delivery: nothing to buy
+    m.setDelivery("instant");
+    m.setDeliveryIcao("KSAN");
+    const QVariantList lines = m.deliveryLines();
+    ASSERT_FALSE(lines.isEmpty());
+    EXPECT_EQ(lines[0].toMap()["label"].toString(), "Delivery fee");
+    const auto distance = blocktime::airportDistanceNm(db, "KBFI", "KSAN");
+    ASSERT_TRUE(distance.has_value());
+    const blocktime::Rates rates = blocktime::loadRates(kRatesFile, nullptr).value_or(blocktime::Rates{});
+    const blocktime::Preview price =
+        blocktime::instantDeliveryPrice(*shippedAircraft().type("737-800"), *distance, 146300, rates);
+    EXPECT_EQ(m.cashAfterText().toStdString(),
+              blocktime::formatMoneyFull(blocktime::cashCents(db) - 23'500'000 + price.totalCents));
+}
+
+TEST(AddAircraft, NetworkErrorAllowsRetry) {
+    db::Database db = airlineWithASlot();
+    FakeReviewClient claude;
+    AddAircraftModel m(db, shippedAircraft(), kRatesFile, claude, day27);
+    m.readImage(QByteArray("png bytes"), "image/png");
+    claude.answer(0, "", "Host not found");
+    EXPECT_EQ(m.state(), "failed");
+    EXPECT_FALSE(m.readError().isEmpty());
+    m.retry();
+    EXPECT_EQ(claude.bodies.size(), 2u);
+    EXPECT_EQ(m.state(), "reading");
+}
+
+TEST(AddAircraft, NoKeyLetsDaveType) {
+    db::Database db = airlineWithASlot();
+    FakeReviewClient claude;
+    claude.key = false;
+    AddAircraftModel m(db, shippedAircraft(), kRatesFile, claude, day27);
+    m.readImage(QByteArray("png bytes"), "image/png");
+    EXPECT_EQ(m.state(), "failed");
+    EXPECT_TRUE(m.readError().contains("claude_api_key"));
+    EXPECT_TRUE(claude.bodies.empty());
+    m.setField("baseType", "BBJ2");
+    m.setField("maxPassengers", "48");
+    EXPECT_EQ(m.layouts()[m.layoutIndex()].toMap()["name"].toString(), "737-800 BBJ2 VIP");
+}
+
+TEST(AddAircraft, LeaseEmitsAndResets) {
+    db::Database db = airlineWithASlot();
+    FakeReviewClient claude;
+    AddAircraftModel m(db, shippedAircraft(), kRatesFile, claude, day27);
+    m.readImage(QByteArray("png bytes"), "image/png");
+    claude.answer(200, readTestFile("airframe_read_ok.json"));
+    QString leased;
+    QObject::connect(&m, &AddAircraftModel::leased, [&](const QString& r) { leased = r; });
+    EXPECT_TRUE(m.lease());
+    EXPECT_EQ(leased, "N738SX");
+    EXPECT_EQ(m.state(), "empty");
+    bool found = false;
+    for (const auto& a : blocktime::listAirplanes(db)) found = found || a.registration == "N738SX";
+    EXPECT_TRUE(found);
 }

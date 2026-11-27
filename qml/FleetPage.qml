@@ -18,11 +18,32 @@ Item {
     id: page
 
     required property FleetModel fleet
+    required property AddAircraftModel addAircraft
 
     signal flyRequested(string registration)
     signal continueRequested()
     signal manageRequested(string registration)
-    signal addRequested()
+
+    // 0 the slots, 1 Add Aircraft.
+    property int view: 0
+
+    function openAdd() {
+        page.addAircraft.clear();
+        page.view = 1;
+    }
+
+    Connections {
+        target: page.addAircraft
+
+        function onLeased() { page.view = 0; }
+    }
+
+    AddAircraftPage {
+        anchors.fill: parent
+        visible: page.view === 1
+        model: page.addAircraft
+        onBack: page.view = 0
+    }
 
     component Stat: RowLayout {
         id: stat
@@ -52,6 +73,7 @@ Item {
         anchors.fill: parent
         anchors.margins: Theme.pagePadding
         spacing: Theme.spacing
+        visible: page.view === 0
 
         // The airline: the character.
         Rectangle {
@@ -281,7 +303,7 @@ Item {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: page.addRequested()
+                                onClicked: page.openAdd()
                             }
                         }
                     }

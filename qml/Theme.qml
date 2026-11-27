@@ -274,6 +274,10 @@ QtObject {
     readonly property int progressBarHeight: 8
     readonly property int dashLength: 4                // an empty slot's dashed border, in stroke widths
     readonly property int emptySlotBorderWidth: 2
+    readonly property int dropAreaHeight: 260          // where a SimBrief screenshot goes in
+    readonly property int formLabelWidth: 130          // Add Aircraft's field labels
+    readonly property int formUnitWidth: 18            // "lb", "ft" after a field
+    readonly property int holdBarHeight: 26            // the hold split, drawn to scale
 
     // Window
     readonly property int windowWidth: 1300

@@ -284,6 +284,8 @@ set(BLOCKTIME_QML_FILES
   qml/FlightsPage.qml
   qml/FleetPage.qml
   qml/FleetCard.qml
+  qml/AddAircraftPage.qml
+  qml/ScreenshotDrop.qml
   qml/AirplaneGlyph.qml
   qml/MoneyPage.qml
   qml/RouteMap.qml
@@ -337,6 +339,7 @@ qt_add_qml_module(blocktime-app
     src/qml_hot_reload.h src/qml_hot_reload.cpp
     src/flight_list_model.h src/flight_list_model.cpp
     src/fleet_model.h src/fleet_model.cpp
+    src/add_aircraft_model.h src/add_aircraft_model.cpp
     src/ledger_model.h src/ledger_model.cpp
     src/planner.h
     src/qt_planner.h src/qt_planner.cpp
@@ -405,6 +408,7 @@ if(BLOCKTIME_BUILD_TESTS)
     src/recorder_bridge.h src/recorder_bridge.cpp
     src/flight_list_model.h src/flight_list_model.cpp
     src/fleet_model.h src/fleet_model.cpp
+    src/add_aircraft_model.h src/add_aircraft_model.cpp
     src/ledger_model.h src/ledger_model.cpp
     src/planner.h
     src/new_flight_model.h src/new_flight_model.cpp
