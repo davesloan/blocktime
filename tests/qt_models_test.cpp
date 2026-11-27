@@ -23,6 +23,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QRegularExpression>
+#include <QTimeZone>
 #include <thread>
 
 #include <gtest/gtest.h>
@@ -38,6 +39,9 @@
 #include "flight_settlement.h"
 #include "planned_flight.h"
 #include "planned_flight_model.h"
+#include "plan_brief.h"
+#include "predictions.h"
+#include "simbrief.h"
 #include "inflight_model.h"
 #include "preflight_model.h"
 #include "replay_planned_flight.h"
@@ -2362,7 +2366,7 @@ TEST(DashboardHeader, FromPlannedFlight) {
     EXPECT_EQ(h.originLine(), "Departing soon");
     EXPECT_EQ(h.originIcao(), "KSAN");
     EXPECT_EQ(h.destinationName(), "Harry Reid International Airport");
-    EXPECT_TRUE(h.destinationLine().startsWith("Arriving ~")) << h.destinationLine().toStdString();
+    EXPECT_TRUE(h.destinationLine().startsWith("Arrival ")) << h.destinationLine().toStdString();
     EXPECT_DOUBLE_EQ(h.progress(), 0.0);
 }
 
@@ -2389,14 +2393,14 @@ TEST(DashboardHeader, InFlight) {
     EXPECT_EQ(h.originLine(), "Departed " + localText(kHeaderFlight));  // the block out time
     EXPECT_GT(h.progress(), 0.4);
     EXPECT_LT(h.progress(), 0.6);
-    const QRegularExpression distance(QString::fromUtf8(R"(^\d+ NM flown · \d+ NM to go$)"));
+    const QRegularExpression distance(QString::fromUtf8(R"(^\d+ NM flown · \d+ NM to go · FL330 · 0 KT$)"));
     EXPECT_TRUE(distance.match(h.distanceText()).hasMatch()) << h.distanceText().toStdString();
     const QVariantList shares = h.arcShares();
     ASSERT_EQ(shares.size(), 100);
     EXPECT_DOUBLE_EQ(shares[static_cast<int>(h.progress() * 100)].toDouble(), 1.0);
     EXPECT_EQ(b.statusLines()[0].toMap()["text"].toString(), "Cruising at FL330");
 
-    EXPECT_TRUE(h.destinationLine().startsWith("Arriving ~")) << h.destinationLine().toStdString();
+    EXPECT_TRUE(h.destinationLine().startsWith("Arrival ")) << h.destinationLine().toStdString();
 }
 
 TEST(DashboardHeader, SummaryAtStartupUsesSettledFlight) {
@@ -2449,6 +2453,177 @@ TEST(DashboardHeader, InterruptResetsTheArc) {
     for (const QVariant& v : h.arcShares()) EXPECT_DOUBLE_EQ(v.toDouble(), -1.0);
 }
 
+namespace {
+
+// Dave's KSAN → KSJC plan with its navlog times and fuel (D-192): enroute 1:04:36; taxi 9 min out, 2 in (D-212).
+constexpr int kKsjcEnrouteS = 3600 + 4 * 60 + 36;
+
+PlannedFlightView ksjcView() {
+    PlannedFlightView v = headerView();
+    v.destination = "KSJC";
+    v.destinationName = "Norman Y. Mineta San Jose International Airport";
+    v.destinationCity = "San Jose";
+    nlohmann::json ofp = nlohmann::json::parse(dataFile("ofp-ksan-ksjc-brief.json"));
+    ofp["navlog"] = nlohmann::json::parse(dataFile("ofp-ksan-ksjc-navlog.json"))["navlog"];
+    v.planFixes = blocktime::parsePlanFixes(ofp.dump());
+    v.brief = blocktime::parsePlanBrief(ofp.dump());
+    v.route = {{32.7336, -117.19}};
+    for (const auto& fix : v.planFixes) v.route.push_back(fix.at);
+    v.route.push_back({37.3626, -121.929});
+    v.plan->cruiseAltitudeFt = 40000;
+    v.plan->estBlockS = 6276;
+    v.taxiOutS = 540;
+    v.taxiInS = 120;
+    return v;
+}
+
+QString localAt(std::chrono::system_clock::time_point t) {
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t.time_since_epoch()).count();
+    return QDateTime::fromMSecsSinceEpoch(ms, QTimeZone::UTC).toLocalTime().toString("h:mm AP");
+}
+
+// A header on its own bridge with a clock the test moves.
+struct HeaderRig {
+    RecorderBridge b;
+    std::chrono::system_clock::time_point now = *parseUtc(kHeaderFlight);
+    ReplayPlannedFlight f;
+    DashboardHeader h;
+    explicit HeaderRig(PlannedFlightView v)
+        : f(std::move(v), "XLY", Rates{}, b, kHeaderFlight), h(b, f, "XLY", "Soxxly Airlines", noSettledFlight()) {
+        b.setClock([this] { return now; });
+    }
+    void blockOut() {
+        BlockOut out;
+        out.flightId = kHeaderFlight;
+        out.time = now;
+        b.applyBlockEvent(out);
+    }
+    void liftoff() { b.applyFlightEvent("liftoff", {{"time", isoAt(now)}, {"runway", "27"}}); }
+    void phase(const char* code) { b.applyFlightEvent("phase_changed", {{"phase", code}, {"time", isoAt(now)}}); }
+    void at(double lat, double lon, double altFt = 30000, double iasKt = 280, double mach = 0.5) {
+        TelemetrySample s{};
+        s.latitudeDeg = lat;
+        s.longitudeDeg = lon;
+        s.indicatedAltitudeFt = altFt;
+        s.indicatedAirspeedKt = iasKt;
+        s.mach = mach;
+        b.applySample(s);
+    }
+    static QString isoAt(std::chrono::system_clock::time_point t) {
+        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t.time_since_epoch()).count();
+        return QDateTime::fromMSecsSinceEpoch(ms, QTimeZone::UTC).toString(Qt::ISODateWithMs);
+    }
+};
+
+}  // namespace
+
+// D-192: the arrivals board. Before block out the time has no ~ and no line under it.
+TEST(DashboardHeader, ArrivalBeforeBlockOut) {
+    qtApp();
+    HeaderRig r(ksjcView());
+    EXPECT_EQ(r.h.destinationLine(), "Arrival " + localAt(r.now + std::chrono::seconds(540 + kKsjcEnrouteS + 120)));
+    EXPECT_EQ(r.h.punctualityText(), "");
+    EXPECT_EQ(r.h.punctuality(), "");
+}
+
+TEST(DashboardHeader, OnTimeAtBlockOut) {
+    qtApp();
+    HeaderRig r(ksjcView());
+    r.blockOut();
+    r.now += std::chrono::seconds(10);
+    EXPECT_EQ(r.h.punctualityText(), "On time");
+    EXPECT_EQ(r.h.punctuality(), "on_time");
+}
+
+// Review Focus 2: holding, the arrival slips minute by minute and Delayed grows.
+TEST(DashboardHeader, DelayedInAHold) {
+    qtApp();
+    const PlannedFlightView v = ksjcView();
+    HeaderRig r(v);
+    r.blockOut();
+    r.now += std::chrono::seconds(540);
+    r.liftoff();
+    r.phase("climb");
+    for (std::size_t k = 0; k <= 10; ++k) r.at(v.planFixes[k].at.lat, v.planFixes[k].at.lon);  // to SILCN
+    r.phase("descent");
+    r.now += std::chrono::seconds(47 * 60 + 9);  // SILCN on the plan's time: on time
+    r.at(v.planFixes[10].at.lat, v.planFixes[10].at.lon);
+    EXPECT_EQ(r.h.punctuality(), "on_time");
+    const auto first = r.h.predictions().arrival;
+    ASSERT_TRUE(first.has_value());
+    r.now += std::chrono::minutes(30);
+    r.at(v.planFixes[10].at.lat, v.planFixes[10].at.lon);
+    const auto later = r.h.predictions().arrival;
+    ASSERT_TRUE(later.has_value());
+    EXPECT_EQ(std::chrono::duration_cast<std::chrono::seconds>(*later - *first).count(), 1800);
+    EXPECT_EQ(r.h.punctuality(), "delayed");
+    EXPECT_TRUE(r.h.punctualityText().startsWith("Delayed ~")) << r.h.punctualityText().toStdString();
+}
+
+TEST(DashboardHeader, ArrivedFreezes) {
+    qtApp();
+    const PlannedFlightView v = ksjcView();
+    HeaderRig r(v);
+    const auto out = r.now;
+    r.blockOut();
+    r.now += std::chrono::seconds(540);
+    r.liftoff();
+    r.at(v.planFixes[0].at.lat, v.planFixes[0].at.lon);
+    r.now = out + std::chrono::seconds(540 + kKsjcEnrouteS);
+    r.b.applyFlightEvent("touchdown", {{"time", HeaderRig::isoAt(r.now)}});
+    EXPECT_FALSE(r.h.distanceText().contains("KT")) << r.h.distanceText().toStdString();  // after touchdown
+    r.now = out + std::chrono::seconds(540 + kKsjcEnrouteS + 120 + 180);  // 3 minutes late
+    BlockIn in;
+    in.flightId = kHeaderFlight;
+    in.time = r.now;
+    in.parking = "Gate 4";
+    r.b.applyBlockEvent(in);
+    const QString arrived = "Arrived " + localAt(in.time) + QString::fromUtf8(" · Gate 4");
+    EXPECT_EQ(r.h.destinationLine(), arrived);
+    EXPECT_EQ(r.h.punctualityText(), "Delayed 3m");
+    EXPECT_EQ(r.h.punctuality(), "delayed");
+    r.now += std::chrono::hours(1);
+    EXPECT_EQ(r.h.destinationLine(), arrived);
+    EXPECT_EQ(r.h.punctualityText(), "Delayed 3m");
+}
+
+// D-210: the altitude and the indicated airspeed, from liftoff to touchdown.
+TEST(DashboardHeader, DistanceLineAltitudeAndSpeed) {
+    qtApp();
+    const PlannedFlightView v = ksjcView();
+    HeaderRig r(v);
+    r.blockOut();
+    r.at(v.route[0].lat, v.route[0].lon, 17, 12, 0.02);
+    EXPECT_FALSE(r.h.distanceText().contains("KT")) << r.h.distanceText().toStdString();  // on the ground
+    r.liftoff();
+    r.phase("climb");
+    r.at(v.planFixes[0].at.lat, v.planFixes[0].at.lon, 12000, 290, 0.5);
+    EXPECT_TRUE(r.h.distanceText().endsWith(QString::fromUtf8(" · 12,000 FT · 290 KT")))
+        << r.h.distanceText().toStdString();
+    r.phase("cruise");
+    r.at(v.planFixes[1].at.lat, v.planFixes[1].at.lon, 35000, 260, 0.78);
+    EXPECT_TRUE(r.h.distanceText().endsWith(QString::fromUtf8(" · FL350 · M.78"))) << r.h.distanceText().toStdString();
+}
+
+TEST(DashboardHeader, TodShare) {
+    qtApp();
+    HeaderRig withPlan(ksjcView());
+    EXPECT_GT(withPlan.h.todShare(), 0.0);
+    EXPECT_LT(withPlan.h.todShare(), 1.0);
+    HeaderRig noFixes(headerView());
+    EXPECT_DOUBLE_EQ(noFixes.h.todShare(), -1.0);
+}
+
+// Review Focus 1: a plan without navlog times keeps the old estimate and predicts nothing.
+TEST(DashboardHeader, NoNavlogTimesFallsBack) {
+    qtApp();
+    HeaderRig r(headerView());
+    EXPECT_EQ(r.h.destinationLine(), "Arrival " + localAt(r.now + std::chrono::seconds(3900)));
+    EXPECT_FALSE(r.h.predictions().tocNm.has_value());
+    r.blockOut();
+    EXPECT_EQ(r.h.punctualityText(), "On time");
+}
+
 TEST(DashboardHeader, NextFlightStartsOver) {
     qtApp();
     RecorderBridge b;
@@ -2470,7 +2645,7 @@ TEST(DashboardHeader, NextFlightStartsOver) {
     next.time = *parseUtc("2026-11-25T22:00:00.000Z");
     b.applyBlockEvent(next);
     EXPECT_EQ(h.originLine(), "Departing soon");
-    EXPECT_TRUE(h.destinationLine().startsWith("Arriving ~")) << h.destinationLine().toStdString();
+    EXPECT_TRUE(h.destinationLine().startsWith("Arrival ")) << h.destinationLine().toStdString();
     EXPECT_TRUE(b.blockInTime().isNull());
 }
 

@@ -42,6 +42,11 @@ Rectangle {
         property alias headerCollapsed: card.collapsed
     }
 
+    // The punctuality line's colour (D-192): early green, delayed red, on time as the other lines.
+    function punctualityColor(kind: string): color {
+        return kind === "early" ? Theme.good : kind === "delayed" ? Theme.bad : Theme.textSecondary
+    }
+
     // A share of the plan's cruise altitude (0..1) as the arc's colour, fading between Theme's four stops.
     function arcColor(share: real): color {
         const stops = [Theme.arcGround, Theme.arcLow, Theme.arcHigh, Theme.arcCruise]
@@ -79,6 +84,9 @@ Rectangle {
                 property string code
                 property string name
                 property string line
+                // Under the line: On time / Early / Delayed on the destination (D-192), in its colour.
+                property string subLine
+                property color subLineColor: Theme.textSecondary
                 property bool alignRight: false
                 // The glyph's centre and the half-width of its rotated box: the arc keeps the marker clear of it.
                 readonly property real glyphCenterX: glyphText.x + glyphText.width / 2
@@ -129,6 +137,18 @@ Rectangle {
                     elide: Text.ElideRight
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeFeed
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    visible: block.subLine !== ""
+                    horizontalAlignment: block.alignRight ? Text.AlignRight : Text.AlignLeft
+                    text: block.subLine
+                    color: block.subLineColor
+                    elide: Text.ElideRight
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeFeed
+                    font.weight: Font.DemiBold
                 }
             }
 
@@ -199,6 +219,8 @@ Rectangle {
                 code: card.header.destinationIcao
                 name: card.header.destinationName
                 line: card.header.destinationLine
+                subLine: card.header.punctualityText
+                subLineColor: card.punctualityColor(card.header.punctuality)
             }
 
             // Below the arc, between the airports: the flight, the cities and the distance.
@@ -244,6 +266,7 @@ Rectangle {
                 readonly property real yControl: yEnds - 2 * Theme.arcRise
                 readonly property real progress: card.header.progress
                 readonly property var shares: card.header.arcShares
+                readonly property real todShare: card.header.todShare
 
                 function pointAt(t: real): point {
                     const u = 1 - t
@@ -255,6 +278,7 @@ Rectangle {
                 anchors.fill: parent
                 onProgressChanged: requestPaint()
                 onSharesChanged: requestPaint()
+                onTodShareChanged: requestPaint()
                 onX0Changed: requestPaint()
                 onX2Changed: requestPaint()
                 onYEndsChanged: requestPaint()
@@ -283,6 +307,16 @@ Rectangle {
                         ctx.beginPath()
                         ctx.moveTo(a.x, a.y)
                         ctx.lineTo(b.x, b.y)
+                        ctx.stroke()
+                    }
+                    // The plan's top of descent: a short tick across the arc (D-192).
+                    if (arc.todShare >= 0) {
+                        const t = arc.pointAt(arc.todShare)
+                        ctx.strokeStyle = Theme.arcTodTick
+                        ctx.lineWidth = Theme.arcTodTickWidth
+                        ctx.beginPath()
+                        ctx.moveTo(t.x, t.y - Theme.arcTodTickLength / 2)
+                        ctx.lineTo(t.x, t.y + Theme.arcTodTickLength / 2)
                         ctx.stroke()
                     }
                 }
@@ -645,6 +679,17 @@ Rectangle {
 
         x: column.x + column.width - width
         text: card.header.destinationIcao
+    }
+    // Collapsed: On time / Early / Delayed small under the destination's code (D-192).
+    Text {
+        x: column.x + column.width - width
+        y: destinationCode.y + destinationCode.height
+        visible: card.collapsed && card.header.punctualityText !== ""
+        text: card.header.punctualityText
+        color: card.punctualityColor(card.header.punctuality)
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSizeSmall
+        font.weight: Font.DemiBold
     }
 
     // A click anywhere on the pill or its marker collapses or expands the header (D-187).

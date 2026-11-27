@@ -22,6 +22,7 @@
 
 #include "planned_flight.h"
 #include "planned_flight_display.h"
+#include "predictions.h"
 #include "recorder_bridge.h"
 #include "route_progress.h"
 
@@ -46,9 +47,14 @@ class DashboardHeader : public QObject {
     Q_PROPERTY(QString originLine READ originLine NOTIFY changed)
     Q_PROPERTY(QString destinationIcao READ destinationIcao NOTIFY changed)
     Q_PROPERTY(QString destinationName READ destinationName NOTIFY changed)
-    // "Arriving ~2:27 PM" (the estimate), then at block in "Arrived 2:24 PM · Gate 4" (D-184)
+    // "Arrival 2:27 PM" (the estimate, D-192), then at block in "Arrived 2:24 PM · Gate 4" (D-184)
     Q_PROPERTY(QString destinationLine READ destinationLine NOTIFY changed)
-    Q_PROPERTY(QString distanceText READ distanceText NOTIFY changed)        // "127 NM flown · 103 NM to go"
+    // From block out: "On time", "Early ~4m", "Delayed ~4m"; at block in without the ~ (D-192). "" before block out.
+    Q_PROPERTY(QString punctualityText READ punctualityText NOTIFY changed)
+    Q_PROPERTY(QString punctuality READ punctuality NOTIFY changed)  // "", "on_time", "early", "delayed": the colour
+    // "127 NM flown · 103 NM to go", with " · FL350 · M.74" from liftoff to touchdown (D-210)
+    Q_PROPERTY(QString distanceText READ distanceText NOTIFY changed)
+    Q_PROPERTY(double todShare READ todShare NOTIFY changed)  // the plan's TOD as a share of the route; -1 = none
     Q_PROPERTY(double progress READ progress NOTIFY changed)                 // 0..1 along the route
     // AltitudeArc::kPieces numbers: each piece's altitude as a share of the plan's cruise (0..1), -1 not flown.
     Q_PROPERTY(QVariantList arcShares READ arcShares NOTIFY changed)
@@ -73,7 +79,12 @@ public:
     QString destinationIcao() const;
     QString destinationName() const;
     QString destinationLine() const;
+    QString punctualityText() const;
+    QString punctuality() const;
     QString distanceText() const;
+    double todShare() const;
+    // The predictions for the in-flight panel (InFlightModel) and the lines above; nothing without a plan's times.
+    blocktime::Predictions predictions() const;
     double progress() const { return progress_.share(); }
     QVariantList arcShares() const;
 
@@ -85,7 +96,11 @@ private:
     void resetFlight();  // block out and interrupts: the arc, the times and the lines start again
     void onSample();
     void onFlightEvent(const QString& type, const QVariantMap& data);
-    QString blockInEstimateText() const;  // "~2:27 PM", or "" without an estimate
+    // The arrival time and the time it is measured against: the predictions, or without navlog times the plan's
+    // block time (D-213). The arrival is block in's once blocked in; no reference before block out.
+    std::optional<blocktime::TimePoint> arrivalEstimate() const;
+    std::optional<blocktime::TimePoint> punctualityReference() const;
+    std::optional<blocktime::TimePoint> blockOutPoint() const;  // this flight's block out, once it happened
     void onBlockEvent(const QString& type);
     void updateTimer();
     int planBlockS() const;
@@ -100,8 +115,9 @@ private:
     bool settledBefore_ = false;  // a summary read from the database at startup: no block events this session
     blocktime::RouteProgress progress_{{}};
     blocktime::AltitudeArc arc_;
+    blocktime::PlanTimeline timeline_;  // the plan's times and fuel along the route
     bool airborne_ = false;  // from liftoff to block in
-    QDateTime liftoff_, blockIn_;
+    QDateTime liftoff_, touchdown_, blockIn_;
     QString parking_;
     QTimer timer_;  // once a second, only while a clock or an estimate moves
 };

@@ -104,6 +104,9 @@ QtObject {
     readonly property int arcGlyphGap: 6                // between an airplane glyph and the marker at the arc's end
     readonly property int arcWidth: 5                   // the flown part of the arc
     readonly property int arcDotSize: 3                 // the dashed part still to fly
+    readonly property color arcTodTick: "#E2E8F0"       // the plan's top of descent across the arc (D-192)
+    readonly property int arcTodTickWidth: 2
+    readonly property int arcTodTickLength: 14
     readonly property int arcMarkerSize: 20
     readonly property int arcMarkerBorder: 3
     readonly property int airportBlockWidth: 240

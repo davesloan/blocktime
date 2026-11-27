@@ -21,6 +21,13 @@ QString q(const std::string& s) { return QString::fromStdString(s); }
 // Dave's local time, "1:22 PM".
 QString localText(const QDateTime& t) { return t.toLocalTime().toString("h:mm AP"); }
 
+QString localText(TimePoint t) {
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t.time_since_epoch()).count();
+    return localText(QDateTime::fromMSecsSinceEpoch(ms, QTimeZone::UTC));
+}
+
+TimePoint toPoint(const QDateTime& t) { return TimePoint(std::chrono::milliseconds(t.toMSecsSinceEpoch())); }
+
 QDateTime fromIso(const QString& iso) {
     QDateTime t = QDateTime::fromString(iso, Qt::ISODateWithMs);
     return t.isValid() ? t : QDateTime::fromString(iso, Qt::ISODate);
@@ -72,9 +79,11 @@ void DashboardHeader::refreshFlight() {
         flight_ = std::move(next);
         settledBefore_ = settledBefore;
         progress_ = RouteProgress(flight_ ? flight_->route : std::vector<RoutePoint>{});
+        const int takeoffFuelLb = flight_ && flight_->brief ? flight_->brief->rampLb - flight_->brief->taxiLb : 0;
+        timeline_ = flight_ ? PlanTimeline(flight_->planFixes, progress_, takeoffFuelLb) : PlanTimeline();
         arc_.reset();
         airborne_ = false;
-        liftoff_ = blockIn_ = QDateTime();
+        liftoff_ = touchdown_ = blockIn_ = QDateTime();
         parking_.clear();
         if (settledBefore_) progress_.finish();  // its summary: the whole route was flown
         StatusContext c;
@@ -99,7 +108,7 @@ void DashboardHeader::resetFlight() {
     progress_.reset();
     arc_.reset();
     airborne_ = false;
-    liftoff_ = blockIn_ = QDateTime();
+    liftoff_ = touchdown_ = blockIn_ = QDateTime();
     parking_.clear();
 }
 
@@ -112,8 +121,14 @@ void DashboardHeader::onSample() {
 }
 
 void DashboardHeader::onFlightEvent(const QString& type, const QVariantMap& data) {
+    if (type == "touchdown") {
+        touchdown_ = fromIso(data.value("time").toString());
+        emit changed();
+        return;
+    }
     if (type != "liftoff") return;
     airborne_ = true;
+    touchdown_ = QDateTime();  // a touch and go, or a bounce before the go-around
     liftoff_ = fromIso(data.value("time").toString());
     emit changed();
 }
@@ -165,15 +180,36 @@ QString DashboardHeader::clockText() const {
     return planBlockS() > 0 ? q(durationText(std::chrono::seconds(planBlockS()), false)) : QStringLiteral("--:--");
 }
 
-QString DashboardHeader::blockInEstimateText() const {
-    std::optional<TimePoint> out;
-    if (bridge_.flightOpen() && bridge_.blockOutTime().isValid()) {
-        out = TimePoint(std::chrono::milliseconds(bridge_.blockOutTime().toMSecsSinceEpoch()));
-    }
-    const auto estimate = blockInEstimate(out, bridge_.now(), planBlockS());
-    if (!estimate) return {};
-    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(estimate->time_since_epoch()).count();
-    return "~" + localText(QDateTime::fromMSecsSinceEpoch(ms, QTimeZone::UTC));
+std::optional<TimePoint> DashboardHeader::blockOutPoint() const {
+    const QDateTime out = bridge_.blockOutTime();
+    if (!out.isValid() || !(bridge_.flightOpen() || blockIn_.isValid())) return std::nullopt;
+    return toPoint(out);
+}
+
+Predictions DashboardHeader::predictions() const {
+    if (!flight_ || settledBefore_) return {};
+    FlightNow f{bridge_.now()};
+    f.blockOut = blockOutPoint();
+    if (liftoff_.isValid()) f.liftoff = toPoint(liftoff_);
+    if (touchdown_.isValid()) f.touchdown = toPoint(touchdown_);
+    f.flownNm = progress_.flownNm();
+    f.fuelLb = static_cast<int>(std::lround(bridge_.fuelLb()));
+    f.phase = bridge_.phaseCode();
+    return predict(timeline_, TaxiTimes{flight_->taxiOutS, flight_->taxiInS}, f);
+}
+
+std::optional<TimePoint> DashboardHeader::arrivalEstimate() const {
+    if (blockIn_.isValid()) return toPoint(blockIn_);
+    if (!timeline_.empty()) return predictions().arrival;
+    return blockInEstimate(blockOutPoint(), bridge_.now(), planBlockS());
+}
+
+std::optional<TimePoint> DashboardHeader::punctualityReference() const {
+    if (!flight_ || settledBefore_) return std::nullopt;
+    if (!timeline_.empty()) return predictions().reference;
+    const auto out = blockOutPoint();
+    if (!out || planBlockS() <= 0) return std::nullopt;
+    return *out + std::chrono::seconds(planBlockS());
 }
 
 QString DashboardHeader::originIcao() const { return flight_ ? q(flight_->origin) : QString(); }
@@ -197,15 +233,48 @@ QString DashboardHeader::destinationLine() const {
         if (!parking_.isEmpty()) line += QString::fromUtf8(" · ") + parking_;
         return line;
     }
-    const QString estimate = blockInEstimateText();
-    return estimate.isEmpty() ? QString() : "Arriving " + estimate;
+    const auto estimate = arrivalEstimate();
+    return estimate ? "Arrival " + localText(*estimate) : QString();
+}
+
+QString DashboardHeader::punctualityText() const {
+    const auto reference = punctualityReference(), arrival = arrivalEstimate();
+    if (!reference || !arrival) return {};
+    return q(blocktime::punctualityText(blocktime::punctuality(*arrival, *reference), blockIn_.isValid()));
+}
+
+QString DashboardHeader::punctuality() const {
+    const auto reference = punctualityReference(), arrival = arrivalEstimate();
+    if (!reference || !arrival) return {};
+    switch (blocktime::punctuality(*arrival, *reference).kind) {
+        case Punctuality::OnTime: return QStringLiteral("on_time");
+        case Punctuality::Early: return QStringLiteral("early");
+        case Punctuality::Delayed: return QStringLiteral("delayed");
+    }
+    return {};
+}
+
+double DashboardHeader::todShare() const {
+    const auto tod = timeline_.fixNm("TOD");
+    return tod && progress_.totalNm() > 0 ? *tod / progress_.totalNm() : -1.0;
 }
 
 QString DashboardHeader::distanceText() const {
     if (progress_.totalNm() <= 0) return {};
-    return QString::fromUtf8("%1 NM flown · %2 NM to go")
-        .arg(std::lround(progress_.flownNm()))
-        .arg(std::lround(progress_.toGoNm()));
+    const QString line = QString::fromUtf8("%1 NM flown · %2 NM to go")
+                             .arg(std::lround(progress_.flownNm()))
+                             .arg(std::lround(progress_.toGoNm()));
+    if (!airborne_ || touchdown_.isValid()) return line;
+    // D-210: feet below the transition, a flight level above it; indicated airspeed, in Mach by D-140's rule.
+    const int altFt = static_cast<int>(std::lround(bridge_.altitudeFt()));
+    const SimbriefPlan* plan = flight_ && flight_->plan ? &*flight_->plan : nullptr;
+    const bool level = isFlightLevel(bridge_.phaseCode(), altFt,
+                                     effectiveTransitionFt(plan ? plan->originTransitionAltitudeFt : 0),
+                                     effectiveTransitionFt(plan ? plan->destinationTransitionLevelFt : 0));
+    const QString speed =
+        bridge_.showMach() ? bridge_.machText() : QString("%1 KT").arg(std::lround(bridge_.iasKt()));
+    return line + QString::fromUtf8(" · ") + q(altitudeText(altFt, level)).toUpper() + QString::fromUtf8(" · ") +
+           speed;
 }
 
 QVariantList DashboardHeader::arcShares() const {
