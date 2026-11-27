@@ -34,6 +34,7 @@
 #include "flight_watcher.h"
 #include "fleet_table_model.h"
 #include "ledger_model.h"
+#include "money_lines_qml.h"
 #include "flight_events.h"
 #include "flight_list_model.h"
 #include "new_flight_model.h"
@@ -723,6 +724,27 @@ TEST(PlannedFlightModel, ImportStoresMatchingPlan) {
     EXPECT_EQ(m.planText(), "Plan generated 14:02Z · FL370 · 2h 31m · burn 10,900 lb");
     EXPECT_EQ(m.route(), "KBFI/14R BANGR9 BANGR DCT LKV DCT OAL J65 BLH DCT JLI SEAVU2 KSAN/27");
     EXPECT_TRUE(currentPlannedFlight(db)->plan.has_value());
+}
+
+// Review 4.4: income and costs reach the panel apart, each with its working.
+TEST(PlannedFlightModel, EstimateSplitsIncomeAndCosts) {
+    db::Database db = deliveredAirline();
+    planVip(db, "2026-11-23T14:00:00Z");
+    FakePlanner planner;
+    RecorderBridge bridge;
+    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
+    m.importPlan();
+    ASSERT_FALSE(m.estimateIncome().isEmpty());
+    ASSERT_FALSE(m.estimateCosts().isEmpty());
+    for (const QVariant& v : m.estimateIncome()) EXPECT_FALSE(v.toMap()["amount"].toString().startsWith("-"));
+    bool fuel = false;
+    for (const QVariant& v : m.estimateCosts()) {
+        const QVariantMap line = v.toMap();
+        EXPECT_TRUE(line["amount"].toString().startsWith("-")) << line["label"].toString().toStdString();
+        EXPECT_FALSE(line["working"].toString().isEmpty()) << line["label"].toString().toStdString();
+        if (line["category"] == "fuel") fuel = true;
+    }
+    EXPECT_TRUE(fuel);  // the plan's in, and the airplane holds less than its ramp fuel
 }
 
 TEST(PlannedFlightModel, ImportRefusesAStalePlan) {
@@ -3311,4 +3333,20 @@ TEST(InFlightModel, PredictionReadoutsFollowTheHeader) {
     EXPECT_EQ(later["value"], first["value"]);
     EXPECT_NE(later["tag"], first["tag"]);  // the time slipped 5 minutes
     EXPECT_FALSE(readoutTitled(m, "LANDING")["tag"].toString().isEmpty());  // PLAN …
+}
+
+// Review 4.4: the one adapter from money lines to QML. Lines read back from the ledger have no working.
+TEST(MoneyLinesToQml, CarriesTheWorking) {
+    MoneyLine priced{"pilots", "Pilots", -125000};
+    priced.quantities = {{2.5, "h"}, {2, "pilots"}};
+    priced.rateDollars = 250;
+    const QVariantList out = moneyLinesToQml({priced, MoneyLine{"lease", "Lease", -50000}});
+    ASSERT_EQ(out.size(), 2);
+    const QVariantMap first = out[0].toMap();
+    EXPECT_EQ(first["category"].toString(), "pilots");
+    EXPECT_EQ(first["label"].toString(), "Pilots");
+    EXPECT_EQ(first["amount"].toString(), "-$1,250");
+    EXPECT_EQ(first["working"].toString(), QString::fromUtf8("2.5 h × 2 pilots × $250"));
+    EXPECT_EQ(out[1].toMap()["working"].toString(), "");
+    EXPECT_EQ(out[1].toMap()["amount"].toString(), "-$500");
 }

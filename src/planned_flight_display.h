@@ -33,7 +33,8 @@ class PlannedFlightDisplay : public QObject {
     Q_PROPERTY(QString runwayText READ runwayText NOTIFY changed)
     Q_PROPERTY(QString route READ route NOTIFY changed)
     Q_PROPERTY(QString planText READ planText NOTIFY changed)
-    Q_PROPERTY(QVariantList estimateLines READ estimateLines NOTIFY changed)
+    Q_PROPERTY(QVariantList estimateIncome READ estimateIncome NOTIFY changed)
+    Q_PROPERTY(QVariantList estimateCosts READ estimateCosts NOTIFY changed)
     Q_PROPERTY(QString totalText READ totalText NOTIFY changed)
     Q_PROPERTY(QString fuelNote READ fuelNote NOTIFY changed)
     Q_PROPERTY(QString warning READ warning NOTIFY changed)
@@ -67,7 +68,8 @@ public:
     QString runwayText() const;
     QString route() const;
     QString planText() const;
-    QVariantList estimateLines() const;
+    QVariantList estimateIncome() const;
+    QVariantList estimateCosts() const;
     QString totalText() const;
     QString fuelNote() const;
     QString warning() const;

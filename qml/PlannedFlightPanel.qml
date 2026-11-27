@@ -214,7 +214,8 @@ Card {
 
             MoneyLines {
                 Layout.fillWidth: true
-                costs: panel.flight.estimateLines
+                income: panel.flight.estimateIncome
+                costs: panel.flight.estimateCosts
                 totalText: panel.flight.totalText
                 fuelNote: panel.flight.fuelNote
             }

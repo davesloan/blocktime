@@ -42,11 +42,26 @@ struct PriceInput {
     Cents fuelPriceCentsPer100Lb = 0;
 };
 
+struct Quantity {
+    double value = 0;
+    std::string unit;  // "passengers", "h", "pilots", "lb", "nm"
+};
+
 struct MoneyLine {
     std::string category;  // the ledger_category code: "economy_fares", "fuel", "pilots", ...
     std::string label;
     Cents cents = 0;  // income positive, a cost negative; a multiple of 500
+    // How it was worked out (review 4.4): the quantities multiplied, × rateDollars per rateBasis rateUnit, is the
+    // amount before rounding to $5. A flat charge has no quantities. Lines read back from the ledger have no rate.
+    std::vector<Quantity> quantities;
+    double rateDollars = 0;
+    int rateBasis = 1;     // 100 for "/ 100 lb", 1,000 for "/ 1,000 lb"
+    std::string rateUnit;  // "" when the quantities say it ("2.5 h × 2 pilots × $250")
 };
+
+// "140 passengers × $157.50", "2.5 h × 2 pilots × $250", "5,900 lb × $41 / 100 lb", "$300 / departure". "" for a
+// line without a rate.
+std::string workingText(const MoneyLine& line);
 
 struct Preview {
     std::vector<MoneyLine> income, costs;

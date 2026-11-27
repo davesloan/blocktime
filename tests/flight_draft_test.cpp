@@ -145,7 +145,9 @@ TEST(Draft, PreviewMatchesThePlannedFlight) {
         const auto flat = [](const Preview& p) {
             std::vector<std::string> out;
             for (const auto* lines : {&p.income, &p.costs}) {
-                for (const MoneyLine& m : *lines) out.push_back(m.category + " " + m.label + " " + std::to_string(m.cents));
+                for (const MoneyLine& m : *lines) {
+                    out.push_back(m.category + " " + m.label + " " + std::to_string(m.cents));
+                }
             }
             return out;
         };

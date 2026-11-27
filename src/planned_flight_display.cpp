@@ -10,6 +10,7 @@
 #include <QGuiApplication>
 #include <QVariantMap>
 
+#include "money_lines_qml.h"
 #include "new_flight_model.h"
 #include "simbrief.h"
 
@@ -77,16 +78,12 @@ QString PlannedFlightDisplay::planText() const {
                          p.estBlockS % 3600 / 60, formatNumber(p.enrouteBurnLb)));
 }
 
-QVariantList PlannedFlightDisplay::estimateLines() const {
-    QVariantList out;
-    if (!flight_) return out;
-    const Preview p = pricePreview(priceInput(*flight_), rates_);
-    for (const auto* lines : {&p.income, &p.costs}) {
-        for (const MoneyLine& m : *lines) {
-            out << QVariantMap{{"label", q(m.label)}, {"amount", q(formatMoneyFull(m.cents))}};
-        }
-    }
-    return out;
+QVariantList PlannedFlightDisplay::estimateIncome() const {
+    return flight_ ? moneyLinesToQml(pricePreview(priceInput(*flight_), rates_).income) : QVariantList{};
+}
+
+QVariantList PlannedFlightDisplay::estimateCosts() const {
+    return flight_ ? moneyLinesToQml(pricePreview(priceInput(*flight_), rates_).costs) : QVariantList{};
 }
 
 QString PlannedFlightDisplay::totalText() const {

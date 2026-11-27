@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -266,4 +267,85 @@ TEST(Pricing, CrewFor) {
     EXPECT_EQ(crewFor("freighter", false, 0, 1.1, 3), 2);    // pilots only
     EXPECT_EQ(crewFor("airliner", false, 162, 9.0, 3), 7);   // 3 pilots over 8 hours
     EXPECT_EQ(crewFor("airliner", true, 162, 1.1, 3), 2);    // a delivery flies the pilots only
+}
+
+namespace {
+
+// The line's amount from its working: the quantities multiplied, × the rate, ÷ the basis, rounded to $5.
+Cents fromWorking(const MoneyLine& m) {
+    double dollars = m.rateDollars / m.rateBasis;
+    for (const Quantity& q : m.quantities) dollars *= q.value;
+    return roundToFiveDollars(static_cast<Cents>(std::llround(dollars * 100)));
+}
+
+void expectEveryLineMultipliesOut(const PriceInput& in, const char* what) {
+    const Preview p = pricePreview(in, Rates{});
+    for (const MoneyLine& m : p.income) EXPECT_EQ(fromWorking(m), m.cents) << what << ": " << m.label;
+    for (const MoneyLine& m : p.costs) EXPECT_EQ(fromWorking(m), -m.cents) << what << ": " << m.label;
+}
+
+}  // namespace
+
+// Review 4.4: every line carries how it was worked out, and the working gives the amount.
+TEST(Pricing, EveryLineMultipliesOut) {
+    PriceInput in = vip();
+    in.planBlockS = 9060;
+    in.planRampFuelLb = 9200;
+    in.fuelOnRecordLb = 3300;
+    expectEveryLineMultipliesOut(in, "vip");
+    in.kind = FlightKind::Charter;
+    expectEveryLineMultipliesOut(in, "charter");
+    in.planBlockS = 4000;  // under the charter minimum
+    expectEveryLineMultipliesOut(in, "short charter");
+    in.planBlockS = 9060;
+    in.kind = FlightKind::Passenger;
+    in.role = "airliner";
+    in.seatsInstalled = 160;
+    in.cabins = {{"economy", 140}, {"business", 15}, {"first", 4}};
+    in.cargoLb = 3170;
+    expectEveryLineMultipliesOut(in, "passenger");
+    in.actualBlockHours = 2.71;
+    in.fuelAddedLb = 6123;
+    expectEveryLineMultipliesOut(in, "settled passenger");
+    in.kind = FlightKind::Cargo;
+    in.role = "freighter";
+    in.family = "777";
+    in.cabins = {};
+    in.cargoLb = 180000;
+    expectEveryLineMultipliesOut(in, "cargo");
+    in.kind = FlightKind::Delivery;
+    in.cargoLb = 0;
+    expectEveryLineMultipliesOut(in, "delivery");
+}
+
+TEST(Pricing, WorkingText) {
+    PriceInput in = vip();
+    in.planBlockS = 9000;
+    in.planRampFuelLb = 9200;
+    in.fuelOnRecordLb = 3300;
+    const Preview p = pricePreview(in, Rates{});
+    const auto working = [&](const char* category) {
+        for (const MoneyLine& m : p.costs) {
+            if (m.category == category) return workingText(m);
+        }
+        return std::string("none");
+    };
+    EXPECT_EQ(working("pilots"), "2.5 h × 2 pilots × $250");
+    EXPECT_EQ(working("gate"), "$300 / departure");
+    EXPECT_EQ(working("fuel"), "5,900 lb × $41 / 100 lb");
+    EXPECT_EQ(working("landing_fee"), "146,300 lb MLW × $4.50 / 1,000 lb");
+    EXPECT_EQ(working("atc"), "900 nm × $1");
+    EXPECT_EQ(workingText(MoneyLine{"lease", "Lease", -500}), "");  // a ledger line read back: no working
+}
+
+TEST(Pricing, WorkingTextDecimals) {
+    MoneyLine m{"fuel", "Fuel", -500};
+    m.quantities = {{2.5167, "h"}, {1043.27, "nm"}};
+    m.rateDollars = 0.4125;
+    EXPECT_EQ(workingText(m), "2.5 h × 1,043.3 nm × $0.4125");
+    m.rateDollars = 157.5;
+    EXPECT_EQ(workingText(m), "2.5 h × 1,043.3 nm × $157.50");
+    m.rateDollars = 1250;
+    m.rateUnit = "h";
+    EXPECT_EQ(workingText(m), "2.5 h × 1,043.3 nm × $1,250 / h");
 }

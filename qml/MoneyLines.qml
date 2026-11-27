@@ -14,7 +14,8 @@ import QtQuick.Layouts
 ColumnLayout {
     id: lines
 
-    // Each entry is { label, amount }, amount already formatted ("$28,150", "-$660").
+    // Each entry is { category, label, amount, working } (moneyLinesToQml), amount already formatted ("$28,150",
+    // "-$660").
     property var income: []
     property var costs: []
     property string totalText

@@ -11,6 +11,7 @@
 #include <QVariantMap>
 
 #include "dates.h"
+#include "money_lines_qml.h"
 #include "simbrief.h"
 
 using namespace blocktime;
@@ -19,15 +20,6 @@ namespace {
 
 std::string utcNowInstant() {
     return std::format("{:%FT%TZ}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now()));
-}
-
-QVariantList moneyLines(const std::vector<MoneyLine>& lines) {
-    QVariantList out;
-    for (const MoneyLine& m : lines) {
-        out << QVariantMap{{"label", QString::fromStdString(m.label)},
-                           {"amount", QString::fromStdString(formatMoneyFull(m.cents))}};
-    }
-    return out;
 }
 
 QString cabinLine(const CabinLoad& c, FlightKind kind) {
@@ -224,12 +216,12 @@ QStringList NewFlightModel::loadLines() const {
 
 QVariantList NewFlightModel::incomeLines() const {
     const auto p = draft_ ? draft_->preview() : std::nullopt;
-    return p ? moneyLines(p->income) : QVariantList{};
+    return p ? moneyLinesToQml(p->income) : QVariantList{};
 }
 
 QVariantList NewFlightModel::costLines() const {
     const auto p = draft_ ? draft_->preview() : std::nullopt;
-    return p ? moneyLines(p->costs) : QVariantList{};
+    return p ? moneyLinesToQml(p->costs) : QVariantList{};
 }
 
 QString NewFlightModel::totalText() const {

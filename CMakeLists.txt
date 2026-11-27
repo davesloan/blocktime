@@ -337,6 +337,7 @@ qt_add_qml_module(blocktime-app
     src/new_flight_model.h src/new_flight_model.cpp
     src/planned_flight_model.h src/planned_flight_model.cpp
     src/planned_flight_display.h src/planned_flight_display.cpp
+    src/money_lines_qml.h src/money_lines_qml.cpp
     src/dashboard_header.h src/dashboard_header.cpp
     src/preflight_model.h src/preflight_model.cpp
     src/inflight_model.h src/inflight_model.cpp
@@ -391,6 +392,7 @@ if(BLOCKTIME_BUILD_TESTS)
     src/new_flight_model.h src/new_flight_model.cpp
     src/planned_flight_model.h src/planned_flight_model.cpp
     src/planned_flight_display.h src/planned_flight_display.cpp
+    src/money_lines_qml.h src/money_lines_qml.cpp
     src/dashboard_header.h src/dashboard_header.cpp
     src/preflight_model.h src/preflight_model.cpp
     src/inflight_model.h src/inflight_model.cpp

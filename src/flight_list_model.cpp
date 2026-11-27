@@ -20,6 +20,7 @@
 #include "flight_replay.h"
 #include "loads.h"
 #include "money.h"
+#include "money_lines_qml.h"
 #include "new_flight_model.h"
 
 namespace {
@@ -36,14 +37,6 @@ QString hhmmZ(const QDateTime& t) { return t.isValid() ? t.toString(QStringLiter
 QString hMm(long long seconds) {
     const long long minutes = seconds / 60;
     return QStringLiteral("%1:%2").arg(minutes / 60).arg(minutes % 60, 2, 10, QLatin1Char('0'));
-}
-
-QVariantList moneyLines(const std::vector<blocktime::MoneyLine>& lines) {
-    QVariantList out;
-    for (const blocktime::MoneyLine& m : lines) {
-        out << QVariantMap{{"label", q(m.label)}, {"amount", q(blocktime::formatMoneyFull(m.cents))}};
-    }
-    return out;
 }
 
 QString kindLabel(const std::string& code) {
@@ -293,8 +286,8 @@ QVariantMap FlightListModel::summary(int row) const {
             {"fuelText", q(blocktime::formatNumber(f.fuelOutLb - f.fuelInLb)) + " lb used"},
             {"routeText", q(f.registration) + QString::fromUtf8(" · ") + q(f.typeCode) + QString::fromUtf8(" · ") +
                               kindLabel(f.kind)},
-            {"income", moneyLines(f.income)},
-            {"costs", moneyLines(f.costs)},
+            {"income", moneyLinesToQml(f.income)},
+            {"costs", moneyLinesToQml(f.costs)},
             {"totalText", q(blocktime::formatMoneyFull(f.totalCents))},
             {"parkedText", f.arrivalParking.empty() ? QString() : "Parked at " + q(f.arrivalParking)},
             {"debrief", debrief(f)},
