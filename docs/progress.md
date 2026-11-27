@@ -22,6 +22,27 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-27 — Milestone 15b designed: Fleet (decided, not built)
+
+**Done (in chat with Dave, no code):** a brainstorm of the fleet before milestone 16. The design is `docs/fleet.md`,
+with the chosen mockups in `docs/mockups/fleet/` (open the HTML files in a browser). Decisions D-239 to D-246; D-076,
+D-087, D-092, D-097, D-100 and D-131 marked superseded where they changed. Roadmap: milestone 15b goes before 16.
+- Slots: 2, +1 per 10 h, at most 20 (D-240).
+- Fleet becomes the slots screen: the airline as a character sheet, a card per airplane with Fly and Manage, the
+  glyph green / amber / grey, rotation and journey borders for later (D-241). The table goes.
+- Add Aircraft: a SimBrief airframe screenshot read by Claude; seats must match a layout; holds take SimBrief's Max
+  Cargo in the layout's shares; factory or instant delivery (D-242, D-245). The aircraft screen with New screenshot
+  and Return with a refund.
+- Supported aircraft as shipped files in `data/aircraft/` (D-243); fleets dropped (D-244); migration 11.
+- A fresh reviewer read the design as a builder; its three questions were settled (instant delivery's fuel became a
+  Delivery fee by Dave; re-leasing and registrations by Claude, D-246).
+
+**Dave's call:** the design approved as written, with Claude's calls in D-246.
+
+**Next step:** milestone 15b's implementation plan (`docs/plans/`), then build it.
+
+---
+
 ## 2026-11-27 — Fix step 3: groundwork for dispatch and the money item
 
 **Done:** step 3 of the review's fix order (plan `docs/plans/2026-11-27-fix-step-3.md`), all but its item 4, which

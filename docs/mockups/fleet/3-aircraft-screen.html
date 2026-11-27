@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Aircraft screen</title>
+<style>
+  :root {
+    --bg: #0E1116; --surface: #161B22; --raised: #1C222B; --border: #262D37;
+    --text: #E6EAF0; --text2: #8B95A3; --muted: #5B6573;
+    --accent: #3B82F6; --good: #22C55E; --warn: #F59E0B; --bad: #EF4444; --goodSurface: #132A1C;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Segoe UI", system-ui, sans-serif; font-size: 14px; }
+  .page { max-width: 1180px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  .lead { color: var(--text2); margin: 0 0 28px; line-height: 1.5; }
+  .option { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 28px; cursor: pointer; }
+  .option.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .opt-head { display: flex; align-items: baseline; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+  .letter { background: var(--raised); border: 1px solid var(--border); border-radius: 6px; padding: 2px 9px; font-weight: 600; }
+  .option.selected .letter { background: var(--accent); border-color: var(--accent); }
+  .opt-head h2 { font-size: 16px; margin: 0; font-weight: 600; }
+  .opt-head p { margin: 0; color: var(--text2); }
+  .opt-body { padding: 20px; }
+  .screen { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+  .bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .bar .title { font-size: 18px; font-weight: 600; }
+  .spacer { flex: 1; }
+  .btn { border-radius: 8px; padding: 7px 14px; font-size: 13px; border: 1px solid var(--border); background: var(--raised); color: var(--text); white-space: nowrap; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.danger { background: transparent; border-color: #5a2626; color: var(--bad); }
+  .sub { color: var(--text2); font-size: 13px; }
+  .badge { display: inline-block; border-radius: 11px; padding: 1px 9px; font-size: 11px; font-weight: 600; }
+  .badge.ok { background: var(--goodSurface); color: var(--good); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .card h3 { margin: 0 0 10px; font-size: 11px; letter-spacing: 1px; color: var(--text2); font-weight: 600; text-transform: uppercase; display: flex; justify-content: space-between; }
+  .card h3 .src { text-transform: none; letter-spacing: 0; color: var(--muted); font-weight: 400; }
+  .kv { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #1d232b; }
+  .kv:last-child { border-bottom: 0; }
+  .kv span:first-child { color: var(--text2); }
+  .kv span:last-child { font-variant-numeric: tabular-nums; }
+  .plane { fill: #c9d3e0; }
+  .reg { font-weight: 700; letter-spacing: .5px; }
+  .meter { height: 8px; background: var(--raised); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+  .meter > div { height: 100%; background: var(--accent); }
+  .holds { display: flex; gap: 4px; height: 26px; margin: 6px 0 4px; }
+  .holds div { background: var(--raised); border: 1px solid #33404f; border-radius: 5px; display: grid; place-items: center; font-size: 11px; color: var(--text2); }
+  .note { color: var(--text2); font-size: 13px; margin-top: 14px; line-height: 1.5; }
+
+  /* A */
+  .gridA { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .heroA { display: flex; gap: 18px; align-items: center; margin-bottom: 14px; }
+  .heroA svg { width: 72px; height: 72px; }
+
+  /* B */
+  .sheet { display: grid; grid-template-columns: 280px 1fr; gap: 18px; }
+  .char { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+  .char .portrait { background: radial-gradient(circle at 50% 40%, #1f2a38, var(--raised)); border: 1px solid #33404f; border-radius: 10px; height: 150px; display: grid; place-items: center; }
+  .char .portrait svg { width: 110px; height: 110px; }
+  .gear { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+  .actions .btn { text-align: center; padding: 9px 14px; }
+
+  .drop { border: 2px dashed #3a4656; border-radius: 10px; padding: 18px; text-align: center; color: var(--text2); margin-top: 14px; }
+  .confirm { background: var(--surface); border: 1px solid #5a2626; border-radius: 10px; padding: 16px; margin-top: 14px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs><symbol id="plane" viewBox="0 0 64 64"><path d="M32 4c2 0 3 3 3 6v14l22 12v5l-22-6v13l7 5v4l-10-3-10 3v-4l7-5V35l-22 6v-5l22-12V10c0-3 1-6 3-6z"/></symbol></defs>
+</svg>
+<div class="page">
+  <h1>The aircraft screen: which feels right?</h1>
+  <p class="lead">What you see after clicking N814SX's slot. Same content in both: who it is, its layout, the values
+    read from SimBrief, where it is now, its lease, and the three buttons. The weights are illustrative, not N814SX's
+    real ones. Below the options: what Return and New screenshot open.</p>
+
+  <!-- A -->
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="opt-head"><span class="letter">A</span><h2>Spec sheet</h2><p>A header with the buttons, then cards in a grid.</p></div>
+    <div class="opt-body">
+      <div class="screen">
+        <div class="bar">
+          <span class="btn">← Manage Fleet</span><span class="spacer"></span>
+          <span class="btn">New screenshot</span><span class="btn danger">Return airplane</span>
+        </div>
+        <div class="heroA">
+          <svg class="plane"><use href="#plane"/></svg>
+          <div>
+            <div style="font-size:24px" class="reg">N814SX <span class="sub" style="font-size:15px;font-weight:400">· tail 814 · slot 1</span></div>
+            <div class="sub">737-800 BBJ2 VIP · Executive fleet · flight number 8</div>
+            <div style="margin-top:6px"><span class="badge ok">Ready at KSAN</span></div>
+          </div>
+        </div>
+        <div class="gridA">
+          <div class="card"><h3>Layout <span class="src">catalog</span></h3>
+            <div class="kv"><span>Configuration</span><span>BBJ2 VIP</span></div>
+            <div class="kv"><span>Seats</span><span>48 VIP</span></div>
+            <div class="kv"><span>Holds</span><span>10,000 lb</span></div>
+            <div class="holds"><div style="flex:4">FWD 4,444</div><div style="flex:5">AFT 5,556</div></div>
+            <div class="sub">Loaded 4 : 5</div>
+          </div>
+          <div class="card"><h3>Weights <span class="src">SimBrief · read 22 Nov</span></h3>
+            <div class="kv"><span>Empty</span><span>98,500 lb</span></div>
+            <div class="kv"><span>MZFW</span><span>134,613 lb</span></div>
+            <div class="kv"><span>MTOW</span><span>174,200 lb</span></div>
+            <div class="kv"><span>MLW</span><span>146,300 lb</span></div>
+            <div class="kv"><span>Max fuel</span><span>60,500 lb</span></div>
+            <div class="kv"><span>Passenger / bag</span><span>190 / 80 lb</span></div>
+          </div>
+          <div class="card"><h3>SimBrief <span class="src">SimBrief</span></h3>
+            <div class="kv"><span>Internal ID</span><span>730097_1791648865922</span></div>
+            <div class="kv"><span>Base type</span><span>B738</span></div>
+            <div class="kv"><span>Min runway</span><span>7,000 ft</span></div>
+            <div class="kv"><span>Max payload</span><span>36,113 lb</span></div>
+          </div>
+          <div class="card"><h3>Now</h3>
+            <div class="kv"><span>Location</span><span>KSAN</span></div>
+            <div class="kv"><span>Fuel on board</span><span>12,400 lb</span></div>
+            <div class="kv"><span>Flights</span><span>9</span></div>
+            <div class="kv"><span>Hours</span><span>14.2 h</span></div>
+          </div>
+          <div class="card"><h3>Lease</h3>
+            <div class="kv"><span>Monthly</span><span>$150,000</span></div>
+            <div class="kv"><span>Leased on</span><span>22 Nov 2026</span></div>
+            <div class="kv"><span>Next charge</span><span>22 Dec 2026</span></div>
+            <div class="kv"><span>Refund if returned today</span><span>$125,000</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="note">Like Fleet's other pages: buttons in the top bar, everything else in tidy cards. Each card says
+        where its values come from, so you can see which ones a new screenshot replaces.</p>
+    </div>
+  </div>
+
+  <!-- B -->
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="opt-head"><span class="letter">B</span><h2>Character sheet, again</h2><p>The airplane as the character, matching Manage Fleet.</p></div>
+    <div class="opt-body">
+      <div class="screen">
+        <div class="bar"><span class="btn">← Manage Fleet</span><span class="title">Slot 1</span></div>
+        <div class="sheet">
+          <div class="char">
+            <div class="portrait"><svg class="plane"><use href="#plane"/></svg></div>
+            <div><div class="reg" style="font-size:22px">N814SX</div><div class="sub">tail 814 · flight number 8</div></div>
+            <div class="sub">737-800 BBJ2 VIP · Executive</div>
+            <div><span class="badge ok">Ready at KSAN</span></div>
+            <div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px" class="sub"><span>Lease month</span><span>5 of 30 days</span></div>
+              <div class="meter"><div style="width:17%"></div></div>
+            </div>
+            <div class="actions">
+              <span class="btn">New screenshot</span>
+              <span class="btn danger">Return airplane</span>
+            </div>
+          </div>
+          <div class="gear">
+            <div class="card"><h3>Layout <span class="src">catalog</span></h3>
+              <div class="kv"><span>Configuration</span><span>BBJ2 VIP</span></div>
+              <div class="kv"><span>Seats</span><span>48 VIP</span></div>
+              <div class="kv"><span>Holds</span><span>10,000 lb</span></div>
+              <div class="holds"><div style="flex:4">FWD 4,444</div><div style="flex:5">AFT 5,556</div></div>
+            </div>
+            <div class="card"><h3>Weights <span class="src">SimBrief · read 22 Nov</span></h3>
+              <div class="kv"><span>Empty</span><span>98,500 lb</span></div>
+              <div class="kv"><span>MZFW</span><span>134,613 lb</span></div>
+              <div class="kv"><span>MTOW</span><span>174,200 lb</span></div>
+              <div class="kv"><span>MLW</span><span>146,300 lb</span></div>
+              <div class="kv"><span>Max fuel</span><span>60,500 lb</span></div>
+              <div class="kv"><span>Passenger / bag</span><span>190 / 80 lb</span></div>
+            </div>
+            <div class="card"><h3>SimBrief <span class="src">SimBrief</span></h3>
+              <div class="kv"><span>Internal ID</span><span>730097_1791648865922</span></div>
+              <div class="kv"><span>Base type</span><span>B738</span></div>
+              <div class="kv"><span>Min runway</span><span>7,000 ft</span></div>
+              <div class="kv"><span>Max payload</span><span>36,113 lb</span></div>
+            </div>
+            <div class="card"><h3>Record &amp; lease</h3>
+              <div class="kv"><span>Fuel on board</span><span>12,400 lb</span></div>
+              <div class="kv"><span>Flights · hours</span><span>9 · 14.2 h</span></div>
+              <div class="kv"><span>Monthly</span><span>$150,000</span></div>
+              <div class="kv"><span>Next charge</span><span>22 Dec 2026</span></div>
+              <div class="kv"><span>Refund if returned today</span><span>$125,000</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="note">Same shape as the Manage Fleet screen you picked, so the two read as a pair: character on the left,
+        its "gear" on the right. The buttons live in the character panel.</p>
+    </div>
+  </div>
+
+  <h1 style="font-size:18px;margin-top:10px">What the two buttons open</h1>
+  <p class="lead">Shown in the same place in either layout.</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+    <div>
+      <div class="sub" style="margin-bottom:6px">New screenshot</div>
+      <div class="drop">
+        <div style="font-size:15px;color:var(--text)">Drop N814SX's SimBrief airframe screenshot here</div>
+        <div style="margin-top:6px">or paste it (Ctrl+V)</div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h3>Changes from SimBrief <span class="src">nothing saved yet</span></h3>
+        <div class="kv"><span>Bag weight</span><span>80 → <b style="color:var(--warn)">95 lb</b></span></div>
+        <div class="kv"><span>Max cargo</span><span>10,000 → <b style="color:var(--warn)">11,000 lb</b> (4,889 / 6,111)</span></div>
+        <div class="kv"><span>Everything else</span><span class="sub">unchanged</span></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><span class="btn">Cancel</span><span class="btn primary">Save changes</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="sub" style="margin-bottom:6px">Return airplane</div>
+      <div class="confirm">
+        <div style="font-size:15px;font-weight:600;margin-bottom:6px">Return N814SX?</div>
+        <div class="sub" style="line-height:1.5">The lease ends today and $125,000 comes back for the unused 25 days.
+          Slot 1 becomes empty. Its flights stay in your history. This can't be undone.</div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><span class="btn">Keep it</span><span class="btn danger" style="background:#3a1a1a">Return N814SX</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Add Aircraft</title>
+<style>
+  :root {
+    --bg: #0E1116; --surface: #161B22; --raised: #1C222B; --border: #262D37;
+    --text: #E6EAF0; --text2: #8B95A3; --muted: #5B6573;
+    --accent: #3B82F6; --good: #22C55E; --warn: #F59E0B; --bad: #EF4444; --goodSurface: #132A1C;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Segoe UI", system-ui, sans-serif; font-size: 14px; }
+  .page { max-width: 1240px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  .lead { color: var(--text2); margin: 0 0 22px; line-height: 1.5; }
+  .screen { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+  .bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .bar .title { font-size: 18px; font-weight: 600; }
+  .spacer { flex: 1; }
+  .btn { border-radius: 8px; padding: 7px 14px; font-size: 13px; border: 1px solid var(--border); background: var(--raised); color: var(--text); white-space: nowrap; display: inline-block; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .sub { color: var(--text2); font-size: 13px; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .card h3 { margin: 0 0 10px; font-size: 11px; letter-spacing: 1px; color: var(--text2); font-weight: 600; text-transform: uppercase; display: flex; justify-content: space-between; gap: 8px; }
+  .card h3 .src { text-transform: none; letter-spacing: 0; color: var(--muted); font-weight: 400; }
+  .step { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--raised); border: 1px solid var(--border); color: var(--text); font-size: 11px; margin-right: 6px; }
+  .field { display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 10px; padding: 4px 0; }
+  .field label { color: var(--text2); }
+  .input { background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 6px 10px; font-variant-numeric: tabular-nums; }
+  .check { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; }
+  .ok { color: var(--good); font-weight: 700; }
+  .no { color: var(--bad); font-weight: 700; }
+  .radio { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+  .radio.on { border-color: var(--accent); background: #131c2b; }
+  .radio.off { opacity: .45; }
+  .dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--muted); flex: none; margin-top: 2px; }
+  .radio.on .dot { border-color: var(--accent); box-shadow: inset 0 0 0 3px #131c2b; background: var(--accent); }
+  .holds { display: flex; gap: 4px; height: 26px; margin: 6px 0 4px; }
+  .holds div { background: var(--raised); border: 1px solid #33404f; border-radius: 5px; display: grid; place-items: center; font-size: 11px; color: var(--text2); }
+  .money { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; }
+  .money .w { color: var(--muted); }
+  .total { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; font-weight: 600; }
+  .shot { display: flex; align-items: center; gap: 14px; border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; background: var(--surface); margin-bottom: 14px; flex-wrap: wrap; }
+  .thumb { width: 64px; height: 44px; border-radius: 5px; background: repeating-linear-gradient(0deg, #1f2630 0 5px, #262e3a 5px 7px); border: 1px solid #33404f; }
+  .foot { display: flex; align-items: center; gap: 14px; margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px; flex-wrap: wrap; }
+  .notes { margin-top: 22px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; color: var(--text2); line-height: 1.6; }
+  .notes h3 { margin: 0 0 6px; color: var(--text); font-size: 14px; }
+  .notes ul { margin: 0; padding-left: 18px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Add Aircraft</h1>
+  <p class="lead">What you'd see after clicking an empty slot and dropping a screenshot of a 737-800's SimBrief airframe
+    page. Claude has read it; nothing is saved until Lease. Numbers are illustrative.</p>
+
+  <div class="screen">
+    <div class="bar"><span class="btn">← Fleet</span><span class="title">Add Aircraft</span><span class="spacer"></span><span class="sub">Filling slot 3</span></div>
+
+    <div class="shot">
+      <div class="thumb"></div>
+      <div><div>simbrief-airframe.png</div><div class="sub"><span class="ok">✓</span> Read by Claude · 14 values found</div></div>
+      <span class="spacer"></span>
+      <span class="btn">Use another screenshot</span>
+    </div>
+
+    <div class="cols">
+      <!-- SimBrief values -->
+      <div class="card">
+        <h3><span><span class="step">1</span>From SimBrief</span><span class="src">check against the page; must match SimBrief</span></h3>
+        <div class="field"><label>Registration</label><div class="input">N738SX</div></div>
+        <div class="field"><label>Tail (Fin Number)</label><div class="input">738</div></div>
+        <div class="field"><label>Internal ID</label><div class="input">730097_1791702236118</div></div>
+        <div class="field"><label>Base type</label><div class="input">B738</div></div>
+        <div class="field"><label>Max passengers</label><div class="input">160</div></div>
+        <div class="field"><label>Passenger / bag</label><div style="display:flex;gap:8px"><div class="input" style="flex:1">190 lb</div><div class="input" style="flex:1">55 lb</div></div></div>
+        <div class="field"><label>Empty weight</label><div class="input">91,300 lb</div></div>
+        <div class="field"><label>MZFW</label><div class="input">138,300 lb</div></div>
+        <div class="field"><label>MTOW / MLW</label><div style="display:flex;gap:8px"><div class="input" style="flex:1">174,200 lb</div><div class="input" style="flex:1">146,300 lb</div></div></div>
+        <div class="field"><label>Max fuel</label><div class="input">46,063 lb</div></div>
+        <div class="field"><label>Max cargo</label><div class="input">18,000 lb</div></div>
+        <div class="field"><label>Min runway</label><div class="input">7,000 ft</div></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <!-- Checks + layout -->
+        <div class="card">
+          <h3><span><span class="step">2</span>Type and layout</span><span class="src">catalog</span></h3>
+          <div class="check"><span class="ok">✓</span><span>B738 is the <b>737-800</b>, which BlockTime supports</span></div>
+          <div class="check"><span class="ok">✓</span><span>N738SX and its Internal ID aren't used by another airplane</span></div>
+          <div style="margin-top:10px">
+            <div class="radio on"><span class="dot"></span><div><b>737-800 Two-class</b><div class="sub">16 business + 144 economy = 160 seats</div></div></div>
+            <div class="radio off"><span class="dot"></span><div><b>737-800 All-economy</b><div class="sub">184 seats; SimBrief says 160</div></div></div>
+          </div>
+          <div class="sub" style="margin-top:6px">Holds: SimBrief's 18,000 lb shared as the catalog's 7,500 : 9,500</div>
+          <div class="holds"><div style="flex:7941">FWD 7,941</div><div style="flex:10059">AFT 10,059</div></div>
+        </div>
+
+        <!-- Your choices -->
+        <div class="card">
+          <h3><span><span class="step">3</span>Yours</span></h3>
+          <div class="field"><label>Fleet</label><div class="input">Mainline ▾</div></div>
+          <div class="field"><label>Flight number</label><div class="input" style="width:120px">738</div></div>
+        </div>
+      </div>
+
+      <!-- Delivery + lease -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <h3><span><span class="step">4</span>Delivery</span></h3>
+          <div class="radio"><span class="dot"></span><div><b>Fly it from Boeing Field (KBFI)</b><div class="sub">Its first flight is the delivery; free except what the flight costs</div></div></div>
+          <div class="radio on"><span class="dot"></span><div style="flex:1"><b>Instant delivery to</b> <span class="input" style="padding:2px 8px">KSAN</span>
+            <div class="sub" style="margin:4px 0 6px"><span class="ok">✓</span> Longest runway 9,401 ft ≥ 7,000 · 943 nm · about 2 h 25 m</div>
+            <div class="money"><span>Delivery fee <span class="w">943 nm × $8</span></span><span>$7,545</span></div>
+            <div class="money"><span>Pilots <span class="w">2.4 h × 2 pilots × $250</span></span><span>$1,200</span></div>
+            <div class="money"><span>Maintenance <span class="w">2.4 h × $1,100</span></span><span>$2,640</span></div>
+            <div class="money"><span>ATC <span class="w">943 nm × $1.10</span></span><span>$1,035</span></div>
+            <div class="money"><span>Landing <span class="w">KSAN</span></span><span>$850</span></div>
+            <div class="money total"><span>Instant delivery</span><span>$13,270</span></div>
+          </div></div>
+        </div>
+        <div class="card">
+          <h3><span><span class="step">5</span>Lease</span></h3>
+          <div class="money"><span>First month, charged today</span><span>$235,000</span></div>
+          <div class="money"><span>Instant delivery</span><span>$13,270</span></div>
+          <div class="money total"><span>Cash after</span><span>$3,731,945</span></div>
+          <div class="sub" style="margin-top:6px">Then $235,000 on the 27th of each month.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <span class="sub">Leasing N738SX fills slot 3. It's charged today and can't be undone (returning it refunds the unused days).</span>
+      <span class="spacer"></span>
+      <span class="btn">Cancel</span><span class="btn primary">Lease N738SX</span>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What stops Lease</h3>
+    <ul>
+      <li>The base type isn't one BlockTime supports (its airframe file isn't installed).</li>
+      <li>No catalog layout for that type has exactly SimBrief's Max Passengers.</li>
+      <li>The registration or Internal ID already belongs to an airplane you lease.</li>
+      <li>Instant delivery's airport has no runway long enough, or isn't in the airport data.</li>
+      <li>Cash doesn't cover the first month plus instant delivery.</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

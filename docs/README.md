@@ -7,6 +7,7 @@
 | [database.md](database.md) | The airline database: tables, keys, rules and the entity diagram (D-078) |
 | [debrief.md](debrief.md) | The debrief (milestone 10): procedure checks, landing stars, the score and Claude's review (D-156 to D-162) |
 | [dashboard.md](dashboard.md) | The dashboard (Live Flight Screen) redesign after the MVP, with sketches in `images/` (D-150 to D-154; the instrument panel look, D-179) |
+| [fleet.md](fleet.md) | Milestone 15b: the Fleet slots screen, Add Aircraft from a SimBrief screenshot, the aircraft screen, return and instant delivery (D-239 to D-246; mockups in `mockups/fleet/`) |
 | [dispatch.md](dispatch.md) | Dispatch on Your Flight, the dispatch report, the flight summary and the debrief, after the MVP (D-233 to D-235; mockups on the design canvas) |
 | [replay.md](replay.md) | Flight replay (milestone 11): a read-only window that plays a recorded flight on Live at 1×–10× to check the dashboard (D-163 to D-168, D-175, D-176) |
 | [roadmap.md](roadmap.md) | Milestones from here to the MVP (the complete flight flow) and after |

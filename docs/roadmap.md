@@ -238,25 +238,30 @@ its own plan in `docs/plans/` first.
    money inputs priced one way with a test that New Flight and the planned flight agree (review 4.3), money lines
    that carry their workings (4.4), the migration runner's rebuild support (1.5) and migration 10's lookups (2.1).
    The accepted money (D-222) is stored in milestone 16.
-2. **Milestone 16 — dispatch on Your Flight** (`docs/dispatch.md`, D-214, D-215, D-233, D-234). Live renamed Your
+2. **Milestone 15b — Fleet** (`docs/fleet.md`, D-239 to D-246). Added by Dave on 2026-11-27, before dispatch. Fleet
+   becomes the slots screen (the airline as a character sheet, a card per airplane with Fly and Manage); slots are 2,
+   +1 per 10 h, at most 20 (D-240); Add Aircraft reads a SimBrief screenshot with Claude and leases the plane, with
+   factory or instant delivery; the aircraft screen with New screenshot and Return (with a refund); supported
+   aircraft as shipped files in `data/aircraft/`; fleets dropped; migration 11.
+3. **Milestone 16 — dispatch on Your Flight** (`docs/dispatch.md`, D-214, D-215, D-233, D-234). Live renamed Your
    Flight; the form with fully loaded, additional fuel and remembered routes; the dispatch report (the ring, the
    split-flap board, load and plan); the import check against the rolled loads; Accept; View Dispatch Report; money
    and Re-import locked at block out; Settle Up. Includes the review's `LiveStage` and `PlannedFlightModel` split
    (3.1, 3.2), the accepted state and reopening the form (4.5), and 4.6 and 4.7. Also the log changes that Accept
    makes possible: Accept marks the flight's start in the log (D-236), each flight gets its own log file, and a
    one-time splitter copies the old daily logs, which stay untouched (D-237).
-3. **Milestone 17 — the summary and the debrief restyled** (`docs/dispatch.md`, D-235). The map with the altitude
+4. **Milestone 17 — the summary and the debrief restyled** (`docs/dispatch.md`, D-235). The map with the altitude
    track, the score and "what this flight moved forward" cards, the settled money with its changes from the dispatch
    report, the debrief with Claude's review (…more), the checks as lamps under the stages, and the landing. Which
    milestones the summary shows is settled in its plan.
-4. **Milestone 18 — the money item** (D-216 to D-221). Fares towards real ones, the lease charged by use, the
+5. **Milestone 18 — the money item** (D-216 to D-221). Fares towards real ones, the lease charged by use, the
    flights-per-month setting (default 20). A short brainstorm first to set the numbers, checked against Dave's real
    flights; after milestone 16, since the dispatch report shows every line's working. A per-use lease needs the
    review's `lease` table (2.2).
-5. **Fix step 4 — groundwork for Journeys.** Tracks in the database with a backfill (2.3), the `LiveFlight` object
+6. **Fix step 4 — groundwork for Journeys.** Tracks in the database with a backfill (2.3), the `LiveFlight` object
    (3.3), the `Recorder::run` split with a re-record test (3.5).
-6. **Milestone 19 — Journeys** (design.md §16), without the Flight Board.
-7. **Then** rotations and background flying (sections 7–8, D-075), and after them the Flight Board (D-144). The
+7. **Milestone 19 — Journeys** (design.md §16), without the Flight Board.
+8. **Then** rotations and background flying (sections 7–8, D-075), and after them the Flight Board (D-144). The
    settings screen and the MCP server for Claude (D-186), timing open.
 
 **Fix step 5** (the docs, dead code, the shared windows and accessors, the rest of the review's §6 and §7) runs
@@ -264,9 +269,8 @@ alongside, a little at a time.
 
 ## After the MVP (not ordered)
 
-Rotations unlocked by flying (D-075) and background flying with catch-up (sections 7–8), the settings screen (airline, fleets, leasing, and managing the
-catalog's types and airframes in the app, D-092),
-instant delivery, the Flight Board and Journeys (D-144, design section 16; journeys need no background flying,
+Rotations unlocked by flying (D-075) and background flying with catch-up (sections 7–8), the settings screen (the
+airline's identity; fleets, leasing, aircraft and instant delivery came with milestone 15b), the Flight Board and Journeys (D-144, design section 16; journeys need no background flying,
 so they and a board showing them could come before it), the pre-departure view on Live (D-118, design section 16), the fuel burn estimate for
 previews (D-119, design section 3), predictions on Live such as top of descent and gate arrival (D-120, design
 section 16), and whatever the deepening turns up.

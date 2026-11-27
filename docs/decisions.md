@@ -1034,7 +1034,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-076 — MVP setup comes from config files
 - Date: 2026-11-22
-- Status: Accepted
+- Status: Partly superseded by D-242 and D-244 (airplanes and fleets leave `airline.yaml`; the airline identity stays)
 - Decided by: Dave
 - Area: app
 - Decision: For the MVP, the airline identity, fleets and leased airframes are set in hand-edited config files. A
@@ -1182,7 +1182,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-087 — Registration and SimBrief airframe are entered per airframe
 - Date: 2026-11-22
-- Status: Accepted
+- Status: Partly superseded by D-242 (the registration and SimBrief ID come from a screenshot, not `airline.yaml`; one SimBrief airframe per airplane stands)
 - Decided by: Dave
 - Area: data, app
 - Decision: Dave enters each airframe's registration in `airline.yaml` when leasing it, and sets the same
@@ -1263,7 +1263,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-092 — Airframes will be managed in the app after the MVP
 - Date: 2026-11-22
-- Status: Accepted
+- Status: Partly superseded by D-243 (the catalog becomes shipped data files rather than moving into the database)
 - Decided by: Dave
 - Area: app
 - Decision: The settings screen that follows the MVP (D-076) also manages the catalog: aircraft types and airframes
@@ -1334,7 +1334,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-097 — The Fleet table drops its flight and hour counts until milestone 6
 - Date: 2026-11-22
-- Status: Accepted (confirmed by Dave, 2026-11-23)
+- Status: Superseded by D-241 (the table goes)
 - Decided by: Claude
 - Area: app
 - Decision: The Fleet table shows registration, type, airframe, fleet, location, fuel and status. The flights and
@@ -1382,7 +1382,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-100 — Airplane limits: airframe defaults, overridable per airplane
 - Date: 2026-11-23
-- Status: Accepted
+- Status: Superseded by D-242 (every limit comes from the airplane's SimBrief screenshot)
 - Decided by: Dave
 - Area: data, app
 - Decision: The values New Flight needs before any SimBrief plan exists are stored with each catalog airframe as
@@ -1929,7 +1929,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-131 — Start with two fleet slots
 - Date: 2026-11-23
-- Status: Accepted
+- Status: Superseded by D-240 (2 to start, +1 per 10 h, at most 20)
 - Decided by: Dave
 - Area: design
 - Decision: The airline starts with two aircraft slots instead of one. The first earned slot still comes at 10 hours
@@ -3909,3 +3909,128 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Alternatives considered: a builder function taking the airplane's facts (a long parameter list duplicating
   `PriceInput`); a free-text basis string per line (can't be checked against the amount); turning family, role and the
   lease into lookups in the same rebuild.
+
+## D-239 — Milestone 15b, Fleet, comes before dispatch, built as one milestone
+- Date: 2026-11-27
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: design
+- Decision: The fleet work in `docs/fleet.md` (slots, the Fleet screen, Add Aircraft from a SimBrief screenshot, the
+  aircraft screen, return, instant delivery, the aircraft files) is **milestone 15b**, built before milestone 16
+  (dispatch), as one milestone in one session (D-121), from the data up: the aircraft files and migration 11, the slot
+  rule, the Fleet and aircraft screens with Return, Add Aircraft with the screenshot reading, New screenshot, instant
+  delivery. Dave tests it once at the end.
+- Why: Dave wanted the fleet before dispatch. None of the pieces is much use alone, and milestone 16's start (Fly on
+  a card) depends on the new Fleet screen. "15b" because the docs and many decisions already call dispatch 16.
+- Alternatives considered: two milestones, the screens first (planes would still come from `airline.yaml` in
+  between, and the schema would change twice); Add Aircraft first behind today's table (a button on a screen about
+  to go); renumbering dispatch to 17.
+
+## D-240 — Slots: 2 to start, one more every 10 hours, at most 20
+- Date: 2026-11-27
+- Status: Accepted
+- Decided by: Dave
+- Area: design
+- Decision: The airline starts with 2 slots and earns one more for every 10 h of Dave's block time, up to 20 (slot 3
+  at 10 h, slot 4 at 20 h … slot 20 at 180 h). Supersedes D-131's growing steps (10, 30, 60 h …). Hours are counted
+  as before (D-114), and slots still cap the airplanes in the fleet when one is leased.
+- Why: Dave's rule for the in-app fleet: a steady pace, and 20 airplanes is plenty for one pilot.
+- Alternatives considered: D-131's steps, each slot 10 h dearer than the last; no cap.
+
+## D-241 — Fleet is the slots screen: cards with Fly and Manage
+- Date: 2026-11-27
+- Status: Accepted
+- Decided by: Dave
+- Area: app, design
+- Decision: The Fleet table goes; Fleet opens a "character sheet" (`docs/fleet.md`): the airline on the left (slots
+  open, the bar to the next slot, hours, cash), a card per airplane on the right, then empty slots ("+ Add
+  aircraft") and a row of locked ones with their hours. A card leads with the type and layout, then the
+  registration, where it is, its fuel and its current leg. Its main button is Continue Flight, Fly Delivery,
+  Continue Journey, Fly This Leg or Fly, first that applies; **Manage** opens the aircraft screen (the airplane on the
+  left with New screenshot and Return, its values in cards on the right). The glyph is green when Dave can fly the
+  plane, amber awaiting delivery, grey in the air; rotation and journey planes get a teal or violet border and
+  ribbon. Supersedes D-097's table.
+- Why: Dave: like an RPG's armour slots, and the place a flight starts. With at most 20 airplanes a sortable table
+  adds nothing, and a card with its own Fly button is one click on the plane.
+- Alternatives considered: keeping the table with a separate Manage Fleet screen (Dave's first idea, dropped as two
+  screens for one job); for the slots, an inventory grid of all 20 or a progress track of hours; for the glyph,
+  colour by what the plane belongs to (rotation, journey) with its angle for "in the air".
+
+## D-242 — Airplanes are added in the app from a SimBrief screenshot read by Claude
+- Date: 2026-11-27
+- Status: Accepted
+- Decided by: Dave
+- Area: app, data
+- Decision: Add Aircraft takes a screenshot of the airplane's SimBrief airframe page; Claude (Messages API) reads the
+  registration, Fin Number, Internal ID, base type, Max Passengers, passenger and bag weight, the weights, Max Cargo
+  and Min Runway, and Dave checks them before Lease. The base type must be one a supported type accepts; **Max
+  Passengers must equal a layout's seats exactly**, which picks the layout (and the type, where types share a base
+  type); **SimBrief's Max Cargo is the holds' total**, split in the layout's shares. Every limit comes from the
+  screenshot; passenger and bag weight are per airplane (the BBJ2's VIP bags are set in its SimBrief airframe). A
+  new screenshot updates an airplane later. Supersedes D-076's airplanes in `airline.yaml`, D-087's typed
+  registration and SimBrief ID, and D-100's catalog defaults with per-airplane overrides.
+- Why: SimBrief is the source of truth for an airplane's weights, and Dave makes a SimBrief airframe per airplane
+  anyway. Copying the page's text gives the labels without the values; SimBrief has no airframe API. Matching seats
+  exactly keeps the class split and the loads in step with SimBrief.
+- Alternatives considered: typing the values in a form; layouts typed per airplane in the form (flexible, but the
+  class split and holds retyped for every plane).
+
+## D-243 — Supported aircraft are data files shipped with the app
+- Date: 2026-11-27
+- Status: Accepted
+- Decided by: Dave
+- Area: data, build
+- Decision: `catalog.yaml` in `%LOCALAPPDATA%` is replaced by one YAML file per type in `data/aircraft/`, copied next
+  to `BlockTime.exe` by the build. A file holds the type's values (family, role, turnaround, cruise speed, lease,
+  sim folder, wingspan), the SimBrief base types it accepts, the delivery fee rate and its layouts (seats per class,
+  each hold's share of Max Cargo and loading ratio). Supporting a new aircraft means adding a file; the file leaves
+  room for recorder specifics learned on probe flights, but nothing reads them yet (D-039 stands). Partly supersedes
+  D-092: the catalog doesn't move into the database.
+- Why: Dave: support for a new aircraft is added by dropping in its config file, for example the FlyByWire A320
+  after probe flights.
+- Alternatives considered: the catalog in the database with a settings screen (D-092); keeping `catalog.yaml` in
+  `%LOCALAPPDATA%`.
+
+## D-244 — Fleets are dropped
+- Date: 2026-11-27
+- Status: Accepted
+- Decided by: Dave
+- Area: data, design
+- Decision: Named fleets (`fleet` table, `airplane.fleet_id`, `airline.yaml`'s `fleets`) are removed in migration 11.
+- Why: Dave: rotations will group the planes. The new cards don't show a fleet.
+- Alternatives considered: a fleet on each card and a way to create one in Add Aircraft.
+
+## D-245 — Instant delivery and return with a refund are built now
+- Date: 2026-11-27
+- Status: Accepted
+- Decided by: Dave
+- Area: app, data
+- Decision: Add Aircraft offers the factory delivery (as today) or **instant delivery** to any airport with a long
+  enough runway. Its price is New Flight's delivery estimate (pilots only, maintenance, ATC, landing) with the fuel
+  replaced by a **Delivery fee**: great-circle nm × the type's rate, roughly the fuel's cost, since no fuel can be
+  estimated before a plan. The aircraft screen's **Return airplane** ends the lease with a refund for the unused
+  days of the month (design.md §5). Both post ledger lines with fact rows pointing at the airplane.
+- Why: Dave wants both in the first in-app fleet. Before, instant delivery and returning were on the after-MVP list.
+- Alternatives considered: the factory delivery only; instant delivery as one fee per nm for everything (Claude's
+  misreading, corrected by Dave); leaving the fuel out with no fee (cheaper than flying the delivery).
+
+## D-246 — Claude's calls in the fleet design
+- Date: 2026-11-27
+- Status: Accepted (confirmed by Dave with the design, 2026-11-27)
+- Decided by: Claude
+- Area: app, data
+- Decision:
+  - Slots aren't stored or numbered: the cards are the airplanes in lease order, then the empty slots.
+  - The plane with Dave's planned or in-progress flight has an accent-blue glyph.
+  - The hold split rounds each hold down to whole pounds and gives the remainder to the last hold.
+  - The refund is the month's charge × the unused days (from tomorrow) ÷ the month's days, rounded to $5.
+  - The delivery fee starts at $8 per nm for the 737s and $18 for the 777s (about 11 and 25 lb per nm at $0.70).
+  - An instantly delivered airplane has 0 lb fuel on record, so its first flight pays all its fuel.
+  - The screenshot is read by `claude-opus-5-5` into a fixed JSON shape; a page whose weights aren't in LBS is
+    refused; a failed read leaves the fields for Dave to type.
+  - The screenshot's values other than today's limits go in a new per-airplane table; no row means no screenshot yet.
+  - Registration, SimBrief ID and flight number are unique among airplanes in the fleet (partial unique indexes), so
+    a returned plane can be leased again as a new row.
+  - A new screenshot can't change an airplane's registration (it would relabel past flights).
+- Why: Each is the simplest choice that keeps money and history honest; see `docs/fleet.md`.
+- Alternatives considered: listed in `docs/fleet.md` next to each.

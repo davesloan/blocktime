@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Glyph colours</title>
+<style>
+  :root {
+    --bg: #0E1116; --surface: #161B22; --raised: #1C222B; --border: #262D37;
+    --text: #E6EAF0; --text2: #8B95A3; --muted: #5B6573;
+    --accent: #3B82F6; --good: #22C55E; --warn: #F59E0B; --goodSurface: #132A1C; --warnSurface: #2A2112;
+    --free: #E6EAF0; --rot: #2DD4BF; --jour: #A78BFA; --deliv: #F59E0B; --busy: #4B5563;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Segoe UI", system-ui, sans-serif; font-size: 14px; }
+  .page { max-width: 1240px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  .lead { color: var(--text2); margin: 0 0 22px; line-height: 1.5; }
+  .option { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 28px; cursor: pointer; }
+  .option.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .opt-head { display: flex; align-items: baseline; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .letter { background: var(--raised); border: 1px solid var(--border); border-radius: 6px; padding: 2px 9px; font-weight: 600; }
+  .option.selected .letter { background: var(--accent); border-color: var(--accent); }
+  .opt-head h2 { font-size: 16px; margin: 0; font-weight: 600; }
+  .opt-head p { margin: 0; color: var(--text2); }
+  .opt-body { padding: 18px; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; color: var(--text2); font-size: 13px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend svg { width: 18px; height: 18px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .slot { border-radius: 10px; border: 1px solid #33404f; background: var(--raised); padding: 14px; display: flex; flex-direction: column; gap: 8px; min-height: 178px; position: relative; overflow: hidden; }
+  .slot.dim { background: #171c23; border-color: #262d37; }
+  .top { display: flex; gap: 12px; align-items: center; }
+  .glyph { width: 50px; height: 50px; flex: none; }
+  .reg { font-weight: 700; letter-spacing: .5px; font-size: 16px; }
+  .sub { color: var(--text2); font-size: 13px; }
+  .badge { display: inline-block; border-radius: 11px; padding: 1px 9px; font-size: 11px; font-weight: 600; }
+  .leg { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 13px; }
+  .btns { display: flex; gap: 8px; margin-top: auto; }
+  .btn { flex: 1; text-align: center; border-radius: 8px; padding: 8px 10px; font-size: 13px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; flex: 1.6; }
+  .btn.off { background: #232a33; border-color: #2b333e; color: var(--muted); font-weight: 600; flex: 1.6; }
+  .tilt { transform: rotate(45deg); }
+  .ribbon { position: absolute; top: 0; right: 0; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 4px 10px; border-bottom-left-radius: 8px; }
+  .stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+  .note { color: var(--text2); font-size: 13px; margin-top: 14px; line-height: 1.5; }
+  .slot.rot { border: 2px solid var(--rot); }
+  .slot.jour { border: 2px solid var(--jour); }
+  .slot.dim.rot { border-color: #1f7f74; }
+  .reg { font-size: 15px; letter-spacing: 0; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs><symbol id="plane" viewBox="0 0 64 64"><path d="M32 4c2 0 3 3 3 6v14l22 12v5l-22-6v13l7 5v4l-10-3-10 3v-4l7-5V35l-22 6v-5l22-12V10c0-3 1-6 3-6z"/></symbol></defs></svg>
+<div class="page">
+  <h1>Fleet cards, revised</h1>
+  <p class="lead">Option B with your two changes. The rotation plane in the air keeps a darker teal border, matching its dimmed card.</p>
+  <!-- B -->
+  <div class="option selected" data-choice="b" onclick="toggleSelect(this)">
+    <div class="opt-head"><span class="letter">B</span><h2>B, revised</h2><p>Airframe first, registration under it; rotation and journey planes get a border in their colour.</p></div>
+    <div class="opt-body">
+      <div class="legend">
+        <span><svg fill="var(--good)"><use href="#plane"/></svg>Ready to fly</span>
+        <span><svg fill="var(--deliv)"><use href="#plane"/></svg>Awaiting delivery</span>
+        <span><svg fill="var(--busy)"><use href="#plane"/></svg>In the air</span>
+        <span><span class="badge" style="background:#0f2e2b;color:var(--rot)">ROTATION</span></span>
+        <span><span class="badge" style="background:#231d3a;color:var(--jour)">JOURNEY</span></span>
+      </div>
+      <div class="cards">
+        <div class="slot"><div class="top"><svg class="glyph" fill="var(--good)"><use href="#plane"/></svg><div><div class="reg">737-800 BBJ2 VIP</div><div class="sub">N814SX</div></div></div>
+          <div class="sub">At KSAN · 12,400 lb</div><div class="btns"><span class="btn primary">Fly</span><span class="btn">Manage</span></div></div>
+        <div class="slot"><div class="top"><svg class="glyph" fill="var(--good)"><use href="#plane"/></svg><div><div class="reg">777-300ER Two-class</div><div class="sub">N916SX</div></div></div>
+          <div class="sub">At KLAX · 61,000 lb</div><div class="btns"><span class="btn primary">Fly</span><span class="btn">Manage</span></div></div>
+        <div class="slot"><div class="top"><svg class="glyph" fill="var(--deliv)"><use href="#plane"/></svg><div><div class="reg">737-800 Two-class</div><div class="sub">N738SX</div></div></div>
+          <div class="sub">At KBFI · awaiting delivery</div><div class="btns"><span class="btn primary">Fly Delivery</span><span class="btn">Manage</span></div></div>
+        <div class="slot rot"><span class="ribbon" style="background:#0f2e2b;color:var(--rot)">Rotation</span><div class="top"><svg class="glyph" fill="var(--good)"><use href="#plane"/></svg><div><div class="reg">737-800 Two-class</div><div class="sub">N739SX</div></div></div>
+          <div class="sub">West Loop · at gate KSLC</div><div class="leg">Next <b>KSLC → KPDX</b> · 1 h 35 m</div><div class="btns"><span class="btn primary">Fly This Leg</span><span class="btn">Manage</span></div></div>
+        <div class="slot dim rot"><span class="ribbon" style="background:#0f2e2b;color:var(--rot)">Rotation</span><div class="top"><svg class="glyph" fill="var(--busy)"><use href="#plane"/></svg><div><div class="reg" style="color:var(--text2)">737-800 Two-class</div><div class="sub">N740SX</div></div></div>
+          <div class="sub">West Loop · in the air</div><div class="leg">KOAK → KLAS · lands 14:52Z</div><div class="btns"><span class="btn off">In the air</span><span class="btn">Manage</span></div></div>
+        <div class="slot jour"><span class="ribbon" style="background:#231d3a;color:var(--jour)">Journey</span><div class="top"><svg class="glyph" fill="var(--good)"><use href="#plane"/></svg><div><div class="reg">737-800 BBJ2 VIP</div><div class="sub">N815SX</div></div></div>
+          <div class="sub">Around the world · leg 5 of 14</div><div class="leg">Next <b>OMDB → VIDP</b></div><div class="btns"><span class="btn primary">Continue Journey</span><span class="btn">Manage</span></div></div>
+      </div>
+      <p class="note">Answers "what can I fly right now?" first: count the green ones. Rotation and journey are
+        secondary, in the ribbon. Green already means "on / ready" elsewhere in the app (the status tiles).</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>
