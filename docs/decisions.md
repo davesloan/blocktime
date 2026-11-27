@@ -3880,7 +3880,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-238 — Fix step 3's calls: pricing from raw facts, lines with workings, migration 10's scope
 - Date: 2026-11-27
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-27)
 - Decided by: Claude
 - Area: app, data
 - Decision:

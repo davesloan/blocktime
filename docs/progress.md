@@ -56,7 +56,7 @@ a replay reaches it); a Qt test covers it. On your next flight you should see:
    so on a leg where the tanks are low it's larger than before; the settled fuel line at block in should be close.
 4. The income lines are green and the costs white, in the same order as before.
 
-**Waiting on Dave:** D-238 (Proposed), Claude's calls in this step:
+**Dave's call:** D-238 accepted the same day, Claude's calls in this step:
 - No shared builder for the money inputs; the agreement test guards the two copies instead.
 - How the working is stored and shown (rates in whole dollars when they can be, quantities to one decimal).
 - Migration 10 leaves family, role and the monthly lease as they are (the lease waits for D-219 in fix step 4).
