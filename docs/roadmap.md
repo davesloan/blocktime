@@ -213,12 +213,12 @@ The header's `Arrival 12:35 PM` with `On time` / `Early ~4m` / `Delayed ~4m` und
 top of descent (and its tick on the arc), landing time, fuel against plan and fuel at landing on the panel; the plan's
 cruise speed on the airspeed gauge; the altitude and speed on the header's distance line,
 `127 NM flown · 103 NM to go · FL350 · M.74` (flight levels above the transition altitude, indicated airspeed;
-D-210). Checked on replays; no sim test.
+D-210). The taxi times are Dave's own, the median of his last 5 at the airport, SimBrief's where he hasn't flown
+(D-212). Last, developer mode: `--dev` shows Live's flight tiles and event feed, hidden without it (D-211). Checked
+on replays; no sim test.
 
-### Milestone 16 — Developer mode
-
-Live's normal view for flying, with today's debugging data (raw sim values, the event feed, phase-rule state) behind a
-flag or setting. Not designed: a brainstorm when it starts.
+Milestone 15 is the last milestone to the MVP; milestone 16 (developer mode) was folded into it (D-211). What comes
+next is a new brainstorm, starting from "After the MVP" below.
 
 **Every panel below the header uses the instrument panel look** (D-179, `docs/dashboard.md`): an inset panel with
 steam gauges for values that move, glass indicator lamps for what the debrief scores, and radio-stack readouts for
@@ -248,8 +248,8 @@ panel: [dashboard.md](dashboard.md), D-150 to D-154. The ideas below that it doe
 - **Pre-departure view** (D-118): everything needed to set up the FMC before pushback; Live switches to the in-flight
   view at block out.
 - **Predictions** (D-120): top of climb and descent, landing and gate arrival, shifted by ahead/behind plan.
-- **Developer mode:** Live's normal view designed for flying, with today's debugging data (raw sim values, events,
-  phase-rule state) behind a flag or a setting.
+- ~~**Developer mode:** Live's normal view designed for flying, with today's debugging data (raw sim values, events,
+  phase-rule state) behind a flag or a setting.~~ A `--dev` flag in milestone 15 (D-211).
 - **Altitude-coloured track:** the flight's line on the map coloured by altitude, red near the ground through yellow
   and green to blue at cruise, then back through green and yellow to red on the way down, fading smoothly between
   colours rather than in bands.

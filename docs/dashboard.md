@@ -6,7 +6,7 @@ three-column Live (D-139) when it's built. The header and status lines are built
 (`replay.md`). Nothing on the dashboard reads the wall clock (D-166).
 
 The header, the Pre-Flight panel and the in-flight panel (brainstorm of 2026-11-26, D-191 to D-198: milestones 14
-and 15) are designed. Developer mode is for a later brainstorm (milestone 16).
+and 15) are designed. Developer mode is the `--dev` flag (D-211, milestone 15).
 
 ## Names (D-150)
 
@@ -134,7 +134,7 @@ panel look (D-179). Claude's calls here were approved by Dave with the design on
 - Today's stages column (`FlightProgress.qml`) goes: the pill and the status lines replace it. Its Ready checklist
   moves under the status lines.
 - The event feed stays as a narrow column on the right until developer mode exists (Dave). D-152 still holds for the
-  dashboard's design; the feed is a stopgap.
+  dashboard's design; the feed is a stopgap. **Milestone 15 (D-211):** the tiles and the feed show only with `--dev`.
 - At block in the Flight Summary takes the planned flight panel's place below the header (D-154); today it sits above
   everything.
 - Pre-Departure becomes Pre-Flight everywhere it shows (D-150).
@@ -414,7 +414,7 @@ sidebar). What v2 changed is folded into the sections below and marked **(v2)**.
 **Goals:** the ATC card always shows the altitude to set; lamps flash only when something is wrong now; the arrival
 time is right through holds and delays.
 
-**Non-goals:** radio frequencies anywhere (D-191: the SayIntentions window has them); developer mode (milestone 16);
+**Non-goals:** radio frequencies anywhere (D-191: the SayIntentions window has them); developer mode (the `--dev` flag, D-211);
 a performance calculator (the PMDG EFB does it, D-118); reading the PMDG FMC.
 
 **Anti-goals** (failures even if they work):
@@ -671,7 +671,9 @@ Delayed ~3m
   minute by minute and `Delayed` grows with it.
 - **On time is measured against block out plus the plan's block time,** fixed at block out (Dave: BlockTime has no
   timetable). So the flight is always on time at pushback; only the flight itself makes it early or late.
-- **Before block out:** `Arrival` is now plus the plan's block time (as today), with no line under it.
+  **D-212:** the block time here is Dave's taxi out + the plan's enroute time + Dave's taxi in (below).
+- **Before block out:** `Arrival` is now plus the plan's block time (with Dave's taxi times, D-212), with no line
+  under it.
 - **Within 2 minutes either way it reads `On time`** (Claude's call: it keeps the line from flickering).
 - **At block in it freezes:** `Arrived 12:35 PM · Gate 4`, and `Delayed 3m` (or `Early 2m`, `On time`) without the `~`.
 - **Collapsed,** the On time / Early / Delayed line shows small under the destination code (as in the v1 mockup).
@@ -696,8 +698,15 @@ From the stored SimBrief navlog (D-182 already reads its fixes) and the route pr
 - **Fuel:** the plan's fuel on board at the current position (the navlog's planned fuel, interpolated) is the fuel
   gauge's bug; the difference is its window; FUEL AT LANDING is the current fuel less the plan's burn from here.
 - **The plan's cruise speed** for the airspeed gauge's bug in cruise.
-- Left to the builder: smoothing, how the taxi-in and taxi-out are read from the OFP, and what shows without a plan
-  (most likely: no predictions, the header's line empty).
+- **The taxi times are Dave's own (D-212):** taxi out from block out to the start of the takeoff roll at the origin,
+  taxi in from touchdown to block in at the arrival airport, each the median of his last 5 completed flights there
+  (fewer if that's all there is); with none, SimBrief's `times.taxi_out` / `times.taxi_in`. They feed the arrival
+  estimate and the On time reference alike. New airports read early at first: the young airline pads its schedule.
+- **One calculation:** a plain C++ class in `blocktime-core` (with tests) computes every prediction from the navlog's
+  elapsed time and fuel at each fix, the route progress, the taxi times and the clock; the header and the in-flight
+  panel read it. The PMDG FMC's own predictions are not read.
+- Left to the builder: smoothing, and what shows without a plan (most likely: no predictions, the header's line
+  empty).
 
 #### Testing
 
@@ -731,7 +740,7 @@ page switches to the summary at block in (D-134, `design.md` section 13.7); this
   only come from ATC.
 - ~~The panels for departure, climb, descent, short final and arrival~~: designed as one in-flight panel (D-194);
   frequencies dropped (D-191).
-- Developer mode (milestone 16): not designed.
+- ~~Developer mode (milestone 16)~~: the `--dev` flag (D-211), built in milestone 15.
 - The final wording of every status line (a later brainstorm, with the recorder's events in hand).
 - **The header on a summary** (Dave, 2026-11-26, for later): once the flight is over, the pill and the status lines
   may be better gone from the header entirely, leaving the identity row and the coloured arc above the Flight

@@ -2782,7 +2782,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-180 — Milestone 12's Live: the header over the planned flight, the tiles and the feed
 - Date: 2026-11-25
-- Status: Accepted
+- Status: Accepted; the tiles and the feed move behind `--dev` in milestone 15 (D-211)
 - Decided by: Dave (the feed, the checklist's place) + Claude
 - Area: app
 - Decision: Milestone 12 puts the header (D-151, D-152) at the top of Live while a flight is planned, open or showing
@@ -3028,7 +3028,8 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-192 — The header is the passenger view: an arrival time that moves, and On time / Early / Delayed under it
 - Date: 2026-11-26
-- Status: Accepted (the 2-minute "On time" band and the prediction method are Claude's, Proposed)
+- Status: Accepted (the 2-minute "On time" band and the prediction method are Claude's, Proposed); the taxi times and
+  the On time reference refined by D-212 (Dave's own taxi times)
 - Decided by: Dave + Claude
 - Area: design
 - Decision: In milestone 15 the header's destination line becomes `Arrival 12:35 PM` with no `~`, and under it
@@ -3134,7 +3135,8 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-199 — Milestone 14 is the in-flight panel, 15 the predictions and passenger header, 16 developer mode
 - Date: 2026-11-26
-- Status: Accepted (Dave asked for the write-up as milestones; the split is Claude's, Proposed)
+- Status: Accepted (Dave asked for the write-up as milestones; the split is Claude's, Proposed); milestone 16 superseded
+  by D-211 (developer mode joins milestone 15)
 - Decided by: Dave + Claude
 - Area: design
 - Decision: Milestone 14 builds the in-flight panel (D-194 to D-198), the ATIS word (D-193) and drops the departure
@@ -3400,3 +3402,69 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Why: Dave wants them at a glance in the header, next to the distances.
 - Settled by Dave (2026-11-26), before milestone 15's plan: the transition altitude for the switch to flight levels
   (his first note said 10,000 ft), and indicated airspeed rather than ground speed.
+
+## D-211 — Developer mode is a `--dev` flag, built in milestone 15; milestone 16 goes
+- Date: 2026-11-26
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: `BlockTime.exe --dev` shows Live's bottom row as it is today: the flight tiles (`FlightPanel`) and the
+  event feed (`EventFeed`). Without the flag the row is hidden. It is its own flag, combinable with `--demo` and
+  `--replay`; no setting, no UI to turn it on. It is built as the last task of milestone 15, and milestone 16 is
+  dropped from the roadmap. Milestone 15 is then the last milestone to the MVP; what comes next is a new brainstorm.
+  Supersedes D-199's milestone 16 and closes D-180's "until developer mode exists".
+- Why: Dave: keep it simple. The flying view is the header and the panels; the tiles and the feed are only for
+  reporting oddities from a flight, and a flag at launch is enough for that. Too small for a milestone of its own.
+- Alternatives considered: a setting or a toggle in the app; a designed developer view with raw sim values and
+  phase-rule state (the roadmap's first sketch).
+
+## D-212 — The predictions' taxi times are Dave's own: the median of his last 5 at the airport
+- Date: 2026-11-26
+- Status: Accepted (the source by Dave; the median of the last 5 and the reference using it are Claude's, approved by
+  Dave the same day)
+- Decided by: Dave + Claude
+- Area: design
+- Decision: The arrival estimate (D-192) uses Dave's own taxi times instead of SimBrief's:
+  - **Taxi out** at the origin: from block out to the start of the takeoff roll (the `takeoff` phase). **Taxi in** at
+    the arrival airport: from touchdown (the `landing` phase) to block in. Both come from completed flights already in
+    the database (`flight`, `flight_phase`); nothing new is stored.
+  - The figure is the **median of the last 5** completed flights at that airport (out from it, or in to it); with
+    fewer, the median of those there are; with none, SimBrief's `times.taxi_out` / `times.taxi_in`.
+  - **The On time reference uses the same taxi times:** block out + taxi out + the plan's enroute time + taxi in,
+    fixed at block out. It replaces D-192's "block out plus the plan's block time".
+  - All the predictions come from one plain C++ calculation in `blocktime-core`, with tests; the header and the
+    in-flight panel read it. The PMDG FMC's own predictions are not read (it would need a sim probe; the plan has
+    what's needed).
+- Why: SimBrief's default taxi times (20 + 20 min) were 27 minutes longer than the KSJC → KSAN flight's real ones
+  (11 + 2), so every flight would read "Early" by about that much. Dave's own history gets closer the more he flies to
+  the same airports; until then the new airline pads its schedule to look punctual (Dave's head canon).
+  The median shrugs off one long wait for a runway; the last 5 follows changes in how he flies.
+- Alternatives considered: Dave setting realistic taxi times in SimBrief (only as good as what's typed); a fixed
+  10 + 5 min where he hasn't flown (Dave preferred SimBrief's times as the fallback); the mean of all flights.
+
+## D-213 — Milestone 15's plan: Claude's calls for the predictions and the header
+- Date: 2026-11-26
+- Status: Proposed
+- Decided by: Claude
+- Area: design
+- Decision (plan `docs/plans/2026-11-26-milestone-15-predictions.md`):
+  - **No separate "fuel against plan" readout.** The fuel gauge's amber bug shows the plan's fuel here, and FUEL AT
+    LANDING with its `PLAN 6,175` tag gives the same difference in pounds (fuel now minus the plan's fuel here is
+    the same number at landing), so the `+200` / `−300` the spec left without a place isn't shown twice.
+  - **The plan's cruise speed bug** is the navlog's planned indicated airspeed at the next fix, in the cruise phase
+    only (the gauge is indicated airspeed; SimBrief's cruise Mach isn't).
+  - **The distance line's altitude and speed** show from liftoff to touchdown; on the ground they'd read 0 KT and the
+    field elevation.
+  - **Prediction readouts tick, never flip** (like FUEL REMAINING): their times and distances change every minute.
+  - **The rows:** Climb is SOULS, FUEL REMAINING, CRUISE, TOP OF CLIMB, TOP OF DESCENT, LANDING; Cruise is SOULS,
+    FUEL REMAINING, CRUISE, DEST ATIS, TOP OF DESCENT, LANDING, FUEL AT LANDING, ARR GATE (two rows of four).
+  - **A plan without navlog times** gets no predictions: the header falls back to the old estimate (block out plus
+    the plan's block time), without the `~`, and the readouts show a dash.
+  - **A replay's taxi history** is only the flights that blocked in before its block out, so it shows what Live
+    would have shown.
+  - The predictions live in the header model (it already owns the route progress); the in-flight model reads them
+    from it.
+- Why: each follows from the spec with the least new structure; the alternatives below add a screen element or a
+  second copy of the route progress for no gain Dave asked for.
+- Alternatives considered: a FUEL readout with `+200`; SimBrief's cruise Mach as the bug (the gauge is in knots); a
+  separate prediction model owning its own route progress.
