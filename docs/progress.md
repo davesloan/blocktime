@@ -43,8 +43,8 @@ Newest entries at the top. Add an entry at the end of every working session.
   and empty slots stay one height.
 
 **Unverified or broken:**
-- Not checked by Dave yet: drag the window to a side monitor, maximize it, close BlockTime, reopen — it should come
-  back maximized on that monitor, and un-maximize to its old size.
+- Dave checked the release build on 27 Nov 2026: the window reopens where it was closed (side monitor, maximized,
+  restore size), the Fleet card with a leg fits, and the small-window aircraft screen holds its hold bars: "flawless".
 - Closing while minimized is covered by a unit test only.
 - A snapped window (Win+arrow) reopens at its size from before the snap.
 
