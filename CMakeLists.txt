@@ -91,6 +91,7 @@ add_library(blocktime-core STATIC
   src/accepted_breakdown.cpp
   src/dispatch_report.cpp
   src/settlement_coordinator.cpp
+  src/your_flight_stage.cpp
   src/rates.cpp
   src/runway_match.cpp
   src/parking.cpp
@@ -184,6 +185,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/airline_db_test.cpp
     tests/accepted_breakdown_test.cpp
     tests/dispatch_report_test.cpp
+    tests/your_flight_stage_test.cpp
     tests/airline_session_test.cpp
     tests/airport_import_test.cpp
     tests/app_settings_test.cpp
@@ -355,7 +357,8 @@ qt_add_qml_module(blocktime-app
     src/planner.h
     src/qt_planner.h src/qt_planner.cpp
     src/new_flight_model.h src/new_flight_model.cpp
-    src/planned_flight_model.h src/planned_flight_model.cpp
+    src/your_flight_model.h src/your_flight_model.cpp
+    src/flight_source.h src/flight_source.cpp
     src/planned_flight_display.h src/planned_flight_display.cpp
     src/money_lines_qml.h src/money_lines_qml.cpp
     src/dashboard_header.h src/dashboard_header.cpp
@@ -424,7 +427,8 @@ if(BLOCKTIME_BUILD_TESTS)
     src/ledger_model.h src/ledger_model.cpp
     src/planner.h
     src/new_flight_model.h src/new_flight_model.cpp
-    src/planned_flight_model.h src/planned_flight_model.cpp
+    src/your_flight_model.h src/your_flight_model.cpp
+    src/flight_source.h src/flight_source.cpp
     src/planned_flight_display.h src/planned_flight_display.cpp
     src/money_lines_qml.h src/money_lines_qml.cpp
     src/dashboard_header.h src/dashboard_header.cpp

@@ -54,7 +54,7 @@
 #include "airline_db.h"
 #include "ledger_model.h"
 #include "new_flight_model.h"
-#include "planned_flight_model.h"
+#include "your_flight_model.h"
 #include "dashboard_header.h"
 #include "inflight_model.h"
 #include "preflight_model.h"
@@ -568,7 +568,7 @@ int main(int argc, char* argv[]) {
     AddAircraftModel addAircraft(planningDb, airline.catalog(), blocktime::defaultRatesFile(), claude);
     // The aircraft screen (D-241): New screenshot and Return.
     AircraftModel aircraft(planningDb, airline.catalog(), claude);
-    PlannedFlightModel plannedFlight(planningDb, airlineIcao, planner, bridge, flightTarget, logDir,
+    YourFlightModel plannedFlight(planningDb, airlineIcao, planner, bridge, flightTarget, logDir,
                                      blocktime::defaultRatesFile());
     // The dashboard header (D-151, D-180): the planned flight, kept once settled; a summary already showing at startup
     // comes from the database. --demo shows its own.
@@ -582,15 +582,15 @@ int main(int argc, char* argv[]) {
     }
     DashboardHeader* header = demo ? demoHeader.get() : &*liveHeader;
     // The Pre-Flight panel (D-153): the planned flight with SayIntentions' ATIS and clearance; --demo's own flight.
-    PreFlightModel preflight(bridge, demo ? static_cast<PlannedFlightDisplay&>(*demoPlanned) : plannedFlight);
+    PreFlightModel preflight(bridge, demo ? static_cast<FlightSource&>(*demoPlanned) : plannedFlight);
     // The in-flight panel (D-194): block out to block in. SOULS counts the crew at rates.yaml's VIP multiple (D-203).
     const blocktime::Rates liveRates =
         blocktime::loadRates(blocktime::defaultRatesFile(), nullptr).value_or(blocktime::Rates{});
-    InFlightModel inflight(bridge, demo ? static_cast<PlannedFlightDisplay&>(*demoPlanned) : plannedFlight,
+    InFlightModel inflight(bridge, demo ? static_cast<FlightSource&>(*demoPlanned) : plannedFlight,
                            static_cast<int>(liveRates.vipFlightAttendantsTimes), header);
     QObject::connect(&reviews, &ReviewWriter::reviewChanged, &flights, &FlightListModel::refreshDebrief);
     // A flight settled: the airplane moved, money was posted and Flights has a new row (D-113).
-    QObject::connect(&plannedFlight, &PlannedFlightModel::settled, [&](const QString& logFlightId) {
+    QObject::connect(&plannedFlight, &YourFlightModel::settled, [&](const QString& logFlightId) {
         fleet.reset(fleetState());
         ledger.reset(airline.ledger(), airline.cash());
         flights.reload();
@@ -598,7 +598,7 @@ int main(int argc, char* argv[]) {
     });
     // A flight planned, cancelled or settled moves the Fleet cards' buttons; the rest of the planned flight's changes
     // (its plan, its estimate) don't, so the cards are rebuilt only when the planned airplane or leg changes.
-    QObject::connect(&plannedFlight, &PlannedFlightModel::changed, [&] {
+    QObject::connect(&plannedFlight, &FlightSource::changed, [&] {
         const FleetState next = fleetState();
         if (next.plannedRegistration != fleet.plannedRegistration() || next.plannedLeg != fleet.plannedLeg()) {
             fleet.reset(next);
@@ -638,12 +638,13 @@ int main(int argc, char* argv[]) {
     // SayIntentions at the gate (D-188): the planned flight's origin until block out, so the clearance shows before
     // pushback. The watcher itself waits for the sim and stops at block out.
     const auto preFlightOrigin = [&plannedFlight, &flightWatcher] {
-        const QString state = plannedFlight.state();
-        const bool atGate = state == "waitingForPlan" || state == "waitingForSim" || state == "simConnected";
+        using S = blocktime::YourFlightStage;
+        const S stage = plannedFlight.stage();
+        const bool atGate = stage == S::Dispatched || stage == S::Imported || stage == S::Accepted;
         const auto& view = plannedFlight.view();
         flightWatcher.setPreFlightOrigin(atGate && view ? QString::fromStdString(view->origin) : QString());
     };
-    QObject::connect(&plannedFlight, &PlannedFlightDisplay::changed, &flightWatcher, preFlightOrigin);
+    QObject::connect(&plannedFlight, &FlightSource::changed, &flightWatcher, preFlightOrigin);
     preFlightOrigin();
 
     QQmlApplicationEngine engine;

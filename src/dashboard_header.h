@@ -21,7 +21,7 @@
 #include <QtQml/qqmlregistration.h>
 
 #include "planned_flight.h"
-#include "planned_flight_display.h"
+#include "flight_source.h"
 #include "predictions.h"
 #include "recorder_bridge.h"
 #include "route_progress.h"
@@ -62,7 +62,7 @@ class DashboardHeader : public QObject {
 public:
     using SettledFlight = std::function<std::optional<blocktime::PlannedFlightView>(const QString& logFlightId)>;
 
-    DashboardHeader(RecorderBridge& bridge, PlannedFlightDisplay& planned, QString airlineIcao, QString airlineName,
+    DashboardHeader(RecorderBridge& bridge, FlightSource& planned, QString airlineIcao, QString airlineName,
                     SettledFlight settledFlight, QObject* parent = nullptr);
 
     bool visible() const;
@@ -106,7 +106,7 @@ private:
     int planBlockS() const;
 
     RecorderBridge& bridge_;
-    PlannedFlightDisplay& planned_;
+    FlightSource& planned_;
     QString airlineIcao_, airlineName_;
     SettledFlight settledFlight_;
 

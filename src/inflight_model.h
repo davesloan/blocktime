@@ -24,7 +24,7 @@
 #include "atc_card.h"
 #include "dashboard_header.h"
 #include "lamps.h"
-#include "planned_flight_display.h"
+#include "flight_source.h"
 #include "preflight_log.h"
 #include "recorder_bridge.h"
 
@@ -64,7 +64,7 @@ class InFlightModel : public QObject {
 public:
     // vipAttendantsTimes: rates.yaml's VIP flight attendant multiple, for SOULS. `header` gives the predictions
     // (D-192); without one the prediction readouts show a dash and the plan's bugs don't show.
-    InFlightModel(RecorderBridge& bridge, PlannedFlightDisplay& planned, int vipAttendantsTimes,
+    InFlightModel(RecorderBridge& bridge, FlightSource& planned, int vipAttendantsTimes,
                   const DashboardHeader* header = nullptr, QObject* parent = nullptr);
 
     // A burst of lines (a replay seek or restart) goes between these: animate is off from the first, and comes back
@@ -120,7 +120,7 @@ private:
     Predicted predicted() const;
 
     RecorderBridge& bridge_;
-    PlannedFlightDisplay& planned_;
+    FlightSource& planned_;
     const DashboardHeader* header_;
     Predicted predicted_;
     int vipAttendantsTimes_;

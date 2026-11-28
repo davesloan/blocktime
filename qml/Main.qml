@@ -19,7 +19,7 @@ ApplicationWindow {
     required property AircraftModel aircraft
     required property LedgerModel ledger
     required property NewFlightModel newFlight
-    required property PlannedFlightModel plannedFlight
+    required property YourFlightModel plannedFlight
     required property DashboardHeader dashboard
     required property PreFlightModel preflight
     required property InFlightModel inflight

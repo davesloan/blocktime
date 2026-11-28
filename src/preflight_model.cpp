@@ -31,11 +31,11 @@ QString label(std::string s) {
 
 }  // namespace
 
-PreFlightModel::PreFlightModel(RecorderBridge& bridge, PlannedFlightDisplay& planned, QObject* parent)
+PreFlightModel::PreFlightModel(RecorderBridge& bridge, FlightSource& planned, QObject* parent)
     : QObject(parent), bridge_(bridge), planned_(planned) {
     timer_.setInterval(1000);
     connect(&timer_, &QTimer::timeout, this, &PreFlightModel::countdownChanged);
-    connect(&planned_, &PlannedFlightDisplay::changed, this, &PreFlightModel::refreshFlight);
+    connect(&planned_, &FlightSource::changed, this, &PreFlightModel::refreshFlight);
     connect(&bridge_, &RecorderBridge::flightEvent, this, [this](const QString& type, const QVariantMap& data) {
         if (type != "atc_exchange" && type != "atis" && type != "liftoff") return;
         const QByteArray json = QJsonDocument(QJsonObject::fromVariantMap(data)).toJson(QJsonDocument::Compact);
@@ -81,8 +81,8 @@ void PreFlightModel::updateTimer() {
     }
 }
 
-// Until block out: the in-flight panel takes over there (D-194; it was liftoff, D-188).
-bool PreFlightModel::visible() const { return hasFlight_ && !log_.blockedOut(); }
+// From Accept until block out: the in-flight panel takes over there (D-194; it was liftoff, D-188).
+bool PreFlightModel::visible() const { return planned_.stage() == blocktime::YourFlightStage::Accepted; }
 
 QString PreFlightModel::blockFuelText() const {
     return sheet_.hasPlan && sheet_.blockFuelLb > 0 ? pounds(sheet_.blockFuelLb) : QString();

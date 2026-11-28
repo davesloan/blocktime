@@ -35,7 +35,7 @@ Item {
 
     // The summary of the flight that just ended, from the Flights list (design.md §13.7).
     // From Finish Flight (0.15.1): until then the arrival view stays; a flight settled at startup shows it at once.
-    readonly property bool showSummary: plannedFlight.state === "summary" && !inflight.finishable
+    readonly property bool showSummary: plannedFlight.stage === "summary"
     property var summary: ({})
     property var summaryTrack
 

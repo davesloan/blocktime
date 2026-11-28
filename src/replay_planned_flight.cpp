@@ -24,3 +24,13 @@ QString ReplayPlannedFlight::state() const {
     if (!summaryFlightId_.isEmpty()) return QStringLiteral("summary");
     return bridge_.flightOpen() ? QStringLiteral("flying") : QStringLiteral("replay");
 }
+
+// A settled flight replayed: accepted before block out, flying, then the arrival view and the summary.
+blocktime::YourFlightStage ReplayPlannedFlight::stage() const {
+    blocktime::StageInputs in;
+    in.planned = in.planImported = in.accepted = flight_.has_value();
+    in.flightOpen = bridge_.flightOpen();
+    in.summaryShowing = !summaryFlightId_.isEmpty();
+    in.finishable = finishable();
+    return blocktime::yourFlightStage(in);
+}

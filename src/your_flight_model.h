@@ -28,7 +28,7 @@
 #include "settlement_coordinator.h"
 #include "sqlite_db.h"
 
-class PlannedFlightModel : public PlannedFlightDisplay {
+class YourFlightModel : public PlannedFlightDisplay {
     Q_OBJECT
     QML_ELEMENT
     QML_UNCREATABLE("Created by the app")
@@ -36,7 +36,7 @@ class PlannedFlightModel : public PlannedFlightDisplay {
 public:
     // rates.yaml is read at every reload() for the estimate (D-107) and at every settle; the defaults if it can't be
     // read. `target` gets the planned flight for the recorder; `logDir` is where the flown flight is read back from.
-    PlannedFlightModel(blocktime::db::Database& db, QString airlineIcao, Planner& planner, RecorderBridge& bridge,
+    YourFlightModel(blocktime::db::Database& db, QString airlineIcao, Planner& planner, RecorderBridge& bridge,
                        blocktime::FlightTargetSlot& target, std::filesystem::path logDir, std::filesystem::path ratesFile,
                        QObject* parent = nullptr);
 
@@ -58,6 +58,9 @@ public:
 
     QString state() const override;
     QString notRecording() const override;
+    blocktime::YourFlightStage stage() const override;
+    // The dispatch form is open (a new flight, or Change flight).
+    Q_INVOKABLE void setFormOpen(bool open);
 
 signals:
     void flightChanged();  // planned, imported or cancelled: the Fleet screen refreshes
@@ -77,5 +80,6 @@ private:
     int fuelOnRecordLb_ = 0;
     QString summaryRegistration_;
     blocktime::SettlementCoordinator settlement_;
+    bool formOpen_ = false;
     std::vector<blocktime::LogLine> settledLines_;  // until the settled handler takes them
 };

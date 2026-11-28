@@ -41,7 +41,7 @@ std::string keyOf(const std::optional<PlannedFlightView>& f) {
 
 }  // namespace
 
-DashboardHeader::DashboardHeader(RecorderBridge& bridge, PlannedFlightDisplay& planned, QString airlineIcao,
+DashboardHeader::DashboardHeader(RecorderBridge& bridge, FlightSource& planned, QString airlineIcao,
                                  QString airlineName, SettledFlight settledFlight, QObject* parent)
     : QObject(parent),
       bridge_(bridge),
@@ -51,7 +51,7 @@ DashboardHeader::DashboardHeader(RecorderBridge& bridge, PlannedFlightDisplay& p
       settledFlight_(std::move(settledFlight)) {
     timer_.setInterval(1000);
     connect(&timer_, &QTimer::timeout, this, &DashboardHeader::changed);
-    connect(&planned_, &PlannedFlightDisplay::changed, this, &DashboardHeader::refreshFlight);
+    connect(&planned_, &FlightSource::changed, this, &DashboardHeader::refreshFlight);
     connect(&bridge_, &RecorderBridge::sampleChanged, this, &DashboardHeader::onSample);
     connect(&bridge_, &RecorderBridge::flightEvent, this, &DashboardHeader::onFlightEvent);
     connect(&bridge_, &RecorderBridge::blockEvent, this, [this](const QString& type) { onBlockEvent(type); });
@@ -62,10 +62,10 @@ void DashboardHeader::refreshFlight() {
     std::optional<PlannedFlightView> next = planned_.view();
     bool settledBefore = false;  // a summary from the database: this session saw none of its block events
     if (!next) {
-        // No flight on show: settling (PlannedFlightModel reloads before it sets the summary), the summary itself, or
+        // No flight on show: settling (YourFlightModel reloads before it sets the summary), the summary itself, or
         // nothing planned. The flight held stays (visible() hides it); only a different flight replaces it. At startup
         // with a summary showing, it comes from the database.
-        if (flight_ || planned_.state() != "summary" || !settledFlight_) {
+        if (flight_ || planned_.summaryFlightId().isEmpty() || !settledFlight_) {
             updateTimer();
             emit changed();
             return;
@@ -159,8 +159,11 @@ void DashboardHeader::updateTimer() {
 
 int DashboardHeader::planBlockS() const { return flight_ && flight_->plan ? flight_->plan->estBlockS : 0; }
 
+// From Accept on (D-233): never beside the dispatch report.
 bool DashboardHeader::visible() const {
-    return flight_.has_value() && (planned_.hasFlight() || bridge_.flightOpen() || planned_.state() == "summary");
+    using S = blocktime::YourFlightStage;
+    const S stage = planned_.stage();
+    return flight_.has_value() && (stage == S::Accepted || stage == S::Flying || stage == S::Arrived || stage == S::Summary);
 }
 
 QString DashboardHeader::flightNumber() const { return flight_ ? q(flight_->flightNumber) : QString(); }

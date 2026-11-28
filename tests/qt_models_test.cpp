@@ -42,7 +42,7 @@
 #include "new_flight_model.h"
 #include "flight_settlement.h"
 #include "planned_flight.h"
-#include "planned_flight_model.h"
+#include "your_flight_model.h"
 #include "plan_brief.h"
 #include "predictions.h"
 #include "simbrief.h"
@@ -697,12 +697,12 @@ TEST(NewFlightModel, DeliveryOffersOnlyTheDeliveryFlight) {
     EXPECT_TRUE(m.totalText().startsWith("-$")) << m.totalText().toStdString();
 }
 
-TEST(PlannedFlightModel, ImportStoresMatchingPlan) {
+TEST(YourFlightModel, ImportStoresMatchingPlan) {
     db::Database db = deliveredAirline();
     planVip(db, "2026-11-23T14:00:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
+    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
     EXPECT_TRUE(m.hasFlight());
     EXPECT_EQ(m.state(), "waitingForPlan");
     EXPECT_EQ(m.title(), "XLY8 · KBFI → KSAN");
@@ -718,12 +718,12 @@ TEST(PlannedFlightModel, ImportStoresMatchingPlan) {
 }
 
 // Review 4.4: income and costs reach the panel apart, each with its working.
-TEST(PlannedFlightModel, EstimateSplitsIncomeAndCosts) {
+TEST(YourFlightModel, EstimateSplitsIncomeAndCosts) {
     db::Database db = deliveredAirline();
     planVip(db, "2026-11-23T14:00:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
+    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
     m.importPlan();
     ASSERT_FALSE(m.estimateIncome().isEmpty());
     ASSERT_FALSE(m.estimateCosts().isEmpty());
@@ -738,62 +738,62 @@ TEST(PlannedFlightModel, EstimateSplitsIncomeAndCosts) {
     EXPECT_TRUE(fuel);  // the plan's in, and the airplane holds less than its ramp fuel
 }
 
-TEST(PlannedFlightModel, ImportRefusesAStalePlan) {
+TEST(YourFlightModel, ImportRefusesAStalePlan) {
     db::Database db = deliveredAirline();
     planVip(db, "2026-11-23T14:20:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
+    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
     m.importPlan();
     EXPECT_EQ(m.state(), "waitingForPlan");
     EXPECT_TRUE(m.message().startsWith("The latest SimBrief plan was generated at 14:02Z")) << m.message().toStdString();
     EXPECT_FALSE(currentPlannedFlight(db)->plan.has_value());
 }
 
-TEST(PlannedFlightModel, ImportShowsSimbriefError) {
+TEST(YourFlightModel, ImportShowsSimbriefError) {
     db::Database db = deliveredAirline();
     planVip(db, "2026-11-23T14:00:00Z");
     FakePlanner planner;
     planner.ofpBody = R"({"fetch":{"userid":"","static_id":"","status":"Error: Unknown UserID","time":"0"}})";
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
+    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
     m.importPlan();
     EXPECT_TRUE(m.message().contains("Error: Unknown UserID")) << m.message().toStdString();
     EXPECT_EQ(m.state(), "waitingForPlan");
 }
 
-TEST(PlannedFlightModel, ImportShowsNetworkError) {
+TEST(YourFlightModel, ImportShowsNetworkError) {
     db::Database db = deliveredAirline();
     planVip(db, "2026-11-23T14:00:00Z");
     FakePlanner planner;
     planner.ofpBody.clear();
     planner.ofpError = "Add simbrief_user_id to settings.json";
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
+    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
     m.importPlan();
     EXPECT_EQ(m.message(), "Add simbrief_user_id to settings.json");
 }
 
-TEST(PlannedFlightModel, CancelClears) {
+TEST(YourFlightModel, CancelClears) {
     db::Database db = deliveredAirline();
     planVip(db, "2026-11-23T14:00:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
+    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
     int changed = 0;
-    QObject::connect(&m, &PlannedFlightModel::flightChanged, [&] { ++changed; });
+    QObject::connect(&m, &YourFlightModel::flightChanged, [&] { ++changed; });
     m.cancelFlight();
     EXPECT_FALSE(m.hasFlight());
     EXPECT_EQ(changed, 1);
     EXPECT_FALSE(currentPlannedFlight(db).has_value());
 }
 
-TEST(PlannedFlightModel, StateFollowsConnection) {
+TEST(YourFlightModel, StateFollowsConnection) {
     db::Database db = deliveredAirline();
     planVip(db, "2026-11-23T14:00:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
+    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
     m.importPlan();
     ASSERT_EQ(m.state(), "waitingForSim");
     bridge.applyConnection(ConnectionState::Connected);
@@ -801,12 +801,12 @@ TEST(PlannedFlightModel, StateFollowsConnection) {
     EXPECT_EQ(m.stateText(), "Sim connected");
 }
 
-TEST(PlannedFlightModel, OpenDispatchPageRebuildsTheUrl) {
+TEST(YourFlightModel, OpenDispatchPageRebuildsTheUrl) {
     db::Database db = deliveredAirline();
     planVip(db, "2026-11-23T14:00:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
+    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
     m.openDispatchPage();
     ASSERT_EQ(planner.opened.size(), 1);
     EXPECT_TRUE(planner.opened[0].contains("orig=KBFI&dest=KSAN&airline=XLY&fltnum=8")) << planner.opened[0].toStdString();
@@ -913,8 +913,8 @@ protected:
         ASSERT_TRUE(storeSimbriefPlan(db_, plannedId_, p, "{}", "2026-11-22T10:06:00Z", &error)) << error;
     }
 
-    std::unique_ptr<PlannedFlightModel> model() {
-        return std::make_unique<PlannedFlightModel>(db_, "XLY", planner_, bridge_, target_, dir_, kRatesFile);
+    std::unique_ptr<YourFlightModel> model() {
+        return std::make_unique<YourFlightModel>(db_, "XLY", planner_, bridge_, target_, dir_, kRatesFile);
     }
 
     db::Database db_ = test::testAirline();
@@ -1001,7 +1001,7 @@ TEST_F(LiveFlight, NoPlannedFlightText) {
 TEST_F(LiveFlight, SettlesOnBlockIn) {
     auto m = model();
     int settled = 0;
-    QObject::connect(m.get(), &PlannedFlightModel::settled, [&] { ++settled; });
+    QObject::connect(m.get(), &YourFlightModel::settled, [&] { ++settled; });
     write({liveOut(plannedId_)});
     BlockOut out;
     out.flightId = kLiveOut;
@@ -1024,7 +1024,7 @@ TEST_F(LiveFlight, SettlesAtStartup) {
     auto m = model();
     int settled = 0;
     std::size_t handed = 0;  // the lines settlement read, handed on to Claude's review (review 5.1)
-    QObject::connect(m.get(), &PlannedFlightModel::settled, [&] {
+    QObject::connect(m.get(), &YourFlightModel::settled, [&] {
         ++settled;
         handed = m->takeSettledLines().size();
     });
@@ -1042,7 +1042,7 @@ TEST_F(LiveFlight, SettlesAtStartup) {
 TEST_F(LiveFlight, HeldBlockInWaitsToSettleAndCantBeCancelled) {
     auto m = model();
     int settled = 0;
-    QObject::connect(m.get(), &PlannedFlightModel::settled, [&] { ++settled; });
+    QObject::connect(m.get(), &YourFlightModel::settled, [&] { ++settled; });
     write({liveOut(plannedId_)});
     BlockOut out;
     out.flightId = kLiveOut;
@@ -1099,7 +1099,7 @@ TEST_F(LiveFlight, TurnaroundAsksForNewFlight) {
     auto m = model();
     m->checkFlown();
     QStringList asked;
-    QObject::connect(m.get(), &PlannedFlightModel::turnaroundRequested, [&](const QString& r) { asked << r; });
+    QObject::connect(m.get(), &YourFlightModel::turnaroundRequested, [&](const QString& r) { asked << r; });
     m->turnaround();
     EXPECT_EQ(asked, QStringList{"N814SX"});
     EXPECT_EQ(m->state(), "");
@@ -1307,9 +1307,9 @@ TEST_F(LiveFlight, RefusedReleaseNeedsANewRelease) {  // review finding 1
 
 TEST_F(LiveFlight, UnreadableRatesDontSettle) {  // review finding 2
     write({liveOut(plannedId_), liveIn()});
-    PlannedFlightModel m(db_, "XLY", planner_, bridge_, target_, dir_, dir_ / "no-rates.yaml");
+    YourFlightModel m(db_, "XLY", planner_, bridge_, target_, dir_, dir_ / "no-rates.yaml");
     int settled = 0;
-    QObject::connect(&m, &PlannedFlightModel::settled, [&] { ++settled; });
+    QObject::connect(&m, &YourFlightModel::settled, [&] { ++settled; });
     m.checkFlown();
     EXPECT_EQ(settled, 0);
     EXPECT_TRUE(m.hasFlight());
@@ -1917,7 +1917,7 @@ TEST(FlightWatcher, GateStopsAtBlockIn) {
     EXPECT_TRUE(r.planner.assignCalls.isEmpty());
 }
 
-TEST(PlannedFlightModel, LoadInTextNamesTheSpot) {
+TEST(YourFlightModel, LoadInTextNamesTheSpot) {
     db::Database db = deliveredAirline();
     ASSERT_TRUE(db.exec(
         "INSERT INTO flight (log_flight_id, airplane_id, flight_number, kind, origin_airport_id,"
@@ -1929,7 +1929,7 @@ TEST(PlannedFlightModel, LoadInTextNamesTheSpot) {
     planVip(db, "2026-11-23T14:00:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    PlannedFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
+    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
     EXPECT_EQ(m.loadInText(), "Load in at KBFI, Boeing Field, Parking 70");
 }
 
@@ -2228,6 +2228,51 @@ TEST(ReplayPlannedFlight, FollowsTheBridge) {
     EXPECT_EQ(f.state(), "summary");
     EXPECT_FALSE(f.hasFlight());
     EXPECT_EQ(f.summaryFlightId(), "2026-11-24T23:53:16.837Z");
+}
+
+// The replay's stages drive the same panels as Your Flight: Pre-Flight before block out, the in-flight panel after.
+TEST(ReplayPlannedFlight, StagesDriveThePanels) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(replayView(), "XLY", Rates{}, b, "2026-11-24T23:53:16.837Z");
+    DashboardHeader h(b, f, "XLY", "Soxxly Airlines", DashboardHeader::SettledFlight{});
+    PreFlightModel pre(b, f);
+    InFlightModel in(b, f, 3, &h);
+    EXPECT_EQ(f.stage(), YourFlightStage::Accepted);
+    EXPECT_TRUE(pre.visible());
+    EXPECT_FALSE(in.visible());
+    BlockOut out;
+    out.flightId = "2026-11-24T23:53:16.837Z";
+    out.time = *parseUtc(out.flightId);
+    b.applyBlockEvent(out);
+    EXPECT_EQ(f.stage(), YourFlightStage::Flying);
+    EXPECT_FALSE(pre.visible());
+    EXPECT_TRUE(in.visible());
+    BlockIn bin;
+    bin.flightId = out.flightId;
+    bin.time = out.time + std::chrono::hours(1);
+    b.applyBlockEvent(bin);
+    EXPECT_EQ(f.stage(), YourFlightStage::Arrived);  // the arrival view until Settle Up
+    EXPECT_TRUE(in.visible());
+    in.finishFlight();
+    EXPECT_EQ(f.stage(), YourFlightStage::Summary);
+    EXPECT_FALSE(in.visible());
+}
+
+// A replay without its settled flight (an older database) shows no Pre-Flight.
+TEST(ReplayPlannedFlight, NoViewNoPreFlight) {
+    qtApp();
+    RecorderBridge b;
+    ReplayPlannedFlight f(std::nullopt, "XLY", Rates{}, b, "2026-11-24T23:53:16.837Z");
+    PreFlightModel pre(b, f);
+    EXPECT_EQ(f.stage(), YourFlightStage::Empty);
+    EXPECT_FALSE(pre.visible());
+    BlockOut out;
+    out.flightId = "2026-11-24T23:53:16.837Z";
+    out.time = *parseUtc(out.flightId);
+    b.applyBlockEvent(out);
+    EXPECT_EQ(f.stage(), YourFlightStage::Flying);
+    EXPECT_FALSE(pre.visible());
 }
 
 TEST(ReplayPlannedFlight, IsReadOnly) {
@@ -2791,7 +2836,7 @@ TEST(ReplaySession, BlockInPlaysWhatCameWithIt) {
 
 namespace {
 
-// The real PlannedFlightModel's order at settling: reload() empties the flight (state "") before the summary id is
+// The real YourFlightModel's order at settling: reload() empties the flight (state "") before the summary id is
 // set; ReplayPlannedFlight goes to the summary in one step.
 class SettlingDisplay : public PlannedFlightDisplay {
 public:
@@ -2799,6 +2844,10 @@ public:
     QString state() const override {
         if (!summaryFlightId_.isEmpty()) return QStringLiteral("summary");
         return flight_ ? QStringLiteral("flying") : QString();
+    }
+    YourFlightStage stage() const override {
+        if (!summaryFlightId_.isEmpty()) return YourFlightStage::Summary;
+        return flight_ ? YourFlightStage::Flying : YourFlightStage::Empty;
     }
     void settle(const QString& id) {
         flight_.reset();
@@ -2808,7 +2857,49 @@ public:
     }
 };
 
+// A flight source set to any stage, for the panels' visibility (review 3.1).
+class StagedSource : public FlightSource {
+public:
+    explicit StagedSource(PlannedFlightView v) : FlightSource(nullptr), view_(std::move(v)) {}
+    const std::optional<PlannedFlightView>& view() const override { return view_; }
+    YourFlightStage stage() const override { return stage_; }
+    QString summaryFlightId() const override { return {}; }
+    void setStage(YourFlightStage s) {
+        stage_ = s;
+        emit changed();
+    }
+
+private:
+    std::optional<PlannedFlightView> view_;
+    YourFlightStage stage_ = YourFlightStage::Empty;
+};
+
 }  // namespace
+
+// The header from Accept on, Pre-Flight while accepted, the in-flight panel from block out to Settle Up.
+TEST(QtModels, HeaderVisibleFromAccepted) {
+    qtApp();
+    RecorderBridge b;
+    StagedSource f(headerView());
+    DashboardHeader h(b, f, "XLY", "Soxxly Airlines", noSettledFlight());
+    PreFlightModel pre(b, f);
+    InFlightModel in(b, f, 3, &h);
+    using S = YourFlightStage;
+    struct Row {
+        S stage;
+        bool header, preflight, inflight;
+    };
+    for (const Row& r : {Row{S::Empty, false, false, false}, Row{S::Form, false, false, false},
+                         Row{S::Dispatched, false, false, false}, Row{S::Imported, false, false, false},
+                         Row{S::Accepted, true, true, false}, Row{S::Flying, true, false, true},
+                         Row{S::Arrived, true, false, true}, Row{S::Summary, true, false, false}}) {
+        f.setStage(r.stage);
+        const std::string name(stageName(r.stage));
+        EXPECT_EQ(h.visible(), r.header) << name;
+        EXPECT_EQ(pre.visible(), r.preflight) << name;
+        EXPECT_EQ(in.visible(), r.inflight) << name;
+    }
+}
 
 TEST(DashboardHeader, SettlingKeepsTheFlight) {
     qtApp();

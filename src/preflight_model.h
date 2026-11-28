@@ -16,7 +16,7 @@
 #include <QtQml/qqmlregistration.h>
 
 #include "load_sheet.h"
-#include "planned_flight_display.h"
+#include "flight_source.h"
 #include "preflight_log.h"
 #include "recorder_bridge.h"
 
@@ -60,7 +60,7 @@ class PreFlightModel : public QObject {
     Q_PROPERTY(bool countdownUrgent READ countdownUrgent NOTIFY countdownChanged)
 
 public:
-    PreFlightModel(RecorderBridge& bridge, PlannedFlightDisplay& planned, QObject* parent = nullptr);
+    PreFlightModel(RecorderBridge& bridge, FlightSource& planned, QObject* parent = nullptr);
 
     bool visible() const;
     bool hasPlan() const { return sheet_.hasPlan; }
@@ -102,7 +102,7 @@ private:
     void updateTimer();
 
     RecorderBridge& bridge_;
-    PlannedFlightDisplay& planned_;
+    FlightSource& planned_;
     blocktime::PreFlightLog log_;
     blocktime::PlannedFlightView flight_;  // the last flight on show
     bool hasFlight_ = false;

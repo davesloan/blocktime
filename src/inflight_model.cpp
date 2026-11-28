@@ -80,7 +80,7 @@ const char* phaseTitleOf(PanelPhase p) {
 
 }  // namespace
 
-InFlightModel::InFlightModel(RecorderBridge& bridge, PlannedFlightDisplay& planned, int vipAttendantsTimes,
+InFlightModel::InFlightModel(RecorderBridge& bridge, FlightSource& planned, int vipAttendantsTimes,
                              const DashboardHeader* header, QObject* parent)
     : QObject(parent), bridge_(bridge), planned_(planned), header_(header), vipAttendantsTimes_(vipAttendantsTimes) {
     flash_.setInterval(1000);  // 1 s lit, 1 s dark (D-195)
@@ -88,7 +88,7 @@ InFlightModel::InFlightModel(RecorderBridge& bridge, PlannedFlightDisplay& plann
         flashOn_ = !flashOn_;
         emit flashChanged();
     });
-    connect(&planned_, &PlannedFlightDisplay::changed, this, &InFlightModel::refreshFlight);
+    connect(&planned_, &FlightSource::changed, this, &InFlightModel::refreshFlight);
     connect(&bridge_, &RecorderBridge::flightEvent, this, &InFlightModel::onFlightEvent);
     connect(&bridge_, &RecorderBridge::blockEvent, this, [this](const QString& type) { onBlockEvent(type); });
     connect(&bridge_, &RecorderBridge::sampleChanged, this, &InFlightModel::onSample);
@@ -233,11 +233,15 @@ void InFlightModel::onSample() {
     rebuild();
 }
 
-bool InFlightModel::visible() const { return bridge_.flightOpen() || finishable_; }
+bool InFlightModel::visible() const {
+    const blocktime::YourFlightStage stage = planned_.stage();
+    return stage == blocktime::YourFlightStage::Flying || stage == blocktime::YourFlightStage::Arrived;
+}
 
 void InFlightModel::finishFlight() {
     if (!finishable_) return;
     finishable_ = false;
+    planned_.setFinishable(false);  // Settle Up: the stage moves to the summary
     emit changed();
 }
 
@@ -312,6 +316,7 @@ QString InFlightModel::fuelText() const {
 }
 
 void InFlightModel::rebuild() {
+    planned_.setFinishable(finishable_);  // Your Flight's Arrived stage follows the arrival view
     const auto now = bridge_.now();
     predicted_ = predicted();
 

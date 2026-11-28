@@ -29,6 +29,7 @@ public:
                         RecorderBridge& bridge, QString logFlightId, QObject* parent = nullptr);
 
     QString state() const override;
+    blocktime::YourFlightStage stage() const override;
     QString stateText() const override { return QStringLiteral("Replay"); }
 
 private:

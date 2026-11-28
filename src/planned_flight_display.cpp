@@ -25,7 +25,7 @@ QString hhmm(const std::string& instant) { return instant.size() >= 16 ? q(insta
 }  // namespace
 
 PlannedFlightDisplay::PlannedFlightDisplay(QString airlineIcao, bool readOnly, QObject* parent)
-    : QObject(parent), airlineIcao_(std::move(airlineIcao)), readOnly_(readOnly) {}
+    : FlightSource(parent), airlineIcao_(std::move(airlineIcao)), readOnly_(readOnly) {}
 
 void PlannedFlightDisplay::copyRoute() {
     if (flight_ && flight_->plan) QGuiApplication::clipboard()->setText(q(routeWithRunways(*flight_->plan)));

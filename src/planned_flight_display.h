@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // What Live shows of the planned flight (design.md §13.2-13.3): its title, airplane, runways, route, plan and money
-// estimate, and its state. Two kinds show it: PlannedFlightModel, the real one, which settles flights, and
+// estimate, and its state. Two kinds show it: YourFlightModel, the real one, which settles flights, and
 // ReplayPlannedFlight, the replay's read-only copy of a settled flight (D-175). Live and PlannedFlightPanel take this
 // base, so the replay shows the same panel without being able to change anything.
 
@@ -16,10 +16,11 @@
 #include <QVariantList>
 #include <QtQml/qqmlregistration.h>
 
+#include "flight_source.h"
 #include "planned_flight.h"
 #include "rates.h"
 
-class PlannedFlightDisplay : public QObject {
+class PlannedFlightDisplay : public FlightSource {
     Q_OBJECT
     QML_ELEMENT
     QML_UNCREATABLE("Created by the app")
@@ -76,13 +77,11 @@ public:
     QString message() const { return message_; }
     bool busy() const { return busy_; }
     QString notice() const { return notice_; }
-    QString summaryFlightId() const { return summaryFlightId_; }
     bool readOnly() const { return readOnly_; }
-    // The flight on show, for the dashboard header; empty once settled (the summary) or with nothing planned.
-    const std::optional<blocktime::PlannedFlightView>& view() const { return flight_; }
+    const std::optional<blocktime::PlannedFlightView>& view() const override { return flight_; }
+    QString summaryFlightId() const override { return summaryFlightId_; }
 
 signals:
-    void changed();
     void notRecordingChanged();
 
 protected:

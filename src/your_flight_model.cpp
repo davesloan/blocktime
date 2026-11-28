@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "planned_flight_model.h"
+#include "your_flight_model.h"
 
 #include <chrono>
 #include <format>
@@ -29,16 +29,16 @@ QString hhmm(const std::string& instant) { return instant.size() >= 16 ? q(insta
 
 }  // namespace
 
-PlannedFlightModel::PlannedFlightModel(db::Database& db, QString airlineIcao, Planner& planner, RecorderBridge& bridge,
+YourFlightModel::YourFlightModel(db::Database& db, QString airlineIcao, Planner& planner, RecorderBridge& bridge,
                                        FlightTargetSlot& target, std::filesystem::path logDir,
                                        std::filesystem::path ratesFile, QObject* parent)
     : PlannedFlightDisplay(std::move(airlineIcao), false, parent), db_(db), planner_(planner), bridge_(bridge),
       target_(target), logDir_(std::move(logDir)), ratesFile_(std::move(ratesFile)),
       settlement_(db_, logDir_, ratesFile_) {
-    connect(&bridge_, &RecorderBridge::connectionChanged, this, &PlannedFlightModel::changed);
-    connect(&bridge_, &RecorderBridge::connectionChanged, this, &PlannedFlightModel::notRecordingChanged);
-    connect(&bridge_, &RecorderBridge::matchChanged, this, &PlannedFlightModel::notRecordingChanged);
-    connect(&bridge_, &RecorderBridge::releaseRefusedChanged, this, &PlannedFlightModel::notRecordingChanged);
+    connect(&bridge_, &RecorderBridge::connectionChanged, this, &YourFlightModel::changed);
+    connect(&bridge_, &RecorderBridge::connectionChanged, this, &YourFlightModel::notRecordingChanged);
+    connect(&bridge_, &RecorderBridge::matchChanged, this, &YourFlightModel::notRecordingChanged);
+    connect(&bridge_, &RecorderBridge::releaseRefusedChanged, this, &YourFlightModel::notRecordingChanged);
     connect(&bridge_, &RecorderBridge::blockEvent, this, [this](const QString& type) { onBlockEvent(type); });
     // Deboarding ends after the flight is settled; its row goes on that flight then (D-137).
     connect(&bridge_, &RecorderBridge::flightEvent, this, [this](const QString& type, const QVariantMap& data) {
@@ -55,7 +55,7 @@ PlannedFlightModel::PlannedFlightModel(db::Database& db, QString airlineIcao, Pl
     target_.set(t);
 }
 
-void PlannedFlightModel::reload(const QString& message) {
+void YourFlightModel::reload(const QString& message) {
     rates_ = loadRates(ratesFile_, nullptr).value_or(Rates{});
     flight_ = currentPlannedFlight(db_);
     const auto t = flight_ ? flightTarget(db_, *flight_) : std::nullopt;
@@ -71,7 +71,7 @@ void PlannedFlightModel::reload(const QString& message) {
     emit notRecordingChanged();
 }
 
-void PlannedFlightModel::onBlockEvent(const QString& type) {
+void YourFlightModel::onBlockEvent(const QString& type) {
     if (type == "block_in") {
         settle(true);  // pending until it settles: the block_in line may not be in the log yet (D-049)
     } else if (type == "flight_interrupted" && flight_) {
@@ -84,13 +84,13 @@ void PlannedFlightModel::onBlockEvent(const QString& type) {
     emit notRecordingChanged();
 }
 
-void PlannedFlightModel::retryPendingSettle() {
+void YourFlightModel::retryPendingSettle() {
     if (settlement_.pending()) checkFlown();
 }
 
-void PlannedFlightModel::checkFlown() { settle(false); }
+void YourFlightModel::checkFlown() { settle(false); }
 
-void PlannedFlightModel::settle(bool blockInSeen) {
+void YourFlightModel::settle(bool blockInSeen) {
     if (!flight_) flight_ = currentPlannedFlight(db_);
     auto outcome = settlement_.check(blockInSeen);
     if (outcome.kind == SettlementCoordinator::Outcome::Kind::Waiting) {
@@ -108,14 +108,14 @@ void PlannedFlightModel::settle(bool blockInSeen) {
     emit settled(summaryFlightId_);
 }
 
-void PlannedFlightModel::doneForNow() {
+void YourFlightModel::doneForNow() {
     summaryFlightId_.clear();
     bridge_.showNextLeg();
     emit changed();
     emit notRecordingChanged();
 }
 
-void PlannedFlightModel::turnaround() {
+void YourFlightModel::turnaround() {
     const QString registration = summaryRegistration_;
     summaryFlightId_.clear();
     bridge_.showNextLeg();
@@ -124,7 +124,7 @@ void PlannedFlightModel::turnaround() {
     if (!registration.isEmpty()) emit turnaroundRequested(registration);
 }
 
-QString PlannedFlightModel::notRecording() const {
+QString YourFlightModel::notRecording() const {
     const auto& match = bridge_.match();
     if (!match || bridge_.connection() != "connected" || bridge_.flightOpen()) return {};
     switch (match->problem) {
@@ -170,7 +170,7 @@ QString PlannedFlightModel::notRecording() const {
     return {};
 }
 
-void PlannedFlightModel::openDispatchPage() {
+void YourFlightModel::openDispatchPage() {
     if (!flight_) return;
     DispatchRequest r;
     r.origin = flight_->origin;
@@ -185,7 +185,7 @@ void PlannedFlightModel::openDispatchPage() {
     planner_.openUrl(q(dispatchUrl(r)));
 }
 
-void PlannedFlightModel::importPlan() {
+void YourFlightModel::importPlan() {
     if (!flight_ || busy_) return;
     busy_ = true;
     emit changed();
@@ -220,7 +220,7 @@ void PlannedFlightModel::importPlan() {
     });
 }
 
-void PlannedFlightModel::cancelFlight() {
+void YourFlightModel::cancelFlight() {
     if (bridge_.flightOpen()) return;  // it's being flown: cancelling would lose it without a word
     // A flown flight that hasn't settled yet would never settle once its planned flight is gone (review 1.2).
     if (settlement_.pending() || findCurrentFlown(db_, logDir_, false)) {
@@ -237,9 +237,28 @@ void PlannedFlightModel::cancelFlight() {
     reload();
 }
 
-QString PlannedFlightModel::state() const {
+QString YourFlightModel::state() const {
     if (!flight_) return summaryFlightId_.isEmpty() ? QString() : QStringLiteral("summary");
     if (bridge_.flightOpen()) return "flying";
     if (!flight_->plan) return "waitingForPlan";
     return bridge_.connection() == "connected" ? "simConnected" : "waitingForSim";
+}
+
+blocktime::YourFlightStage YourFlightModel::stage() const {
+    StageInputs in;
+    in.formOpen = formOpen_;
+    in.planned = flight_.has_value();
+    in.planImported = flight_ && flight_->plan.has_value();
+    in.accepted = flight_ && flight_->acceptedAt.has_value();
+    in.flightOpen = bridge_.flightOpen();
+    in.settlePending = settlement_.pending();
+    in.summaryShowing = !summaryFlightId_.isEmpty();
+    in.finishable = finishable();
+    return yourFlightStage(in);
+}
+
+void YourFlightModel::setFormOpen(bool open) {
+    if (open == formOpen_) return;
+    formOpen_ = open;
+    emit changed();
 }
