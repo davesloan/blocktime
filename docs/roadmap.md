@@ -252,7 +252,10 @@ its own plan in `docs/plans/` first.
    state and reopening the form (4.5), and 4.6 and 4.7. Accept marks the flight's start in the log (D-236).
    **Milestone 16b — one log file per flight** (D-237, D-250): the recorder writes each flight's lines to its own
    file from the Accept marker, the readers (settling, recovery, the debrief, the replay, Flights) move to it and
-   start from the marker, and a one-time splitter copies the old daily logs, which stay untouched.
+   start from the marker, and a one-time splitter copies the old daily logs, which stay untouched. **Start Recording
+   and an end marker** (D-253): Accept flight is renamed Start Recording; Done for now and At Gate Turnaround write
+   `flight_finished`, warning first while deboarding is unfinished; a flight accepted at block out starts after the
+   last `flight_finished`.
 4. **Milestone 17 — the summary and the debrief restyled** (`docs/dispatch.md`, D-235). The map with the altitude
    track, the score and "what this flight moved forward" cards, the settled money with its changes from the dispatch
    report, the debrief with Claude's review (…more), the checks as lamps under the stages, and the landing. Which

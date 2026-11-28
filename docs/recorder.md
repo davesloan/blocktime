@@ -328,7 +328,9 @@ with none the runway is `""`. The offsets are logged as information only.
   The event types implemented so far are listed below.
 - **Planned for milestone 16, not built:** Accept writes `flight_accepted` with a snapshot (D-236), and each flight
   gets its own file from Accept to the end of deboarding. Lines outside a flight go to a daily file, and a one-time
-  splitter copies the old daily logs, which stay untouched (D-237).
+  splitter copies the old daily logs, which stay untouched (D-237). From 16b the file ends at a `flight_finished`
+  marker (Done for now, At Gate Turnaround, the next Start Recording or a cancel), not at the end of deboarding, and a
+  flight accepted at block out starts after the last one (D-253).
 - One record per event, each with a timestamp (UTC), event type, and payload.
 - Example event types: `sim_connected`, `sim_disconnected`, `block_out`, `phase_changed`, `level_off`,
   `touchdown`, `go_around`, `block_in`, `flight_interrupted`, `telemetry` (periodic live sample).

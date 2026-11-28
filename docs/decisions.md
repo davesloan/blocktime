@@ -3852,7 +3852,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-237 — One log file per flight; old logs split once and kept
 - Date: 2026-11-27
-- Status: Accepted (built in milestone 16b, D-250)
+- Status: Accepted (built in milestone 16b, D-250); when the file ends superseded by D-253
 - Decided by: Dave + Claude
 - Area: recorder
 - Decision: From Accept, the recorder writes the flight's lines to a file of its own. Only the recorder writes the
@@ -4176,3 +4176,36 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   working; the rest follow the mockup or the spec where the plan was silent.
 - Alternatives considered: a separate fuel row added by the board only; persisting the re-import baseline; a demo
   planner for `--demo` instead of `--grab` on prepared databases; FlipCard's turn for the tiles.
+
+## D-253 — Start Recording and an end marker: the flight is what lies between them
+- Date: 2026-11-28
+- Status: Accepted (Dave, 2026-11-28); the details marked (Claude) are Proposed. Built in milestone 16b.
+- Decided by: Dave + Claude
+- Area: recorder, app
+- Decision: A flight in the log runs from an explicit start to an explicit end, as in the VA trackers Dave has used
+  (a button to start recording, one to say you're done).
+  - **Accept flight is renamed Start Recording.** It still locks the money (D-222) and writes the start marker. The
+    log line keeps its name, `flight_accepted` (D-236), since flights are already written with it; the feed's text
+    follows the button (Claude).
+  - **The end marker, `flight_finished`,** is written by the app when Dave leaves the summary with **Done for now** or
+    **At Gate Turnaround**: the buttons he already presses, no new click. Its data: the planned flight's id and the
+    flight's `flight_id`, and a `reason` (`done_for_now`, `turnaround`, `next_start`, `cancelled`) (Claude).
+  - **If Dave never presses either** (he quits the app at the gate), the next Start Recording writes the
+    `flight_finished` first; cancelling a started flight writes it too (Claude). The flight's file (D-237) closes at
+    the marker, not when deboarding ends.
+  - **Forgot Start Recording:** a flight accepted at block out (D-250) starts right after the last `flight_finished`
+    instead of at the block-out marker, so its pre-flight is part of it. With no `flight_finished` since the split
+    (the first flight after 16b), it starts by today's rule (D-177) (Claude).
+  - **Ending stops recording; what hasn't finished is lost.** If GSX deboarding was requested or is in progress when
+    Dave presses Done for now or At Gate Turnaround, the first press only shows a warning under the buttons (that this
+    stops recording and the deboarding, not finished, will be lost); pressing the same button again does it. With
+    nothing in progress one press does it, with no warning. A lost deboarding gets no `flight_service` row (D-137).
+    Its lines stay in the log between flights (nothing is deleted, D-008, D-224); the flight just doesn't claim them.
+    16b's plan checks whether anything else that runs after block in (the ATC log fetch, review 5.4) needs the same
+    guard.
+- Why: the start was a fact (Accept) but the end was a guess (the end of deboarding, which GSX may never report),
+  and a flight accepted at block out had no good start at all. Two markers make "between flights" exact and give the
+  fallback a real start. Dave: the warning, and losing what's unfinished, rather than holding the flight open.
+- Alternatives considered: the end at Settle Up (before deboarding, so every deboarding would be lost); the end when
+  deboarding ends (D-237; GSX may never finish it); collecting a deboarding still running after the end; a lead-in of
+  30 minutes before block out for a flight accepted then; a new Stop Recording button.

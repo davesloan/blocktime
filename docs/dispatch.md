@@ -181,7 +181,9 @@ Flights shows it too.
 - **The log at Accept** (D-236): the `flight_accepted` marker and snapshot, in today's daily logs. Milestone 16b
   (D-250, D-237): one log file per flight written by the recorder, the readers moved to it, the one-time splitter for
   the old daily logs (kept untouched), and the replay and debrief starting from the marker (the replay 30 s before
-  the first GSX request, beacon or block out after it).
+  the first GSX request, beacon or block out after it). Also in 16b (D-253): Accept flight becomes **Start
+  Recording**, and Done for now and At Gate Turnaround end the flight with a `flight_finished` marker, warning first
+  (a second press goes ahead) while deboarding is unfinished, since it would be lost.
 - **Fully loaded** in the load rolling (§9): every seat; cargo to max payload after bags, trimmed as §9 step 5 says.
   The flights-per-month setting that hides it at 30+ (D-220) comes with the money item; until then it's always offered
   on free flights.

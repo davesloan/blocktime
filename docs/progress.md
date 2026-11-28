@@ -22,6 +22,26 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-28 — Start Recording and an end marker for 16b (D-253)
+
+**Done:** a design talk after milestone 16, written up as D-253 (no code). Dave asked whether the pre-flight is part
+of the flight: it is when he presses Accept (the marker is written then), but a flight accepted at block out (D-250)
+would lose its pre-flight once 16b's readers start at the marker. Dave's answer: an explicit end, as VA trackers have.
+- Accept flight becomes **Start Recording** in 16b (the log line stays `flight_accepted`).
+- **Done for now** and **At Gate Turnaround** write `flight_finished`; the next Start Recording or a cancel writes it
+  if he didn't. The flight's file closes there, not at the end of deboarding (D-237's end superseded).
+- A flight accepted at block out starts right after the last `flight_finished`.
+- Ending while GSX deboarding is unfinished warns first under the buttons; a second press goes ahead and the
+  deboarding is lost for that flight (its lines stay in the log).
+
+**For Dave to confirm (D-253's Claude details):** the marker's `reason` values; a cancel writing it too; the first
+flight after 16b falling back to D-177's start when there's no `flight_finished` yet; the feed's text following the
+new button name.
+
+**Next step:** milestone 16b in a new session, with D-253 in its plan.
+
+---
+
 ## 2026-11-27 — Milestone 16 built: dispatch on Your Flight (0.18.0)
 
 **Done:** the whole plan (`docs/plans/2026-11-27-milestone-16-dispatch.md`, eleven tasks), then a fresh reviewer on the
