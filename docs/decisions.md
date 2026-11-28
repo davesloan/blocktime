@@ -4037,7 +4037,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-247 — Milestone 15b's build-time calls
 - Date: 2026-11-27
-- Status: Proposed
+- Status: Accepted (confirmed by Dave, 2026-11-27)
 - Decided by: Claude
 - Area: app, data
 - Decision:
@@ -4114,3 +4114,30 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   lost" rule and deserves its own plan and review. Forgetting Accept shouldn't lose a flight.
 - Alternatives considered: remembering every imported route and offering the last; a "Remember this route" button;
   one milestone with the log tasks last; an unaccepted flight not recorded, with a banner.
+
+## D-251 — Milestone 16's calls, made in its plan
+- Date: 2026-11-27
+- Status: Accepted (confirmed by Dave, 2026-11-27)
+- Decided by: Claude
+- Area: app, data
+- Decision (plan `docs/plans/2026-11-27-milestone-16-dispatch.md`):
+  - **The accepted breakdown** is one `accepted_breakdown` with its lines and their quantities, linked to the planned
+    flight (`planned_flight_acceptance`) and moved to the settled flight at settlement (`flight_acceptance`), so it
+    is never copied between mirror tables. A line's rate is stored in millionths of a dollar; quantities (hours,
+    passengers, pounds, miles) as `REAL`, since they aren't money.
+  - **The re-import baseline is kept in memory:** a row that changed says "Was −$2,180 before the re-import", not
+    the mockup's "at booking".
+  - **Change flight** is offered only before Accept, and any change drops the imported plan.
+  - **Fully loaded** is offered on passenger and cargo flights only.
+  - **Extra fuel** goes to SimBrief as `addedfuel` in thousands with `addedfuel_units=wgt` (assumed from `cargo`;
+    Dave's first dispatch with extra fuel confirms it). The report's badge shows the OFP's EXTRA fuel.
+  - **The cargo check** allows `max(100 lb, 1%)` against `weights.freight_added` (freight without bags).
+  - **The block-out marker** is written by the recorder before `block_out`, with `at_block_out: true`.
+  - **Short board labels** for the 20 tiles ("Cabin crew", "ATC / nav", "Cargo hdlg").
+  - **View Dispatch Report** is an overlay `Popup`.
+  - **Version 0.18.0.**
+- Why: each is the smallest choice that keeps the report honest and the schema to the rules (D-078): one breakdown
+  shared by the planned and settled flight, integer rates, no NULL meaning "not accepted".
+- Alternatives considered: separate accepted-line tables for planned and settled flights; storing the whole
+  `rates.yaml` snapshot instead of each line's rate; persisting the re-import baseline; Change flight after Accept.
+

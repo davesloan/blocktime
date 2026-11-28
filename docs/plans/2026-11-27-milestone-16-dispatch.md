@@ -544,16 +544,11 @@ The banner and notice stay on top.
 **Files:**
 - Modify: `docs/design.md` (§13: Live → Your Flight, the flow, the planned flight panel gone), `docs/dispatch.md`
   (anything the build settled: the popup, the board labels), `docs/database.md`, `docs/recorder.md`,
-  `docs/decisions.md` (D-251, below), `docs/roadmap.md` (16 built), `README.md` (Live → Your Flight), `CMakeLists.txt`
+  `docs/decisions.md` (D-252, below), `docs/roadmap.md` (16 built), `README.md` (Live → Your Flight), `CMakeLists.txt`
   (0.18.0), `docs/progress.md`
 
-**D-251 (Proposed, Claude's build-time calls):** the breakdown's schema (`accepted_breakdown` shared by the planned
-and settled flight through link tables); rates stored in millionths of a dollar and quantities as `REAL`; the
-re-import baseline kept in memory, "before the re-import" in place of the mockup's "at booking"; Change flight only
-before Accept, with any change dropping the plan; fully loaded for passenger and cargo flights only; `addedfuel` in
-thousands with `addedfuel_units=wgt`; the badge showing the OFP's EXTRA fuel; the cargo tolerance as
-`max(100 lb, 1%)` against `freight_added`; the block-out marker written by the recorder before `block_out`; the board
-labels; View Dispatch Report as an overlay `Popup`; 0.18.0.
+**D-251** (the plan's own calls) is already recorded and confirmed by Dave. Calls made while building go in a new
+**D-252** (Proposed), listed in the end-of-milestone summary.
 
 - [ ] **Step 1:** Update the docs so every spec agrees with the code (CLAUDE.md duty 3).
 - [ ] **Step 2: Verify** (superpowers:verification-before-completion): `cmake --build --preset x64-debug` and

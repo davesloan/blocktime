@@ -38,7 +38,8 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 **Unverified:** `addedfuel`'s unit (thousands assumed, like `cargo`). Dave's first dispatch with extra fuel settles it.
 
-**Dave's call:** D-247 (milestone 15b's build-time calls) is still Proposed.
+**Dave's calls:** the plan approved; D-247 (milestone 15b's build-time calls) and D-251 (the plan's calls)
+confirmed.
 
 **Next step:** build milestone 16 from the plan, in a new session (D-121).
 
