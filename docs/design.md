@@ -439,7 +439,7 @@ as they happen, each with its start and end time. The same records go into the f
 | Pre-Flight | At gate | Catering, Fuel loading, Boarding (GSX) |
 | Departure | Pushback, Taxi out, Takeoff | Pushback (GSX), Taxiing to runway, Takeoff roll, Takeoff |
 | Climb | Climb | Departed runway 30, Level-offs, Above 10,000 ft, Passed transition altitude |
-| Cruise | Cruise | Cruising at FL350, Step climb to FL370, 200 nm from destination |
+| Cruise | Cruise | Cruising at FL350, Step climb to FL370, Within 200 nm of destination (under Climb on a flight shorter than 200 nm, where it comes just after liftoff; D-256) |
 | Descent | Descent, Approach | Top of descent, Passed transition level, Level-offs, Below 10,000 ft, Final approach, Short final |
 | Arrival | Landing, Taxi in, Arrived | Landed, Taxiing to gate, Parked at Gate E7, Deboarding (GSX), Ready for shutdown or turnaround |
 
@@ -473,7 +473,7 @@ Arrival starts at touchdown (D-184; until then Landing and Taxi in were under De
   the left) are status tiles, green when set or running, grey otherwise. The airspeed tile shows Mach ("M.78") from
   M0.70 until it drops below M0.66, knots otherwise.
 - **Departure runway:** from the takeoff position and heading, matched against the sim's runways.
-- **Transition altitude and level, and "200 nm from destination":** from the SimBrief plan.
+- **Transition altitude and level, and "Within 200 nm of destination":** from the SimBrief plan.
 - **GSX services (D-073, D-138):** each service shows as its own line with start and end: "Catering",
   "Refueling", "Boarding" under Pre-Departure, "Deboarding" under Arrival. Services Dave used appear; ones he skipped
   or abandoned are left out. A GSX push reads "Pushback (GSX)". If no GSX service was completed before pushback,

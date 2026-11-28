@@ -101,6 +101,7 @@ private:
     std::string parking_;  // block_in's spot, for "Parked at ..." (D-148)
     int levelFt_ = 0;
     bool levelFl_ = false;
+    bool within200Shown_ = false;
     int stepFromFt_ = 0;
     std::optional<double> touchdownVsFpm_;
     std::string landingRunway_;

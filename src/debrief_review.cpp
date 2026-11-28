@@ -62,7 +62,7 @@ std::string markerName(const std::string& m) {
     if (m == "below_10000") return "passing 10,000 ft descending";
     if (m == "transition_altitude") return "transition altitude";
     if (m == "transition_level") return "transition level";
-    if (m == "within_200nm") return "200 nm from the destination";
+    if (m == "within_200nm") return "within 200 nm of the destination";  // just after liftoff on a short hop (D-256)
     if (m == "final_approach") return "1,000 ft above the runway";
     return m;
 }

@@ -4264,6 +4264,9 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
     destination ATIS waited for top of descent. Now it fires just after liftoff, and the ATIS (with DEST ALTIMETER)
     follows. A recorder restart mid-flight inside 200 nm fires it again on the first sample: one more log line, and
     FlightWatcher's guard keeps the ATIS polling single (accepted, D-174).
+  - **Its words** (from the review): Your Flight's line reads "Within 200 nm of destination", under the stage it came
+    in (Climb on a short hop), shown once; Claude's timeline says "within 200 nm of the destination". "200 nm from
+    destination" would be untrue on a 117 nm flight, and a review is stored once.
 - Why: Dave wants the destination's setting in front of him well before the transition level; on the delivery he
   set it 84 s after (D-254).
 - Alternatives considered: the altimeter in DEST ATIS's tag (two rows kept); FlightWatcher fetching the destination

@@ -248,7 +248,8 @@ The builder designs the tables in `docs/database.md` first, following D-078. The
 - one row per measured check part per flight (the flight, the part from a lookup table of check parts, the measured
   integer);
 - one row per check part that couldn't be measured (the flight, the part, the reason from a lookup table: no PMDG
-  data, no VREF, no ATIS, no marker, diverted). Each part of a flight from milestone 10 on is in exactly one of the two;
+  data, no VREF, no ATIS, no marker, diverted). Each part the measuring version knew is in exactly one of the two
+  (parts added later, such as the APU parts or D-254's `destination_baro_late_s`, are in neither for older flights);
   a flight in neither had no checks (flown before milestone 10);
 - the landing's measurements, one row per flight, columns for each value (a value that couldn't be read is a missing
   column only where D-090 allows it, otherwise a separate row);

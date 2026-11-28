@@ -248,7 +248,12 @@ void FlightStages::onEvent(std::string_view type, const nlohmann::json& d) {
         const std::string m = str(d, "marker");
         if (m == "above_10000") add(Stage::Climb, "Above 10,000 ft", iso, false);
         else if (m == "transition_altitude") add(Stage::Climb, "Passed transition altitude", iso, false);
-        else if (m == "within_200nm") add(Stage::Cruise, "200 nm from destination", iso, false);
+        else if (m == "within_200nm" && !within200Shown_) {
+            // Just after liftoff on a flight under 200 nm (D-256): under the stage it came in, once (a recorder
+            // restart logs it again).
+            within200Shown_ = true;
+            add(phase_.empty() ? Stage::Cruise : stageOf(phase_), "Within 200 nm of destination", iso, false);
+        }
         else if (m == "transition_level") add(Stage::Descent, "Passed transition level", iso, false);
         else if (m == "below_10000") add(Stage::Descent, "Below 10,000 ft", iso, false);
         else if (m == "final_approach") {

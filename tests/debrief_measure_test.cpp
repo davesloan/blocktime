@@ -384,3 +384,10 @@ TEST(DebriefMeasure, DestinationBaroLateNeverSetRunsToBlockIn) {
     const auto m = measureFlight(lines, false);
     EXPECT_GT(*value(m, "destination_baro_late_s"), 1000);
 }
+
+// Review fix: the ATIS before the latest counts. B (30.21, 1023.0) arrives at TL+40; the altimeters are set to A's
+// 1021.7 at TL+50, 1.3 hPa from B: only the window of two makes that count.
+TEST(DebriefMeasure, DestinationBaroLateUsesTheAtisBeforeTheLatest) {
+    const auto m = measureFlight(descentWith({{-60, 1013.2}, {50, 1021.7}}, {{-120, "30.17"}, {40, "30.21"}}), false);
+    EXPECT_EQ(*value(m, "destination_baro_late_s"), 50);
+}

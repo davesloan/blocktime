@@ -145,7 +145,7 @@ TEST(FlightStages, Markers) {
     s.onEvent("flight_marker", {{"marker", "final_approach"}, {"time", at("23:25:36")}, {"alt_ft", 990}});
     const auto v = s.view();
     EXPECT_EQ(texts(v[2]), (std::vector<std::string>{"Above 10,000 ft", "Passed transition altitude"}));
-    EXPECT_EQ(texts(v[3]), (std::vector<std::string>{"Cruising at FL200", "200 nm from destination"}));
+    EXPECT_EQ(texts(v[3]), (std::vector<std::string>{"Cruising at FL200", "Within 200 nm of destination"}));
     EXPECT_EQ(texts(v[4]), (std::vector<std::string>{"Top of descent", "Passed transition level", "Below 10,000 ft",
                                                      "Short final"}));  // D-149
 }
@@ -495,4 +495,16 @@ TEST(FlightStages, BoardingStartedForThePill) {
     EXPECT_TRUE(s.boardingStarted());
     block(s, "block_out", "10:00:00");  // the boarding went with this flight: the next leg hasn't boarded
     EXPECT_FALSE(s.boardingStarted());
+}
+
+// D-256 (review): on a flight under 200 nm the marker comes just after liftoff. Its line goes under the stage it came
+// in, in words that are true there, and a second one (after a recorder restart) adds nothing.
+TEST(FlightStages, Within200NmOnAShortHop) {
+    FlightStages s;
+    phase(s, "climb", "22:56:51", 1100);
+    s.onEvent("flight_marker", {{"marker", "within_200nm"}, {"time", at("22:56:36")}, {"alt_ft", 1300}});
+    s.onEvent("flight_marker", {{"marker", "within_200nm"}, {"time", at("22:58:00")}, {"alt_ft", 6000}});
+    const auto v = s.view();
+    EXPECT_EQ(texts(v[2]), (std::vector<std::string>{"Within 200 nm of destination"}));
+    EXPECT_TRUE(texts(v[3]).empty());
 }

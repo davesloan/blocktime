@@ -22,6 +22,55 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-28 — After the KBFI → KPDX delivery: altimeter in seconds, route line, DEST ALTIMETER (0.18.1)
+
+**Looked at first (flight 9, N818SX's delivery, flown on 0.18.0):** the money, the accepted breakdown and the log are
+right. Claude's review blamed a "sim weather mismatch" for the destination altimeter: the check read the altimeters
+60 s after the transition level, Dave set the right QNH (30.17) 84 s after, and the check stored "8.5 hPa off".
+`addedfuel` is in thousands, as assumed: `addedfuel: 2` gave SimBrief's EXTRA 2,000 lb (closes milestone 16's
+unverified item). The autopilot stayed on through touchdown because Dave flew an autoland.
+
+**Done** (plan `docs/plans/2026-11-28-altimeter-and-route-line.md`):
+- D-254: check 9 stores `destination_baro_late_s`, the seconds until both altimeters match the destination ATIS
+  (≤ 60 s), in migration 13 (schema 13). Old flights keep their hPa and the old rule; flight 9 stays at 88. Fixture
+  `tests/data/flight-kbfi-kpdx/`.
+- D-255: the header's route line is flat, with fixed dots every 10 px that the flown line covers, and the flown line
+  and airplane glide over 1 s like the needles.
+- D-256: DEST ALTIMETER in Cruise (third row, Dave's choice) and in Climb once the destination ATIS is in.
+  `within_200nm` now fires on the first airborne sample within 200 nm, so a flight under 200 nm gets the destination
+  ATIS just after liftoff instead of at top of descent.
+
+**Working / verified:** debug and release build with no warnings; 1,090 tests pass in both; qmllint shows only
+ReplayBar's old info line. `blocktime-debrief` on flight 9: "Destination altimeter: 1 min 24 s after the transition
+level", score 88. Migration dry run with the release build on a scratch copy of Dave's airline: schema 12 → 13,
+`blocktime.before-schema-13.db` made, `foreign_key_check` empty, `integrity_check` ok, ledger total unchanged
+($3,575,020), the old parts kept. `--grab` of the replay at 0:20 and in cruise: the flat line, the dots, the TOD
+tick. A 1× replay in cruise uses 0.42% of the machine (6.7% of one core).
+
+**Review (one fresh reviewer, one fix pass):** short hops would have shown "200 nm from destination" under Cruise at
+liftoff and given Claude the same untrue line; now "Within 200 nm of destination" under the stage it came in, once,
+and "within 200 nm of the destination" in the timeline. The test for the ATIS before the latest now really exercises
+it (checked by breaking the window). Specs' wording aligned. 1,093 tests in debug and release.
+**Deferred minors:** no "not checked" when a flight has no altimeter lines at all (the block-out snapshot always
+logs one); in a replay seek backwards the marker glides back for a second ahead of the already-shortened line.
+
+**Unverified:** the glide itself (a still can't show it) and the Cruise panel's third row (the replay window's grab
+stops above the panel). On Dave's next flight he should see:
+1. Start BlockTime: it migrates (backup `before-schema-13`).
+2. The header's line is straight; past the airplane the dots stay still while the coloured line covers them; the
+   airplane slides smoothly from second to second (plain in a 10× replay).
+3. On a hop under 200 nm: the destination ATIS in the feed within a few seconds of liftoff, and DEST ALTIMETER
+   (`30.xx inHg`, `SET AT TL`) as the last readout in Climb. In Cruise it's on a third row after DEST ATIS.
+4. In the debrief, the destination altimeter reads "Set by the transition level" or "N s after the transition level".
+
+**Dave's call (Proposed in D-254 to D-256):** setting from ATC counting from when the ATIS arrives; 10 px dots;
+DEST ALTIMETER only once in during Climb; `within_200nm` on the first airborne sample (a restart mid-flight inside
+200 nm logs it again).
+
+**Next step:** milestone 16b (one log file per flight, D-253) in a new session.
+
+---
+
 ## 2026-11-28 — Start Recording and an end marker for 16b (D-253)
 
 **Done:** a design talk after milestone 16, written up as D-253 (no code). Dave asked whether the pre-flight is part

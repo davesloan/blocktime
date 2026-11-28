@@ -155,7 +155,7 @@ images `images/dashboard-header-v2-*.png`). It's about 130 px shorter than the f
                                               Approach
                      Final approach, runway 30L
                 Descending from FL400 · 11:50 AM
-               200 nm from destination · 11:35 AM
+               Within 200 nm of destination · 11:35 AM
 ```
 
 - **One line on top:** the airline name centred; `XLY 8` (the code and flight number, a little smaller than the airline

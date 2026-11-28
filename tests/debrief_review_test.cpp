@@ -4,6 +4,7 @@
 //
 // Claude's review (D-156, D-161): the request built from a flight, and its answer read back.
 
+#include <algorithm>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -197,4 +198,17 @@ TEST(DebriefReview, TimelineShowsTheApu) {
     EXPECT_NE(t.find("23:58:23 APU switched off"), std::string::npos) << t.substr(0, 1500);
     EXPECT_NE(t.find("00:46:41 APU switched on"), std::string::npos);
     EXPECT_NE(t.find("00:47:07 APU running"), std::string::npos);
+}
+
+// D-256 (review): the marker comes just after liftoff on a flight under 200 nm, so its words must be true there too.
+TEST(DebriefReview, Within200NmReadsTrueOnAShortHop) {
+    std::vector<LogLine> lines = fixture();
+    const auto t = *parseUtc("2026-11-24T23:59:00.000Z");
+    lines.insert(std::find_if(lines.begin(), lines.end(), [&](const LogLine& l) { return l.ts > t; }),
+                 LogLine{t, "flight_marker",
+                         {{"marker", "within_200nm"}, {"alt_ft", 1300}, {"time", "2026-11-24T23:59:00.000Z"},
+                          {"flight_id", "2026-11-24T23:53:16.837Z"}}});
+    const std::string timeline = buildTimeline(lines);
+    EXPECT_NE(timeline.find("within 200 nm of the destination"), std::string::npos) << timeline.substr(0, 3000);
+    EXPECT_EQ(timeline.find("200 nm from the destination"), std::string::npos);
 }
