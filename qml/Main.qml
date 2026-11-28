@@ -18,7 +18,7 @@ ApplicationWindow {
     required property AddAircraftModel addAircraft
     required property AircraftModel aircraft
     required property LedgerModel ledger
-    required property NewFlightModel newFlight
+    required property DispatchModel dispatch
     required property YourFlightModel plannedFlight
     required property DashboardHeader dashboard
     required property PreFlightModel preflight
@@ -43,13 +43,13 @@ ApplicationWindow {
     title: "BlockTime"
     color: Theme.bg
 
-    // New Flight (design.md §13.1). Once the flight is planned, the Live page shows it.
-    // At Gate Turnaround: New Flight for the same airplane at its new airport (design.md §13.7).
+    // At Gate Turnaround: the dispatch form for the same airplane at its new airport (design.md §13.7).
     Connections {
         target: window.plannedFlight
 
         function onTurnaroundRequested(registration: string) {
-            if (window.newFlight.open(registration)) newFlightDialog.open();
+            window.dispatch.openForAirplane(registration);
+            sidebar.currentIndex = 0;
         }
     }
 
@@ -73,13 +73,6 @@ ApplicationWindow {
             window.closeConfirmed = true;
             window.close();
         }
-    }
-
-    NewFlightDialog {
-        id: newFlightDialog
-
-        flight: window.newFlight
-        onFlightPlanned: sidebar.currentIndex = 0
     }
 
     RowLayout {
@@ -147,9 +140,11 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 currentIndex: sidebar.currentIndex
 
-                LivePage {
+                YourFlightPage {
                     recorder: window.recorder
-                    plannedFlight: window.plannedFlight
+                    flightSource: window.plannedFlight
+                    yourFlight: window.plannedFlight
+                    dispatch: window.dispatch
                     dashboard: window.dashboard
                     preflight: window.preflight
                     inflight: window.inflight
@@ -159,6 +154,7 @@ ApplicationWindow {
                     mapTileUrl: window.mapTileUrl
                     mapCacheDir: window.mapCacheDir
                     mapUserAgent: window.mapUserAgent
+                    onFleetRequested: sidebar.currentIndex = 2
                 }
 
                 FlightsPage {
@@ -174,8 +170,9 @@ ApplicationWindow {
                     fleet: window.fleet
                     addAircraft: window.addAircraft
                     aircraft: window.aircraft
+                    // Fly opens the dispatch form on Your Flight (D-233).
                     onFlyRequested: registration => {
-                        if (window.newFlight.open(registration)) newFlightDialog.open();
+                        if (window.dispatch.openForAirplane(registration)) sidebar.currentIndex = 0;
                     }
                     onContinueRequested: sidebar.currentIndex = 0
                 }

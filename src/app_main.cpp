@@ -11,7 +11,8 @@
 //   --log-dir <folder>  write the event log there instead of <data folder>\events
 //   --demo              show made-up values and record nothing, to look at the UI without the sim; like --grab, it
 //                       works on a scratch copy of the data that is deleted at exit (D-226)
-//   --dev               developer mode (D-211): Live also shows the flight tiles and the event feed
+//   --dev               developer mode (D-211): Your Flight also shows the flight tiles and the event feed
+//   --fly <registration> open the dispatch form for that airplane at startup, as Fleet's Fly does
 //   --replay <flight>   play a settled flight (its log id, or "last") in a read-only window (D-175), with
 //                       --speed <n>, --at <phase | block_out | block_in | H:MM> and --grab <png>
 
@@ -53,7 +54,7 @@
 #include "flight_list_model.h"
 #include "airline_db.h"
 #include "ledger_model.h"
-#include "new_flight_model.h"
+#include "dispatch_model.h"
 #include "your_flight_model.h"
 #include "dashboard_header.h"
 #include "inflight_model.h"
@@ -418,7 +419,8 @@ int main(int argc, char* argv[]) {
     bool demo = false;
     bool dev = false;   // --dev: Live's flight tiles and event feed (D-211)
     QString grabFile;   // --grab <png>: a developer check of the screens; saves the window after 6 s and quits
-    int startPage = 0;  // --page <n>: the page shown first (0 Live, 1 Flights, 2 Fleet, 3 Money)
+    int startPage = 0;  // --page <n>: the page shown first (0 Your Flight, 1 Flights, 2 Fleet, 3 Money)
+    QString flyRegistration;  // --fly <registration>: opens the dispatch form at startup, as Fleet's Fly does
     blocktime::RecorderOptions recorderOptions;  // --probe (D-116)
     ReplayOptions replay;                        // --replay (D-175)
     for (qsizetype i = 1; i < args.size(); ++i) {
@@ -434,6 +436,8 @@ int main(int argc, char* argv[]) {
             grabFile = args[++i];
         } else if (args[i] == "--page" && i + 1 < args.size()) {
             startPage = args[++i].toInt();
+        } else if (args[i] == "--fly" && i + 1 < args.size()) {
+            flyRegistration = args[++i];
         } else if (args[i] == "--probe") {
             recorderOptions.probe = true;
         } else if (args[i] == "--replay" && i + 1 < args.size()) {
@@ -480,7 +484,7 @@ int main(int argc, char* argv[]) {
         const auto demoConfig = blocktime::loadAirlineConfig(blocktime::defaultAirlinePaths().airlineConfig, nullptr);
         const QString icao = demoConfig ? QString::fromStdString(demoConfig->identity.icaoCode) : QStringLiteral("XLY");
         const QString name = demoConfig ? QString::fromStdString(demoConfig->identity.name) : QStringLiteral("Demo");
-        demoPlanned = std::make_unique<ReplayPlannedFlight>(demoFlightView(), icao, blocktime::Rates{}, bridge, "demo");
+        demoPlanned = std::make_unique<ReplayPlannedFlight>(demoFlightView(), bridge, "demo");
         demoHeader =
             std::make_unique<DashboardHeader>(bridge, *demoPlanned, icao, name, DashboardHeader::SettledFlight{});
         fillDemo(bridge);
@@ -562,14 +566,16 @@ int main(int argc, char* argv[]) {
     ReviewWriter reviews(planningDb, logDir, claude);
     FlightListModel flights(planningDb, logDir, airlineIcao, &reviews);
     flights.reload();
-    NewFlightModel newFlight(planningDb, airlineIcao, blocktime::defaultRatesFile(), planner);
     // Add Aircraft (D-242): a SimBrief screenshot read by Claude with the same key as the debrief (none in a scratch run,
     // where the values are typed in).
     AddAircraftModel addAircraft(planningDb, airline.catalog(), blocktime::defaultRatesFile(), claude);
     // The aircraft screen (D-241): New screenshot and Return.
     AircraftModel aircraft(planningDb, airline.catalog(), claude);
-    YourFlightModel plannedFlight(planningDb, airlineIcao, planner, bridge, flightTarget, logDir,
-                                     blocktime::defaultRatesFile());
+    YourFlightModel plannedFlight(planningDb, bridge, flightTarget, logDir, blocktime::defaultRatesFile());
+    // Dispatch on Your Flight (D-233): the form, the report, Import, Accept.
+    DispatchModel dispatch(planningDb, airlineIcao, blocktime::defaultRatesFile(), planner, bridge, appEvents,
+                           plannedFlight);
+    if (!flyRegistration.isEmpty()) dispatch.openForAirplane(flyRegistration);
     // The dashboard header (D-151, D-180): the planned flight, kept once settled; a summary already showing at startup
     // comes from the database. --demo shows its own.
     std::optional<DashboardHeader> liveHeader;
@@ -633,8 +639,6 @@ int main(int argc, char* argv[]) {
         settleAirline();
     });
     airlineTick.start();
-    QObject::connect(&newFlight, &NewFlightModel::planned, &plannedFlight,
-                     [&plannedFlight](const QString& note) { plannedFlight.reload(note); });
     // SayIntentions at the gate (D-188): the planned flight's origin until block out, so the clearance shows before
     // pushback. The watcher itself waits for the sim and stops at block out.
     const auto preFlightOrigin = [&plannedFlight, &flightWatcher] {
@@ -655,7 +659,7 @@ int main(int argc, char* argv[]) {
                             {"addAircraft", QVariant::fromValue(&addAircraft)},
                             {"aircraft", QVariant::fromValue(&aircraft)},
                             {"ledger", QVariant::fromValue(&ledger)},
-                            {"newFlight", QVariant::fromValue(&newFlight)},
+                            {"dispatch", QVariant::fromValue(&dispatch)},
                             {"plannedFlight", QVariant::fromValue(&plannedFlight)},
                             {"dashboard", QVariant::fromValue(header)},
                             {"preflight", QVariant::fromValue(&preflight)},

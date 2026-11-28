@@ -65,7 +65,7 @@ void ReplaySession::makeBridge() {
     bridge_ = new RecorderBridge(this);
     bridge_->setReplay();
     bridge_->setClock([this] { return timeline_.timeAt(feeding_ ? *feeding_ : clock_.offset()); });
-    planned_ = new ReplayPlannedFlight(view_, airlineIcao_, rates_, *bridge_, flightId_, this);
+    planned_ = new ReplayPlannedFlight(view_, *bridge_, flightId_, this);
     header_ = new DashboardHeader(*bridge_, *planned_, airlineIcao_, airlineName_,
                                   [view = view_](const QString&) { return view; }, this);
     preflight_ = new PreFlightModel(*bridge_, *planned_, this);

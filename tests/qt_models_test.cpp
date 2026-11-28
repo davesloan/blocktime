@@ -39,7 +39,6 @@
 #include "money_lines_qml.h"
 #include "flight_events.h"
 #include "flight_list_model.h"
-#include "new_flight_model.h"
 #include "flight_settlement.h"
 #include "planned_flight.h"
 #include "your_flight_model.h"
@@ -618,170 +617,23 @@ void planVip(db::Database& db, const std::string& plannedAt) {
 
 }  // namespace
 
-TEST(NewFlightModel, PlanWritesTheFlightAndOpensDispatch) {
-    db::Database db = deliveredAirline();
-    FakePlanner planner;
-    NewFlightModel m(db, "XLY", kRatesFile, planner);
-    ASSERT_TRUE(m.open("N814SX"));
-    EXPECT_EQ(m.kinds(), (QStringList{"vip", "charter"}));
-    EXPECT_EQ(m.flightNumber(), "8");
-    m.setKind("vip");
-    m.setDestination("KSAN");
-    EXPECT_TRUE(m.canPlan());
-    EXPECT_EQ(m.endsUpText(), "N814SX ends up at KSAN");
-    EXPECT_FALSE(m.incomeLines().isEmpty());
-    EXPECT_EQ(m.fuelNote(), "+ fuel");
-    int planned = 0;
-    QObject::connect(&m, &NewFlightModel::planned, [&] { ++planned; });
-    m.plan();
-    EXPECT_EQ(planned, 1);
-    EXPECT_FALSE(m.busy());
-    const auto f = currentPlannedFlight(db);
-    ASSERT_TRUE(f.has_value());
-    EXPECT_EQ(f->destination, "KSAN");
-    EXPECT_EQ(f->flightNumber, "8");
-    ASSERT_EQ(planner.opened.size(), 1);
-    EXPECT_TRUE(planner.opened[0].contains("&origrwy=14R&destrwy=27")) << planner.opened[0].toStdString();
-    EXPECT_TRUE(planner.opened[0].contains("airline=XLY&fltnum=8")) << planner.opened[0].toStdString();
-}
 
-TEST(NewFlightModel, PlanWithoutAtisStillPlans) {
-    db::Database db = deliveredAirline();
-    FakePlanner planner;
-    planner.runways = {};
-    planner.runwayNote = "No SayIntentions keys in settings.json";
-    NewFlightModel m(db, "XLY", kRatesFile, planner);
-    ASSERT_TRUE(m.open("N814SX"));
-    m.setDestination("KSAN");
-    m.plan();
-    ASSERT_EQ(planner.opened.size(), 1);
-    EXPECT_FALSE(planner.opened[0].contains("origrwy")) << planner.opened[0].toStdString();
-    const auto f = currentPlannedFlight(db);
-    ASSERT_TRUE(f.has_value());
-    EXPECT_EQ(f->originRunway, "");
-    EXPECT_EQ(f->destinationRunway, "");
-}
 
-TEST(NewFlightModel, MissingRatesFileDisablesPlan) {
-    db::Database db = deliveredAirline();
-    FakePlanner planner;
-    NewFlightModel m(db, "XLY", std::filesystem::path(BLOCKTIME_SOURCE_DIR) / "no-such-rates.yaml", planner);
-    ASSERT_TRUE(m.open("N814SX"));
-    m.setDestination("KSAN");
-    EXPECT_FALSE(m.canPlan());
-    EXPECT_TRUE(m.error().contains("no-such-rates.yaml")) << m.error().toStdString();
-}
 
-TEST(NewFlightModel, DestinationMessageUpdates) {
-    db::Database db = deliveredAirline();
-    FakePlanner planner;
-    NewFlightModel m(db, "XLY", kRatesFile, planner);
-    ASSERT_TRUE(m.open("N814SX"));
-    EXPECT_EQ(m.destinationMessage(), "");  // nothing typed yet
-    m.setDestination("KSHT");
-    EXPECT_EQ(m.destinationMessage(), "KSHT's longest runway is 5,000 ft; N814SX needs 7,000 ft.");
-    EXPECT_FALSE(m.canPlan());
-    m.setDestination("KSAN");
-    EXPECT_EQ(m.destinationMessage(), "");
-    m.setFlightNumber("");
-    EXPECT_FALSE(m.canPlan());
-}
 
-TEST(NewFlightModel, DeliveryOffersOnlyTheDeliveryFlight) {
-    db::Database db = test::testAirline();
-    FakePlanner planner;
-    NewFlightModel m(db, "XLY", kRatesFile, planner);
-    ASSERT_TRUE(m.open("N814SX"));
-    EXPECT_EQ(m.kinds(), (QStringList{"delivery"}));
-    EXPECT_EQ(m.loadLines(), (QStringList{"Delivery flight: no passengers or cargo"}));
-    m.setDestination("KSAN");
-    EXPECT_TRUE(m.incomeLines().isEmpty());
-    EXPECT_TRUE(m.totalText().startsWith("-$")) << m.totalText().toStdString();
-}
 
-TEST(YourFlightModel, ImportStoresMatchingPlan) {
-    db::Database db = deliveredAirline();
-    planVip(db, "2026-11-23T14:00:00Z");
-    FakePlanner planner;
-    RecorderBridge bridge;
-    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
-    EXPECT_TRUE(m.hasFlight());
-    EXPECT_EQ(m.state(), "waitingForPlan");
-    EXPECT_EQ(m.title(), "XLY8 · KBFI → KSAN");
-    EXPECT_EQ(m.runwayText(), "ATIS runways: 14R → 27");
-    EXPECT_EQ(m.loadInText(), "Load in at KBFI, Boeing Field");
-    m.importPlan();
-    EXPECT_EQ(planner.ofpFetches, 1);
-    EXPECT_EQ(m.state(), "waitingForSim");
-    EXPECT_EQ(m.message(), "Imported the plan generated 14:02Z");
-    EXPECT_EQ(m.planText(), "Plan generated 14:02Z · FL370 · 2h 31m · burn 10,900 lb");
-    EXPECT_EQ(m.route(), "KBFI/14R BANGR9 BANGR DCT LKV DCT OAL J65 BLH DCT JLI SEAVU2 KSAN/27");
-    EXPECT_TRUE(currentPlannedFlight(db)->plan.has_value());
-}
 
 // Review 4.4: income and costs reach the panel apart, each with its working.
-TEST(YourFlightModel, EstimateSplitsIncomeAndCosts) {
-    db::Database db = deliveredAirline();
-    planVip(db, "2026-11-23T14:00:00Z");
-    FakePlanner planner;
-    RecorderBridge bridge;
-    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
-    m.importPlan();
-    ASSERT_FALSE(m.estimateIncome().isEmpty());
-    ASSERT_FALSE(m.estimateCosts().isEmpty());
-    for (const QVariant& v : m.estimateIncome()) EXPECT_FALSE(v.toMap()["amount"].toString().startsWith("-"));
-    bool fuel = false;
-    for (const QVariant& v : m.estimateCosts()) {
-        const QVariantMap line = v.toMap();
-        EXPECT_TRUE(line["amount"].toString().startsWith("-")) << line["label"].toString().toStdString();
-        EXPECT_FALSE(line["working"].toString().isEmpty()) << line["label"].toString().toStdString();
-        if (line["category"] == "fuel") fuel = true;
-    }
-    EXPECT_TRUE(fuel);  // the plan's in, and the airplane holds less than its ramp fuel
-}
 
-TEST(YourFlightModel, ImportRefusesAStalePlan) {
-    db::Database db = deliveredAirline();
-    planVip(db, "2026-11-23T14:20:00Z");
-    FakePlanner planner;
-    RecorderBridge bridge;
-    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
-    m.importPlan();
-    EXPECT_EQ(m.state(), "waitingForPlan");
-    EXPECT_TRUE(m.message().startsWith("The latest SimBrief plan was generated at 14:02Z")) << m.message().toStdString();
-    EXPECT_FALSE(currentPlannedFlight(db)->plan.has_value());
-}
 
-TEST(YourFlightModel, ImportShowsSimbriefError) {
-    db::Database db = deliveredAirline();
-    planVip(db, "2026-11-23T14:00:00Z");
-    FakePlanner planner;
-    planner.ofpBody = R"({"fetch":{"userid":"","static_id":"","status":"Error: Unknown UserID","time":"0"}})";
-    RecorderBridge bridge;
-    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
-    m.importPlan();
-    EXPECT_TRUE(m.message().contains("Error: Unknown UserID")) << m.message().toStdString();
-    EXPECT_EQ(m.state(), "waitingForPlan");
-}
 
-TEST(YourFlightModel, ImportShowsNetworkError) {
-    db::Database db = deliveredAirline();
-    planVip(db, "2026-11-23T14:00:00Z");
-    FakePlanner planner;
-    planner.ofpBody.clear();
-    planner.ofpError = "Add simbrief_user_id to settings.json";
-    RecorderBridge bridge;
-    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
-    m.importPlan();
-    EXPECT_EQ(m.message(), "Add simbrief_user_id to settings.json");
-}
 
 TEST(YourFlightModel, CancelClears) {
     db::Database db = deliveredAirline();
     planVip(db, "2026-11-23T14:00:00Z");
     FakePlanner planner;
     RecorderBridge bridge;
-    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
+    YourFlightModel m(db, bridge, g_target, kNoLog, kRatesFile);
     int changed = 0;
     QObject::connect(&m, &YourFlightModel::flightChanged, [&] { ++changed; });
     m.cancelFlight();
@@ -790,30 +642,7 @@ TEST(YourFlightModel, CancelClears) {
     EXPECT_FALSE(currentPlannedFlight(db).has_value());
 }
 
-TEST(YourFlightModel, StateFollowsConnection) {
-    db::Database db = deliveredAirline();
-    planVip(db, "2026-11-23T14:00:00Z");
-    FakePlanner planner;
-    RecorderBridge bridge;
-    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
-    m.importPlan();
-    ASSERT_EQ(m.state(), "waitingForSim");
-    bridge.applyConnection(ConnectionState::Connected);
-    EXPECT_EQ(m.state(), "simConnected");
-    EXPECT_EQ(m.stateText(), "Sim connected");
-}
 
-TEST(YourFlightModel, OpenDispatchPageRebuildsTheUrl) {
-    db::Database db = deliveredAirline();
-    planVip(db, "2026-11-23T14:00:00Z");
-    FakePlanner planner;
-    RecorderBridge bridge;
-    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
-    m.openDispatchPage();
-    ASSERT_EQ(planner.opened.size(), 1);
-    EXPECT_TRUE(planner.opened[0].contains("orig=KBFI&dest=KSAN&airline=XLY&fltnum=8")) << planner.opened[0].toStdString();
-    EXPECT_TRUE(planner.opened[0].contains("&pax=46&")) << planner.opened[0].toStdString();
-}
 
 TEST(FleetModel, RegistrationAtRow) {
     FleetModel m(sampleFleetState());
@@ -822,40 +651,7 @@ TEST(FleetModel, RegistrationAtRow) {
     EXPECT_EQ(m.registrationAt(5), "");
 }
 
-TEST(NewFlightModel, CancelWhileGettingRunwaysPlansNothing) {  // review finding 1
-    db::Database db = deliveredAirline();
-    FakePlanner planner;
-    planner.deferRunways = true;
-    NewFlightModel m(db, "XLY", kRatesFile, planner);
-    ASSERT_TRUE(m.open("N814SX"));
-    m.setDestination("KSAN");
-    int planned = 0;
-    QObject::connect(&m, &NewFlightModel::planned, [&] { ++planned; });
-    m.plan();
-    EXPECT_TRUE(m.busy());
-    m.cancel();
-    EXPECT_FALSE(m.busy());
-    ASSERT_TRUE(planner.pendingRunways);
-    planner.pendingRunways(planner.runways, {});
-    EXPECT_EQ(planned, 0);
-    EXPECT_TRUE(planner.opened.isEmpty());
-    EXPECT_FALSE(currentPlannedFlight(db).has_value());
-}
 
-TEST(NewFlightModel, ReopeningWhileGettingRunwaysPlansNothing) {  // review finding 1
-    db::Database db = deliveredAirline();
-    FakePlanner planner;
-    planner.deferRunways = true;
-    NewFlightModel m(db, "XLY", kRatesFile, planner);
-    ASSERT_TRUE(m.open("N814SX"));
-    m.setDestination("KSAN");
-    m.plan();
-    ASSERT_TRUE(m.open("N738BT"));
-    planner.pendingRunways(planner.runways, {});
-    EXPECT_TRUE(planner.opened.isEmpty());
-    EXPECT_FALSE(currentPlannedFlight(db).has_value());
-    EXPECT_EQ(m.error(), "");
-}
 
 // --- The flight's life on Live (milestone 6) ----------------------------------------------------------------------
 
@@ -916,7 +712,7 @@ protected:
     }
 
     std::unique_ptr<YourFlightModel> model() {
-        return std::make_unique<YourFlightModel>(db_, "XLY", planner_, bridge_, target_, dir_, kRatesFile);
+        return std::make_unique<YourFlightModel>(db_, bridge_, target_, dir_, kRatesFile);
     }
 
     db::Database db_ = test::testAirline();
@@ -1008,14 +804,14 @@ TEST_F(LiveFlight, SettlesOnBlockIn) {
     BlockOut out;
     out.flightId = kLiveOut;
     bridge_.applyBlockEvent(out);
-    EXPECT_EQ(m->state(), "flying");
+    EXPECT_EQ(m->stageText(), "flying");
     write({liveIn()}, true);
     BlockIn in;
     in.flightId = kLiveOut;
     bridge_.applyBlockEvent(in);
     EXPECT_EQ(settled, 1);
     EXPECT_FALSE(m->hasFlight());
-    EXPECT_EQ(m->state(), "summary");
+    EXPECT_EQ(m->stageText(), "summary");
     EXPECT_EQ(m->summaryFlightId(), kLiveOut);
     EXPECT_FALSE(target_.get().has_value());
     EXPECT_EQ(m->notice(), "");
@@ -1092,7 +888,7 @@ TEST_F(LiveFlight, InterruptedKeepsThePlanWithANotice) {
     bridge_.applyBlockEvent(FlightInterrupted{kLiveOut, "sim_stopped"});
     EXPECT_TRUE(m->hasFlight());
     EXPECT_EQ(m->notice(), QString::fromUtf8("KBFI–KSAN interrupted and discarded"));
-    EXPECT_EQ(m->state(), "waitingForSim");  // the fixture has a plan (D-250)
+    EXPECT_EQ(m->stageText(), "imported");  // the fixture has a plan (D-250)
     EXPECT_TRUE(target_.get().has_value());
 }
 
@@ -1104,7 +900,7 @@ TEST_F(LiveFlight, TurnaroundAsksForNewFlight) {
     QObject::connect(m.get(), &YourFlightModel::turnaroundRequested, [&](const QString& r) { asked << r; });
     m->turnaround();
     EXPECT_EQ(asked, QStringList{"N814SX"});
-    EXPECT_EQ(m->state(), "");
+    EXPECT_EQ(m->stageText(), "empty");
     EXPECT_EQ(m->summaryFlightId(), "");
 }
 
@@ -1151,7 +947,7 @@ TEST_F(LiveFlight, DoneForNowClearsTheSummary) {
     auto m = model();
     m->checkFlown();
     m->doneForNow();
-    EXPECT_EQ(m->state(), "");
+    EXPECT_EQ(m->stageText(), "empty");
 }
 
 // --- Flights from the database (D-111) ----------------------------------------------------------------------------
@@ -1309,7 +1105,7 @@ TEST_F(LiveFlight, RefusedReleaseNeedsANewRelease) {  // review finding 1
 
 TEST_F(LiveFlight, UnreadableRatesDontSettle) {  // review finding 2
     write({liveOut(plannedId_), liveIn()});
-    YourFlightModel m(db_, "XLY", planner_, bridge_, target_, dir_, dir_ / "no-rates.yaml");
+    YourFlightModel m(db_, bridge_, target_, dir_, dir_ / "no-rates.yaml");
     int settled = 0;
     QObject::connect(&m, &YourFlightModel::settled, [&] { ++settled; });
     m.checkFlown();
@@ -1327,14 +1123,14 @@ TEST_F(LiveFlight, CancelWhileFlyingKeepsThePlan) {  // review finding 4
     bridge_.applyBlockEvent(out);
     m->cancelFlight();
     EXPECT_TRUE(m->hasFlight());
-    EXPECT_EQ(m->state(), "flying");
+    EXPECT_EQ(m->stageText(), "flying");
 }
 
 TEST_F(LiveFlight, NoBannerOverTheSummary) {  // review finding 6
     write({liveOut(plannedId_), liveIn()});
     auto m = model();
     m->checkFlown();
-    ASSERT_EQ(m->state(), "summary");
+    ASSERT_EQ(m->stageText(), "summary");
     bridge_.applyConnection(ConnectionState::Connected);
     MatchResult r;
     r.problem = MatchProblem::NoPlannedFlight;
@@ -1919,21 +1715,6 @@ TEST(FlightWatcher, GateStopsAtBlockIn) {
     EXPECT_TRUE(r.planner.assignCalls.isEmpty());
 }
 
-TEST(YourFlightModel, LoadInTextNamesTheSpot) {
-    db::Database db = deliveredAirline();
-    ASSERT_TRUE(db.exec(
-        "INSERT INTO flight (log_flight_id, airplane_id, flight_number, kind, origin_airport_id,"
-        " planned_destination_airport_id, arrival_airport_id, cargo_lb, fuel_price_cents_per_100lb, planned_at,"
-        " block_out_at, block_in_at, fuel_on_record_lb, fuel_out_lb, fuel_in_lb, arrival_parking)"
-        " SELECT 'x', a.airplane_id, '8', 'vip', o.airport_id, o.airport_id, o.airport_id, 0, 4100,"
-        " '2026-11-20T10:00:00Z', '2026-11-20T11:00:00Z', '2026-11-20T12:00:00Z', 0, 9000, 8000, 'Parking 70'"
-        " FROM airplane a, airport o WHERE a.registration = 'N814SX' AND o.icao_code = 'KBFI'"));
-    planVip(db, "2026-11-23T14:00:00Z");
-    FakePlanner planner;
-    RecorderBridge bridge;
-    YourFlightModel m(db, "XLY", planner, bridge, g_target, kNoLog, kRatesFile);
-    EXPECT_EQ(m.loadInText(), "Load in at KBFI, Boeing Field, Parking 70");
-}
 
 TEST_F(LiveFlight, SummaryNamesTheParkedSpot) {
     write({liveOut(plannedId_),
@@ -2209,26 +1990,23 @@ PlannedFlightView replayView() {
 TEST(ReplayPlannedFlight, FollowsTheBridge) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(replayView(), "XLY", Rates{}, b, "2026-11-24T23:53:16.837Z");
-    EXPECT_TRUE(f.hasFlight());
-    EXPECT_EQ(f.state(), "replay");
-    EXPECT_EQ(f.stateText(), "Replay");
-    EXPECT_EQ(f.title(), QString::fromUtf8("XLY1231 · KLAS → KSAN"));
-    EXPECT_EQ(f.airplaneText(), QString::fromUtf8("N814SX · B737-BBJ2"));
-    EXPECT_EQ(f.notRecording(), "");
+    ReplayPlannedFlight f(replayView(), b, "2026-11-24T23:53:16.837Z");
+    EXPECT_TRUE(f.view().has_value());
+    EXPECT_EQ(f.stageText(), "accepted");
+    EXPECT_EQ(f.view()->origin, "KLAS");
 
     BlockOut out;
     out.flightId = "2026-11-24T23:53:16.837Z";
     out.time = *parseUtc(out.flightId);
     b.applyBlockEvent(out);
-    EXPECT_EQ(f.state(), "flying");
+    EXPECT_EQ(f.stageText(), "flying");
 
     BlockIn in;
     in.flightId = out.flightId;
     in.time = out.time + std::chrono::hours(1);
     b.applyBlockEvent(in);
-    EXPECT_EQ(f.state(), "summary");
-    EXPECT_FALSE(f.hasFlight());
+    EXPECT_EQ(f.stageText(), "summary");
+    EXPECT_FALSE(f.view().has_value());
     EXPECT_EQ(f.summaryFlightId(), "2026-11-24T23:53:16.837Z");
 }
 
@@ -2236,7 +2014,7 @@ TEST(ReplayPlannedFlight, FollowsTheBridge) {
 TEST(ReplayPlannedFlight, StagesDriveThePanels) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(replayView(), "XLY", Rates{}, b, "2026-11-24T23:53:16.837Z");
+    ReplayPlannedFlight f(replayView(), b, "2026-11-24T23:53:16.837Z");
     DashboardHeader h(b, f, "XLY", "Soxxly Airlines", DashboardHeader::SettledFlight{});
     PreFlightModel pre(b, f);
     InFlightModel in(b, f, 3, &h);
@@ -2265,7 +2043,7 @@ TEST(ReplayPlannedFlight, StagesDriveThePanels) {
 TEST(ReplayPlannedFlight, NoViewNoPreFlight) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(std::nullopt, "XLY", Rates{}, b, "2026-11-24T23:53:16.837Z");
+    ReplayPlannedFlight f(std::nullopt, b, "2026-11-24T23:53:16.837Z");
     PreFlightModel pre(b, f);
     EXPECT_EQ(f.stage(), YourFlightStage::Empty);
     EXPECT_FALSE(pre.visible());
@@ -2277,18 +2055,6 @@ TEST(ReplayPlannedFlight, NoViewNoPreFlight) {
     EXPECT_FALSE(pre.visible());
 }
 
-TEST(ReplayPlannedFlight, IsReadOnly) {
-    qtApp();
-    RecorderBridge b;
-    ReplayPlannedFlight f(replayView(), "XLY", Rates{}, b, "2026-11-24T23:53:16.837Z");
-    EXPECT_TRUE(f.readOnly());
-    f.cancelFlight();
-    f.importPlan();
-    f.doneForNow();
-    EXPECT_TRUE(f.hasFlight());
-    EXPECT_EQ(f.message(), "");
-    EXPECT_FALSE(f.busy());
-}
 
 // ReplaySession (D-175): Dave's KSAN → KSJC leg of 2026-11-25 played into a fresh bridge.
 namespace {
@@ -2322,7 +2088,7 @@ TEST(ReplaySession, PlaysToBlockIn) {
     EXPECT_TRUE(feedHas(b, "BLOCK OUT"));
     EXPECT_TRUE(feedHas(b, "TOUCHDOWN"));
     EXPECT_TRUE(feedHas(b, "BLOCK IN"));
-    EXPECT_EQ(r.plannedFlight()->state(), "summary");
+    EXPECT_FALSE(r.plannedFlight()->view().has_value());  // the summary holds the flight now
     EXPECT_EQ(r.plannedFlight()->summaryFlightId(), kReplayFlight);
 }
 
@@ -2380,7 +2146,7 @@ TEST(ReplaySession, RestartStartsClean) {
     EXPECT_FALSE(r.bridge()->flightOpen());
     EXPECT_FALSE(r.bridge()->hasSample());
     EXPECT_EQ(r.bridge()->connection(), "replay");
-    EXPECT_EQ(r.plannedFlight()->state(), "replay");
+    EXPECT_EQ(r.plannedFlight()->stageText(), "empty");  // no settled flight was given: back to before block out
 }
 
 TEST(ReplaySession, MissingLogGivesAnError) {
@@ -2495,7 +2261,7 @@ DashboardHeader::SettledFlight noSettledFlight() {
 TEST(DashboardHeader, FromPlannedFlight) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(headerView(), "XLY", Rates{}, b, kHeaderFlight);
+    ReplayPlannedFlight f(headerView(), b, kHeaderFlight);
     DashboardHeader h(b, f, "XLY", "Soxxly Airlines", noSettledFlight());
     EXPECT_TRUE(h.visible());
     EXPECT_EQ(h.airlineIcao(), "XLY");
@@ -2514,7 +2280,7 @@ TEST(DashboardHeader, FromPlannedFlight) {
 TEST(DashboardHeader, InFlight) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(headerView(), "XLY", Rates{}, b, kHeaderFlight);
+    ReplayPlannedFlight f(headerView(), b, kHeaderFlight);
     DashboardHeader h(b, f, "XLY", "Soxxly Airlines", noSettledFlight());
     BlockOut out;
     out.flightId = kHeaderFlight;
@@ -2547,13 +2313,13 @@ TEST(DashboardHeader, InFlight) {
 TEST(DashboardHeader, SummaryAtStartupUsesSettledFlight) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(headerView(), "XLY", Rates{}, b, kHeaderFlight);
+    ReplayPlannedFlight f(headerView(), b, kHeaderFlight);
     BlockIn in;
     in.flightId = kHeaderFlight;
     in.time = *parseUtc(kHeaderFlight);
     b.applyBlockEvent(in);  // the summary shows and the display holds no flight
-    ASSERT_EQ(f.state(), "summary");
-    ASSERT_FALSE(f.hasFlight());
+    ASSERT_EQ(f.stageText(), "summary");
+    ASSERT_FALSE(f.view().has_value());
     QString asked;
     DashboardHeader h(b, f, "XLY", "Soxxly Airlines", [&asked](const QString& id) {
         asked = id;
@@ -2573,7 +2339,7 @@ TEST(DashboardHeader, SummaryAtStartupUsesSettledFlight) {
 TEST(DashboardHeader, InterruptResetsTheArc) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(headerView(), "XLY", Rates{}, b, kHeaderFlight);
+    ReplayPlannedFlight f(headerView(), b, kHeaderFlight);
     DashboardHeader h(b, f, "XLY", "Soxxly Airlines", noSettledFlight());
     BlockOut out;
     out.flightId = kHeaderFlight;
@@ -2630,7 +2396,7 @@ struct HeaderRig {
     ReplayPlannedFlight f;
     DashboardHeader h;
     explicit HeaderRig(PlannedFlightView v)
-        : f(std::move(v), "XLY", Rates{}, b, kHeaderFlight), h(b, f, "XLY", "Soxxly Airlines", noSettledFlight()) {
+        : f(std::move(v), b, kHeaderFlight), h(b, f, "XLY", "Soxxly Airlines", noSettledFlight()) {
         b.setClock([this] { return now; });
     }
     void blockOut() {
@@ -2787,7 +2553,7 @@ TEST(DashboardHeader, NoNavlogTimesFallsBack) {
 TEST(DashboardHeader, NextFlightStartsOver) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(headerView(), "XLY", Rates{}, b, kHeaderFlight);
+    ReplayPlannedFlight f(headerView(), b, kHeaderFlight);
     DashboardHeader h(b, f, "XLY", "Soxxly Airlines", noSettledFlight());
     BlockOut out;
     out.flightId = kHeaderFlight;
@@ -2840,13 +2606,11 @@ namespace {
 
 // The real YourFlightModel's order at settling: reload() empties the flight (state "") before the summary id is
 // set; ReplayPlannedFlight goes to the summary in one step.
-class SettlingDisplay : public PlannedFlightDisplay {
+class SettlingDisplay : public FlightSource {
 public:
-    explicit SettlingDisplay(PlannedFlightView v) : PlannedFlightDisplay("XLY", true, nullptr) { flight_ = std::move(v); }
-    QString state() const override {
-        if (!summaryFlightId_.isEmpty()) return QStringLiteral("summary");
-        return flight_ ? QStringLiteral("flying") : QString();
-    }
+    explicit SettlingDisplay(PlannedFlightView v) : FlightSource(nullptr), flight_(std::move(v)) {}
+    const std::optional<PlannedFlightView>& view() const override { return flight_; }
+    QString summaryFlightId() const override { return summaryFlightId_; }
     YourFlightStage stage() const override {
         if (!summaryFlightId_.isEmpty()) return YourFlightStage::Summary;
         return flight_ ? YourFlightStage::Flying : YourFlightStage::Empty;
@@ -2857,6 +2621,10 @@ public:
         summaryFlightId_ = id;
         emit changed();
     }
+
+private:
+    std::optional<PlannedFlightView> flight_;
+    QString summaryFlightId_;
 };
 
 // A flight source set to any stage, for the panels' visibility (review 3.1).
@@ -2989,7 +2757,7 @@ std::chrono::system_clock::time_point utc(const char* iso) { return *blocktime::
 TEST(PreFlightModel, WaitingForPlan) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(preflightView(false), "XLY", Rates{}, b, kReplayFlight);
+    ReplayPlannedFlight f(preflightView(false), b, kReplayFlight);
     PreFlightModel m(b, f);
     EXPECT_TRUE(m.visible());
     EXPECT_FALSE(m.hasPlan());
@@ -3008,7 +2776,7 @@ TEST(PreFlightModel, WaitingForPlan) {
 TEST(PreFlightModel, LoadSheetAndPlanSid) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    ReplayPlannedFlight f(preflightView(), b, kReplayFlight);
     PreFlightModel m(b, f);
     EXPECT_TRUE(m.hasPlan());
     EXPECT_EQ(m.blockFuelText(), "13,439 lb");
@@ -3034,7 +2802,7 @@ TEST(PreFlightModel, ClearanceAndCountdown) {
     RecorderBridge b;
     auto now = utc("2026-11-25T18:43:00Z");  // 3:20 after the clearance
     b.setClock([&now] { return now; });
-    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    ReplayPlannedFlight f(preflightView(), b, kReplayFlight);
     PreFlightModel m(b, f);
     b.applyFlightEvent("atc_exchange", variantOf(ksanClearance()));
     EXPECT_TRUE(m.cleared());
@@ -3058,7 +2826,7 @@ TEST(PreFlightModel, ClearanceAndCountdown) {
 TEST(PreFlightModel, AtcChangesTheRunway) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    ReplayPlannedFlight f(preflightView(), b, kReplayFlight);
     PreFlightModel m(b, f);
     auto c = ksanClearance();
     c["entry"]["outgoing_message"] = "Cleared to San Jose via the BORDR2 departure. Squawk 3166. Expect runway 9";
@@ -3076,7 +2844,7 @@ TEST(PreFlightModel, AtcChangesTheRunway) {
 TEST(PreFlightModel, HidesAtBlockOut) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    ReplayPlannedFlight f(preflightView(), b, kReplayFlight);
     PreFlightModel m(b, f);
     EXPECT_TRUE(m.visible());
     blocktime::BlockOut out;
@@ -3089,7 +2857,7 @@ TEST(PreFlightModel, HidesAtBlockOut) {
 TEST(PreFlightModel, AtisLetterIsAWord) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    ReplayPlannedFlight f(preflightView(), b, kReplayFlight);
     PreFlightModel m(b, f);
     b.applyFlightEvent("atis", variantOf({{"role", "origin"}, {"icao", "KSAN"}, {"letter", "L"},
                                           {"altimeter", "30.09"}, {"text", "INFO LIMA. WIND CALM."}}));
@@ -3102,11 +2870,11 @@ TEST(PreFlightModel, GateIsWhereItLastParked) {
     RecorderBridge b;
     PlannedFlightView v = preflightView();
     v.loadInParking = "Gate 4";
-    ReplayPlannedFlight f(v, "XLY", Rates{}, b, kReplayFlight);
+    ReplayPlannedFlight f(v, b, kReplayFlight);
     PreFlightModel m(b, f);
     EXPECT_EQ(m.gate(), "4");
     v.loadInParking = "";
-    ReplayPlannedFlight unknown(v, "XLY", Rates{}, b, kReplayFlight);
+    ReplayPlannedFlight unknown(v, b, kReplayFlight);
     PreFlightModel none(b, unknown);
     EXPECT_EQ(none.gate(), "");
 }
@@ -3152,7 +2920,7 @@ void blockOutOf(RecorderBridge& b) {
 TEST(InFlightModel, VisibleFromBlockOutUntilFinishFlight) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    ReplayPlannedFlight f(preflightView(), b, kReplayFlight);
     InFlightModel m(b, f, 3);
     EXPECT_FALSE(m.visible());
     EXPECT_FALSE(m.finishable());
@@ -3176,7 +2944,7 @@ TEST(InFlightModel, VisibleFromBlockOutUntilFinishFlight) {
 TEST(InFlightModel, BlockOutClearsFinishFlight) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    ReplayPlannedFlight f(preflightView(), b, kReplayFlight);
     InFlightModel m(b, f, 3);
     blockOutOf(b);
     blocktime::BlockIn in;
@@ -3190,7 +2958,7 @@ TEST(InFlightModel, BlockOutClearsFinishFlight) {
 TEST(InFlightModel, SpeedFaceSwitchesAt40Kt) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    ReplayPlannedFlight f(preflightView(), b, kReplayFlight);
     InFlightModel m(b, f, 3);
     blockOutOf(b);
     b.applySample(sampleOf(true, 39, 30));
@@ -3208,7 +2976,7 @@ TEST(InFlightModel, SpeedFaceSwitchesAt40Kt) {
 TEST(InFlightModel, SpeedBugVrefOnlyOnApproach) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    ReplayPlannedFlight f(preflightView(), b, kReplayFlight);
     InFlightModel m(b, f, 3);
     blockOutOf(b);
     b.applyFlightEvent("cockpit", variantOf({{"pmdg", true}, {"seat_belts", 2}, {"vref_kt", 129}, {"landing_flaps", 40}}));
@@ -3225,7 +2993,7 @@ TEST(InFlightModel, FlashRunsOnlyWhileWrong) {
     RecorderBridge b;
     auto now = utc("2026-11-25T18:43:04Z");
     b.setClock([&now] { return now; });
-    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    ReplayPlannedFlight f(preflightView(), b, kReplayFlight);
     InFlightModel m(b, f, 3);
     m.setFlashInterval(std::chrono::milliseconds(5));
     int flashes = 0;
@@ -3248,7 +3016,7 @@ TEST(InFlightModel, FlashRunsOnlyWhileWrong) {
 TEST(InFlightModel, AltitudeFaceFollowsTheSamples) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    ReplayPlannedFlight f(preflightView(), b, kReplayFlight);
     InFlightModel m(b, f, 3);
     blockOutOf(b);
     EXPECT_EQ(m.altitudeFace(), "radio");
@@ -3271,7 +3039,7 @@ TEST(InFlightModel, AltitudeFaceFollowsTheSamples) {
 TEST(InFlightModel, FuelText) {
     qtApp();
     RecorderBridge b;
-    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    ReplayPlannedFlight f(preflightView(), b, kReplayFlight);
     InFlightModel m(b, f, 3);
     blockOutOf(b);
     b.applySample(sampleOf(false, 250, 250, 20000, 7412.6));
@@ -3337,7 +3105,7 @@ TEST(InFlightModel, InterruptedFlightStartsTheLampsAgain) {
     RecorderBridge b;
     auto now = utc("2026-11-25T18:43:04Z");
     b.setClock([&now] { return now; });
-    ReplayPlannedFlight f(preflightView(), "XLY", Rates{}, b, kReplayFlight);
+    ReplayPlannedFlight f(preflightView(), b, kReplayFlight);
     InFlightModel m(b, f, 3);
     const auto apuOnQnh = [&b] {
         b.applyFlightEvent("cockpit", variantOf({{"pmdg", true}, {"seat_belts", 2}, {"apu_switch", true}}));
@@ -3703,7 +3471,7 @@ namespace {
 class Dispatch : public TempLog {
 protected:
     std::unique_ptr<YourFlightModel> your() {
-        return std::make_unique<YourFlightModel>(db_, "XLY", planner_, bridge_, target_, dir_, ratesFile_);
+        return std::make_unique<YourFlightModel>(db_, bridge_, target_, dir_, ratesFile_);
     }
     std::unique_ptr<DispatchModel> dispatchOn(YourFlightModel& y) {
         return std::make_unique<DispatchModel>(db_, "XLY", ratesFile_, planner_, bridge_, events_, y);
@@ -3988,4 +3756,78 @@ TEST_F(Dispatch, SelectShowsTheWorking) {
     EXPECT_EQ(d->centerLabel(), "Fuel");
     d->select("fuel");  // again: cleared
     EXPECT_EQ(d->selectedId(), "");
+}
+
+TEST_F(Dispatch, ImportRefusesAStalePlan) {
+    auto y = your();
+    auto d = dispatchOn(*y);
+    ASSERT_TRUE(d->openForAirplane("N814SX"));
+    d->setDestination("KSAN");
+    d->dispatch();
+    planner_.ofpBody = QByteArray::fromStdString(dataFile("ofp_v2_min.json"));  // generated 23 Nov, before it
+    d->importPlan();
+    EXPECT_TRUE(d->message().startsWith("The latest SimBrief plan was generated at 14:02Z")) << d->message().toStdString();
+    EXPECT_FALSE(d->imported());
+}
+
+TEST_F(Dispatch, ImportShowsSimbriefError) {
+    auto y = your();
+    auto d = dispatchOn(*y);
+    ASSERT_TRUE(d->openForAirplane("N814SX"));
+    d->setDestination("KSAN");
+    d->dispatch();
+    planner_.ofpBody = R"({"fetch":{"userid":"","static_id":"","status":"Error: Unknown UserID","time":"0"}})";
+    d->importPlan();
+    EXPECT_TRUE(d->message().contains("Error: Unknown UserID")) << d->message().toStdString();
+    EXPECT_FALSE(d->imported());
+}
+
+TEST_F(Dispatch, ImportShowsNetworkError) {
+    auto y = your();
+    auto d = dispatchOn(*y);
+    ASSERT_TRUE(d->openForAirplane("N814SX"));
+    d->setDestination("KSAN");
+    d->dispatch();
+    planner_.ofpBody.clear();
+    planner_.ofpError = "Add simbrief_user_id to settings.json";
+    d->importPlan();
+    EXPECT_EQ(d->message(), "Add simbrief_user_id to settings.json");
+}
+
+TEST_F(Dispatch, MissingRatesFileDisablesDispatch) {
+    ratesFile_ = dir_ / "no-rates.yaml";
+    auto y = your();
+    auto d = dispatchOn(*y);
+    ASSERT_TRUE(d->openForAirplane("N814SX"));
+    d->setDestination("KSAN");
+    EXPECT_FALSE(d->canDispatch());
+    EXPECT_TRUE(d->message().contains("no-rates.yaml")) << d->message().toStdString();
+}
+
+// Review finding 1 (New Flight): closing the form before the runways arrive plans nothing.
+TEST_F(Dispatch, ClosingWhileGettingRunwaysPlansNothing) {
+    planner_.deferRunways = true;
+    auto y = your();
+    auto d = dispatchOn(*y);
+    ASSERT_TRUE(d->openForAirplane("N814SX"));
+    d->setDestination("KSAN");
+    d->dispatch();
+    EXPECT_TRUE(d->busy());
+    d->closeForm();
+    planner_.pendingRunways(AtisRunways{"14R", "27"}, QString());
+    EXPECT_FALSE(currentPlannedFlight(db_).has_value());
+    EXPECT_EQ(y->stageText(), "empty");
+}
+
+TEST_F(Dispatch, NoAtisStillDispatches) {
+    planner_.runways = {};
+    planner_.runwayNote = "No ATIS runways: SayIntentions has no key";
+    auto y = your();
+    auto d = dispatchOn(*y);
+    ASSERT_TRUE(d->openForAirplane("N814SX"));
+    d->setDestination("KSAN");
+    d->dispatch();
+    EXPECT_EQ(y->stageText(), "dispatched");
+    EXPECT_EQ(d->message(), "No ATIS runways: SayIntentions has no key");
+    EXPECT_EQ(y->view()->originRunway, "");
 }

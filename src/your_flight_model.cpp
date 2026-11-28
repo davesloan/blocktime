@@ -12,29 +12,21 @@
 
 #include "airline_queries.h"
 #include "flight_settlement.h"
-#include "new_flight_model.h"
-#include "simbrief.h"
 
 using namespace blocktime;
 
 namespace {
 
-std::string utcNowInstant() {
-    return std::format("{:%FT%TZ}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now()));
-}
 
 QString q(const std::string& s) { return QString::fromStdString(s); }
 
-QString hhmm(const std::string& instant) { return instant.size() >= 16 ? q(instant.substr(11, 5)) + "Z" : q(instant); }
 
 }  // namespace
 
-YourFlightModel::YourFlightModel(db::Database& db, QString airlineIcao, Planner& planner, RecorderBridge& bridge,
-                                       FlightTargetSlot& target, std::filesystem::path logDir,
-                                       std::filesystem::path ratesFile, QObject* parent)
-    : PlannedFlightDisplay(std::move(airlineIcao), false, parent), db_(db), planner_(planner), bridge_(bridge),
-      target_(target), logDir_(std::move(logDir)), ratesFile_(std::move(ratesFile)),
-      settlement_(db_, logDir_, ratesFile_) {
+YourFlightModel::YourFlightModel(db::Database& db, RecorderBridge& bridge, FlightTargetSlot& target,
+                                 std::filesystem::path logDir, std::filesystem::path ratesFile, QObject* parent)
+    : FlightSource(parent), db_(db), bridge_(bridge), target_(target), logDir_(std::move(logDir)),
+      ratesFile_(std::move(ratesFile)), settlement_(db_, logDir_, ratesFile_) {
     connect(&bridge_, &RecorderBridge::connectionChanged, this, &YourFlightModel::changed);
     connect(&bridge_, &RecorderBridge::connectionChanged, this, &YourFlightModel::notRecordingChanged);
     connect(&bridge_, &RecorderBridge::matchChanged, this, &YourFlightModel::notRecordingChanged);
@@ -48,7 +40,6 @@ YourFlightModel::YourFlightModel(db::Database& db, QString airlineIcao, Planner&
             recordDeboardings(db_, logDir_);
         }
     });
-    rates_ = loadRates(ratesFile_, nullptr).value_or(Rates{});
     flight_ = currentPlannedFlight(db_);
     const auto t = flight_ ? flightTarget(db_, *flight_) : std::nullopt;
     fuelOnRecordLb_ = t ? t->fuelOnRecordLb : 0;
@@ -56,7 +47,6 @@ YourFlightModel::YourFlightModel(db::Database& db, QString airlineIcao, Planner&
 }
 
 void YourFlightModel::reload(const QString& message) {
-    rates_ = loadRates(ratesFile_, nullptr).value_or(Rates{});
     flight_ = currentPlannedFlight(db_);
     const auto t = flight_ ? flightTarget(db_, *flight_) : std::nullopt;
     fuelOnRecordLb_ = t ? t->fuelOnRecordLb : 0;
@@ -170,56 +160,6 @@ QString YourFlightModel::notRecording() const {
     return {};
 }
 
-void YourFlightModel::openDispatchPage() {
-    if (!flight_) return;
-    DispatchRequest r;
-    r.origin = flight_->origin;
-    r.destination = flight_->destination;
-    r.airlineIcao = airlineIcao_.toStdString();
-    r.flightNumber = flight_->flightNumber;
-    r.airframeId = flight_->airframeId;
-    r.originRunway = flight_->originRunway;
-    r.destinationRunway = flight_->destinationRunway;
-    for (const CabinLoad& c : flight_->cabins) r.passengers += c.passengers;
-    r.cargoLb = flight_->cargoLb;
-    planner_.openUrl(q(dispatchUrl(r)));
-}
-
-void YourFlightModel::importPlan() {
-    if (!flight_ || busy_) return;
-    busy_ = true;
-    emit changed();
-    planner_.fetchLatestOfp([this](QByteArray body, QString networkError) {
-        busy_ = false;
-        if (!flight_) return;
-        if (!networkError.isEmpty()) {
-            message_ = networkError;
-            emit changed();
-            return;
-        }
-        std::string error;
-        const auto plan = parseOfp(body.toStdString(), &error);
-        if (!plan) {
-            message_ = "SimBrief: " + q(error);
-            emit changed();
-            return;
-        }
-        const PlanKey key{flight_->origin, flight_->destination, flight_->airframeId, flight_->registration,
-                          flight_->plannedAt};
-        if (const auto mismatch = planMismatch(*plan, key)) {
-            message_ = q(*mismatch);
-            emit changed();
-            return;
-        }
-        if (!storeSimbriefPlan(db_, flight_->id, *plan, body.toStdString(), utcNowInstant(), &error)) {
-            message_ = "Couldn't store the plan: " + q(error);
-            emit changed();
-            return;
-        }
-        reload("Imported the plan generated " + hhmm(plan->generatedAt));
-    });
-}
-
 void YourFlightModel::cancelFlight() {
     if (bridge_.flightOpen()) return;  // it's being flown: cancelling would lose it without a word
     // A flown flight that hasn't settled yet would never settle once its planned flight is gone (review 1.2).
@@ -235,13 +175,6 @@ void YourFlightModel::cancelFlight() {
         return;
     }
     reload();
-}
-
-QString YourFlightModel::state() const {
-    if (!flight_) return summaryFlightId_.isEmpty() ? QString() : QStringLiteral("summary");
-    if (bridge_.flightOpen()) return "flying";
-    if (!flight_->plan) return "waitingForPlan";
-    return bridge_.connection() == "connected" ? "simConnected" : "waitingForSim";
 }
 
 blocktime::YourFlightStage YourFlightModel::stage() const {

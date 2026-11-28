@@ -32,7 +32,7 @@ class ReplaySession : public QObject {
     QML_ELEMENT
     QML_UNCREATABLE("Created by the app")
     Q_PROPERTY(RecorderBridge* bridge READ bridge NOTIFY restarted)
-    Q_PROPERTY(PlannedFlightDisplay* plannedFlight READ plannedFlight NOTIFY restarted)
+    Q_PROPERTY(FlightSource* plannedFlight READ plannedFlight NOTIFY restarted)
     Q_PROPERTY(DashboardHeader* header READ header NOTIFY restarted)
     Q_PROPERTY(PreFlightModel* preflight READ preflight NOTIFY restarted)
     Q_PROPERTY(InFlightModel* inflight READ inflight NOTIFY restarted)
@@ -48,7 +48,7 @@ public:
                   QString airlineIcao, blocktime::Rates rates, QString airlineName = {}, QObject* parent = nullptr);
 
     RecorderBridge* bridge() const { return bridge_; }
-    PlannedFlightDisplay* plannedFlight() const { return planned_; }
+    FlightSource* plannedFlight() const { return planned_; }
     DashboardHeader* header() const { return header_; }
     PreFlightModel* preflight() const { return preflight_; }
     InFlightModel* inflight() const { return inflight_; }

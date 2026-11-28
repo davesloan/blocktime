@@ -156,6 +156,7 @@ bool DispatchModel::openForAirplane(const QString& registration) {
 void DispatchModel::openEmpty() {
     draft_.reset();
     changing_ = false;
+    busy_ = false;
     ++request_;
     yourFlight_.setFormOpen(false);
     emit changed();

@@ -289,7 +289,6 @@ set(BLOCKTIME_QML_FILES
   qml/EventFeed.qml
   qml/Sidebar.qml
   qml/NavButton.qml
-  qml/LivePage.qml
   qml/FlightsPage.qml
   qml/FleetPage.qml
   qml/FleetCard.qml
@@ -321,9 +320,7 @@ set(BLOCKTIME_QML_FILES
   qml/SecondaryButton.qml
   qml/TextInputField.qml
   qml/MoneyLines.qml
-  qml/NewFlightDialog.qml
   qml/CloseFlightDialog.qml
-  qml/PlannedFlightPanel.qml
   qml/NotRecordingBanner.qml
   qml/FlightSummary.qml
   qml/DebriefPanel.qml
@@ -336,7 +333,9 @@ set(BLOCKTIME_QML_FILES
   qml/LoadCard.qml
   qml/PlanCard.qml
   qml/DispatchReport.qml
-  qml/DispatchForm.qml)
+  qml/DispatchForm.qml
+  qml/YourFlightPage.qml
+  qml/DispatchReportPopup.qml)
 foreach(_qml IN LISTS BLOCKTIME_QML_FILES)
   get_filename_component(_name "${_qml}" NAME)
   set_source_files_properties("${_qml}" PROPERTIES QT_RESOURCE_ALIAS "${_name}")
@@ -363,11 +362,9 @@ qt_add_qml_module(blocktime-app
     src/ledger_model.h src/ledger_model.cpp
     src/planner.h
     src/qt_planner.h src/qt_planner.cpp
-    src/new_flight_model.h src/new_flight_model.cpp
     src/your_flight_model.h src/your_flight_model.cpp
     src/flight_source.h src/flight_source.cpp
     src/dispatch_model.h src/dispatch_model.cpp
-    src/planned_flight_display.h src/planned_flight_display.cpp
     src/money_lines_qml.h src/money_lines_qml.cpp
     src/dashboard_header.h src/dashboard_header.cpp
     src/preflight_model.h src/preflight_model.cpp
@@ -434,11 +431,9 @@ if(BLOCKTIME_BUILD_TESTS)
     src/aircraft_model.h src/aircraft_model.cpp
     src/ledger_model.h src/ledger_model.cpp
     src/planner.h
-    src/new_flight_model.h src/new_flight_model.cpp
     src/your_flight_model.h src/your_flight_model.cpp
     src/flight_source.h src/flight_source.cpp
     src/dispatch_model.h src/dispatch_model.cpp
-    src/planned_flight_display.h src/planned_flight_display.cpp
     src/money_lines_qml.h src/money_lines_qml.cpp
     src/dashboard_header.h src/dashboard_header.cpp
     src/preflight_model.h src/preflight_model.cpp

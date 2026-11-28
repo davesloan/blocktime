@@ -2,10 +2,10 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// The live flight screen: "Not recording" when the sim doesn't match the plan (design.md §13.4), the dashboard header
-// (docs/dashboard.md, D-180), the planned flight before and during departure (§13.3), the summary after block in
-// (§13.7), and with --dev (D-211) the flight panel and the event feed. The page scrolls when the window is too short
-// for all of it; the scroll bar shows only then.
+// Your Flight (docs/dispatch.md, D-233): one thing per stage. The dispatch form, then the dispatch report until
+// Accept; then the dashboard header with Pre-Flight, the in-flight panel from block out, and the summary after Settle
+// Up (§13.7). "Not recording" (design.md §13.4) and the notice stay on top; with --dev (D-211) the flight panel and the
+// event feed sit under it all. The page scrolls when the window is too short; the scroll bar shows only then.
 
 pragma ComponentBehavior: Bound
 
@@ -18,7 +18,11 @@ Item {
     id: page
 
     required property RecorderBridge recorder
-    required property PlannedFlightDisplay plannedFlight
+    // The flight the panels show: Your Flight's, or the replay's (D-175).
+    required property FlightSource flightSource
+    // Your Flight's own models; null in the replay window.
+    property YourFlightModel yourFlight: null
+    property DispatchModel dispatch: null
     required property DashboardHeader dashboard
     required property PreFlightModel preflight
     required property InFlightModel inflight
@@ -35,12 +39,19 @@ Item {
 
     // The summary of the flight that just ended, from the Flights list (design.md §13.7).
     // From Finish Flight (0.15.1): until then the arrival view stays; a flight settled at startup shows it at once.
-    readonly property bool showSummary: plannedFlight.stage === "summary"
+    readonly property bool showSummary: flightSource.stage === "summary"
+    // Dispatch until Accept (D-233). Never beside the dashboard: --demo shows its made-up flight's dashboard instead.
+    readonly property bool dispatching: dispatch !== null && !dashboard.visible
+    readonly property bool showForm: dispatching && (flightSource.stage === "empty" || flightSource.stage === "form")
+    readonly property bool showReport: dispatching
+                                       && (flightSource.stage === "dispatched" || flightSource.stage === "imported")
+
+    signal fleetRequested()
     property var summary: ({})
     property var summaryTrack
 
     function refreshSummary() {
-        const row = page.showSummary ? page.flights.rowOf(page.plannedFlight.summaryFlightId) : -1
+        const row = page.showSummary ? page.flights.rowOf(page.flightSource.summaryFlightId) : -1
         page.summary = row >= 0 ? page.flights.summary(row) : ({})
         page.summaryTrack = row >= 0 ? page.flights.track(row) : undefined
     }
@@ -81,29 +92,56 @@ Item {
             NotRecordingBanner {
                 Layout.fillWidth: true
                 text: page.recorder.recorderProblem !== "" ? page.recorder.recorderProblem
-                                                           : page.plannedFlight.notRecording
+                     : page.yourFlight !== null ? page.yourFlight.notRecording
+                     : ""
             }
 
             // A flight that was interrupted and discarded, or one that couldn't be settled (D-072, D-108).
             Text {
                 Layout.fillWidth: true
                 visible: text !== ""
-                text: page.plannedFlight.notice
+                text: page.yourFlight !== null ? page.yourFlight.notice : ""
                 color: Theme.warn
                 wrapMode: Text.WordWrap
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeBody
             }
 
-            // The dashboard header (D-151): while a flight is planned, open or showing its summary (D-154, D-180).
+            // The dispatch form: empty (no airplane chosen), pre-filled from Fleet's Fly, or Change flight.
+            Loader {
+                Layout.preferredWidth: Theme.formWidth
+                Layout.maximumWidth: column.width
+                visible: active
+                active: page.showForm
+
+                sourceComponent: DispatchForm {
+                    model: page.dispatch
+                    onFleetRequested: page.fleetRequested()
+                }
+            }
+
+            // The dispatch report, until Accept (D-234).
+            Loader {
+                Layout.fillWidth: true
+                visible: active
+                active: page.showReport
+
+                sourceComponent: DispatchReport {
+                    model: page.dispatch
+                }
+            }
+
+            // The dashboard header (D-151): from Accept until the summary is done with (D-233).
             FlightHeader {
                 Layout.fillWidth: true
                 visible: page.dashboard.visible
                 header: page.dashboard
                 recorder: page.recorder
+                reportAvailable: page.dispatch !== null && page.flightSource.stage !== "summary"
+                onReportRequested: reportPopup.active = true
             }
 
-            // The Pre-Flight panel (D-153): from planning until block out (D-194), right under the header.
+            // The Pre-Flight panel (D-153): from Accept until block out (D-194), right under the header.
             PreFlightPanel {
                 Layout.fillWidth: true
                 visible: page.preflight.visible
@@ -133,16 +171,16 @@ Item {
                     mapUserAgent: page.mapUserAgent
                     showActions: !page.replaying
                     replayable: !page.replaying
-                    onTurnaround: page.plannedFlight.turnaround()
-                    onDone: page.plannedFlight.doneForNow()
-                    onReplay: page.flights.replay(page.plannedFlight.summaryFlightId)
+                    onTurnaround: page.yourFlight?.turnaround()
+                    onDone: page.yourFlight?.doneForNow()
+                    onReplay: page.flights.replay(page.flightSource.summaryFlightId)
                 }
             }
 
-            PlannedFlightPanel {
-                Layout.fillWidth: true
-                visible: page.plannedFlight.hasFlight
-                flight: page.plannedFlight
+            // Takes the height left over, so everything above stays at the top (the --dev row does it in dev mode).
+            Item {
+                Layout.fillHeight: true
+                visible: !page.devMode
             }
 
             // The flight tiles and the event log, only in developer mode (--dev, D-211). The header's pill and status
@@ -170,6 +208,20 @@ Item {
                     recorder: page.recorder
                 }
             }
+        }
+    }
+
+    // View Dispatch Report: the accepted report in an overlay, built only while it's open.
+    Loader {
+        id: reportPopup
+
+        active: false
+
+        sourceComponent: DispatchReportPopup {
+            model: page.dispatch
+            parent: page
+            onClosed: reportPopup.active = false
+            Component.onCompleted: open()
         }
     }
 }

@@ -225,7 +225,7 @@ InstrumentPanel {
         }
 
         // The phase's readouts (D-194): SOULS and FUEL REMAINING first, four a row, APPROACHES across two. After block
-        // in, Finish Flight on the right gives way to the summary once shut down and deboarded (0.15.1).
+        // in, Settle Up on the right gives way to the summary once shut down and deboarded (0.15.1).
         Item {
             width: parent.width
             height: Math.max(phasePlacard.height, finishButton.visible ? finishButton.height : 0)
@@ -242,7 +242,7 @@ InstrumentPanel {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 visible: panel.model.finishable
-                text: qsTr("Finish Flight")
+                text: qsTr("Settle Up")
                 onClicked: panel.model.finishFlight()
             }
         }

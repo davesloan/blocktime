@@ -13,7 +13,7 @@ import QtQuick.Layouts
 Rectangle {
     id: sidebar
 
-    // 0 = Live, 1 = Flights, 2 = Fleet, 3 = Money
+    // 0 = Your Flight, 1 = Flights, 2 = Fleet, 3 = Money
     property int currentIndex: 0
     // The airline's name under the brand; "" shows none.
     property string airlineName
@@ -22,7 +22,7 @@ Rectangle {
 
     // Glyphs are Segoe Fluent Icons code points: SpeedHigh, History, Airplane, Money (E8C7).
     readonly property var entries: [
-        { glyph: "", text: "Live" },
+        { glyph: "", text: "Your Flight" },
         { glyph: "", text: "Flights" },
         { glyph: "", text: "Fleet" },
         { glyph: "", text: "Money" }

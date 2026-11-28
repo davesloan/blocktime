@@ -89,12 +89,12 @@ ApplicationWindow {
             font.pixelSize: Theme.fontSizeBody
         }
 
-        LivePage {
+        YourFlightPage {
             Layout.fillWidth: true
             Layout.fillHeight: true
             visible: window.replay.error === ""
             recorder: window.replay.bridge
-            plannedFlight: window.replay.plannedFlight
+            flightSource: window.replay.plannedFlight
             dashboard: window.replay.header
             preflight: window.replay.preflight
             inflight: window.replay.inflight

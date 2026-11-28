@@ -4,14 +4,11 @@
 
 #include "replay_planned_flight.h"
 
-ReplayPlannedFlight::ReplayPlannedFlight(std::optional<blocktime::PlannedFlightView> view, QString airlineIcao,
-                                         blocktime::Rates rates, RecorderBridge& bridge, QString logFlightId,
-                                         QObject* parent)
-    : PlannedFlightDisplay(std::move(airlineIcao), true, parent), bridge_(bridge), logFlightId_(std::move(logFlightId)) {
-    flight_ = std::move(view);
-    rates_ = rates;
+ReplayPlannedFlight::ReplayPlannedFlight(std::optional<blocktime::PlannedFlightView> view, RecorderBridge& bridge,
+                                         QString logFlightId, QObject* parent)
+    : FlightSource(parent), bridge_(bridge), logFlightId_(std::move(logFlightId)), flight_(std::move(view)) {
     connect(&bridge_, &RecorderBridge::blockEvent, this, [this](const QString& type) {
-        // At block in Live shows the flight's summary, as a real flight does once settled (D-134).
+        // At block in Your Flight shows the flight's summary, as a real flight does once settled (D-134).
         if (type == "block_in") {
             flight_.reset();
             summaryFlightId_ = logFlightId_;
@@ -20,10 +17,6 @@ ReplayPlannedFlight::ReplayPlannedFlight(std::optional<blocktime::PlannedFlightV
     });
 }
 
-QString ReplayPlannedFlight::state() const {
-    if (!summaryFlightId_.isEmpty()) return QStringLiteral("summary");
-    return bridge_.flightOpen() ? QStringLiteral("flying") : QStringLiteral("replay");
-}
 
 // A settled flight replayed: accepted before block out, flying, then the arrival view and the summary.
 blocktime::YourFlightStage ReplayPlannedFlight::stage() const {

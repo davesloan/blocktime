@@ -23,6 +23,7 @@ class FlightSource : public QObject {
     QML_UNCREATABLE("Created by the app")
     // "empty", "form", "dispatched", "imported", "accepted", "flying", "arrived", "summary" (your_flight_stage.h).
     Q_PROPERTY(QString stage READ stageText NOTIFY changed)
+    Q_PROPERTY(QString summaryFlightId READ summaryFlightId NOTIFY changed)
 
 public:
     // The flight on show; empty once settled (the summary) or with nothing planned.

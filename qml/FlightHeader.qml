@@ -24,6 +24,10 @@ Rectangle {
 
     // Collapsed (D-187): the pill with the airports' codes beside it, the marker, and only the current status line.
     property bool collapsed: false
+    // View Dispatch Report (D-233): Your Flight's accepted flight, not the replay's.
+    property bool reportAvailable: false
+
+    signal reportRequested()
     // Room beside the pill for the codes when collapsed; the marker row takes the same margins, so it stays aligned.
     readonly property real codeSpace: collapsed
                                       ? Math.max(originCode.implicitWidth, destinationCode.implicitWidth) + Theme.gap14
@@ -175,7 +179,18 @@ Rectangle {
                 font.weight: Font.Bold
             }
 
+            SecondaryButton {
+                anchors.right: clockPill.left
+                anchors.rightMargin: Theme.gap10
+                anchors.verticalCenter: airline.verticalCenter
+                visible: card.reportAvailable
+                text: "View Dispatch Report"
+                onClicked: card.reportRequested()
+            }
+
             Rectangle {
+                id: clockPill
+
                 anchors.right: parent.right
                 anchors.verticalCenter: airline.verticalCenter
                 implicitWidth: clock.implicitWidth + 2 * Theme.gap14

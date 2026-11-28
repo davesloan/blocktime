@@ -104,12 +104,19 @@ ColumnLayout {
         border.color: Theme.border
         border.width: Theme.borderWidth
 
-        RowLayout {
+        // Three columns when there's room (a maximized 1920×1080 window, D-248); in a narrower one the working goes
+        // under the ring and the board.
+        GridLayout {
             id: money
+
+            readonly property bool wide: width >= Theme.ringSize + board.implicitWidth + Theme.workingWidth
+                                                  + 2 * Theme.pagePadding
 
             anchors.fill: parent
             anchors.margins: Theme.pagePadding
-            spacing: Theme.pagePadding
+            columns: wide ? 3 : 2
+            columnSpacing: Theme.pagePadding
+            rowSpacing: Theme.pagePadding
 
             MoneyRing {
                 Layout.alignment: Qt.AlignTop
@@ -123,6 +130,8 @@ ColumnLayout {
             }
 
             FlipBoard {
+                id: board
+
                 Layout.alignment: Qt.AlignTop
                 rows: report.model.boardRows
                 importCount: report.model.importCount
@@ -132,9 +141,10 @@ ColumnLayout {
             }
 
             WorkingCard {
+                Layout.columnSpan: money.wide ? 1 : 2
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.minimumWidth: Theme.workingWidth
+                Layout.minimumWidth: money.wide ? Theme.workingWidth : 0
                 model: report.model
             }
         }

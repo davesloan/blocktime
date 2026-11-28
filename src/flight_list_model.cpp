@@ -21,7 +21,6 @@
 #include "loads.h"
 #include "money.h"
 #include "money_lines_qml.h"
-#include "new_flight_model.h"
 
 namespace {
 
@@ -41,7 +40,9 @@ QString hMm(long long seconds) {
 
 QString kindLabel(const std::string& code) {
     const auto kind = blocktime::parseKind(code);
-    return kind ? NewFlightModel::kindLabel(*kind) : q(code);
+    if (!kind) return q(code);
+    const std::string_view label = blocktime::kindLabel(*kind);
+    return QString::fromUtf8(label.data(), static_cast<qsizetype>(label.size()));
 }
 
 QString signedPoints(int points) { return QString::fromUtf8("−") + QString::number(-points); }  // "−6"

@@ -212,7 +212,9 @@ while the app is open. A month you can't pay returns the airplane (design.md §5
 - `--grab <file.png> [--page <n>]` is a developer check of the screens: it saves the window to a PNG after 6 s and
   quits (`docs/notes/qt-setup.md`). Like `--demo`, it records nothing and works on a scratch copy of your data in
   `%TEMP%`, deleted at exit (D-226).
-- `--dev` is developer mode (D-211): Live also shows the old flight tiles (raw sim values) and the event feed under
+- `--fly <registration>` opens the dispatch form for that airplane at startup, as Fleet's Fly does: with `--grab`, a
+  picture of the form.
+- `--dev` is developer mode (D-211): Your Flight also shows the old flight tiles (raw sim values) and the event feed under
   the panels. Without it they're hidden. It works with `--demo` and `--replay` too.
 - `--demo` shows made-up live values and a made-up departure in Flight progress, and records nothing, to look at the
   UI without the sim. The Flights, Fleet and Money screens show a scratch copy of your data, so nothing it does
