@@ -127,7 +127,7 @@ weight "after import"; Accept is greyed. **Import** flips the values in row by r
 
 **A flight that loses money** (a delivery flight, or costs above the fares): the circle is the costs instead, every
 slice red to purple with no green arc, and the centre shows "Loss" and the amount in red. A delivery flight's board
-shows its fares row as $0. (Claude's call; the mockups only show a profit.)
+has no fares row (D-251's plan; this spec first said a $0 row). (Claude's call; the mockups only show a profit.)
 
 ## The flight summary (D-235, board `Summary`)
 
@@ -206,3 +206,28 @@ Flights shows it too.
 - A losing flight's ring (above).
 - Flights settled before dispatch have no accepted breakdown: their summary shows no "moved since the dispatch
   report" tags.
+
+## As built (milestone 16, 0.18.0)
+
+What the build settled (D-251, D-252):
+
+- **Your Flight's stages** (`your_flight_stage.h`): empty, form, dispatched, imported, accepted, flying, arrived
+  (block in until Settle Up), summary. The form and the report show only while the dashboard header is hidden; the
+  header, Pre-Flight and the in-flight panel read the stage through `FlightSource`.
+- **The form** opens from Fleet's Fly and At Gate Turnaround; opened with no flight it points at Fleet. Fully loaded
+  is offered on passenger and cargo flights. **Change flight** (a button on the report, before Accept) reopens it with
+  the flight's loads; saving drops the imported plan.
+- **The board's labels** are short for the 20 tiles: "Cabin crew", "ATC / nav", "Cargo hdlg", "Landing", "Gate",
+  "Handling". Before import it has a blank Fuel row, so rows don't move when the plan comes in. The first import flips
+  every row; a re-import flips only the rows that changed. A fuel line with nothing to add is shown at $0 ("0 lb
+  added") and never posted.
+- **The badge** shows the extra fuel typed on the form until import, then the OFP's EXTRA fuel. Warnings: landing
+  weight near MLW, and more fuel on board than the plan's block fuel.
+- **A re-import after Accept** reprices the accepted lines with the plan's block time and fuel to add, at the rates
+  locked at Accept, in one transaction with the plan. "What changed" is kept in memory ("Was −$2,180 before the
+  re-import"); after a restart the report shows no changes.
+- **View Dispatch Report** is an overlay popup from the header's button (D-251); Re-import works in it until block out.
+- **The money card** has three columns in a maximized window; narrower, the working goes under the ring and board.
+- **Accept needs a readable rates.yaml**; with it unreadable block out stores no breakdown and settlement waits for
+  it. Fleet's Fly clears a summary still showing. Cancel flight asks first.
+- Developer check: `--fly <registration>` opens the form at startup, for `--grab` pictures (`docs/notes/qt-setup.md`).

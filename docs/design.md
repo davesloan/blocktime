@@ -367,10 +367,12 @@ here, including delivery and free flights.
 
 ### 13.1 New Flight
 
-> **Redesigned after the MVP, not built yet:** New Flight, planning and the summary move to Your Flight's dispatch
-> report (`docs/dispatch.md`, D-233 to D-235). Sections 13.1–13.3 and 13.7 describe what's built today.
+> **Built in milestone 16 (0.18.0):** New Flight and planning are Your Flight's dispatch form and report
+> (`docs/dispatch.md`, D-233, D-234): Live is Your Flight, the planned flight panel is gone, and the money is
+> accepted before the flight (D-222). The rules below still hold; the screens are dispatch.md's. The summary's
+> restyle (13.7, D-235) is milestone 17.
 
-1. Dave clicks a parked aircraft and chooses **New Flight**.
+1. Dave clicks **Fly** on an airplane's Fleet card: Your Flight opens the dispatch form for it.
 2. He enters the destination's ICAO code. The app checks the runway length (section 4).
 3. **Flight number (D-106):** each airplane has a default flight number for its free flights (the BBJ2 is always
    XLY8, say), pre-filled and editable. A rotation's legs each carry their own number instead (KSAN–KSLC is always
@@ -379,8 +381,10 @@ here, including delivery and free flights.
    factory delivery). A **BBJ2** asks one more question: **VIP airliner** (per-seat tickets) or **Charter**
    (section 12). A passenger airliner that can carry belly cargo offers one more choice: **Carry belly cargo**
    (D-089). The BBJ2 never carries it.
-5. Loads are rolled (section 9) and the preview shows revenue, costs and where the plane ends up (design rule 1).
-   A delivery flight has no load and shows a loss: its fuel and operating costs (section 11) with no revenue.
+5. **Fully loaded or random (D-215):** a passenger or cargo flight can be fully loaded (every seat, cargo up to the
+   holds or max payload); otherwise the loads are rolled (section 9). **Extra fuel** in pounds is optional and goes to
+   SimBrief. **Dispatch** rolls the loads once and shows the dispatch report: the money, the load and the plan. A
+   delivery flight has no load and shows a loss: its fuel and operating costs (section 11) with no revenue.
 
 ### 13.2 Planning (D-070)
 
@@ -391,18 +395,20 @@ here, including delivery and free flights.
 2. **SimBrief dispatch page.** The app opens SimBrief's dispatch page in Dave's browser, pre-filled (the dispatch
    redirect, no API key): origin, destination, the airplane's SimBrief airframe, the runways (`origrwy`,
    `destrwy`), and the loads. Dave can change the route, then presses Generate.
-3. **Dave imports the plan (D-101).** After Generate he clicks **Import Active SimBrief Plan**. The app fetches the
-   latest OFP (`xml.fetcher.php`) once and keeps it if it matches the planned origin, destination and airframe and
-   was generated after planning started (D-105). It stores a copy of the plan (section 3). SimBrief asks apps not to
-   poll, so nothing is fetched without a click. Until then the dashboard shows "Waiting for plan", with buttons to
-   open the dispatch page again and to cancel the flight.
-4. The destination runway is only a planning guess; the wind can change before arrival.
+3. **Dave imports the plan (D-101).** After Generate he clicks **Import from SimBrief** on the dispatch report. The
+   app fetches the latest OFP (`xml.fetcher.php`) once and keeps it if it matches the planned origin, destination and
+   airframe, was generated after the flight was dispatched (D-105), and carries the flight's passengers, cargo (within
+   100 lb or 1%) and flight number (review 4.7). A refused import says what to regenerate and changes nothing. It
+   stores a copy of the plan (section 3). SimBrief asks apps not to poll, so nothing is fetched without a click.
+4. **Accept** stores the money as shown, with its rates locked (D-222), and marks the flight's start in the log
+   (D-236). A flight with a plan but no Accept is accepted at block out; one with no plan isn't recorded (D-250).
+5. The destination runway is only a planning guess; the wind can change before arrival.
 
 ### 13.3 Before departure
 
-- The **live flight dashboard** opens: "Waiting for sim".
-- It shows the route with a **copy button**, so Dave can paste it into Navigraph Charts and pick his approach for
-  the runways in use. The route is in the form Navigraph takes, with the plan's runways at both ends:
+- After Accept, Your Flight shows the **dashboard header and the Pre-Flight panel**, with **View Dispatch Report**.
+- The dispatch report's plan card has the route with a **Copy route** button, so Dave can paste it into Navigraph
+  Charts and pick his approach for the runways in use. The route is in the form Navigraph takes, with the plan's runways at both ends:
   `KBFI/14R <route> KSAN/27`.
 - It shows **where to load in:** the airport, and the spot where the aircraft was last parked, if known ("Load in
   at KLAS, Harry Reid International Airport, Gate E7"; built in milestone 9, D-148). The app can't make MSFS spawn

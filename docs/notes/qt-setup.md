@@ -110,6 +110,20 @@ $env:LOCALAPPDATA = "C:\path\to\scratch"; $env:QT_QPA_PLATFORM = "offscreen"; $e
 - An event log written by hand must be compact JSON (`"type":"block_out"`, no spaces): the log readers find event
   lines with a plain substring before parsing them, as `EventLog` writes them.
 
+### Your Flight's stages in a grab (milestone 16)
+
+A grab can't click, so each stage is set up in a scratch copy of the data folder and grabbed with `--data-dir`:
+
+- **The form:** `--fly <registration>` opens it at startup, as Fleet's Fly does (no planned flight in the copy).
+- **Dispatched / imported / accepted:** write a `planned_flight` row (and `planned_flight_cabin`), then a
+  `simbrief_plan` row (copy a `flight_plan` row and its `ofp_json` from a settled flight with the same airports),
+  then an `accepted_breakdown` with a line or two and its `planned_flight_acceptance` link. The app opens on that
+  stage.
+- **At 1920×1080:** the offscreen platform grabs at the QML size: set `Theme.windowWidth`/`windowHeight` to
+  1920×1010 for the grab (the debug build reads QML from the source folder) and put them back after. The Windows
+  platform scales by the monitor's DPI instead.
+- The flip, the ring's hover and selection, and the popup need clicks: check those by hand.
+
 ## Remembering the window's place (D-249)
 
 `window_placement_win.cpp` saves `GetWindowPlacement` on close and restores it with `SetWindowPlacement` before the

@@ -243,7 +243,8 @@ its own plan in `docs/plans/` first.
    +1 per 10 h, at most 20 (D-240); Add Aircraft reads a SimBrief screenshot with Claude and leases the plane, with
    factory or instant delivery; the aircraft screen with New screenshot and Return (with a refund); supported
    aircraft as shipped files in `data/aircraft/`; fleets dropped; migration 11.
-3. **Milestone 16 — dispatch on Your Flight** (`docs/dispatch.md`, D-214, D-215, D-233, D-234, D-250). Live renamed
+3. **Milestone 16 — dispatch on Your Flight** (`docs/dispatch.md`, D-214, D-215, D-233, D-234, D-250). Built (0.18.0,
+   plan `docs/plans/2026-11-27-milestone-16-dispatch.md`). Live renamed
    Your Flight; the form with fully loaded and additional fuel (no remembered routes: they wait for rotations,
    D-250); the dispatch report (the ring, the split-flap board, load and plan); the import check against the rolled
    loads; Accept (and block out accepting a flight that wasn't); View Dispatch Report; money and Re-import locked at

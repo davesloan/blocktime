@@ -4141,3 +4141,38 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Alternatives considered: separate accepted-line tables for planned and settled flights; storing the whole
   `rates.yaml` snapshot instead of each line's rate; persisting the re-import baseline; Change flight after Accept.
 
+
+## D-252 — Milestone 16's calls, made while building it
+- Date: 2026-11-27
+- Status: Proposed
+- Decided by: Claude
+- Area: app, data, recorder
+- Decision (ledger: the plan's `Ruling:` lines; `docs/dispatch.md` "As built"):
+  - **A fuel line with nothing to add is kept at $0** ("0 lb added") once the fuel is known, so the report shows it;
+    the ledger never gets a $0 line. Live's estimate and the summary show "Fuel $0" in that case.
+  - **A delivery's board has no fares row** (the plan's rule; dispatch.md first said a $0 row).
+  - **Hours show two decimals** in a working when the hundredths aren't 0 ("2.96 h").
+  - **A re-import after Accept** reprices the accepted lines with the plan's block time and fuel to add at the locked
+    rates (the same code as settling), so catering's band and charter hours stay as accepted. The plan and the new
+    breakdown are written in one transaction.
+  - **An accepted flight settles without reading rates.yaml** (its rates are locked); only an unaccepted one (recorded
+    by 0.17) waits for it.
+  - **The block-out marker** is written by the recorder just before `block_out`, from the target, not by the tracker
+    after it. The feed reads "FLIGHT ACCEPTED  KSAN → KSJC" ("(at block out)" when so).
+  - **The page shows dispatch only while the dashboard header is hidden** (the same in real use; `--demo` keeps its
+    made-up dashboard). The money card wraps the working under the ring and board in a narrow window.
+  - **The board flips by cycling characters per tile** (the mockup's effect), once per import, on a timer that stops.
+  - **The empty form points at Fleet** (no airplane picker); Change flight is a button on the report.
+  - **"Load in at <gate>" is no longer shown before Accept**: it went with the planned flight panel; Pre-Flight's GATE
+    shows it after Accept.
+  - **`--fly <registration>`** opens the form at startup, for `--grab` checks.
+  - From the milestone review: **Accept needs a readable rates.yaml** (it says why otherwise), and with rates.yaml
+    unreadable **block out stores no breakdown**, so settlement waits for the file as it always has: the built-in
+    default rates are never locked in. **Fleet's Fly clears a summary that's still showing**, so the form appears.
+    **Cancel flight asks first** ("Keep it" / "Cancel flight"), as the planned flight panel did, and View Dispatch
+    Report closes once the flight is cancelled.
+  - **0.18.0.**
+- Why: each is the smallest choice that keeps the report honest (what settles is what was shown) and every commit
+  working; the rest follow the mockup or the spec where the plan was silent.
+- Alternatives considered: a separate fuel row added by the board only; persisting the re-import baseline; a demo
+  planner for `--demo` instead of `--grab` on prepared databases; FlipCard's turn for the tiles.

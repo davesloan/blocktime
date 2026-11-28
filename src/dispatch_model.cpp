@@ -117,7 +117,8 @@ void DispatchModel::reloadRates() {
     const auto rates = loadRates(ratesFile_, &error);
     ratesOk_ = rates.has_value();
     rates_ = rates.value_or(Rates{});
-    if (!ratesOk_) message_ = q(error);
+    ratesError_ = ratesOk_ ? QString() : q(error);
+    if (!ratesOk_) message_ = ratesError_;
 }
 
 void DispatchModel::setMessage(QString message) {
@@ -144,6 +145,8 @@ bool DispatchModel::openForAirplane(const QString& registration) {
     }
     const auto airplane = loadFlightAirplane(db_, registration.toStdString());
     if (!airplane) return false;
+    // Fly from Fleet while the last flight's summary shows: the summary gives way to the form.
+    if (!yourFlight_.summaryFlightId().isEmpty()) yourFlight_.doneForNow();
     reloadRates();
     auto [daytime, roll] = dayAndRoll(*airplane);
     destination_.clear();
@@ -352,6 +355,7 @@ void DispatchModel::openSimbrief() {
 
 void DispatchModel::importPlan() {
     if (!view() || busy_ || locked()) return;  // after block out the plan can't change anything (review 4.6)
+    if (!accepted()) reloadRates();  // the report prices from it until Accept: a fixed file shows at once
     busy_ = true;
     message_.clear();
     emit changed();
@@ -417,7 +421,7 @@ void DispatchModel::importPlan() {
             beforeFlightId_ = id;
         }
         ++importCount_;
-        message_.clear();
+        message_ = ratesError_;  // "" when rates.yaml read
         emit changed();
     });
 }
@@ -425,6 +429,9 @@ void DispatchModel::importPlan() {
 void DispatchModel::accept() {
     const auto& v = view();
     if (!v || !imported() || accepted() || locked()) return;
+    // The breakdown is permanent once the flight settles: never lock in the built-in default rates.
+    reloadRates();
+    if (!ratesOk_) return setMessage("Can't accept: " + ratesError_ + ". Fix rates.yaml, then accept.");
     const auto money = preview();
     std::string error;
     if (!money || !acceptPlannedFlight(db_, v->id, *money, utcNowInstant(), false, &error)) {
@@ -463,7 +470,11 @@ void DispatchModel::onBlockEvent(const QString& type) {
     const auto& v = view();
     if (v && v->plan && !v->acceptedAt) {
         std::string error;
-        if (const auto money = preview()) {
+        reloadRates();
+        // With rates.yaml unreadable nothing is stored: settlement then waits for it, as it always has.
+        const auto money = ratesOk_ ? preview() : std::nullopt;
+        if (!ratesOk_) message_ = "Not accepted at block out: " + ratesError_ + ". Fix rates.yaml before block in.";
+        if (money) {
             if (!acceptPlannedFlight(db_, v->id, *money, utcNowInstant(), true, &error)) {
                 message_ = "Couldn't accept the flight at block out: " + q(error);
             }

@@ -195,6 +195,7 @@ private:
     YourFlightModel& yourFlight_;
     blocktime::Rates rates_;
     bool ratesOk_ = false;
+    QString ratesError_;  // why rates.yaml didn't read; "" when it did
 
     std::optional<blocktime::FlightDraft> draft_;
     bool changing_ = false;

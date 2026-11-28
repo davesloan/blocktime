@@ -151,6 +151,52 @@ ColumnLayout {
         visible: !working.model.locked
         text: "Cancel flight"
         tone: Theme.bad
-        onClicked: working.model.cancelFlight()
+        onClicked: confirmCancel.open()
+
+        // One click below Accept shouldn't lose the flight, its loads and its plan: ask first.
+        Dialog {
+            id: confirmCancel
+
+            parent: Overlay.overlay
+            anchors.centerIn: parent
+            modal: true
+            padding: Theme.pagePadding
+
+            background: Rectangle {
+                color: Theme.surface
+                radius: Theme.radius
+                border.color: Theme.border
+                border.width: Theme.borderWidth
+            }
+
+            contentItem: ColumnLayout {
+                spacing: Theme.spacing
+
+                Text {
+                    text: "Cancel " + working.model.reportTitle + "? It's free."
+                    color: Theme.textPrimary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeBody
+                }
+
+                RowLayout {
+                    Layout.alignment: Qt.AlignRight
+                    spacing: Theme.gap8
+
+                    SecondaryButton {
+                        text: "Keep it"
+                        onClicked: confirmCancel.close()
+                    }
+
+                    PrimaryButton {
+                        text: "Cancel flight"
+                        onClicked: {
+                            confirmCancel.close();
+                            working.model.cancelFlight();
+                        }
+                    }
+                }
+            }
+        }
     }
 }

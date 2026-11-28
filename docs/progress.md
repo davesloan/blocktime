@@ -22,6 +22,73 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-27 — Milestone 16 built: dispatch on Your Flight (0.18.0)
+
+**Done:** the whole plan (`docs/plans/2026-11-27-milestone-16-dispatch.md`, eleven tasks), then a fresh reviewer on the
+milestone's diff and one fix pass.
+- Migration 12 (schema 12): the accepted breakdown (`accepted_breakdown`, its lines and their quantities), linked to
+  the planned flight and moved to the settled flight at settlement; `additional_fuel_lb` on both flight tables.
+- Fully loaded (passenger and cargo flights), Change flight (before Accept; drops the imported plan), extra fuel sent
+  to SimBrief as `addedfuel` in thousands.
+- The import check: passengers exactly, cargo within max(100 lb, 1%) against `freight_added`, flight number; a refusal
+  says what to regenerate and changes nothing.
+- The report's numbers in core (board rows and 20-tile text, ring slices, workings, what a re-import changed) and
+  `settleAccepted`: only pilots, cabin crew, maintenance and fuel are worked out again at block in, at the locked rates.
+  A fuel line with nothing to add shows at $0 and is never posted.
+- `flight_accepted` in the log: written by the app at Accept (with cockpit and telemetry snapshots), or by the recorder
+  just before `block_out` for a flight with a plan but no Accept (D-250). No plan, no target: not recorded.
+- One stage for Your Flight (`YourFlightStage`), a `FlightSource` for the header, Pre-Flight and in-flight panels,
+  `SettlementCoordinator` (plain C++), `YourFlightModel` (was PlannedFlightModel) and `DispatchModel` (was
+  NewFlightModel). The planned flight panel, New Flight's dialog and `PlannedFlightDisplay` are gone.
+- QML: Your Flight (Live renamed), the form, the report (ring, split-flap board, working, load, plan), View Dispatch
+  Report (overlay), Settle Up. `--fly <registration>` opens the form at startup, for grabs.
+- Review fixes: Accept needs a readable rates.yaml and block out stores nothing without it (the defaults are never
+  locked in); Fleet's Fly clears a summary that's showing; Cancel flight asks first.
+
+**Working / verified:** debug and release build with no warnings; 1,080 tests pass in both; qmllint shows only
+ReplayBar's old info line. Migration dry run with the release build on a copy of Dave's airline: schema 11 → 12, the
+backup `blocktime.before-schema-12.db` made, `foreign_key_check` empty, `integrity_check` ok, all 33 old tables
+unchanged, ledger total unchanged ($3,581,060). The copy's unaccepted N818SX delivery (KBFI → KSAN) opens on its report:
+a loss ring, no fares row. `--grab` pictures at 1920×1010 of the empty form, the pre-filled form, the report before and
+after import, the accepted dashboard with View Dispatch Report, and the 1300-px window (the working wraps under the
+ring); the replay still plays.
+
+**Unverified:** anything that needs a click (the flip running, hover lift, selecting a line, the popup, Cancel's
+confirmation) and anything that needs the sim (the marker at Accept in a real log, settling from accepted lines on a
+real flight). `addedfuel`'s unit (thousands assumed). On Dave's next flight he should see (one MSFS session):
+1. Start BlockTime: it migrates (backup `before-schema-12`). Your Flight opens on XLY 814 KBFI → KSAN (N818SX's
+   delivery): a red ring with "Loss" in the centre, no fares row, the plan card filled. Accept is green.
+2. Click Fuel on the board: the working reads "17,234 lb block fuel / − 0 lb on board / = 17,234 lb added × $41 / 100
+   lb / Price locked when you dispatched". Hover a slice: it lifts with a tag. Click it: the centre shows that cost.
+3. Accept flight: the header and Pre-Flight appear; View Dispatch Report opens the report over the dashboard; its
+   Cancel flight asks first (press Keep it).
+4. Fly the delivery. After block out the popup has no Re-import. After block in, Settle Up shows the summary; its
+   pilots and maintenance follow the real block time and fuel is the fuel added.
+5. At Gate Turnaround: the form for N818SX at KSAN. Pick a destination, try Fully loaded (the loads fill up) and back,
+   type 1000 in extra fuel, Dispatch: the report shows "+1,000 lb extra fuel", empty value tiles and an empty ring.
+6. Open SimBrief: the page is filled with the passengers, cargo and **extra fuel: check SimBrief shows 1,000 lb of
+   extra fuel** (if it shows 1 lb, `addedfuel` is in pounds: tell Claude). Generate, then Import: the money flips in
+   row by row, once; the badge shows the OFP's EXTRA.
+7. In SimBrief change the passengers, Generate, Re-import: refused, "SimBrief has … passengers … Open SimBrief to
+   generate it again with this flight's loads.", nothing on the report changes. Regenerate with the right loads.
+8. Change flight (before Accept): change the flight number, Save changes: back on the report, the plan dropped.
+
+**Deferred minors from the review:** Change flight on a fully loaded flight shows "Random loads" chosen; the centre's
+"the whole circle" for an income line is wrong with several fare lines or on a loss; clicking a row or slice mid-flip
+cuts the flip short; the report re-reads the accepted breakdown on every change and the view parses the whole OFP on
+every read; the Accept marker waits in memory until the recorder drains it (a quit in that window leaves no marker,
+which matters once 16b's readers start from it).
+
+**Dave's call:** D-252 (Proposed), the calls made while building: the $0 fuel line; a delivery's board without a fares
+row; two-decimal hours; a re-import after Accept repriced at the locked rates; accepted flights settling without
+rates.yaml (but Accept needs it); the block-out marker from the recorder; dispatch shown only while the header is
+hidden; the character-cycling flip; the empty form pointing at Fleet; "Load in at <gate>" gone before Accept; `--fly`;
+Fly clearing a summary; Cancel asking first; 0.18.0.
+
+**Next step:** milestone 16b (one log file per flight) in a new session, from `docs/roadmap.md`.
+
+---
+
 ## 2026-11-27 — Milestone 16 planned: dispatch on Your Flight
 
 **Done (with Dave, no code):**

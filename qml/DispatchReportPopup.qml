@@ -25,6 +25,15 @@ Popup {
     padding: Theme.pagePadding
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
+    // Cancelled from inside the popup: nothing left to show.
+    Connections {
+        target: popup.model
+
+        function onChanged(): void {
+            if (popup.model.reportTitle === "") popup.close()
+        }
+    }
+
     background: Rectangle {
         color: Theme.bg
         radius: Theme.radius

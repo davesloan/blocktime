@@ -3831,3 +3831,60 @@ TEST_F(Dispatch, NoAtisStillDispatches) {
     EXPECT_EQ(d->message(), "No ATIS runways: SayIntentions has no key");
     EXPECT_EQ(y->view()->originRunway, "");
 }
+
+// Review Focus 5 (D-250): dispatched with no plan imported, the recorder has no target and the banner says why.
+TEST_F(Dispatch, NoPlanBannerSaysToImport) {
+    auto y = your();
+    auto d = dispatchOn(*y);
+    ASSERT_TRUE(d->openForAirplane("N814SX"));
+    d->setDestination("KSAN");
+    d->dispatch();
+    ASSERT_EQ(y->stageText(), "dispatched");
+    EXPECT_FALSE(target_.get().has_value());
+    bridge_.applyConnection(ConnectionState::Connected);
+    MatchResult r;
+    r.problem = MatchProblem::NoPlannedFlight;
+    bridge_.applyMatch(r);
+    EXPECT_EQ(y->notRecording(), "Not recording: import the SimBrief plan on Your Flight first.");
+}
+
+// Review (milestone 16) Important 1: a broken rates.yaml never gets locked in as the accepted breakdown.
+TEST_F(Dispatch, BrokenRatesCantAccept) {
+    ratesFile_ = dir_ / "rates.yaml";
+    std::filesystem::copy_file(kRatesFile, ratesFile_);
+    auto y = your();
+    auto d = dispatchOn(*y);
+    dispatchAndImport(*d);
+    std::filesystem::remove(ratesFile_);
+    d->accept();
+    EXPECT_FALSE(plannedAcceptance(db_, y->view()->id).has_value());
+    EXPECT_TRUE(d->message().contains("rates.yaml")) << d->message().toStdString();
+    EXPECT_TRUE(events_.drain().empty());
+}
+
+TEST_F(Dispatch, BrokenRatesBlockOutStoresNothing) {
+    ratesFile_ = dir_ / "rates.yaml";
+    std::filesystem::copy_file(kRatesFile, ratesFile_);
+    auto y = your();
+    auto d = dispatchOn(*y);
+    dispatchAndImport(*d);
+    std::filesystem::remove(ratesFile_);
+    const std::int64_t id = y->view()->id;
+    BlockOut out;
+    out.flightId = "2026-11-27T10:00:00.000Z";
+    bridge_.applyBlockEvent(out);
+    EXPECT_FALSE(plannedAcceptance(db_, id).has_value());  // settlement waits for rates.yaml, as before
+}
+
+// Review (milestone 16) Important 2: Fleet's Fly while the last flight's summary shows opens the form.
+TEST_F(LiveFlight, FlyClearsTheSummary) {
+    write({liveOut(plannedId_), liveIn()});
+    auto m = model();
+    m->checkFlown();
+    ASSERT_EQ(m->stageText(), "summary");
+    AppEventQueue events;
+    DispatchModel d(db_, "XLY", kRatesFile, planner_, bridge_, events, *m);
+    ASSERT_TRUE(d.openForAirplane("N738BT"));
+    EXPECT_EQ(m->stageText(), "form");
+    EXPECT_EQ(m->summaryFlightId(), "");
+}

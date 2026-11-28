@@ -11,13 +11,13 @@ Every flight you fly is recorded automatically, from parking brake release to pa
 > leased airplanes from config files, the monthly lease charges, and the money ledger. New Flight sets up a leg with
 > its loads and money preview, opens a pre-filled SimBrief dispatch page with SayIntentions' runways, and imports
 > the plan. Only that planned flight is recorded, and at block in it's settled: money, the airplane's new airport,
-> fuel and hours, with a summary. During the flight, Live shows its phases in six stages (pushback to parked, with
+> fuel and hours, with a summary. During the flight, Your Flight shows its phases in six stages (pushback to parked, with
 > level-offs, markers, the runways and the touchdown rate), and the log collects the ATC exchanges, the ATIS and the
 > altimeter settings for the debrief to come. GSX's services (catering, refuelling, boarding, pushback, deboarding)
 > show with their times from the gate to the gate, with a shutdown checklist after arrival, and each flight keeps its
 > phase and service times. Once SayIntentions has picked its arrival gate, BlockTime keeps it unless the airline prefers
 > another spot there or it's too small for the airplane, and then asks SayIntentions for that one; each flight keeps
-> the spot it parked at, which the next flight shows as where to load in. Live shows the stages, the live values and the event
+> the spot it parked at, which the next flight shows as where to load in. Your Flight shows the stages, the live values and the event
 > log in three columns. The debrief comes next (`docs/roadmap.md`).
 
 This project is built for one pilot's own use and shared in case others want to tinker. It isn't designed to be easy to
@@ -50,7 +50,7 @@ One native Windows app, `BlockTime.exe`, in **C++20 with Qt 6 and a QML interfac
   block in, and writes every event to a local log **before** anything else, so no flight is lost (`docs/recorder.md`).
 - **The airline logic** is plain C++ with unit tests. Data lives in one SQLite file on your PC. There's no hosting and
   no login.
-- **The QML interface** only displays: a dark theme, a side menu, and the Live, Flights, Fleet and Money screens.
+- **The QML interface** only displays: a dark theme, a side menu, and the Your Flight, Flights, Fleet and Money screens.
 
 ## Requirements
 
@@ -157,20 +157,20 @@ while the app is open. A month you can't pay returns the airplane (design.md §5
 
 - Start it before or after MSFS. The pill in the header goes from "Waiting for sim" to "Sim starting" to "Connected".
   MSFS can take several minutes to answer while it loads.
-- **Live:** live flight values, the block clock, and an event feed. A flight starts at the parking brake release that's
+- **Your Flight** (Live before 0.18.0): the dispatch form and report, then the flight itself. A flight starts at the parking brake release that's
   followed by 10 m of movement, and ends at a brake set held until every engine is off (`docs/recorder.md`). Only
   the planned flight is recorded: the sim must have the planned airplane's type loaded, at the origin, with at least
   its fuel on record less 300 lb. Otherwise a **Not recording** banner says what's wrong, and a brake release opens no
-  flight (D-088, D-110, D-112).
-- **Live, during the flight:** the Flight card shows the phase ("Climb — level at 11,000 ft"), and **Flight progress**
+  flight (D-088, D-110, D-112). A flight with no SimBrief plan imported isn't recorded (D-250).
+- **Your Flight, during the flight:** the Flight card shows the phase ("Climb — level at 11,000 ft"), and **Flight progress**
   shows the six stages (Pre-Departure, Departure, Climb, Cruise, Descent, Arrival) with their sub-events and times:
   pushback, taxi, takeoff roll, the departure runway, level-offs, 10,000 ft and the transition altitude and level, 200
   nm out, top of descent, final approach, the landing runway and the touchdown rate (design.md §13.5, D-124..D-128).
   With SayIntentions running, the ATC exchanges and the origin's and destination's ATIS go into the event log too
   (D-123).
 - **After block in:** the flight is settled (money posted, the airplane moved to where it parked with the fuel left
-  at shutdown) and Live shows its **summary**: times, fuel used, every money line and the total, and the route. **At
-  Gate Turnaround** opens New Flight for the same airplane; **Done for now** closes the summary. A flight that ended
+  at shutdown) and, after **Settle Up**, Your Flight shows its **summary**: times, fuel used, every money line and
+  the total, and the route. **At Gate Turnaround** opens the dispatch form for the same airplane; **Done for now** closes the summary. A flight that ended
   while BlockTime was closed is settled at the next start. A flight left for the main menu (or lost to a crash) is
   discarded with a notice, and the planned flight stays for another try (D-072, D-108).
 - **The debrief (milestone 10, `docs/debrief.md`):** each flight settled from 0.11.0 on is measured against
@@ -184,15 +184,17 @@ while the app is open. A month you can't pay returns the airplane (design.md §5
 - **Fleet:** your airplanes, with type, airframe, fleet, location, fuel on board, flights, hours and status (Parked,
   Awaiting delivery, Returned), your hours flown and fleet slots (a new airplane waits for a free slot, D-083), and any
   notices about the setup above them. Click a column header to sort by it, and click it
-  again to reverse. Select an airplane and click **New Flight** to plan its next leg.
-- **New Flight:** type the destination's ICAO code (its longest runway must fit the airplane), check the flight
-  number, and choose VIP airliner or charter on the BBJ2, or belly cargo on an airliner. An airplane awaiting delivery
-  only offers its delivery flight. The loads are rolled once and the money is shown before you commit; fuel is added
-  once the plan is in. **Plan flight** gets the active runways from SayIntentions and opens SimBrief's dispatch page,
-  filled in, in your browser.
-- **Live, before departure:** the planned flight, "Waiting for plan" until you press Generate on SimBrief and then
-  **Import Active SimBrief Plan** (the app never polls SimBrief, D-101), then "Waiting for sim". It shows where to load
-  in, the route with a copy button, the plan and the money estimate. **Cancel flight** is free.
+  again to reverse. Click **Fly** on an airplane's card to dispatch its next leg.
+- **Dispatch (Fleet → Fly, `docs/dispatch.md`):** Your Flight opens the form. Type the destination's ICAO code (its
+  longest runway must fit the airplane), check the flight number, choose VIP airliner or charter on the BBJ2, fully
+  loaded or random loads on a passenger or cargo flight, belly cargo on random loads, and any extra fuel in pounds.
+  An airplane awaiting delivery only offers its delivery flight. **Dispatch** gets the active runways from
+  SayIntentions, rolls the loads once and shows the **dispatch report**: the money as a ring and a split-flap board
+  (click a line or a slice for its working), the load and the plan. **Open SimBrief** opens the dispatch page filled
+  in with the flight, its loads and the extra fuel; press Generate there, then **Import from SimBrief** (the app never
+  polls SimBrief, D-101). An import whose passengers, cargo or flight number differ is refused and says what to
+  regenerate. **Accept flight** locks the money (D-222) and shows the dashboard, with **View Dispatch Report** in the
+  header; **Cancel flight** is free until block out.
 - **Money:** the cash and every ledger line, newest first: the opening cash, each lease month and each flight's
   money lines ("N814SX KBFI–KSAN · Fuel").
 - **Closing the window** stops recording cleanly. An open flight is logged as interrupted (`recorder_exit`), then
@@ -225,8 +227,8 @@ while the app is open. A month you can't pay returns the airplane (design.md §5
   run as a copy of `%LOCALAPPDATA%\BlockTime` (database, config files, settings and event logs). Delete that folder to
   take a fresh copy.
 - Closing the window while a flight is open asks first: the flight would be interrupted and discarded (D-229).
-- **Replay** on a Flight Summary (Flights, or Live after block in) opens a second, read-only window that plays the
-  flight on Live at 1×, 2×, 3× or 10×, with Pause and Close (D-175, `docs/replay.md`). It works while the flight's
+- **Replay** on a Flight Summary (Flights, or Your Flight after block in) opens a second, read-only window that plays the
+  flight on Your Flight at 1×, 2×, 3× or 10×, with Pause and Close (D-175, `docs/replay.md`). It works while the flight's
   log file is still on disk (logs are never deleted, D-224), and runs beside a recording copy. From the command line:
 
   ```powershell
