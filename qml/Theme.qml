@@ -281,6 +281,61 @@ QtObject {
     readonly property int portraitHeight: 150          // the aircraft screen's picture of the plane
     readonly property int portraitGlyphSize: 110
 
+    // The dispatch report (docs/dispatch.md, D-234; board Final on the design canvas)
+    // The ring: each family's shades in the order its lines come (fuel red; airport orange; crew purple; catering and
+    // ATC blue; profit green).
+    readonly property var ringFuel: ["#EF4444", "#F87171"]
+    readonly property var ringAirport: ["#F97316", "#FDBA74", "#FB923C", "#EA580C", "#FED7AA"]
+    readonly property var ringCrew: ["#A855F7", "#C084FC", "#7C3AED"]
+    readonly property var ringService: ["#38BDF8", "#0EA5E9", "#7DD3FC"]
+    readonly property var ringProfit: ["#22C55E"]
+    readonly property int ringSize: 280
+    readonly property int ringRadius: 118          // the stroke's middle
+    readonly property int ringStroke: 28
+    readonly property int ringStrokeLifted: 34
+    readonly property int ringLift: 10             // how far a hovered or selected slice moves out
+    readonly property int ringLiftMs: 150          // the lift's transition: a short Behavior, not a running animation
+    readonly property real ringGapDegrees: 0.8     // between slices
+    readonly property int ringTagRadius: 168       // the hover tag's centre, just outside the ring
+    readonly property color incomeText: "#4ADE80"
+    readonly property color costText: "#F87171"
+    readonly property color noteText: "#FBBF24"    // what changed since the last import
+    readonly property int fontSizeRingValue: 36
+    readonly property int fontSizeReportTitle: 28
+    // The split-flap board: 20 tiles a row
+    readonly property color boardBg: "#0B0C0E"
+    readonly property color tileTop: "#1D1F23"
+    readonly property color tileBottom: "#17191C"
+    readonly property color tileSeam: "#050607"
+    readonly property color tileLabel: "#F2EEE3"   // the labels, lit
+    readonly property color tileWaiting: "#8B95A3" // the labels before import
+    readonly property color tileCost: "#FFC857"    // costs settle in amber
+    readonly property color tileGood: "#7CF0A6"    // fares and profit settle in green
+    readonly property color tileLoss: "#FF7A7A"
+    readonly property color boardRowHover: "#3A424D"
+    readonly property int boardTileWidth: 22
+    readonly property int boardTileHeight: 30
+    readonly property int boardTileGap: 2
+    readonly property int boardRowGap: 3
+    readonly property int fontSizeBoardTile: 19
+    readonly property string boardFontFamily: "Consolas"
+    readonly property int flapTickMs: 35           // one character step of the flip; it ends after the row settles
+    readonly property int flapRowDelay: 7          // ticks between rows
+    readonly property int flapColumnDelay: 2       // ticks between tiles
+    // The working column, the load and the plan
+    readonly property int workingWidth: 300
+    readonly property int acceptHeight: 56
+    readonly property int fontSizeAccept: 18
+    readonly property int seatStripHeight: 18
+    readonly property int weightTapeHeight: 8
+    readonly property int weightLabelWidth: 150
+    readonly property int weightValueWidth: 170
+    readonly property int fontSizePlanAirport: 30
+    readonly property int fontSizePlanCell: 22
+    readonly property int planLineHeight: 3
+    readonly property int reportBadgeHeight: 28
+    readonly property int formWidth: 720
+
     // Window
     readonly property int windowWidth: 1300
     readonly property int windowHeight: 760

@@ -3787,6 +3787,23 @@ TEST_F(Dispatch, FormToReportToAccept) {
     EXPECT_FALSE(d->ring().value("loss").toBool());
     EXPECT_EQ(d->boardRows().first().toMap().value("id").toString(), "vip_fares");
     EXPECT_EQ(d->centerLabel(), "Profit");
+    for (const QVariant& r : d->boardRows()) {  // the first import flips every row
+        const QVariantMap row = r.toMap();
+        EXPECT_TRUE(row.value("changed").toBool()) << row.value("id").toString().toStdString();
+        const QString text = row.value("text").toString();
+        const int valueStart = row.value("valueStart").toInt();
+        EXPECT_TRUE(text.mid(valueStart).startsWith('+') || text.mid(valueStart).startsWith('-') ||
+                    text.mid(valueStart).startsWith('$'))
+            << text.toStdString();
+        EXPECT_EQ(text.at(valueStart - 1), ' ');
+    }
+    QMap<QString, int> shades;  // each family's slices numbered 0, 1, 2...
+    for (const QVariant& s : d->ring().value("slices").toList()) {
+        const QVariantMap slice = s.toMap();
+        EXPECT_EQ(slice.value("shade").toInt(), shades[slice.value("family").toString()]++);
+    }
+    EXPECT_EQ(d->seatSegments(), 48);
+    EXPECT_EQ(d->seatSegmentsFilled(), d->seatsFilled());
 
     d->accept();
     EXPECT_EQ(y->stageText(), "accepted");

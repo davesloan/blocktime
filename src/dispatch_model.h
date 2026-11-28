@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <filesystem>
 #include <optional>
 #include <set>
@@ -70,6 +71,9 @@ class DispatchModel : public QObject {
     Q_PROPERTY(QString loadTitle READ loadTitle NOTIFY changed)
     Q_PROPERTY(int seatsFilled READ seatsFilled NOTIFY changed)
     Q_PROPERTY(int seatsTotal READ seatsTotal NOTIFY changed)
+    // The seat strip: one segment a seat, at most 60 (a 777's seats would be hairlines).
+    Q_PROPERTY(int seatSegments READ seatSegments NOTIFY changed)
+    Q_PROPERTY(int seatSegmentsFilled READ seatSegmentsFilled NOTIFY changed)
     Q_PROPERTY(QString loadText READ loadText NOTIFY changed)
     Q_PROPERTY(QVariantList weightBars READ weightBars NOTIFY changed)
     Q_PROPERTY(QString planTitle READ planTitle NOTIFY changed)
@@ -151,6 +155,8 @@ public:
     QString loadTitle() const;
     int seatsFilled() const;
     int seatsTotal() const;
+    int seatSegments() const { return std::min(seatsTotal(), 60); }
+    int seatSegmentsFilled() const;
     QString loadText() const;
     QVariantList weightBars() const;
     QString planTitle() const;

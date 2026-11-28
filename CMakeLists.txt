@@ -329,7 +329,14 @@ set(BLOCKTIME_QML_FILES
   qml/DebriefPanel.qml
   qml/CheckList.qml
   qml/ReplayWindow.qml
-  qml/ReplayBar.qml)
+  qml/ReplayBar.qml
+  qml/MoneyRing.qml
+  qml/FlipBoard.qml
+  qml/WorkingCard.qml
+  qml/LoadCard.qml
+  qml/PlanCard.qml
+  qml/DispatchReport.qml
+  qml/DispatchForm.qml)
 foreach(_qml IN LISTS BLOCKTIME_QML_FILES)
   get_filename_component(_name "${_qml}" NAME)
   set_source_files_properties("${_qml}" PROPERTIES QT_RESOURCE_ALIAS "${_name}")

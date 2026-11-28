@@ -8,6 +8,7 @@
 #include <chrono>
 #include <cmath>
 #include <format>
+#include <map>
 #include <random>
 #include <utility>
 
@@ -404,7 +405,9 @@ void DispatchModel::importPlan() {
         yourFlight_.reload();
         changedIds_.clear();
         before_.reset();
-        if (before && view()) {
+        if (!before) {  // the first import flips every row in
+            for (const BoardRow& r : blocktime::boardRows(*preview())) changedIds_.insert(r.id);
+        } else if (view()) {
             for (const LineChange& c : changesSince(*before, beforeFacts, *preview(), factsOf(*view()))) {
                 changedIds_.insert(c.id);
             }
@@ -528,6 +531,7 @@ QVariantList DispatchModel::boardRows() const {
         if (!shown) r.value.clear();
         out << QVariantMap{{"id", q(r.id)},
                            {"text", q(boardText(r))},
+                           {"valueStart", 20 - static_cast<int>(r.value.size())},
                            {"tone", toneName(r.tone)},
                            {"changed", changedIds_.contains(r.id)}};
     }
@@ -541,6 +545,7 @@ QVariantMap DispatchModel::ring() const {
     if (p) {
         const Ring r = blocktime::ring(*p);
         loss = r.loss;
+        std::map<std::string, int> shades;  // the slice's place in its colour family
         for (const RingSlice& s : r.slices) {
             const MoneyLine* line = findLine(*p, s.id);
             const std::string label = s.id == "profit" ? "Profit" : boardLabel(s.id, line ? line->label : s.id);
@@ -549,6 +554,7 @@ QVariantMap DispatchModel::ring() const {
                                   {"label", q(label)},
                                   {"amountText", q(s.id == "profit" ? formatMoneyFull(s.cents)
                                                                     : formatMoneyFull(-s.cents))},
+                                  {"shade", shades[s.family]++},
                                   {"start", s.start},
                                   {"sweep", s.sweep}};
         }
@@ -653,6 +659,11 @@ int DispatchModel::seatsFilled() const {
 }
 
 int DispatchModel::seatsTotal() const { return view() ? view()->seatsInstalled : 0; }
+
+int DispatchModel::seatSegmentsFilled() const {
+    const int total = seatsTotal();
+    return total > 0 ? static_cast<int>(std::llround(static_cast<double>(seatsFilled()) * seatSegments() / total)) : 0;
+}
 
 QString DispatchModel::loadText() const {
     const auto& v = view();
