@@ -10,6 +10,7 @@
 
 #include <sqlite3.h>
 
+#include "accepted_breakdown.h"
 #include "airline_queries.h"
 #include "geo.h"
 #include "taxi_history.h"
@@ -156,7 +157,7 @@ std::optional<std::int64_t> createPlannedFlight(db::Database& db, const NewPlann
     db::Statement insert(db,
                          "INSERT INTO planned_flight (airplane_id, origin_airport_id, destination_airport_id,"
                          " flight_number, kind, cargo_lb, fuel_price_cents_per_100lb, planned_at, origin_runway,"
-                         " destination_runway) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                         " destination_runway, additional_fuel_lb) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     insert.bind(1, f.airplaneId);
     insert.bind(2, *origin);
     insert.bind(3, *destination);
@@ -167,6 +168,7 @@ std::optional<std::int64_t> createPlannedFlight(db::Database& db, const NewPlann
     insert.bind(8, f.plannedAt);
     bindText(insert, 9, f.originRunway);
     bindText(insert, 10, f.destinationRunway);
+    insert.bind(11, static_cast<std::int64_t>(f.additionalFuelLb));
     if (!insert.run()) return fail(insert.error());
     const std::int64_t id = sqlite3_last_insert_rowid(db.handle());
     for (const CabinLoad& c : f.cabins) {
@@ -210,7 +212,7 @@ std::optional<PlannedFlightView> readFlightView(db::Database& db, const ViewTabl
                     " f.cargo_lb, f.fuel_price_cents_per_100lb, f.planned_at, COALESCE(f.origin_runway, ''),"
                     " COALESCE(f.destination_runway, ''), o.latitude, o.longitude, d.latitude, d.longitude,"
                     " a.airplane_id, COALESCE(" + t.parking + ", ''), IIF(o.city = '', o.name, o.city),"
-                    " IIF(d.city = '', d.name, d.city), " + t.fuelOnRecord +
+                    " IIF(d.city = '', d.name, d.city), " + t.fuelOnRecord + ", f.additional_fuel_lb" +
                     " FROM " + t.flight + " f JOIN airplane a USING (airplane_id)"
                     " JOIN aircraft_type t USING (aircraft_type_id)"
                     " JOIN airport o ON o.airport_id = f.origin_airport_id"
@@ -242,6 +244,7 @@ std::optional<PlannedFlightView> readFlightView(db::Database& db, const ViewTabl
     v.originCity = q.text(24);
     v.destinationCity = q.text(25);
     v.fuelOnRecordLb = static_cast<int>(q.integer(26));
+    v.additionalFuelLb = static_cast<int>(q.integer(27));
     const std::int64_t airplaneId = q.integer(22);
     for (const Cabin& c : cabinsOf(db, airplaneId)) v.seatsInstalled += c.seats;
     v.limits = airplaneLimits(db, airplaneId).value_or(AirplaneLimits{});
@@ -309,6 +312,7 @@ std::optional<PlannedFlightView> currentPlannedFlight(db::Database& db) {
     last.bind(1, std::string_view(v->registration));
     last.bind(2, std::string_view(v->origin));
     if (last.next()) v->loadInParking = last.text(0);
+    if (const auto accepted = plannedAcceptance(db, v->id)) v->acceptedAt = accepted->acceptedAt;
     return v;
 }
 
@@ -328,7 +332,21 @@ std::optional<std::string> latestFlightId(db::Database& db) {
     return q.text(0);
 }
 
-bool cancelPlannedFlight(db::Database& db, std::string* error) { return db.exec("DELETE FROM planned_flight", error); }
+bool cancelPlannedFlight(db::Database& db, std::string* error) {
+    db::Transaction tx(db);
+    if (!tx.active()) {
+        if (error) *error = tx.error();
+        return false;
+    }
+    std::vector<std::int64_t> ids;
+    db::Statement q(db, "SELECT planned_flight_id FROM planned_flight");
+    while (q.next()) ids.push_back(q.integer(0));
+    for (const std::int64_t id : ids) {
+        if (!dropPlannedAcceptance(db, id, error)) return false;
+    }
+    if (!db.exec("DELETE FROM planned_flight", error)) return false;
+    return tx.commit(error);
+}
 
 bool storeSimbriefPlan(db::Database& db, std::int64_t plannedFlightId, const SimbriefPlan& p, std::string_view ofpJson,
                        std::string_view importedAt, std::string* error) {

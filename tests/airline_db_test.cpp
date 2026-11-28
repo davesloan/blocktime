@@ -75,12 +75,16 @@ protected:
 
 }  // namespace
 
-TEST(AirlineDb, EmptyDatabaseMigratesToVersion11) {
+TEST(AirlineDb, EmptyDatabaseMigratesTo12) {
     db::Database d = db::Database::openInMemory();
     std::string error;
     EXPECT_TRUE(migrateAirlineDatabase(d, &error)) << error;
-    EXPECT_EQ(d.userVersion(), 11);
-    EXPECT_EQ(kAirlineSchemaVersion, 11);
+    EXPECT_EQ(d.userVersion(), 12);
+    EXPECT_EQ(kAirlineSchemaVersion, 12);
+    for (const char* table : {"accepted_breakdown", "accepted_line", "accepted_line_quantity",
+                              "planned_flight_acceptance", "flight_acceptance"}) {
+        EXPECT_TRUE(hasTable(d, table)) << table;
+    }
 }
 
 TEST(AirlineDb, ForeignKeysAreOn) {
@@ -230,11 +234,29 @@ TEST(AirlineDb, QueryPlansUseIndexes) {
              "SELECT instant_delivery_id FROM instant_delivery WHERE from_airport_id = 1",
              "SELECT instant_delivery_id FROM instant_delivery WHERE to_airport_id = 1",
              "SELECT ledger_line_id FROM instant_delivery_line WHERE instant_delivery_id = 1",
+             "SELECT position, cents FROM accepted_line WHERE accepted_breakdown_id = 1 ORDER BY position",
+             "SELECT value FROM accepted_line_quantity WHERE accepted_breakdown_id = 1 AND position = 0"
+             " ORDER BY quantity_position",
+             "SELECT 1 FROM accepted_line WHERE category = 'fuel'",
          }) {
         const std::string plan = queryPlan(d, sql);
         EXPECT_NE(plan.find("USING"), std::string::npos) << sql << "\n" << plan;
         EXPECT_NE(plan.find("INDEX"), std::string::npos) << sql << "\n" << plan;
         EXPECT_EQ(plan.find("TEMP B-TREE"), std::string::npos) << sql << "\n" << plan;
+    }
+}
+
+TEST(AirlineDb, AcceptanceLookupsUseKeys) {
+    db::Database d = migrated();
+    for (const std::string sql : {
+             "SELECT accepted_breakdown_id FROM planned_flight_acceptance WHERE planned_flight_id = 1",
+             "SELECT accepted_breakdown_id FROM flight_acceptance WHERE flight_id = 1",
+             "SELECT planned_flight_id FROM planned_flight_acceptance WHERE accepted_breakdown_id = 1",
+         }) {
+        const std::string plan = queryPlan(d, sql);
+        EXPECT_TRUE(plan.find("PRIMARY KEY") != std::string::npos || plan.find("INDEX") != std::string::npos)
+            << sql << "\n" << plan;
+        EXPECT_EQ(plan.find("SCAN"), std::string::npos) << sql << "\n" << plan;
     }
 }
 
@@ -795,7 +817,7 @@ TEST(AirlineDb, Migration11KeepsAirplanes) {
     ASSERT_TRUE(migrateAirlineDatabaseTo(d, 10, &error)) << error;
     const auto airplanesBefore = airplaneRows(d);
     auto before = snapshot(d);
-    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 11, &error)) << error;
     EXPECT_EQ(d.userVersion(), 11);
     EXPECT_EQ(airplaneRows(d), airplanesBefore);
     auto after = snapshot(d);
@@ -828,4 +850,30 @@ TEST(AirlineDb, RegistrationReusableAfterReturn) {
     EXPECT_FALSE(d.exec(second));  // both in the fleet
     ASSERT_TRUE(d.exec("UPDATE airplane SET returned_on = '2026-11-30', return_reason = 'returned' WHERE airplane_id = 1"));
     EXPECT_TRUE(d.exec(second));
+}
+
+TEST(AirlineDb, Migration12KeepsEveryRow) {
+    db::Database d = filledAt9();
+    std::string error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 11, &error)) << error;
+    auto before = snapshot(d);
+    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    EXPECT_EQ(d.userVersion(), 12);
+    auto after = snapshot(d);
+    for (const char* t : {"accepted_breakdown", "accepted_line", "accepted_line_quantity",
+                          "planned_flight_acceptance", "flight_acceptance"}) {
+        ASSERT_TRUE(after.contains(t)) << t;
+        EXPECT_TRUE(after[t].empty()) << t;
+        after.erase(t);
+    }
+    // planned_flight and flight gain additional_fuel_lb = 0 at the end of each row.
+    for (const char* t : {"planned_flight", "flight"}) {
+        ASSERT_EQ(after[t].size(), before[t].size()) << t;
+        for (std::size_t i = 0; i < after[t].size(); ++i) EXPECT_EQ(after[t][i], before[t][i] + "0|") << t;
+        after.erase(t);
+        before.erase(t);
+    }
+    EXPECT_EQ(after, before);
+    db::Statement fk(d, "PRAGMA foreign_key_check");
+    EXPECT_FALSE(fk.next());
 }

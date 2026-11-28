@@ -15,7 +15,7 @@
 
 namespace blocktime {
 
-inline constexpr int kAirlineSchemaVersion = 11;
+inline constexpr int kAirlineSchemaVersion = 12;
 
 // Sets the connection's pragmas (foreign_keys, WAL, synchronous FULL), then applies every migration above the
 // database's user_version, each in its own transaction. Refuses a database from a newer BlockTime, and the Qt test's

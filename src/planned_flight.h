@@ -67,6 +67,7 @@ struct NewPlannedFlight {
     Cents fuelPriceCentsPer100Lb = 0;
     std::string plannedAt;                        // UTC instant
     std::string originRunway, destinationRunway;  // "" = none from the ATIS
+    int additionalFuelLb = 0;                     // extra fuel sent to SimBrief; 0 = none
 };
 
 // Writes the flight and its cabins in one transaction. Refuses while a flight is planned already (D-103).
@@ -99,6 +100,8 @@ struct PlannedFlightView {
     std::vector<PlanFix> planFixes;  // the navlog with the plan's times and fuel: route[k + 1] is planFixes[k]
     int taxiOutS = 0, taxiInS = 0;   // D-212: Dave's median at the airport, else the plan's; 0 with neither
     std::vector<Hold> holds;  // the airplane's, for the load sheet (D-153)
+    int additionalFuelLb = 0;  // extra fuel sent to SimBrief; 0 = none
+    std::optional<std::string> acceptedAt;  // set once the flight is accepted (D-222); a planned flight only
 };
 
 std::optional<PlannedFlightView> currentPlannedFlight(db::Database& db);

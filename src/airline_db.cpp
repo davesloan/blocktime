@@ -547,6 +547,52 @@ CREATE TABLE lease_refund (
 ) STRICT;
 )sql";
 
+// Migration 12 (milestone 16, D-222, D-251): the accepted breakdown, linked to the planned flight and moved to the
+// settled flight at settlement, and the extra fuel sent to SimBrief. Additive: no rebuild.
+constexpr const char* kMigration12 = R"sql(
+ALTER TABLE planned_flight ADD COLUMN additional_fuel_lb INTEGER NOT NULL DEFAULT 0 CHECK (additional_fuel_lb >= 0);
+ALTER TABLE flight ADD COLUMN additional_fuel_lb INTEGER NOT NULL DEFAULT 0 CHECK (additional_fuel_lb >= 0);
+
+CREATE TABLE accepted_breakdown (
+  accepted_breakdown_id INTEGER PRIMARY KEY,
+  accepted_at TEXT NOT NULL CHECK (accepted_at GLOB )sql" BT_INSTANT R"sql(),
+  at_block_out INTEGER NOT NULL CHECK (at_block_out IN (0, 1))
+) STRICT;
+
+CREATE TABLE accepted_line (
+  accepted_breakdown_id INTEGER NOT NULL REFERENCES accepted_breakdown ON DELETE CASCADE,
+  position INTEGER NOT NULL CHECK (position >= 0),
+  category TEXT NOT NULL REFERENCES ledger_category (code) ON DELETE RESTRICT,
+  label TEXT NOT NULL CHECK (label <> ''),
+  cents INTEGER NOT NULL CHECK (cents % 500 = 0),
+  rate_micro_dollars INTEGER NOT NULL,
+  rate_basis INTEGER NOT NULL CHECK (rate_basis >= 1),
+  rate_unit TEXT NOT NULL,
+  PRIMARY KEY (accepted_breakdown_id, position)
+) STRICT;
+CREATE INDEX accepted_line_category ON accepted_line (category);
+
+CREATE TABLE accepted_line_quantity (
+  accepted_breakdown_id INTEGER NOT NULL,
+  position INTEGER NOT NULL,
+  quantity_position INTEGER NOT NULL CHECK (quantity_position >= 0),
+  value REAL NOT NULL CHECK (value >= 0),
+  unit TEXT NOT NULL CHECK (unit <> ''),
+  PRIMARY KEY (accepted_breakdown_id, position, quantity_position),
+  FOREIGN KEY (accepted_breakdown_id, position) REFERENCES accepted_line ON DELETE CASCADE
+) STRICT;
+
+CREATE TABLE planned_flight_acceptance (
+  planned_flight_id INTEGER PRIMARY KEY REFERENCES planned_flight ON DELETE CASCADE,
+  accepted_breakdown_id INTEGER NOT NULL UNIQUE REFERENCES accepted_breakdown ON DELETE RESTRICT
+) STRICT;
+
+CREATE TABLE flight_acceptance (
+  flight_id INTEGER PRIMARY KEY REFERENCES flight ON DELETE RESTRICT,
+  accepted_breakdown_id INTEGER NOT NULL UNIQUE REFERENCES accepted_breakdown ON DELETE RESTRICT
+) STRICT;
+)sql";
+
 #undef BT_INSTANT
 #undef BT_DATE
 
@@ -555,7 +601,8 @@ using detail::Migration;
 constexpr std::array kMigrations{Migration{2, kMigration2}, Migration{3, kMigration3}, Migration{4, kMigration4},
                                  Migration{5, kMigration5}, Migration{6, kMigration6}, Migration{7, kMigration7},
                                  Migration{8, kMigration8}, Migration{9, kMigration9},
-                                 Migration{10, kMigration10, true}, Migration{11, kMigration11, true}};
+                                 Migration{10, kMigration10, true}, Migration{11, kMigration11, true},
+                                 Migration{12, kMigration12}};
 
 // The first row PRAGMA foreign_key_check finds pointing at nothing, as "flight row 3 → airplane"; "" if none.
 std::string firstDanglingRow(db::Database& db) {

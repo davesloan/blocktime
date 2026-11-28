@@ -80,6 +80,13 @@ erDiagram
     ledger_line ||--o| instant_delivery_line : "money for"
     airplane ||--o| lease_refund : "refunded at return (m15b)"
     ledger_line ||--o| lease_refund : "money for"
+    accepted_breakdown ||--o{ accepted_line : "its lines (m16)"
+    accepted_line ||--o{ accepted_line_quantity : "its working"
+    ledger_category ||--o{ accepted_line : classifies
+    planned_flight ||--o| planned_flight_acceptance : "accepted (m16)"
+    accepted_breakdown ||--o| planned_flight_acceptance : "for"
+    flight ||--o| flight_acceptance : "as accepted (m16)"
+    accepted_breakdown ||--o| flight_acceptance : "for"
 ```
 
 ## Tables
@@ -629,3 +636,63 @@ at most. Only a month already charged is refunded, and a $0 refund writes no lin
   Internal ID, and the cabins and `airframe_name` when the layout changed. The type and registration can't change
   (a rename would relabel past flights, D-246). Refused while the airplane has a planned flight. Settled flights keep
   their own figures.
+
+## Milestone 16's tables (migration 12, schema version 12)
+
+Additive: `planned_flight` and `flight` gain `additional_fuel_lb` (INTEGER, ≥ 0, default 0 = none): the extra fuel
+typed on the dispatch form and sent to SimBrief, copied to the flight at settlement.
+
+### `accepted_breakdown`, `accepted_line` and `accepted_line_quantity`
+
+The money as the dispatch report showed it when the flight was accepted (D-222, D-251): every line with its working,
+and the rate locked. One breakdown per accepted flight. Income and cost follow the sign of `cents`; lines are in the
+preview's order (income first). A rate is stored in millionths of a dollar so it stays an integer; quantities
+(hours, passengers, pounds, miles) are `REAL` since they aren't money.
+
+| `accepted_breakdown` | Type | Rules |
+|---|---|---|
+| `accepted_breakdown_id` | INTEGER PK | |
+| `accepted_at` | TEXT | UTC instant |
+| `at_block_out` | INTEGER | 0 or 1: 1 when block out accepted it (D-250) |
+
+| `accepted_line` | Type | Rules |
+|---|---|---|
+| `accepted_breakdown_id` | INTEGER | FK → `accepted_breakdown`, `ON DELETE CASCADE` |
+| `position` | INTEGER | ≥ 0; PK `(accepted_breakdown_id, position)` |
+| `category` | TEXT | FK → `ledger_category`, `ON DELETE RESTRICT`; indexed |
+| `label` | TEXT | not empty |
+| `cents` | INTEGER | a multiple of 500 (D-080); 0 for a fuel line with nothing to add |
+| `rate_micro_dollars` | INTEGER | the rate × 1,000,000 |
+| `rate_basis` | INTEGER | ≥ 1 (100 for "/ 100 lb") |
+| `rate_unit` | TEXT | "" when the quantities say it |
+
+| `accepted_line_quantity` | Type | Rules |
+|---|---|---|
+| `(accepted_breakdown_id, position)` | INTEGER | FK → `accepted_line`, `ON DELETE CASCADE` |
+| `quantity_position` | INTEGER | ≥ 0; PK with the two above |
+| `value` | REAL | ≥ 0 |
+| `unit` | TEXT | not empty: "passengers", "h", "pilots", "lb", "nm" |
+
+### `planned_flight_acceptance` and `flight_acceptance`
+
+Which flight a breakdown belongs to. A planned flight's link cascades when it's deleted; the settled flight's is
+history (`RESTRICT`). The breakdown moves from one link to the other at settlement, so it's never copied. No row
+means not accepted (a planned flight) or settled before milestone 16 (a flight).
+
+| Column | Type | Rules |
+|---|---|---|
+| `planned_flight_id` / `flight_id` | INTEGER PK | FK → `planned_flight` (`CASCADE`) / `flight` (`RESTRICT`) |
+| `accepted_breakdown_id` | INTEGER | `UNIQUE`; FK → `accepted_breakdown`, `ON DELETE RESTRICT` |
+
+## Milestone 16's processes
+
+- **Accept** (`acceptPlannedFlight`): in one transaction, the planned flight's old breakdown (if any) is deleted, then
+  the new one, its lines and quantities, and the link are written.
+- **Re-import after Accept** calls Accept again with the new preview and the same locked rates (D-233): one breakdown
+  per flight, always the latest.
+- **Change flight** (`updatePlannedFlight`, before Accept only) rewrites the row and its cabins and deletes the
+  imported plan and any breakdown.
+- **Cancel** deletes the planned flight's breakdown, then the planned flight (its cabins, plan and link cascade).
+- **Settling** (`settleFlight`) prices from the accepted lines (only pilots, flight attendants, maintenance and fuel
+  are worked out again), moves the breakdown to `flight_acceptance` and copies `additional_fuel_lb`, all in the
+  settlement's transaction. A flight with no breakdown (recorded by 0.17) is priced from `rates.yaml` as before.

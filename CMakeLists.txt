@@ -88,6 +88,7 @@ add_library(blocktime-core STATIC
   src/flight_draft.cpp
   src/planned_flight.cpp
   src/pricing.cpp
+  src/accepted_breakdown.cpp
   src/rates.cpp
   src/runway_match.cpp
   src/parking.cpp
@@ -179,6 +180,7 @@ if(BLOCKTIME_BUILD_TESTS)
   add_executable(blocktime-tests
     tests/airline_config_test.cpp
     tests/airline_db_test.cpp
+    tests/accepted_breakdown_test.cpp
     tests/airline_session_test.cpp
     tests/airport_import_test.cpp
     tests/app_settings_test.cpp
