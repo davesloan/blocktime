@@ -288,6 +288,7 @@ set(BLOCKTIME_QML_FILES
   qml/AircraftPage.qml
   qml/ScreenshotDrop.qml
   qml/AirplaneGlyph.qml
+  qml/HoldBar.qml
   qml/MoneyPage.qml
   qml/RouteMap.qml
   qml/TrackDot.qml

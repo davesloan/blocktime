@@ -364,24 +364,12 @@ Item {
                             Repeater {
                                 model: page.model.holds
 
-                                Rectangle {
+                                HoldBar {
                                     required property var modelData
 
-                                    Layout.fillWidth: true
-                                    Layout.preferredWidth: modelData.share
-                                    implicitHeight: Theme.holdBarHeight
-                                    radius: Theme.radiusSmall
-                                    color: Theme.surfaceRaised
-                                    border.color: Theme.cardBorder
-                                    border.width: Theme.borderWidth
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: parent.modelData.name + " " + parent.modelData.lb
-                                        color: Theme.textSecondary
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeSmall
-                                    }
+                                    name: modelData.name
+                                    lb: modelData.lb
+                                    share: modelData.share
                                 }
                             }
                         }

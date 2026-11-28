@@ -87,15 +87,20 @@ Item {
                     Layout.fillWidth: true
 
                     Text {
-                        Layout.fillWidth: true
+                        Layout.minimumWidth: implicitWidth
+                        Layout.alignment: Qt.AlignTop
                         text: valueRow.modelData.label
                         color: Theme.textSecondary
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeBody
                     }
 
+                    // A long value wraps under itself rather than running over its label (D-248).
                     Text {
+                        Layout.fillWidth: true
                         text: valueRow.modelData.value
+                        wrapMode: Text.WordWrap
+                        horizontalAlignment: Text.AlignRight
                         color: Theme.textPrimary
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeBody
@@ -293,26 +298,12 @@ Item {
                             Repeater {
                                 model: page.model.holds
 
-                                Rectangle {
-                                    id: holdBar
-
+                                HoldBar {
                                     required property var modelData
 
-                                    Layout.fillWidth: true
-                                    Layout.preferredWidth: holdBar.modelData.share
-                                    implicitHeight: Theme.holdBarHeight
-                                    radius: Theme.radiusSmall
-                                    color: Theme.surfaceRaised
-                                    border.color: Theme.cardBorder
-                                    border.width: Theme.borderWidth
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: holdBar.modelData.name + " " + holdBar.modelData.lb
-                                        color: Theme.textSecondary
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeSmall
-                                    }
+                                    name: modelData.name
+                                    lb: modelData.lb
+                                    share: modelData.share
                                 }
                             }
                         }

@@ -34,13 +34,18 @@ Newest entries at the top. Add an entry at the end of every working session.
   All-economy, factory delivery from KBFI) from a real SimBrief screenshot with no corrections: Claude's reading of the
   page works. Its delivery flight to KSAN was planned from the card's Fly Delivery.
 
+- Fixed the two overflows Dave's small-window shot showed on the aircraft screen: the hold bars (now one `HoldBar.qml`,
+  shared with Add Aircraft) wrap their label to two lines and never get narrower than their longest word, and a long
+  value wraps beside its label instead of covering it. Checked with `--grab` at 1100×600 and 1920×1010; the
+  1920×1080 look is unchanged.
+
 **Unverified or broken:**
-- In a small window the aircraft screen's hold bars overflow (text wider than the bar: "Forward 41,0…" spills out),
-  and a long value overlaps its label ("Seats" under "42 business + 328 economy = 370"). Fine at 1920×1080.
 - N916SX still shows Base type "—": no screenshot read for it yet.
+- `ScreenshotDrop.qml`'s paste Shortcut logs a Qt warning at startup ("Only binding to one of multiple key
+  bindings"); harmless, Ctrl+V works.
 
 **Next step:**
-- Fix the two overflows if Dave wants them now; otherwise milestone 16 (dispatch) in a new session.
+- Milestone 16 (dispatch) in a new session.
 
 ## 2026-11-27 — Milestone 15b built: Fleet (0.17.0)
 
