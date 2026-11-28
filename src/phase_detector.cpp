@@ -289,9 +289,9 @@ void PhaseDetector::markers(std::vector<PhaseEvent>& out, const PhaseSample& s) 
     fire(MarkerKind::Above10000, up && above(kMarkerAltFt));
     fire(MarkerKind::TransitionAltitude,
          up && plan_.transitionAltitudeFt > 0 && above(plan_.transitionAltitudeFt));
+    // Airborne within 200 nm: crossing it on a longer flight, or the first airborne sample on a shorter one (D-256).
     if (plan_.hasDestination && !s.onGround && s.aglFt >= kAirborneMinAglFt) {
-        const double before = distanceMeters(p.lat, p.lon, plan_.destinationLat, plan_.destinationLon) / kMetersPerNm;
-        fire(MarkerKind::Within200Nm, before > kMarkerRangeNm && distanceToDestinationNm(s) <= kMarkerRangeNm);
+        fire(MarkerKind::Within200Nm, distanceToDestinationNm(s) <= kMarkerRangeNm);
     }
     fire(MarkerKind::TransitionLevel, down && plan_.transitionLevelFt > 0 && below(plan_.transitionLevelFt));
     fire(MarkerKind::Below10000, (phase_ == Phase::Descent || phase_ == Phase::Approach) && below(kMarkerAltFt));

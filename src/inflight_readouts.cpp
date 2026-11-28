@@ -106,6 +106,13 @@ void departure(const InFlightFacts& f, std::vector<ReadoutView>& out) {
     out.push_back(readout("ALTIMETER", altimeter, unit));
 }
 
+// D-256: the destination's altimeter from its ATIS, fetched from 200 nm out (or just after liftoff on a shorter flight).
+ReadoutView destinationAltimeter(const InFlightFacts& f) {
+    const auto [altimeter, unit] =
+        valueAndUnit(f.destinationAtis ? altimeterText(field(*f.destinationAtis, "altimeter")) : "");
+    return readout("DEST ALTIMETER", altimeter, unit, altimeter.empty() ? "" : "SET AT TL");
+}
+
 void arrival(const InFlightFacts& f, std::vector<ReadoutView>& out) {
     const nlohmann::json empty = nlohmann::json::object();
     const nlohmann::json& atis = f.destinationAtis ? *f.destinationAtis : empty;
@@ -197,6 +204,7 @@ std::vector<ReadoutView> inFlightReadouts(PanelPhase phase, const InFlightFacts&
             out.push_back(ahead("TOP OF CLIMB", f.tocNm, f.tocTime));
             out.push_back(ahead("TOP OF DESCENT", f.todNm, f.todTime));
             out.push_back(landingTime(f));
+            if (f.destinationAtis) out.push_back(destinationAltimeter(f));
             break;
         case PanelPhase::Cruise: {
             out.push_back(readout("CRUISE", cruiseText(f.cruiseLevelFt)));
@@ -206,6 +214,7 @@ std::vector<ReadoutView> inFlightReadouts(PanelPhase phase, const InFlightFacts&
                 dest.tag = runwayList(field(*f.destinationAtis, "arriving"));
             }
             out.push_back(dest);
+            out.push_back(destinationAltimeter(f));
             out.push_back(ahead("TOP OF DESCENT", f.todNm, f.todTime));
             out.push_back(landingTime(f));
             out.push_back(fuelAtLanding(f));

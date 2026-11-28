@@ -4247,3 +4247,24 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   looked wrong next to the gliding needles.
 - Alternatives considered: repainting the whole line each frame during the glide (a Canvas paint 60 times a second
   for the whole flight); a slower glide; keeping the arc's curve.
+
+## D-256 — DEST ALTIMETER from 200 nm, and `within_200nm` on a flight under 200 nm
+- Date: 2026-11-28
+- Status: Accepted (the readout and its place by Dave; the marker change and Climb's rule are Claude's, Proposed)
+- Decided by: Dave + Claude
+- Area: app, recorder
+- Decision: The in-flight panel shows the destination altimeter as its own readout, DEST ALTIMETER (`30.17 inHg`,
+  `SET AT TL` beside it), from the destination ATIS fetched at 200 nm (D-200).
+  - **Cruise:** right after DEST ATIS, a dash until the ATIS is in. Cruise grows to nine readouts, a third row (Dave
+    chose this over showing the altimeter in DEST ATIS's tag).
+  - **Climb:** last, only once the destination ATIS is in, so a long flight's climb has no dash for it (Claude).
+  - **Descent and Approach** keep their ALTIMETER in the arrival ATIS readouts, unchanged.
+  - **The recorder's `within_200nm`** fires on the first airborne sample within 200 nm, not only where the flight
+    crosses 200 nm (Claude). On a flight under 200 nm (the KBFI → KPDX delivery was 117 nm) it never fired, so the
+    destination ATIS waited for top of descent. Now it fires just after liftoff, and the ATIS (with DEST ALTIMETER)
+    follows. A recorder restart mid-flight inside 200 nm fires it again on the first sample: one more log line, and
+    FlightWatcher's guard keeps the ATIS polling single (accepted, D-174).
+- Why: Dave wants the destination's setting in front of him well before the transition level; on the delivery he
+  set it 84 s after (D-254).
+- Alternatives considered: the altimeter in DEST ATIS's tag (two rows kept); FlightWatcher fetching the destination
+  ATIS at liftoff when the route is short (the watcher doesn't know the distance; the marker is the fact).

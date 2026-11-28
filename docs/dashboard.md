@@ -592,8 +592,8 @@ change:
 | Phase | Readouts |
 |---|---|
 | Departure (block out to liftoff) | RUNWAY (with its heading and source tag, as Pre-Flight), SQUAWK, WIND, ALTIMETER: Pre-Flight's departure values |
-| Climb | CRUISE level; TOP OF CLIMB (`42 NM`, its local time beside it), TOP OF DESCENT (the same), LANDING (`11:58 AM`, `PLAN 12:07 PM` beside it) **(M15)** |
-| Cruise | CRUISE level, DEST ATIS (letter and runways: the destination ATIS is fetched from the `within_200nm` marker, D-200, not from top of descent); TOP OF DESCENT, LANDING, FUEL AT LANDING (`7,183 LB`, `PLAN 7,040` beside it) **(M15)**; ARR GATE. Two rows of four (D-213) |
+| Climb | CRUISE level; TOP OF CLIMB (`42 NM`, its local time beside it), TOP OF DESCENT (the same), LANDING (`11:58 AM`, `PLAN 12:07 PM` beside it) **(M15)**; DEST ALTIMETER (`30.17 inHg`, `SET AT TL` beside it) once the destination ATIS is in, which on a flight under 200 nm is just after liftoff (D-256) |
+| Cruise | CRUISE level, DEST ATIS (letter and runways: the destination ATIS is fetched from the `within_200nm` marker, D-200, not from top of descent), DEST ALTIMETER (a dash until the ATIS is in; D-256); TOP OF DESCENT, LANDING, FUEL AT LANDING (`7,183 LB`, `PLAN 7,040` beside it) **(M15)**; ARR GATE. Nine readouts: two rows of four and a third with one (D-213, D-256) |
 | Descent and Approach | **The arrival ATIS** (below) and the plan against ATC: the STAR and the landing runway with the amber `PLAN …` flag when ATC's differ (as D-189 on Pre-Flight) |
 | Short final (the `final_approach` marker, 1,000 ft AGL, to touchdown) | WIND (the tower's from the landing clearance, else the ATIS's), RUNWAY, VREF (with the landing flaps). **(v2)** No HEIGHT: the radio altitude dial shows it |
 | Arrival (touchdown to block in, and until Finish Flight) | LANDING: the stars, the touchdown rate and the G (`−562 FPM · 1.41 G`, D-209; D-158's rating, as soon as the touchdown and bounces are logged), ARR GATE |

@@ -104,11 +104,13 @@ TEST(PhaseDetector, ReplaysKbfiKpdx) {
     EXPECT_EQ(describe(d.started()).key, "pushback");
     EXPECT_EQ(hms(d.started().time), "22:51:08");
     const auto all = run(d, r.samples);
-    expectEvents(markersOnly(all, true), {{"marker:above_10000", "22:59:34"},
+    // A 114 nm flight: inside 200 nm from the first airborne sample (D-256).
+    expectEvents(markersOnly(all, true), {{"marker:within_200nm", "22:56:36"},  // the first sample above 100 ft AGL
+                                          {"marker:above_10000", "22:59:34"},
                                           {"marker:transition_altitude", "23:02:20"},
                                           {"marker:transition_level", "23:06:33"},
                                           {"marker:below_10000", "23:11:41"},
-                                          {"marker:final_approach", "23:25:36"}});  // no 200 nm: a 114 nm flight
+                                          {"marker:final_approach", "23:25:36"}});
     const auto seen = markersOnly(all, false);
     expectEvents(seen, {{"taxi_out", "22:54:17"},
                         {"takeoff", "22:56:08"},  // 40 kt at 22:56:16; timed from where the roll began
