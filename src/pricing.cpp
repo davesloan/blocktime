@@ -28,26 +28,38 @@ Working per(std::vector<Quantity> quantities, double rateDollars, int rateBasis 
 }
 
 // One line, worked out from its working so the two can't disagree: exact cents, then rounded to $5 (D-080). A cost
-// is negative. Lines worth nothing are left out.
-void add(std::vector<MoneyLine>& lines, const char* category, const char* label, Working w, bool isCost = false) {
-    double dollars = w.rateDollars;
-    for (const Quantity& q : w.quantities) dollars *= q.value;
-    dollars /= w.rateBasis;
-    const Cents cents = roundToFiveDollars(static_cast<Cents>(std::llround(dollars * 100)));
-    if (cents == 0) return;
+// is negative. Lines worth nothing are left out, unless `keepZero` (the fuel line once the fuel is known, D-223).
+Cents centsOf(const std::vector<Quantity>& quantities, double rateDollars, int rateBasis) {
+    double dollars = rateDollars;
+    for (const Quantity& q : quantities) dollars *= q.value;
+    dollars /= rateBasis;
+    return roundToFiveDollars(static_cast<Cents>(std::llround(dollars * 100)));
+}
+
+void add(std::vector<MoneyLine>& lines, const char* category, const char* label, Working w, bool isCost = false,
+         bool keepZero = false) {
+    const Cents cents = centsOf(w.quantities, w.rateDollars, w.rateBasis);
+    if (cents == 0 && !keepZero) return;
     lines.push_back(
         {category, label, isCost ? -cents : cents, std::move(w.quantities), w.rateDollars, w.rateBasis, w.rateUnit});
 }
 
-void cost(std::vector<MoneyLine>& lines, const char* category, const char* label, Working w) {
-    add(lines, category, label, std::move(w), true);
+void cost(std::vector<MoneyLine>& lines, const char* category, const char* label, Working w, bool keepZero = false) {
+    add(lines, category, label, std::move(w), true, keepZero);
 }
 
 Quantity passengers(int n) { return {static_cast<double>(n), "passengers"}; }
 Quantity pounds(int lb, const char* unit = "lb") { return {static_cast<double>(lb), unit}; }
 
-// One decimal, dropped when it's 0: "2.5", "1,043.3", "900".
-std::string quantityText(double value) {
+// One decimal, dropped when it's 0: "2.5", "1,043.3", "900". Hours get two when the hundredths aren't 0: "2.96".
+std::string quantityText(double value, std::string_view unit) {
+    if (unit == "h") {
+        const long long hundredths = std::llround(value * 100);
+        if (hundredths % 10 != 0) {
+            const long long frac = std::abs(hundredths % 100);
+            return formatNumber(hundredths / 100) + "." + (frac < 10 ? "0" : "") + std::to_string(frac);
+        }
+    }
     const long long tenths = std::llround(value * 10);
     if (tenths % 10 == 0) return formatNumber(tenths / 10);
     return formatNumber(tenths / 10) + "." + std::to_string(std::abs(tenths % 10));
@@ -76,8 +88,13 @@ int passengersIn(const std::vector<CabinLoad>& cabins, const char* cabinClass) {
 std::string workingText(const MoneyLine& line) {
     if (line.rateDollars == 0) return "";
     std::string out;
-    for (const Quantity& q : line.quantities) out += quantityText(q.value) + " " + q.unit + " × ";
-    out += rateText(line.rateDollars);
+    for (const Quantity& q : line.quantities) out += quantityText(q.value, q.unit) + " " + q.unit + " × ";
+    return out + rateWorkingText(line);
+}
+
+std::string rateWorkingText(const MoneyLine& line) {
+    if (line.rateDollars == 0) return "";
+    std::string out = rateText(line.rateDollars);
     if (!line.rateUnit.empty()) {
         out += " / ";
         if (line.rateBasis > 1) out += formatNumber(line.rateBasis) + " ";
@@ -133,7 +150,7 @@ Preview pricePreview(const PriceInput& in, const Rates& r) {
     if (!fuelLb && in.planRampFuelLb) fuelLb = std::max(0, *in.planRampFuelLb - in.fuelOnRecordLb);  // D-223
     if (fuelLb) {
         cost(p.costs, "fuel", "Fuel",
-             per({pounds(*fuelLb)}, static_cast<double>(in.fuelPriceCentsPer100Lb) / 100.0, 100, "lb"));
+             per({pounds(*fuelLb)}, static_cast<double>(in.fuelPriceCentsPer100Lb) / 100.0, 100, "lb"), true);
         p.fuelIncluded = true;
     }
     cost(p.costs, "landing_fee", "Landing fee", per({pounds(in.mlwLb, "lb MLW")}, r.landingPer1000LbMlw, 1000, "lb"));
@@ -162,6 +179,35 @@ Preview pricePreview(const PriceInput& in, const Rates& r) {
     }
     cost(p.costs, "maintenance", "Maintenance", per({crewHours}, f.maintenancePerHour));
 
+    for (const MoneyLine& m : p.income) p.totalCents += m.cents;
+    for (const MoneyLine& m : p.costs) p.totalCents += m.cents;
+    return p;
+}
+
+Preview settleAccepted(const Preview& accepted, double actualBlockHours, int fuelAddedLb,
+                       Cents fuelPriceCentsPer100Lb) {
+    Preview p = accepted;
+    bool sawFuel = false;
+    for (MoneyLine& m : p.costs) {
+        if (m.category == "pilots") {
+            m.quantities = {{actualBlockHours, "h"}, {static_cast<double>(pilotsFor(actualBlockHours)), "pilots"}};
+        } else if (m.category == "flight_attendants" || m.category == "maintenance") {
+            if (m.quantities.empty()) continue;
+            m.quantities[0].value = actualBlockHours;
+        } else if (m.category == "fuel") {
+            m.quantities = {pounds(fuelAddedLb)};
+            sawFuel = true;
+        } else {
+            continue;
+        }
+        m.cents = -centsOf(m.quantities, m.rateDollars, m.rateBasis);
+    }
+    if (!sawFuel) {
+        cost(p.costs, "fuel", "Fuel",
+             per({pounds(fuelAddedLb)}, static_cast<double>(fuelPriceCentsPer100Lb) / 100.0, 100, "lb"), true);
+    }
+    p.fuelIncluded = true;
+    p.totalCents = 0;
     for (const MoneyLine& m : p.income) p.totalCents += m.cents;
     for (const MoneyLine& m : p.costs) p.totalCents += m.cents;
     return p;

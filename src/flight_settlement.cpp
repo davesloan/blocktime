@@ -253,6 +253,7 @@ std::optional<SettledFlight> settleFlight(db::Database& db, const PlannedFlightV
     db::Statement link(db, "INSERT INTO flight_money_line (ledger_line_id, flight_id) VALUES (?, ?)");
     for (const auto* lines : {&settled.money.income, &settled.money.costs}) {
         for (const MoneyLine& m : *lines) {
+            if (m.cents == 0) continue;  // a $0 fuel line is shown, never posted
             ledger.reset();
             ledger.bind(1, m.category);
             ledger.bind(2, flown.blockInAt);

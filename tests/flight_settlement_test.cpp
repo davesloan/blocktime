@@ -256,14 +256,20 @@ TEST_F(Settlement, FuelAddedNotBurned) {
     EXPECT_EQ(integer("SELECT fuel_on_record_lb FROM flight"), 12000);
 }
 
-TEST_F(Settlement, NoFuelLineWhenNoneWasAdded) {
+// A $0 fuel line is shown but never posted: the ledger holds no $0 lines.
+TEST_F(Settlement, NoFuelPostedWhenNoneWasAdded) {
     const auto id = planDelivery();
     ASSERT_TRUE(db_.exec("UPDATE airplane SET fuel_on_board_lb = 12000 WHERE registration = 'N814SX'"));
     writeLog({blockOut(kOut, id, 11800), blockIn(kOut, kIn, kSanLat, kSanLon, 3000)});
     std::string error;
     auto s = settleIfFlown(db_, dir_, Rates{}, &error);
     ASSERT_TRUE(s.has_value()) << error;
-    for (const MoneyLine& m : s->money.costs) EXPECT_NE(m.category, "fuel");
+    for (const MoneyLine& m : s->money.costs) {
+        if (m.category == "fuel") EXPECT_EQ(m.cents, 0);
+    }
+    db::Statement q(db_, "SELECT count(*) FROM ledger_line WHERE category = 'fuel'");
+    ASSERT_TRUE(q.next());
+    EXPECT_EQ(q.integer(0), 0);
 }
 
 TEST_F(Settlement, DiversionMovesToWhereItParked) {

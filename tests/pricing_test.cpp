@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include <algorithm>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -226,13 +227,17 @@ TEST(Pricing, FuelIsTheFuelToAdd) {
 }
 
 // Review Focus 1: the airplane already holds the plan's fuel. Nothing to buy, but the fuel is known.
-TEST(Pricing, NoFuelToAddLeavesTheLineOut) {
+// Review Focus 3 (milestone 16): nothing to add is a $0 fuel line, "0 lb added", so the report can show it.
+TEST(Pricing, NoFuelToAddIsAZeroLine) {
     PriceInput in = vip();
     in.planBlockS = 9000;
     in.planRampFuelLb = 3000;
     in.fuelOnRecordLb = 3300;
     const Preview p = pricePreview(in, Rates{});
-    for (const MoneyLine& m : p.costs) EXPECT_NE(m.category, "fuel");
+    const auto fuel = std::find_if(p.costs.begin(), p.costs.end(), [](const MoneyLine& m) { return m.category == "fuel"; });
+    ASSERT_NE(fuel, p.costs.end());
+    EXPECT_EQ(fuel->cents, 0);
+    EXPECT_EQ(fuel->quantities.at(0).value, 0);
     EXPECT_TRUE(p.fuelIncluded);
 }
 
@@ -342,10 +347,10 @@ TEST(Pricing, WorkingTextDecimals) {
     MoneyLine m{"fuel", "Fuel", -500};
     m.quantities = {{2.5167, "h"}, {1043.27, "nm"}};
     m.rateDollars = 0.4125;
-    EXPECT_EQ(workingText(m), "2.5 h × 1,043.3 nm × $0.4125");
+    EXPECT_EQ(workingText(m), "2.52 h × 1,043.3 nm × $0.4125");  // hours to two decimals (D-238's open point)
     m.rateDollars = 157.5;
-    EXPECT_EQ(workingText(m), "2.5 h × 1,043.3 nm × $157.50");
+    EXPECT_EQ(workingText(m), "2.52 h × 1,043.3 nm × $157.50");
     m.rateDollars = 1250;
     m.rateUnit = "h";
-    EXPECT_EQ(workingText(m), "2.5 h × 1,043.3 nm × $1,250 / h");
+    EXPECT_EQ(workingText(m), "2.52 h × 1,043.3 nm × $1,250 / h");
 }

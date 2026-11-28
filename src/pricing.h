@@ -71,6 +71,15 @@ struct Preview {
 
 Preview pricePreview(const PriceInput& in, const Rates& rates);
 
+// The settled money of an accepted flight (D-222): the accepted lines as they were, except pilots (the hours and
+// pilotsFor them), flight attendants and maintenance (the hours) and fuel (the pounds added), each worked out again
+// with its own locked rate and rounded to $5. A missing fuel line is added at `fuelPriceCentsPer100Lb`.
+Preview settleAccepted(const Preview& accepted, double actualBlockHours, int fuelAddedLb,
+                       Cents fuelPriceCentsPer100Lb);
+
+// The rate part of a line's working: "$41 / 100 lb", "$250". "" for a line without a rate.
+std::string rateWorkingText(const MoneyLine& line);
+
 // A cost line worked out from its working, as pricePreview's are: the quantities × rateDollars, rounded to $5 and
 // negative. Used for lines priced outside a flight (instant delivery's fee, D-245).
 MoneyLine costLine(std::string category, std::string label, std::vector<Quantity> quantities, double rateDollars);
