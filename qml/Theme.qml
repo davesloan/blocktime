@@ -263,7 +263,7 @@ QtObject {
     readonly property int fleetPanelWidth: 280
     readonly property int fleetLogoSize: 56
     readonly property int fleetCardWidth: 270
-    readonly property int fleetCardHeight: 176
+    readonly property int fleetCardHeight: 192
     readonly property int fleetGlyphSize: 52
     readonly property int lockedTileWidth: 72
     readonly property int lockedTileHeight: 50

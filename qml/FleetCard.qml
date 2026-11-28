@@ -102,8 +102,9 @@ Rectangle {
             font.pixelSize: Theme.fontSizeSmall
         }
 
+        // Always laid out, so every card is the same height whether or not it has a leg (D-241).
         Rectangle {
-            visible: card.leg !== ""
+            opacity: card.leg !== "" ? 1 : 0
             Layout.fillWidth: true
             implicitHeight: legText.implicitHeight + 2 * Theme.gap6
             radius: Theme.radiusSmall

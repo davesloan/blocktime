@@ -35,6 +35,13 @@ Newest entries at the top. Add an entry at the end of every working session.
   right or left monitor reopens maximized there; a rectangle on no monitor opens centred on the main one; no file opens
   as before. `--grab` still works. 1,026 tests pass, no warnings.
 
+- Dave's first try showed nothing remembered: his release `BlockTime.exe` was built at 2:17 PM, before the change
+  (only the debug build had been rebuilt). Release rebuilt at 5:45 PM and checked the same way with `--data-dir` on a
+  scratch copy: it reopens on the left monitor at the saved rectangle. Rebuild release after app changes, not just debug.
+- Fixed from Dave's screenshot: a Fleet card with a leg line ("XLY 814 · KBFI → KSAN") pushed its buttons past the
+  card's bottom edge. The leg line's room is now kept on every card and cards are 192 px tall (were 176), so all cards
+  and empty slots stay one height.
+
 **Unverified or broken:**
 - Not checked by Dave yet: drag the window to a side monitor, maximize it, close BlockTime, reopen — it should come
   back maximized on that monitor, and un-maximize to its old size.
