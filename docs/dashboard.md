@@ -161,10 +161,15 @@ images `images/dashboard-header-v2-*.png`). It's about 130 px shorter than the f
 - **One line on top:** the airline name centred; `XLY 8` (the code and flight number, a little smaller than the airline
   name) on the left and the block clock on the right, both centred on it. No line under it, and no Block out / Block
   in lines: the airport lines carry those times.
-- **The arc** is flat (its peak 28 px above its ends) and runs between the two airplane glyphs. Its ends are measured
-  from the glyphs, with a gap and the marker's size, so the marker never touches a glyph at any window width. No text
-  above the marker.
-- **Below the arc**, centred between the airports: `Flight 8`, the cities, then the distance.
+- **The route line** (D-255, 0.18.1; it was a shallow arc) is straight and level between the two airplane glyphs. Its
+  ends are measured from the glyphs, with a gap and the marker's size, so the marker never touches a glyph at any
+  window width. No text above the marker.
+  - The part still to fly is dots at fixed places every 10 px (`Theme.arcDotSpacing`) along the whole line; the flown
+    line, wider than the dots, covers them as it fills in, so they never move.
+  - The flown line and the marker glide to each new sample over one second, linearly, as the gauge needles do
+    (D-205). Only the flown line's clip and the marker's position move; its colours are painted ahead of it when a
+    1% piece is added or changes, so nothing is repainted on every frame.
+- **Below the line**, centred between the airports: `Flight 8`, the cities, then the distance.
 - **The airport lines:** see the table below (`Departing soon` → `Departed 10:43 AM`; `Arriving ~12:24 PM` →
   `Arrived 12:24 PM · Gate 4`).
 - **The pill and its marker:** below.
@@ -213,8 +218,8 @@ block in the destination line shows the spot Dave actually parked at (`block_in`
   whole route at block in. "To go" is the route's length minus that, so the two always add up. Whole NM.
 - **The arc's colours:** the highest altitude seen in each 1% of the route is kept, from the samples. Each piece of the
   flown arc takes its colour from that altitude as a share of the plan's cruise altitude (35,000 ft without a plan):
-  red at the ground, yellow at about a third, green at about two thirds, blue at cruise, blending smoothly. The arc is
-  drawn as short segments and redrawn only when a piece changes.
+  red at the ground, yellow at about a third, green at about two thirds, blue at cruise, blending smoothly. The line
+  is drawn as short segments and redrawn only when a piece changes.
 - The top-of-descent tick waits for the predictions (D-120).
 
 ### The pill and its marker (D-184, replacing D-182's divisions)

@@ -4229,3 +4229,21 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   cause for it (a sim weather mismatch). Seconds late is what happened, and it reads the same way as the STD check.
 - Alternatives considered: keeping the reading at 60 s and telling Claude what it saw (the summary would still say
   "8.5 hPa off"); measuring both (two numbers for one check).
+
+## D-255 — The header's route line: flat, fixed dots, a 1 s glide
+- Date: 2026-11-28
+- Status: Accepted (the look by Dave; the dot spacing and the drawing are Claude's, Proposed)
+- Decided by: Dave + Claude
+- Area: app
+- Decision: The header's route arc (D-182) becomes a straight, level line between the airplanes.
+  - The part still to fly is dots at fixed places, every 10 px (`Theme.arcDotSpacing`, Claude), along the whole line.
+    The flown line covers them as it fills in. Before, the dots were spaced from the airplane's position, so they
+    crept forward with it (plainly at 10× in a replay).
+  - The flown line and the airplane glide to each new value over 1 s, linearly (`Theme.needleGlideMs`), like the
+    gauge needles (D-205). This is a third exception to "no continuous animations", next to D-195 and D-205.
+  - To keep it cheap (Claude): the coloured pieces are painted on a Canvas when a 1% piece is added or the colours
+    change, at most once a sample, and clipped to the gliding share. Only the clip and the marker move each frame.
+- Why: Dave, after the KBFI → KPDX delivery: a flat line reads better, and the moving dots and the jumping marker
+  looked wrong next to the gliding needles.
+- Alternatives considered: repainting the whole line each frame during the glide (a Canvas paint 60 times a second
+  for the whole flight); a slower glide; keeping the arc's curve.

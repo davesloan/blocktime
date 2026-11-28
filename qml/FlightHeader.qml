@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // The dashboard's header (docs/dashboard.md, D-151, D-152, D-180, D-182, D-184; mockup docs/images/
-// dashboard-header-v2.html): the flight and the airline with the block clock, a flat arc between the two airplanes
-// coloured by altitude, the phase pill with its marker, and three status lines, with the shutdown checklist after block
+// dashboard-header-v2.html): the flight and the airline with the block clock, a flat line between the two airplanes
+// coloured by altitude (D-255), the phase pill with its marker, and three status lines, with the shutdown checklist after block
 // in. Data from DashboardHeader (the flight) and RecorderBridge (the lines, checklist, pill and marker). A click on the
 // pill or the marker collapses it to the pill with the airports beside it and the current line (D-187), remembered in
 // %LOCALAPPDATA%\BlockTime\BlockTime.ini.
@@ -72,7 +72,7 @@ Rectangle {
         anchors.bottomMargin: card.padBottom
         spacing: 0
 
-        // 1. The airline with the flight and the clock level with it, the airports, and the arc between the airplanes.
+        // 1. The airline with the flight and the clock level with it, the airports, and the line between the airplanes.
         Item {
             id: top
 
@@ -92,7 +92,7 @@ Rectangle {
                 property string subLine
                 property color subLineColor: Theme.textSecondary
                 property bool alignRight: false
-                // The glyph's centre and the half-width of its rotated box: the arc keeps the marker clear of it.
+                // The glyph's centre and the half-width of its rotated box: the line keeps the marker clear of it.
                 readonly property real glyphCenterX: glyphText.x + glyphText.width / 2
                 readonly property real glyphCenterY: glyphText.y + glyphText.height / 2
                 readonly property real glyphHalfExtent: (glyphText.width + glyphText.height) * Math.SQRT1_2 / 2
@@ -238,7 +238,7 @@ Rectangle {
                 subLineColor: card.punctualityColor(card.header.punctuality)
             }
 
-            // Below the arc, between the airports: the flight, the cities and the distance.
+            // Below the line, between the airports: the flight, the cities and the distance.
             Column {
                 anchors.horizontalCenter: parent.horizontalCenter
                 y: Theme.routeMidTop
@@ -269,81 +269,118 @@ Rectangle {
                 }
             }
 
-            Canvas {
+            // The route line (D-255): flat between the airplanes, its ends leaving room for the marker beside each one.
+            Item {
                 id: arc
 
-                // A shallow quadratic curve between the airplanes; its ends leave room for the marker beside each one.
                 readonly property real x0: origin.x + origin.glyphCenterX + origin.glyphHalfExtent + Theme.arcGlyphGap
                                            + Theme.arcMarkerSize / 2
                 readonly property real x2: destination.x + destination.glyphCenterX - destination.glyphHalfExtent
                                            - Theme.arcGlyphGap - Theme.arcMarkerSize / 2
                 readonly property real yEnds: origin.y + origin.glyphCenterY
-                readonly property real yControl: yEnds - 2 * Theme.arcRise
+                readonly property real length: Math.max(0, x2 - x0)
                 readonly property real progress: card.header.progress
                 readonly property var shares: card.header.arcShares
                 readonly property real todShare: card.header.todShare
-
-                function pointAt(t: real): point {
-                    const u = 1 - t
-                    const xc = (x0 + x2) / 2
-                    return Qt.point(u * u * x0 + 2 * u * t * xc + t * t * x2,
-                                    u * u * yEnds + 2 * u * t * yControl + t * t * yEnds)
-                }
+                // The 1% pieces flown so far, painted ahead of the glide and clipped to it.
+                readonly property int pieces: Math.min(shares.length, Math.ceil(progress * shares.length))
+                // The share shown: it glides to each sample over its one second, like the gauge needles (D-205). Only
+                // the clip and the marker move, so no Canvas repaints on every frame.
+                property real shown: progress
+                property bool ready: false  // no glide in from 0 when the page first appears
 
                 anchors.fill: parent
-                onProgressChanged: requestPaint()
-                onSharesChanged: requestPaint()
-                onTodShareChanged: requestPaint()
-                onX0Changed: requestPaint()
-                onX2Changed: requestPaint()
-                onYEndsChanged: requestPaint()
+                Component.onCompleted: Qt.callLater(() => arc.ready = true)
 
-                onPaint: {
-                    const ctx = getContext("2d")
-                    ctx.reset()
-                    // Still to fly: a dotted grey line.
-                    ctx.fillStyle = Theme.textMuted
-                    for (let t = arc.progress; t <= 1.0001; t += 0.02) {
-                        const p = arc.pointAt(t)
-                        ctx.beginPath()
-                        ctx.arc(p.x, p.y, Theme.arcDotSize / 2, 0, 2 * Math.PI)
-                        ctx.fill()
+                Behavior on shown {
+                    enabled: arc.ready
+                    NumberAnimation {
+                        duration: Theme.needleGlideMs
+                        easing.type: Easing.Linear
                     }
-                    // Flown: short segments coloured by the highest altitude in each 1% (a gap keeps the last colour).
-                    ctx.lineWidth = Theme.arcWidth
-                    ctx.lineCap = "round"
-                    let share = 0
-                    const n = arc.shares.length
-                    for (let i = 0; i < n && i / n < arc.progress; ++i) {
-                        if (arc.shares[i] >= 0) share = arc.shares[i]
-                        const a = arc.pointAt(i / n)
-                        const b = arc.pointAt(Math.min((i + 1) / n, arc.progress))
-                        ctx.strokeStyle = card.arcColor(share)
-                        ctx.beginPath()
-                        ctx.moveTo(a.x, a.y)
-                        ctx.lineTo(b.x, b.y)
-                        ctx.stroke()
+                }
+
+                // Still to fly: dots at fixed places along the whole line, which the flown line covers as it fills in.
+                Canvas {
+                    id: dots
+
+                    x: arc.x0 - Theme.arcDotSize
+                    y: arc.yEnds - Theme.arcDotSize
+                    width: arc.length + 2 * Theme.arcDotSize
+                    height: 2 * Theme.arcDotSize
+                    onWidthChanged: requestPaint()
+
+                    onPaint: {
+                        const ctx = getContext("2d")
+                        ctx.reset()
+                        ctx.fillStyle = Theme.textMuted
+                        const n = Math.max(1, Math.round(arc.length / Theme.arcDotSpacing))
+                        for (let i = 0; i <= n; ++i) {
+                            ctx.beginPath()
+                            ctx.arc(Theme.arcDotSize + i * arc.length / n, Theme.arcDotSize, Theme.arcDotSize / 2,
+                                    0, 2 * Math.PI)
+                            ctx.fill()
+                        }
                     }
-                    // The plan's top of descent: a short tick across the arc (D-192).
-                    if (arc.todShare >= 0) {
-                        const t = arc.pointAt(arc.todShare)
-                        ctx.strokeStyle = Theme.arcTodTick
-                        ctx.lineWidth = Theme.arcTodTickWidth
-                        ctx.beginPath()
-                        ctx.moveTo(t.x, t.y - Theme.arcTodTickLength / 2)
-                        ctx.lineTo(t.x, t.y + Theme.arcTodTickLength / 2)
-                        ctx.stroke()
+                }
+
+                // Flown: pieces coloured by the highest altitude in each 1% (a gap keeps the last colour), shown up to
+                // the gliding share.
+                Item {
+                    x: arc.x0 - Theme.arcWidth / 2
+                    y: arc.yEnds - Theme.arcWidth / 2
+                    width: arc.shown > 0 ? Theme.arcWidth / 2 + arc.shown * arc.length : 0
+                    height: Theme.arcWidth
+                    clip: true
+
+                    Canvas {
+                        id: flown
+
+                        readonly property int pieces: arc.pieces
+                        readonly property var shares: arc.shares
+
+                        width: arc.length + Theme.arcWidth
+                        height: Theme.arcWidth
+                        onPiecesChanged: requestPaint()
+                        onSharesChanged: requestPaint()
+                        onWidthChanged: requestPaint()
+
+                        onPaint: {
+                            const ctx = getContext("2d")
+                            ctx.reset()
+                            ctx.lineWidth = Theme.arcWidth
+                            ctx.lineCap = "round"
+                            const n = flown.shares.length
+                            const half = Theme.arcWidth / 2
+                            let share = 0
+                            for (let i = 0; i < flown.pieces; ++i) {
+                                if (flown.shares[i] >= 0) share = flown.shares[i]
+                                ctx.strokeStyle = card.arcColor(share)
+                                ctx.beginPath()
+                                ctx.moveTo(half + i / n * arc.length, half)
+                                ctx.lineTo(half + (i + 1) / n * arc.length, half)
+                                ctx.stroke()
+                            }
+                        }
                     }
+                }
+
+                // The plan's top of descent: a short tick across the line (D-192).
+                Rectangle {
+                    visible: arc.todShare >= 0
+                    x: arc.x0 + arc.todShare * arc.length - width / 2
+                    y: arc.yEnds - height / 2
+                    width: Theme.arcTodTickWidth
+                    height: Theme.arcTodTickLength
+                    color: Theme.arcTodTick
                 }
             }
 
-            // The airplane on the arc, once it's flying.
+            // The airplane on the line, once it's flying; it covers the clipped end of the flown line.
             Rectangle {
-                readonly property point at: arc.pointAt(card.header.progress)
-
                 visible: card.header.progress > 0
-                x: at.x - width / 2
-                y: at.y - height / 2
+                x: arc.x0 + arc.shown * arc.length - width / 2
+                y: arc.yEnds - height / 2
                 width: Theme.arcMarkerSize
                 height: Theme.arcMarkerSize
                 radius: width / 2

@@ -100,10 +100,10 @@ QtObject {
     readonly property int headerTopHeight: 184          // the identity line, the arc and the airports
     readonly property int airportBlockTop: 62           // the airplane glyph's top
     readonly property int routeMidTop: 93               // "Flight 8", the cities and the distance, below the arc
-    readonly property int arcRise: 28                   // the arc's peak above its ends: kept flat
     readonly property int arcGlyphGap: 6                // between an airplane glyph and the marker at the arc's end
     readonly property int arcWidth: 5                   // the flown part of the arc
     readonly property int arcDotSize: 3                 // the dashed part still to fly
+    readonly property int arcDotSpacing: 10             // between the dots' centres, fixed along the line (D-255)
     readonly property color arcTodTick: "#E2E8F0"       // the plan's top of descent across the arc (D-192)
     readonly property int arcTodTickWidth: 2
     readonly property int arcTodTickLength: 14
