@@ -4060,3 +4060,16 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Alternatives considered: refusing a missing Weight Units (a cut-off screenshot would be refused for a field that
   can't change the numbers); refunding a due-but-uncharged month (money back that never left); cash as of
   `leased_on` (always today now); the factory looked up from the type at display time (a fact the ledger should keep).
+
+## D-248 — Screens are designed for a maximized window at 1920×1080
+- Date: 2026-11-27
+- Status: Accepted
+- Decided by: Dave
+- Area: app
+- Decision: The target is a maximized window on a 1920×1080 screen: there every screen should fit and look right.
+  Smaller windows (down to the minimum, 1100×600) mustn't look terrible, but may scroll where 1920×1080 doesn't. A
+  maximized window on a 4K screen doesn't have to look right, only stay usable.
+- Why: That's Dave's screen. Dave's screenshots on 27 Nov 2026 (0.17.0) showed every screen working at all three
+  sizes; the only flaw was the aircraft screen's hold bars, whose text overflows the bars in a small window.
+- Alternatives considered: designing for the minimum window (cramped at the size actually used); scaling for 4K
+  (work for a screen that isn't the target).

@@ -22,6 +22,26 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-27 — Dave checked 0.17.0 at three window sizes
+
+**Done:**
+- Dave's screenshots (`debug/screenshots/`, not committed) show Live, Flights, Fleet, Add Aircraft, the aircraft screen
+  and the replay window in a small window, maximized at 1920×1080 and maximized on 4K. D-248: the target is a maximized
+  1920×1080 window; smaller may scroll, 4K only has to stay usable.
+
+**Working / verified:**
+- Add Aircraft in `--demo` says there's no key, as it should. In the real app Dave leased N818SX (737-800
+  All-economy, factory delivery from KBFI) from a real SimBrief screenshot with no corrections: Claude's reading of the
+  page works. Its delivery flight to KSAN was planned from the card's Fly Delivery.
+
+**Unverified or broken:**
+- In a small window the aircraft screen's hold bars overflow (text wider than the bar: "Forward 41,0…" spills out),
+  and a long value overlaps its label ("Seats" under "42 business + 328 economy = 370"). Fine at 1920×1080.
+- N916SX still shows Base type "—": no screenshot read for it yet.
+
+**Next step:**
+- Fix the two overflows if Dave wants them now; otherwise milestone 16 (dispatch) in a new session.
+
 ## 2026-11-27 — Milestone 15b built: Fleet (0.17.0)
 
 **Done:** the whole plan (`docs/plans/2026-11-27-milestone-15b-fleet.md`, nine tasks), then a fresh reviewer on the
