@@ -38,7 +38,8 @@ ApplicationWindow {
     height: Theme.windowHeight
     minimumWidth: Theme.windowMinWidth
     minimumHeight: Theme.windowMinHeight
-    visible: true
+    // app_main shows it, once it's been put where it was last closed (D-249).
+    visible: false
     title: "BlockTime"
     color: Theme.bg
 

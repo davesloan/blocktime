@@ -59,6 +59,8 @@
 #include "inflight_model.h"
 #include "preflight_model.h"
 #include "qml_hot_reload.h"
+#include "window_placement.h"
+#include "window_placement_win.h"
 #include "flight_watcher.h"
 #include "qt_planner.h"
 #include "recorder.h"
@@ -664,6 +666,17 @@ int main(int argc, char* argv[]) {
                             {"mapTileUrl", map.tileUrl},
                             {"mapCacheDir", map.cacheDir},
                             {"mapUserAgent", map.userAgent}};
+
+    // Main.qml is created hidden; it's shown where it was last closed (D-249). A --grab keeps the QML size, and other
+    // platforms (offscreen) have no Windows placement. A window that shows itself (hot reload's error stand-in) is
+    // left alone.
+    const bool rememberPlacement = grabFile.isEmpty() && QGuiApplication::platformName() == QStringLiteral("windows");
+    QObject::connect(&engine, &QQmlApplicationEngine::objectCreated, &engine, [rememberPlacement](QObject* root) {
+        auto* window = qobject_cast<QQuickWindow*>(root);
+        if (window && !window->isVisible()) {
+            showRememberingPlacement(*window, blocktime::defaultWindowPlacementFile(), rememberPlacement);
+        }
+    });
 
 #ifdef BLOCKTIME_QML_SOURCE_DIR
     // Debug: QML from the source folder, reloaded on save (D-055). A QML error leaves no window until the next good

@@ -63,6 +63,7 @@ add_library(blocktime-core STATIC
   src/app_settings.cpp
   src/atc_log.cpp
   src/data_dir.cpp
+  src/window_placement.cpp
   src/dates.cpp
   src/error_log.cpp
   src/event_log.cpp
@@ -196,6 +197,7 @@ if(BLOCKTIME_BUILD_TESTS)
     tests/flight_settlement_test.cpp
     tests/geo_test.cpp
     tests/leasing_test.cpp
+    tests/window_placement_test.cpp
     tests/loads_test.cpp
     tests/pricing_test.cpp
     tests/rates_test.cpp
@@ -339,6 +341,7 @@ qt_add_qml_module(blocktime-app
     src/event_feed_model.h src/event_feed_model.cpp
     src/recorder_bridge.h src/recorder_bridge.cpp
     src/qml_hot_reload.h src/qml_hot_reload.cpp
+    src/window_placement_win.h src/window_placement_win.cpp
     src/flight_list_model.h src/flight_list_model.cpp
     src/fleet_model.h src/fleet_model.cpp
     src/add_aircraft_model.h src/add_aircraft_model.cpp

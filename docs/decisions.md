@@ -4073,3 +4073,19 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   sizes; the only flaw was the aircraft screen's hold bars, whose text overflows the bars in a small window.
 - Alternatives considered: designing for the minimum window (cramped at the size actually used); scaling for 4K
   (work for a screen that isn't the target).
+
+## D-249 — The main window reopens where it was last closed
+- Date: 2026-11-27
+- Status: Accepted (asked for by Dave; the how is Claude's)
+- Decided by: Dave + Claude
+- Area: app
+- Decision: On close the app saves Windows' `GetWindowPlacement` (the un-maximized rectangle and whether it was
+  maximized; a minimized window counts as how it would restore) to `dataDir()\window.json`, and on start hands it to
+  `SetWindowPlacement` before the window shows. A missing or unreadable file, or a rectangle on no monitor, opens the
+  window centred on the main monitor as before. Only the main window; `--grab` and other platforms skip it. The file is
+  kept apart from `settings.json`, which holds secrets.
+- Why: Dave runs three monitors; Windows' own placement calls already handle maximized-on-a-side-monitor, mixed scaling
+  and unplugged monitors, where hand-saved Qt coordinates are what makes other apps misbehave. BlockTime is
+  Windows-only (MSFS 2020 is), so a Win32 call costs nothing in portability.
+- Alternatives considered: Qt `x`/`y`/`width`/`height` saved from QML (wrong across monitors with different scaling);
+  QSettings with Qt Widgets' `saveGeometry` (not available for a QML window); the replay window too (not asked for).

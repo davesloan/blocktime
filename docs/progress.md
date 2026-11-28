@@ -22,6 +22,28 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-27 — The window reopens where it was closed (D-249)
+
+**Done:**
+- `window_placement.h/.cpp` (core: the `window.json` file, tested) and `window_placement_win.cpp` (the app: Windows'
+  `GetWindowPlacement` on close, `SetWindowPlacement` twice before showing). Main.qml is created hidden and app_main
+  shows it. Notes in `docs/notes/qt-setup.md`.
+
+**Working / verified:**
+- With the debug build on this machine's three monitors (4K main, 1080p left at other scaling, 4K right): a normal
+  window on the left monitor and one on the main monitor reopen at exactly their saved rectangle; maximized on the
+  right or left monitor reopens maximized there; a rectangle on no monitor opens centred on the main one; no file opens
+  as before. `--grab` still works. 1,026 tests pass, no warnings.
+
+**Unverified or broken:**
+- Not checked by Dave yet: drag the window to a side monitor, maximize it, close BlockTime, reopen — it should come
+  back maximized on that monitor, and un-maximize to its old size.
+- Closing while minimized is covered by a unit test only.
+- A snapped window (Win+arrow) reopens at its size from before the snap.
+
+**Next step:**
+- Milestone 16 (dispatch) in a new session.
+
 ## 2026-11-27 — Dave checked 0.17.0 at three window sizes
 
 **Done:**

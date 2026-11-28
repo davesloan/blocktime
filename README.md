@@ -273,6 +273,7 @@ D-226):
 | `blocktime.db` | The airline database: airplanes, the money ledger, airports (`docs/database.md`). Back it up by copying it while the app is closed. An old Qt test database is renamed `blocktime.test-schema.db` on first start (D-086) |
 | `blocktime.before-schema-N.db` | A copy of the database taken automatically before a new BlockTime updated it to schema N (D-226). Safe to delete once the new version works |
 | `airport-data\` | The downloaded airport files, kept for the next refresh ([Airport data](#airport-data)) |
+| `window.json` | Where the window was when you last closed it, so it reopens there (D-249). Delete it to open centred on the main monitor again |
 | `tiles\` | Map tile cache, at most 100 MB. Files older than 30 days are deleted at startup. Safe to delete. Every build and run shares this one |
 | `errors.log` | Errors that have nowhere else to go: events that could never be written (`LOST:`, D-049, D-227), event log or SimConnect failures, a flight that settled without its debrief and why. Normally just one "started" line per run, which names the data folder (D-067) |
 

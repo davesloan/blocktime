@@ -110,6 +110,25 @@ $env:LOCALAPPDATA = "C:\path\to\scratch"; $env:QT_QPA_PLATFORM = "offscreen"; $e
 - An event log written by hand must be compact JSON (`"type":"block_out"`, no spaces): the log readers find event
   lines with a plain substring before parsing them, as `EventLog` writes them.
 
+## Remembering the window's place (D-249)
+
+`window_placement_win.cpp` saves `GetWindowPlacement` on close and restores it with `SetWindowPlacement` before the
+window shows (Main.qml is created with `visible: false`; `winId()` makes the native window without showing it). Measured
+on Dave's monitors (4K main at 150%, a 1080p one to its left at 100%, 4K to the right), debug build, 27 Nov 2026:
+
+- **Call `SetWindowPlacement` twice.** Once is enough on the main monitor, but moving the hidden window to a monitor
+  with other scaling makes Qt resize it to keep its QML size (1300×750 came back 1314×797). The second call, at the new
+  monitor's scaling, sets the saved size exactly.
+- **Maximized windows keep both:** `rcNormalPosition` is the un-maximized rectangle and `showCmd` says maximized, so a
+  window maximized on a side monitor reopens maximized there and un-maximizes to its old size.
+- **A rectangle on no monitor** (`MonitorFromRect(…, MONITOR_DEFAULTTONULL)` is null) is ignored: Windows would pull it
+  back on screen but left it straddling two monitors at an odd size; the app opens centred on the main one instead.
+- Coordinates are physical pixels (the app is per-monitor DPI aware). A PowerShell checking the window reads scaled
+  ones unless it calls `SetProcessDpiAwarenessContext(-4)` first.
+- Aero-snapped windows reopen at their size from before the snap: that's what `rcNormalPosition` holds.
+- `--grab` and the offscreen platform skip all of this and show the window at its QML size.
+- Testing from a script: JSON passed through `powershell -File … -Arg '{"a": 1}'` loses its quotes. Pass a file path.
+
 ## Measured (no sim)
 
 Release build, idle, Windows 11: about 87–92 MB (working set and private bytes), 0% CPU over 10 s (UI test 1).
