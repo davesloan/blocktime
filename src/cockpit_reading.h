@@ -32,8 +32,9 @@ bool beltsReadable(Family family, bool pmdgSeen);
 inline constexpr std::chrono::seconds kBeaconTolerance{10};       // the score's "within 10 s"
 inline constexpr std::chrono::seconds kTakeoffLightsGrace{10};    // into the takeoff roll
 inline constexpr std::chrono::seconds kStdTolerance{60};          // std_late_s passes within 60 s
-inline constexpr std::chrono::seconds kDestinationBaroDelay{60};  // after transition_level
+inline constexpr std::chrono::seconds kDestinationBaroDelay{60};  // set within 60 s of transition_level (D-254)
 inline constexpr std::chrono::seconds kLandingLightsDelay{60};    // after below_10000
 inline constexpr std::chrono::seconds kStrobesTolerance{180};     // after taxi in starts
+inline constexpr int kBaroToleranceTenths = 10;                    // an altimeter within 1 hPa of the ATIS
 
 }  // namespace blocktime

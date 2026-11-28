@@ -17,6 +17,12 @@ Added or changed by the script, not recorded as such:
 - **Dropped:** probe lines, cabin and PA messages (`INTERCOM` channels), audio links, and telemetry fields the
   debrief doesn't read.
 
+## `flight-kbfi-kpdx/`
+
+N818SX's delivery KBFI → KPDX of 2026-11-28 (log flight id `2026-11-28T17:22:56.027Z`, recorder 0.18.0), made with
+`tools/make_replay_fixture.py` (940 of 2,473 lines). Dave set the destination altimeter 84 s after the transition
+level, which the check read as 8.5 hPa off before D-254; its tests pin the seconds-late measure.
+
 ## `flight-ksan-ksjc/`
 
 The replay's fixture (milestone 11, D-175): Dave's BBJ2 leg KSAN → KSJC of 2026-11-25 (log flight id

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // The debrief's measurements from one flight's log lines (docs/debrief.md section 2, D-157, D-160), on the real
-// KLAS → KSAN leg and on copies of it with data taken out.
+// KLAS → KSAN leg and on copies of it with data taken out, and on the KBFI → KPDX delivery (D-254).
 
 #include <algorithm>
 #include <functional>
@@ -83,7 +83,7 @@ TEST(DebriefMeasure, KlasKsanFixture) {
     EXPECT_NEAR(*value(m, "over_250_s"), 17, 1);
     EXPECT_NEAR(*value(m, "std_late_s"), 111, 1);
     EXPECT_EQ(*value(m, "belts_off_descent_s"), 0);
-    EXPECT_EQ(*value(m, "destination_baro_off_tenths"), 0);
+    EXPECT_EQ(*value(m, "destination_baro_late_s"), 10);  // 1018.3 at 00:35:17, 10 s after the transition level
     EXPECT_GT(*value(m, "landing_lights_off_s"), 360);
     EXPECT_EQ(*value(m, "stable_gear_down"), 1);
     EXPECT_EQ(*value(m, "stable_landing_flaps"), 1);
@@ -138,7 +138,7 @@ TEST(DebriefMeasure, NoAtisSkipsAltimeters) {
     const auto m = measureFlight(without(fixture(), [](const LogLine& l) { return l.type == "atis"; }), false);
     expectEveryPartOnce(m);
     EXPECT_EQ(skipReason(m, "origin_baro_off_tenths"), "no_atis");
-    EXPECT_EQ(skipReason(m, "destination_baro_off_tenths"), "no_atis");
+    EXPECT_EQ(skipReason(m, "destination_baro_late_s"), "no_atis");
     EXPECT_TRUE(value(m, "std_late_s"));
 }
 
@@ -162,7 +162,7 @@ TEST(DebriefMeasure, LowFlightSkipsTenThousandChecks) {
     EXPECT_TRUE(value(m, "belts_off_departure_s"));  // to the descent instead
     EXPECT_EQ(skipReason(m, "std_late_s"), "no_marker");
     EXPECT_EQ(skipReason(m, "belts_off_descent_s"), "no_marker");
-    EXPECT_EQ(skipReason(m, "destination_baro_off_tenths"), "no_marker");
+    EXPECT_EQ(skipReason(m, "destination_baro_late_s"), "no_marker");
     EXPECT_EQ(skipReason(m, "landing_lights_off_s"), "no_marker");
     EXPECT_EQ(skipReason(m, "stable_sink_fpm"), "no_marker");  // final_approach is a marker too
     EXPECT_EQ(skipReason(m, "apu_on_after_transition_s"), "no_marker");
@@ -185,7 +185,7 @@ TEST(DebriefMeasure, GoAroundJudgesTheLandingApproach) {
 TEST(DebriefMeasure, DiversionSkipsDestinationAltimeter) {
     const auto m = measureFlight(fixture(), true);
     expectEveryPartOnce(m);
-    EXPECT_EQ(skipReason(m, "destination_baro_off_tenths"), "diverted");
+    EXPECT_EQ(skipReason(m, "destination_baro_late_s"), "diverted");
     EXPECT_EQ(m.skipped.size(), 1u);
 }
 
@@ -318,4 +318,69 @@ TEST(DebriefMeasure, LandingFactsFromNullFields) {
     EXPECT_EQ(f.iasKt, 131);
     EXPECT_FALSE(f.simPitchTenths);
     EXPECT_FALSE(f.bankTenths);
+}
+
+// D-254: the destination altimeter counts the seconds from the transition level until both altimeters are within
+// 1 hPa of the destination ATIS. On the KBFI → KPDX delivery the transition level was at 17:40:11.698 and Dave set
+// 1021.7 hPa (ATIS November's 30.17) at 17:41:35.786: 84 s. Before D-254 it was read 60 s after the marker, still on
+// STD, and stored as 8.5 hPa off.
+TEST(DebriefMeasure, KbfiKpdxDestinationBaroLate) {
+    const auto lines =
+        loadFlightEvents(BLOCKTIME_SOURCE_DIR "/tests/data/flight-kbfi-kpdx", "2026-11-28T17:22:56.027Z");
+    ASSERT_FALSE(lines.empty());
+    const auto m = measureFlight(lines, false);
+    expectEveryPartOnce(m);
+    EXPECT_EQ(*value(m, "destination_baro_late_s"), 84);
+    EXPECT_FALSE(value(m, "destination_baro_off_tenths"));
+    EXPECT_EQ(*value(m, "std_late_s"), 69);
+}
+
+namespace {
+
+// The KLAS → KSAN leg with its destination altimeter lines and ATIS replaced: the transition level is at
+// 00:35:07.140 on this leg (TL below).
+const char* const kTl = "2026-11-25T00:35:07.140Z";
+
+std::string tlPlus(int s) { return formatUtc(*parseUtc(kTl) + seconds(s)); }
+
+std::vector<LogLine> descentWith(std::vector<std::pair<int, double>> settings,
+                                 std::vector<std::pair<int, std::string>> atis) {
+    auto lines = without(fixture(), [](const LogLine& l) {
+        return (l.type == "altimeter" && l.ts > *parseUtc(kTl) - minutes(5)) ||
+               (l.type == "atis" && l.data.value("role", "") == "destination");
+    });
+    for (const auto& [at, mb] : settings) {
+        lines = with(std::move(lines), tlPlus(at), "altimeter",
+                     {{"capt_mb", mb}, {"fo_mb", mb}, {"capt_std", false}, {"fo_std", false}});
+    }
+    for (const auto& [at, inches] : atis) {
+        lines = with(std::move(lines), tlPlus(at), "atis",
+                     {{"role", "destination"}, {"icao", "KSAN"}, {"letter", "A"}, {"altimeter", inches}});
+    }
+    return lines;
+}
+
+}  // namespace
+
+TEST(DebriefMeasure, DestinationBaroLateZeroWhenSetBefore) {
+    const auto m = measureFlight(descentWith({{-30, 1021.7}}, {{-120, "30.17"}}), false);
+    EXPECT_EQ(*value(m, "destination_baro_late_s"), 0);
+}
+
+TEST(DebriefMeasure, DestinationBaroLateAcceptsTheAtisBefore) {
+    // Set to A's 1021.7 at TL+20; B (1023.0) arrives at TL+40: the setting still counts from TL+20.
+    const auto m = measureFlight(descentWith({{-60, 1013.2}, {20, 1021.7}}, {{-120, "30.17"}, {40, "30.21"}}), false);
+    EXPECT_EQ(*value(m, "destination_baro_late_s"), 20);
+}
+
+TEST(DebriefMeasure, DestinationBaroLateWaitsForTheAtis) {
+    // Set to ATC's 1021.7 at TL+10, before any destination ATIS; the first one (30.17) is logged at TL+50.
+    const auto m = measureFlight(descentWith({{-60, 1013.2}, {10, 1021.7}}, {{50, "30.17"}}), false);
+    EXPECT_EQ(*value(m, "destination_baro_late_s"), 50);
+}
+
+TEST(DebriefMeasure, DestinationBaroLateNeverSetRunsToBlockIn) {
+    const auto lines = descentWith({{-60, 1013.2}}, {{-120, "30.17"}});
+    const auto m = measureFlight(lines, false);
+    EXPECT_GT(*value(m, "destination_baro_late_s"), 1000);
 }

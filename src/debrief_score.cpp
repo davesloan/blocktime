@@ -18,9 +18,10 @@ namespace {
 // The tolerances (D-160, docs/debrief.md section 2).
 constexpr int kBeaconLateS = static_cast<int>(kBeaconTolerance.count());
 constexpr int kTaxiMaxKt = 30;
-constexpr int kBaroOffTenths = 10;  // 1 hPa
+constexpr int kBaroOffTenths = kBaroToleranceTenths;  // 1 hPa
 constexpr int kOver250S = 10;
 constexpr int kStdLateS = static_cast<int>(kStdTolerance.count());
+constexpr int kDestinationBaroLateS = static_cast<int>(kDestinationBaroDelay.count());  // D-254
 constexpr int kStableSinkFpm = 1000;
 constexpr int kStableVrefBelowKt = -5, kStableVrefAboveKt = 20;
 constexpr int kStrobesOffS = static_cast<int>(kStrobesTolerance.count());
@@ -102,8 +103,17 @@ public:
                                                     : duration(v) + " after the transition altitude"};
         });
         add(s, "Seat belt sign for the descent", {"belts_off_descent_s"}, [&] { return offFor("belts_off_descent_s"); });
-        add(s, "Destination altimeter", {"destination_baro_off_tenths"},
-            [&] { return baro("destination_baro_off_tenths"); });
+        // D-254: seconds late from 0.18.1; flights settled before it keep their hPa and the old rule.
+        if (has("destination_baro_off_tenths") || skips_.contains("destination_baro_off_tenths")) {
+            add(s, "Destination altimeter", {"destination_baro_off_tenths"},
+                [&] { return baro("destination_baro_off_tenths"); });
+        } else {
+            add(s, "Destination altimeter", {"destination_baro_late_s"}, [&] {
+                const int v = at("destination_baro_late_s");
+                return std::pair{v <= kDestinationBaroLateS, v == 0 ? std::string("Set by the transition level")
+                                                                    : duration(v) + " after the transition level"};
+            });
+        }
         add(s, "Landing lights below 10,000 ft", {"landing_lights_off_s"}, [&] { return offFor("landing_lights_off_s"); });
         add(s, "Stable at 1,000 ft",
             {"stable_gear_down", "stable_landing_flaps", "stable_sink_fpm", "stable_vref_offset_kt", "stable_lined_up"},

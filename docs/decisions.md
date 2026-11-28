@@ -4209,3 +4209,23 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 - Alternatives considered: the end at Settle Up (before deboarding, so every deboarding would be lost); the end when
   deboarding ends (D-237; GSX may never finish it); collecting a deboarding still running after the end; a lead-in of
   30 minutes before block out for a flight accepted then; a new Stop Recording button.
+
+## D-254 — The destination altimeter check counts the seconds late, like STD
+- Date: 2026-11-28
+- Status: Accepted (the rule by Dave; the details marked (Claude) are Proposed)
+- Decided by: Dave + Claude
+- Area: design
+- Decision: Check 9 (docs/debrief.md section 2) measures the seconds from the `transition_level` marker until both
+  altimeters are within 1 hPa of the destination ATIS in force at that moment (or the one before it), and passes
+  within 60 s, as check 7 (STD) does. It's stored as a new part, `destination_baro_late_s` (migration 13).
+  - The moments tried are the marker, then each altimeter change and each destination ATIS logged after it, so a
+    setting taken from ATC before the ATIS is logged counts from when the ATIS arrives (Claude).
+  - Never set: the seconds run to block in. No destination ATIS by block in: not checked (`no_atis`), as before.
+  - Flights settled before 0.18.1 keep `destination_baro_off_tenths` and the old rule (60 s after the marker, ≤ 1 hPa);
+    stored measurements are never rewritten (D-160). Flight 9 (KBFI → KPDX) keeps its 8.5 hPa miss and its review.
+  - The cockpit lamp keeps its 60 s deadline (`kDestinationBaroDelay`), which is the same rule.
+- Why: on the KBFI → KPDX delivery Dave set the right QNH 84 s after the transition level. The old check read STD
+  at 60 s and stored "8.5 hPa off", which says the setting was wrong rather than late, and Claude's review invented a
+  cause for it (a sim weather mismatch). Seconds late is what happened, and it reads the same way as the STD check.
+- Alternatives considered: keeping the reading at 60 s and telling Claude what it saw (the summary would still say
+  "8.5 hPa off"); measuring both (two numbers for one check).

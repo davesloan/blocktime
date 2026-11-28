@@ -266,14 +266,28 @@ private:
         put("belts_off_descent_s", secondsWhere(cockpit_, *tl, end(), [](const nlohmann::json& d) { return !beltsOn(d); }));
     }
 
+    // D-254: the first moment from the marker on when both altimeters are within 1 hPa of the destination ATIS: the
+    // marker itself, then each altimeter change and each destination ATIS after it (one arriving can make a setting
+    // taken from ATC count).
     void destinationBaro() {
-        if (diverted_) return skip("destination_baro_off_tenths", "diverted");
+        if (diverted_) return skip("destination_baro_late_s", "diverted");
         const auto tl = marker("transition_level", true);
-        if (!tl) return skip("destination_baro_off_tenths", "no_marker");
-        if (const auto off = baroOff("destination", *tl + kDestinationBaroDelay)) {
-            return put("destination_baro_off_tenths", *off);
+        if (!tl) return skip("destination_baro_late_s", "no_marker");
+        const bool anyAtis = std::any_of(atis_.begin(), atis_.end(), [&](const Point& p) {
+            return p.t <= end() && p.d->value("role", "") == "destination" && hpa(*p.d);
+        });
+        if (!anyAtis) return skip("destination_baro_late_s", "no_atis");
+        std::vector<Time> candidates{*tl};
+        for (const Series* s : {&altimeter_, &atis_}) {
+            for (const Point& p : *s)
+                if (p.t > *tl && p.t < end()) candidates.push_back(p.t);
         }
-        skip("destination_baro_off_tenths", "no_atis");
+        std::sort(candidates.begin(), candidates.end());
+        for (const Time t : candidates) {
+            const auto off = baroOff("destination", t);
+            if (off && *off <= kBaroToleranceTenths) return put("destination_baro_late_s", seconds(t - *tl));
+        }
+        put("destination_baro_late_s", seconds(end() - *tl));
     }
 
     void landingLights() {

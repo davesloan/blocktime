@@ -24,7 +24,7 @@ FlightMeasurements clean() {
     m.values = {{"beacon_late_s", 0},        {"belts_off_departure_s", 0},   {"taxi_max_kt", 22},
                 {"origin_baro_off_tenths", 1}, {"takeoff_strobes", 1},        {"takeoff_landing_lights", 1},
                 {"over_250_s", 0},           {"std_late_s", 12},             {"belts_off_descent_s", 0},
-                {"destination_baro_off_tenths", 0}, {"landing_lights_off_s", 0}, {"stable_gear_down", 1},
+                {"destination_baro_late_s", 0}, {"landing_lights_off_s", 0}, {"stable_gear_down", 1},
                 {"stable_landing_flaps", 1}, {"stable_sink_fpm", 750},       {"stable_vref_offset_kt", 5},
                 {"stable_lined_up", 1},      {"strobes_on_after_landing_s", 40},
                 {"apu_on_after_transition_s", 0}, {"apu_on_at_shutdown", 1}};
@@ -276,4 +276,40 @@ TEST(DebriefScore, LandingStarsMatchScoreFlight) {
     const LandingFacts f = landingFacts(*touchdown, bounces, m.landing->vrefKt, runway);
     EXPECT_EQ(f.vsFpm, m.landing->vsFpm);
     EXPECT_EQ(landingStars(f, m.family), scoreFlight(m).stars.value());
+}
+
+// D-254: the destination altimeter in seconds late, within 60 s of the transition level, like STD.
+TEST(DebriefScore, DestinationAltimeterLate) {
+    FlightMeasurements m = clean();
+    EXPECT_EQ(check(scoreFlight(m), "Destination altimeter").detail, "Set by the transition level");
+    set(m, "destination_baro_late_s", 60);
+    EXPECT_EQ(check(scoreFlight(m), "Destination altimeter").state, CheckState::Passed);
+    set(m, "destination_baro_late_s", 84);
+    const ScoredFlight s = scoreFlight(m);
+    EXPECT_EQ(check(s, "Destination altimeter").state, CheckState::Missed);
+    EXPECT_EQ(check(s, "Destination altimeter").detail, "1 min 24 s after the transition level");
+    EXPECT_EQ(check(s, "Destination altimeter").points, -6);
+}
+
+TEST(DebriefScore, DestinationAltimeterLateSkipped) {
+    FlightMeasurements m = clean();
+    skipPart(m, "destination_baro_late_s", "no_atis");
+    EXPECT_EQ(check(scoreFlight(m), "Destination altimeter").state, CheckState::NotChecked);
+    EXPECT_EQ(check(scoreFlight(m), "Destination altimeter").detail, "No ATIS logged");
+}
+
+// Flights settled before D-254 keep their stored hPa and the old rule (stored measurements are never rewritten).
+TEST(DebriefScore, OldDestinationBaroPartStillScores) {
+    FlightMeasurements m = clean();
+    std::erase_if(m.values, [](const CheckValue& v) { return v.part == "destination_baro_late_s"; });
+    m.values.push_back({"destination_baro_off_tenths", 85});
+    ScoredFlight s = scoreFlight(m);
+    EXPECT_EQ(check(s, "Destination altimeter").state, CheckState::Missed);
+    EXPECT_EQ(check(s, "Destination altimeter").detail, "8.5 hPa off");
+    EXPECT_EQ(s.score, 94);
+    set(m, "destination_baro_off_tenths", 10);
+    EXPECT_EQ(check(scoreFlight(m), "Destination altimeter").state, CheckState::Passed);
+    std::erase_if(m.values, [](const CheckValue& v) { return v.part == "destination_baro_off_tenths"; });
+    m.skipped.push_back({"destination_baro_off_tenths", "diverted"});
+    EXPECT_EQ(check(scoreFlight(m), "Destination altimeter").detail, "Diverted");
 }

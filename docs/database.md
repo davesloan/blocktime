@@ -502,7 +502,8 @@ settled before 0.11.0 have no `flight_debrief` row and show no debrief. All tabl
 ### `check_part` and `check_skip_reason`
 
 Lookups, seeded by the migration: the 17 measured parts (`beacon_late_s` … `strobes_on_after_landing_s`; migration 8
-adds the two APU parts, `apu_on_after_transition_s` and `apu_on_at_shutdown`, D-172, D-173; all listed in
+adds the two APU parts, `apu_on_after_transition_s` and `apu_on_at_shutdown`, D-172, D-173; migration 13 adds
+`destination_baro_late_s`, D-254; all listed in
 `src/debrief_measure.h` with what each measures) and the 5 reasons a part couldn't be measured (`no_pmdg_data`,
 `no_vref`, `no_atis`, `no_marker`, `diverted`). `code TEXT PRIMARY KEY`: the codes are the stable natural keys the code
 uses. A new check is a new migration row.
@@ -696,3 +697,10 @@ means not accepted (a planned flight) or settled before milestone 16 (a flight).
 - **Settling** (`settleFlight`) prices from the accepted lines (only pilots, flight attendants, maintenance and fuel
   are worked out again), moves the breakdown to `flight_acceptance` and copies `additional_fuel_lb`, all in the
   settlement's transaction. A flight with no breakdown (recorded by 0.17) is priced from `rates.yaml` as before.
+
+## The destination altimeter in seconds (migration 13, schema version 13)
+
+Migration 13 adds one `check_part` row, `destination_baro_late_s` (D-254): the seconds from the transition level
+until both altimeters are within 1 hPa of the destination ATIS. No table changes. Flights measured before it keep
+`destination_baro_off_tenths` (valued or skipped), which still scores by the old rule; newer flights store only the
+new part.

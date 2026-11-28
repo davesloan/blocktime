@@ -598,11 +598,17 @@ CREATE TABLE flight_acceptance (
 
 using detail::Migration;
 
+// D-254: the destination altimeter in seconds late, like STD. Flights measured before it keep
+// destination_baro_off_tenths (stored measurements are never rewritten).
+constexpr const char* kMigration13 = R"sql(
+INSERT INTO check_part (code) VALUES ('destination_baro_late_s');
+)sql";
+
 constexpr std::array kMigrations{Migration{2, kMigration2}, Migration{3, kMigration3}, Migration{4, kMigration4},
                                  Migration{5, kMigration5}, Migration{6, kMigration6}, Migration{7, kMigration7},
                                  Migration{8, kMigration8}, Migration{9, kMigration9},
                                  Migration{10, kMigration10, true}, Migration{11, kMigration11, true},
-                                 Migration{12, kMigration12}};
+                                 Migration{12, kMigration12}, Migration{13, kMigration13}};
 
 // The first row PRAGMA foreign_key_check finds pointing at nothing, as "flight row 3 → airplane"; "" if none.
 std::string firstDanglingRow(db::Database& db) {

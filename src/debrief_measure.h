@@ -19,7 +19,9 @@
 // - over_250_s: seconds airborne below 10,000 ft indicated above 260 kt.
 // - std_late_s: seconds from the transition_altitude marker until both altimeters read STD (1013.2 hPa).
 // - belts_off_descent_s: seat belt sign off from the transition_level marker to block in.
-// - destination_baro_off_tenths: as the origin's, 60 s after the transition_level marker, against destination ATIS.
+// - destination_baro_late_s (D-254): seconds from the transition_level marker until both altimeters are within 1 hPa
+//   of the destination ATIS then in force (or the one before it); 0 if they already were. Flights settled before
+//   D-254 stored destination_baro_off_tenths instead: the origin's measure, 60 s after the marker.
 // - landing_lights_off_s: landing lights off from the last below_10000 marker + 60 s to the touchdown.
 // - stable_*: at the last final_approach marker: gear down, flaps at the FMC's landing setting, sink in fpm, IAS minus
 //   VREF, and a lined_up since the last go-around.
@@ -43,7 +45,7 @@ namespace blocktime {
 inline constexpr std::array<const char*, 19> kCheckParts = {
     "beacon_late_s",          "belts_off_departure_s",       "taxi_max_kt",          "origin_baro_off_tenths",
     "takeoff_strobes",        "takeoff_landing_lights",      "over_250_s",           "std_late_s",
-    "belts_off_descent_s",    "destination_baro_off_tenths", "landing_lights_off_s", "stable_gear_down",
+    "belts_off_descent_s",    "destination_baro_late_s", "landing_lights_off_s", "stable_gear_down",
     "stable_landing_flaps",   "stable_sink_fpm",             "stable_vref_offset_kt", "stable_lined_up",
     "strobes_on_after_landing_s", "apu_on_after_transition_s", "apu_on_at_shutdown"};
 

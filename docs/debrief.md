@@ -112,7 +112,7 @@ passes it are below. All tolerances are Claude's proposals (D-160) and are meant
 | 6 | 250 kt below 10,000 ft | seconds above 260 kt IAS while airborne below 10,000 ft indicated | ≤ 10 s |
 | 7 | STD by the transition altitude | seconds both altimeters reached STD (1013.2 hPa) after the `transition_altitude` marker | ≤ 60 s |
 | 8 | Seat belt sign on for the descent | seconds off between the `transition_level` marker and block in | 0 |
-| 9 | Destination altimeter | both altimeters' difference from the latest destination ATIS 60 s after `transition_level`, tenths of hPa | ≤ 10 |
+| 9 | Destination altimeter | seconds from `transition_level` until both altimeters are within 1 hPa of the destination ATIS then in force (or the one before it) (D-254, 0.18.1; flights settled before it were measured 60 s after the marker in tenths of hPa, ≤ 10, and keep it) | ≤ 60 s |
 | 10 | Landing lights below 10,000 ft | seconds off between `below_10000` + 60 s and touchdown | 0 |
 | 11 | Stable at 1,000 ft AGL | at the landing approach's `final_approach` marker: gear down; flaps at the FMC's landing setting; sink; IAS minus VREF; lined up | gear down, landing flaps, sink ≤ 1,000 fpm, VREF −5 to +20 kt, a `lined_up` before the marker |
 | 12 | Strobes off after landing | seconds after taxi in began until the strobes went off | ≤ 180 s |

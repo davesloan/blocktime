@@ -75,12 +75,12 @@ protected:
 
 }  // namespace
 
-TEST(AirlineDb, EmptyDatabaseMigratesTo12) {
+TEST(AirlineDb, EmptyDatabaseMigratesTo13) {
     db::Database d = db::Database::openInMemory();
     std::string error;
     EXPECT_TRUE(migrateAirlineDatabase(d, &error)) << error;
-    EXPECT_EQ(d.userVersion(), 12);
-    EXPECT_EQ(kAirlineSchemaVersion, 12);
+    EXPECT_EQ(d.userVersion(), 13);
+    EXPECT_EQ(kAirlineSchemaVersion, 13);
     for (const char* table : {"accepted_breakdown", "accepted_line", "accepted_line_quantity",
                               "planned_flight_acceptance", "flight_acceptance"}) {
         EXPECT_TRUE(hasTable(d, table)) << table;
@@ -857,7 +857,7 @@ TEST(AirlineDb, Migration12KeepsEveryRow) {
     std::string error;
     ASSERT_TRUE(migrateAirlineDatabaseTo(d, 11, &error)) << error;
     auto before = snapshot(d);
-    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 12, &error)) << error;
     EXPECT_EQ(d.userVersion(), 12);
     auto after = snapshot(d);
     for (const char* t : {"accepted_breakdown", "accepted_line", "accepted_line_quantity",
@@ -876,4 +876,24 @@ TEST(AirlineDb, Migration12KeepsEveryRow) {
     EXPECT_EQ(after, before);
     db::Statement fk(d, "PRAGMA foreign_key_check");
     EXPECT_FALSE(fk.next());
+}
+
+// D-254: the destination altimeter in seconds late is a new part; the old one stays for the flights that have it.
+TEST(AirlineDb, Migration13AddsDestinationBaroLate) {
+    db::Database d = filledAt9();
+    std::string error;
+    ASSERT_TRUE(migrateAirlineDatabaseTo(d, 12, &error)) << error;
+    auto before = snapshot(d);
+    ASSERT_TRUE(migrateAirlineDatabase(d, &error)) << error;
+    EXPECT_EQ(d.userVersion(), 13);
+    db::Statement q(d, "SELECT COUNT(*) FROM check_part WHERE code IN ('destination_baro_late_s',"
+                       " 'destination_baro_off_tenths')");
+    ASSERT_TRUE(q.next());
+    EXPECT_EQ(q.integer(0), 2);
+    auto after = snapshot(d);
+    ASSERT_TRUE(after.contains("check_part"));
+    EXPECT_EQ(after["check_part"].size(), before["check_part"].size() + 1);
+    after.erase("check_part");
+    before.erase("check_part");
+    EXPECT_EQ(after, before);
 }

@@ -71,3 +71,12 @@ altitude constraint", touchdown speed "a normal bleed-off through the flare", no
   That's a harmless misread of US RNAV phraseology; leave it unless it recurs.
 - The replay tool reads no database, so its reviews say "first logged flight". The app passes the last five flights'
   misses.
+
+## The KBFI → KPDX delivery (2026-11-28)
+
+The destination altimeter check read both altimeters once, 60 s after the transition level. Dave set 1021.7 hPa
+(30.17, ATIS November) 84 s after it, so the check stored "8.5 hPa off" (STD against the QNH). The timeline gave
+Claude that result and, separately, the correct setting a little later. With no time for the check's reading, it
+invented a cause: "cross-check the reported QNH against the simulator's own weather". The rule above, applied: the
+check now measures what happened, the seconds until the setting matched (D-254), so the line Claude gets reads
+"missed (1 min 24 s after the transition level)".
