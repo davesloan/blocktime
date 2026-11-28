@@ -243,13 +243,15 @@ its own plan in `docs/plans/` first.
    +1 per 10 h, at most 20 (D-240); Add Aircraft reads a SimBrief screenshot with Claude and leases the plane, with
    factory or instant delivery; the aircraft screen with New screenshot and Return (with a refund); supported
    aircraft as shipped files in `data/aircraft/`; fleets dropped; migration 11.
-3. **Milestone 16 — dispatch on Your Flight** (`docs/dispatch.md`, D-214, D-215, D-233, D-234). Live renamed Your
-   Flight; the form with fully loaded, additional fuel and remembered routes; the dispatch report (the ring, the
-   split-flap board, load and plan); the import check against the rolled loads; Accept; View Dispatch Report; money
-   and Re-import locked at block out; Settle Up. Includes the review's `LiveStage` and `PlannedFlightModel` split
-   (3.1, 3.2), the accepted state and reopening the form (4.5), and 4.6 and 4.7. Also the log changes that Accept
-   makes possible: Accept marks the flight's start in the log (D-236), each flight gets its own log file, and a
-   one-time splitter copies the old daily logs, which stay untouched (D-237).
+3. **Milestone 16 — dispatch on Your Flight** (`docs/dispatch.md`, D-214, D-215, D-233, D-234, D-250). Live renamed
+   Your Flight; the form with fully loaded and additional fuel (no remembered routes: they wait for rotations,
+   D-250); the dispatch report (the ring, the split-flap board, load and plan); the import check against the rolled
+   loads; Accept (and block out accepting a flight that wasn't); View Dispatch Report; money and Re-import locked at
+   block out; Settle Up. Includes the review's `LiveStage` and `PlannedFlightModel` split (3.1, 3.2), the accepted
+   state and reopening the form (4.5), and 4.6 and 4.7. Accept marks the flight's start in the log (D-236).
+   **Milestone 16b — one log file per flight** (D-237, D-250): the recorder writes each flight's lines to its own
+   file from the Accept marker, the readers (settling, recovery, the debrief, the replay, Flights) move to it and
+   start from the marker, and a one-time splitter copies the old daily logs, which stay untouched.
 4. **Milestone 17 — the summary and the debrief restyled** (`docs/dispatch.md`, D-235). The map with the altitude
    track, the score and "what this flight moved forward" cards, the settled money with its changes from the dispatch
    report, the debrief with Claude's review (…more), the checks as lamps under the stages, and the landing. Which
@@ -261,7 +263,7 @@ its own plan in `docs/plans/` first.
 6. **Fix step 4 — groundwork for Journeys.** Tracks in the database with a backfill (2.3), the `LiveFlight` object
    (3.3), the `Recorder::run` split with a re-record test (3.5).
 7. **Milestone 19 — Journeys** (design.md §16), without the Flight Board.
-8. **Then** rotations and background flying (sections 7–8, D-075), and after them the Flight Board (D-144). The
+8. **Then** rotations and background flying (sections 7–8, D-075; a leg's typical route from the stored OFPs, D-250), and after them the Flight Board (D-144). The
    settings screen and the MCP server for Claude (D-186), timing open.
 
 **Fix step 5** (the docs, dead code, the shared windows and accessors, the rest of the review's §6 and §7) runs

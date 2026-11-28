@@ -3743,7 +3743,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-233 — Dispatch on Your Flight: the flow
 - Date: 2026-11-27
-- Status: Accepted (design: `docs/dispatch.md`). First committed by mistake as a second D-222; renumbered.
+- Status: Accepted (design: `docs/dispatch.md`); the route field superseded by D-250. First committed by mistake as a second D-222; renumbered.
 - Decided by: Dave + Claude
 - Area: design
 - Decision (refines D-214):
@@ -3852,7 +3852,7 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
 
 ## D-237 — One log file per flight; old logs split once and kept
 - Date: 2026-11-27
-- Status: Accepted (built in milestone 16)
+- Status: Accepted (built in milestone 16b, D-250)
 - Decided by: Dave + Claude
 - Area: recorder
 - Decision: From Accept, the recorder writes the flight's lines to a file of its own. Only the recorder writes the
@@ -4089,3 +4089,28 @@ Append-only. Never delete or rewrite an entry; if a decision changes, add a new 
   Windows-only (MSFS 2020 is), so a Win32 call costs nothing in portability.
 - Alternatives considered: Qt `x`/`y`/`width`/`height` saved from QML (wrong across monitors with different scaling);
   QSettings with Qt Widgets' `saveGeometry` (not available for a QML window); the replay window too (not asked for).
+
+## D-250 — Milestone 16's scope: routes wait for rotations, the log files get their own milestone, block out accepts
+- Date: 2026-11-27
+- Status: Accepted
+- Decided by: Dave + Claude
+- Area: design, app, recorder
+- Decision:
+  - **No remembered routes in dispatch.** The form has no Route field and the dispatch page gets no `route`, so
+    SimBrief picks the route as it does today. Remembering routes waits for rotations, which need a leg's typical
+    route (the enroute part, without SID and STAR) for their estimates. They can then be filled in from history:
+    every imported OFP is stored whole (`simbrief_plan.ofp_json`, then `flight_plan.ofp_json`), with SimBrief's
+    `general.route` and the route as submitted on the dispatch page (`api_params.route`). Supersedes D-233's route
+    field.
+  - **The log rework is milestone 16b**, after 16: one log file per flight, the readers moved to it and the one-time
+    splitter (D-237). Milestone 16 writes the `flight_accepted` marker and snapshot (D-236), into today's daily logs.
+  - **Block out accepts a flight that wasn't accepted.** If Dave releases the parking brake with a plan imported but
+    not accepted, the flight is accepted then, with the breakdown and rates of that moment (D-222), and recorded as
+    normal. Without an imported plan it isn't recorded.
+- Why: Dave: a stored route's SID and STAR belong to the runways in use that day, and BlockTime already sends the
+  ATIS runways (`origrwy`/`destrwy`) for SimBrief to pick them; an old route would fight that. An OFP can't tell
+  Dave's edited route from SimBrief's own (the page fills the route box itself when none is sent), so the design's
+  "if Dave changed it" couldn't be built as written anyway. The log rework touches every reader under the "nothing
+  lost" rule and deserves its own plan and review. Forgetting Accept shouldn't lose a flight.
+- Alternatives considered: remembering every imported route and offering the last; a "Remember this route" button;
+  one milestone with the log tasks last; an unaccepted flight not recorded, with a banner.

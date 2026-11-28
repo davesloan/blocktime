@@ -1,7 +1,7 @@
 # Dispatch, the flight summary and the debrief (after the MVP)
 
 Designed with Dave in the brainstorm of 2026-11-27 (roadmap, "Next, after the MVP", item 2). Decisions D-214, D-215,
-D-222, D-223, D-233, D-234 and D-235; the log at Accept, D-236 and D-237. The look is fixed by the mockups on the canvas
+D-222, D-223, D-233, D-234 and D-235; the log at Accept, D-236 and D-237; the scope, D-250. The look is fixed by the mockups on the canvas
 **https://claude.ai/artifact/N81DAojKWXThKyjb9itke7**: boards `Final` (the dispatch report, before and after import),
 `Summary` and `Debrief`. Their numbers are made up; the other boards on the canvas are the directions tried and
 dropped. Open the boards with Play to see the flip, the hover and the clicks.
@@ -62,9 +62,8 @@ at the start.
      Today's options stay: the BBJ2's VIP airliner / charter, belly cargo on random loads, delivery flights empty.
    - **Additional fuel** in pounds (blank = none), sent to SimBrief so GSX loads it. Check SimBrief's parameter for
      extra fuel first and record it in `docs/notes/simbrief-api.md` (it isn't there yet).
-   - **Route:** if Dave changed SimBrief's route on this leg before, his last one is offered ("Route: your last
-     (KSAN–KSJC, 12 Nov) · use SimBrief's"), sent as `route`. Check the forum report that picking an airframe on the
-     dispatch page can replace a route passed in the URL.
+   - **No route field (D-250).** SimBrief picks the route from the runways BlockTime sends, as today. Remembered
+     routes wait for rotations, filled in then from the stored OFPs.
    - **Dispatch** rolls the loads, once (no hidden rolls), and shows the dispatch report before import.
 3. **Before import:** see "The dispatch report" below. Open SimBrief ↗ opens the pre-filled dispatch page (as today).
 4. **Import from SimBrief** (Re-import from SimBrief after the first) fetches the OFP once per click (D-101) and checks
@@ -77,7 +76,9 @@ at the start.
    acceptance, without asking again.
 6. **Accept** stores the breakdown and its rates (D-222) and puts Your Flight into Pre-Flight with the header.
    **Cancel flight** stays available until block out. In the log, Accept writes `flight_accepted` with a snapshot,
-   the flight's start (D-236), and the recorder opens the flight's own log file (D-237).
+   the flight's start (D-236); the flight's own log file (D-237) comes in milestone 16b (D-250). A flight with a plan
+   imported but not accepted is accepted at block out, with that moment's breakdown and rates (D-250); without a
+   plan it isn't recorded.
 7. **At block out** the money and Re-import lock (review finding 4.6): fuel is the fuel added (D-223), crew and
    maintenance follow the real block time (D-109, D-222), and nothing a new plan could change matters any more.
 8. **View Dispatch Report** (a button on the dashboard, any time in the flight) opens the accepted report in a popup:
@@ -176,12 +177,11 @@ Flights shows it too.
   pounds added × locked price) so the report, the summary and their deltas are all worked out in C++. The accepted
   breakdown is stored (D-222), so the summary can compare against it after a restart.
 - **The import check** against the rolled loads (review 4.7), and Re-import refused after block out (review 4.6).
-- **Remembered routes per leg:** a stored route for a city pair, written when an imported plan's route differs from
-  SimBrief's automatic one. Schema by the database rules (D-078); the builder designs it in `database.md`.
 - **Additional fuel** on the planned flight, sent to SimBrief.
-- **The log at Accept** (D-236, D-237): the `flight_accepted` marker and snapshot, one log file per flight written
-  by the recorder, the readers moved to it, and the one-time splitter for the old daily logs (kept untouched). The
-  replay starts 30 s before the first GSX request, beacon or block out after the marker.
+- **The log at Accept** (D-236): the `flight_accepted` marker and snapshot, in today's daily logs. Milestone 16b
+  (D-250, D-237): one log file per flight written by the recorder, the readers moved to it, the one-time splitter for
+  the old daily logs (kept untouched), and the replay and debrief starting from the marker (the replay 30 s before
+  the first GSX request, beacon or block out after it).
 - **Fully loaded** in the load rolling (§9): every seat; cargo to max payload after bags, trimmed as §9 step 5 says.
   The flights-per-month setting that hides it at 30+ (D-220) comes with the money item; until then it's always offered
   on free flights.
