@@ -279,7 +279,9 @@ Rotations unlocked by flying (D-075) and background flying with catch-up (sectio
 airline's identity; fleets, leasing, aircraft and instant delivery came with milestone 15b), the Flight Board and Journeys (D-144, design section 16; journeys need no background flying,
 so they and a board showing them could come before it), the pre-departure view on Live (D-118, design section 16), the fuel burn estimate for
 previews (D-119, design section 3), predictions on Live such as top of descent and gate arrival (D-120, design
-section 16), and whatever the deepening turns up.
+section 16), **instant delivery for an airplane already awaiting delivery** (today it's only offered at lease, D-245;
+Dave wants it eventually, 2026-11-28: the same price as the lease screen's, from the aircraft screen or Fleet card),
+and whatever the deepening turns up.
 
 Towards the end, timing open: **an MCP server for Claude** (D-186), part of BlockTime itself and on whenever the app
 runs, on the sim PC only. Claude on that PC can then read flights for a deeper analysis than the debrief's.
