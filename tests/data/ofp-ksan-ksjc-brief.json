@@ -1,5 +1,15 @@
 {
+  "fetch": {
+    "status": "Success"
+  },
+  "params": {
+    "request_id": "194762580",
+    "time_generated": "2026-11-25T18:05:01Z",
+    "units": "lbs"
+  },
   "general": {
+    "flight_number": "8",
+    "route": "PADRZ2 IKAYE DCT TESEA DCT SCTRR DCT TROXX SILCN6",
     "sid_ident": "PADRZ2",
     "sid_trans": "IKAYE",
     "initial_altitude": "40000",
@@ -8,17 +18,49 @@
   },
   "origin": {
     "icao_code": "KSAN",
-    "trans_alt": "18000"
+    "trans_alt": "18000",
+    "plan_rwy": "27"
+  },
+  "aircraft": {
+    "internal_id": "730097_1790536204614"
   },
   "weights": {
     "est_zfw": "112967",
     "cargo": "2420",
-    "pax_count": "44"
+    "pax_count": "44",
+    "freight_added": "0",
+    "est_ldw": "120007"
   },
   "fuel": {
     "plan_ramp": "13439",
     "taxi": "500",
-    "reserve": "3139"
+    "reserve": "3139",
+    "enroute_burn": "5899"
+  },
+  "fuel_extra": {
+    "bucket": [
+      {
+        "label": "MEL",
+        "fuel": "0",
+        "time": "0",
+        "required": true
+      },
+      {
+        "label": "EXTRA",
+        "fuel": "0",
+        "time": "0",
+        "required": false
+      }
+    ]
+  },
+  "api_params": {
+    "fltnum": "8",
+    "pax": "44",
+    "cargo": "0",
+    "route": "PADRZ2 IKAYE TESEA SCTRR TROXX SILCN6",
+    "addedfuel": "0",
+    "addedfuel_units": "wgt",
+    "addedfuel_label": "extra"
   },
   "tlr": {
     "takeoff": {
@@ -39,12 +81,14 @@
   },
   "destination": {
     "icao_code": "KSJC",
-    "plan_rwy": "30L"
+    "plan_rwy": "30L",
+    "trans_level": "18000"
   },
   "times": {
     "endurance": "02:41:00",
     "taxi_out": "00:20:00",
     "taxi_in": "00:20:00",
-    "est_time_enroute": "01:04:36"
+    "est_time_enroute": "01:04:36",
+    "est_block": "01:44:36"
   }
-}
+}

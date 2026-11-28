@@ -4,13 +4,16 @@
 
 #include "simbrief.h"
 
+#include <algorithm>
 #include <charconv>
 #include <chrono>
+#include <cstdlib>
 #include <format>
 #include <sstream>
 
 #include <nlohmann/json.hpp>
 
+#include "money.h"
 #include "url.h"
 
 namespace blocktime {
@@ -83,6 +86,8 @@ std::string dispatchUrl(const DispatchRequest& r) {
                       "&pax=" + std::to_string(r.passengers) + "&cargo=" + thousands(r.cargoLb) + "&units=LBS";
     if (!r.originRunway.empty()) url += "&origrwy=" + percentEncode(r.originRunway);
     if (!r.destinationRunway.empty()) url += "&destrwy=" + percentEncode(r.destinationRunway);
+    // Thousands like cargo, assumed (D-251): Dave's first dispatch with extra fuel confirms the unit.
+    if (r.additionalFuelLb > 0) url += "&addedfuel=" + thousands(r.additionalFuelLb) + "&addedfuel_units=wgt";
     return url;
 }
 
@@ -190,6 +195,21 @@ std::optional<SimbriefPlan> parseOfp(std::string_view body, std::string* error) 
     const auto blockS = block ? hms(*block) : std::nullopt;
     if (!blockS) return fail("SimBrief plan has no times.est_block");
     p.estBlockS = *blockS;
+    // The import check's loads (review 4.7); missing ones stay 0 and fail the check rather than the parse.
+    if (const auto v = text(root, "weights", "pax_count")) p.passengers = number(*v).value_or(0);
+    if (const auto v = text(root, "weights", "freight_added")) p.freightLb = number(*v).value_or(0);
+    p.flightNumber = text(root, "general", "flight_number").value_or("");
+    if (const auto extra = root.find("fuel_extra"); extra != root.end() && extra->is_object()) {
+        if (const auto bucket = extra->find("bucket"); bucket != extra->end() && bucket->is_array()) {
+            for (const json& b : *bucket) {
+                if (!b.is_object() || b.value("label", "") != "EXTRA") continue;
+                const auto fuel = b.find("fuel");
+                if (fuel == b.end()) continue;
+                if (fuel->is_string()) p.extraFuelLb = number(fuel->get<std::string>()).value_or(0);
+                if (fuel->is_number_integer()) p.extraFuelLb = fuel->get<int>();
+            }
+        }
+    }
     if (error) error->clear();
     return p;
 }
@@ -201,6 +221,21 @@ std::string routeWithRunways(const SimbriefPlan& p) {
     std::string out = end(p.originIcao, p.originRunway);
     if (!p.route.empty()) out += " " + p.route;
     return out + " " + end(p.destinationIcao, p.destinationRunway);
+}
+
+std::optional<std::string> loadMismatch(const SimbriefPlan& plan, const ExpectedLoad& flight) {
+    const int tolerance = std::max(100, flight.cargoLb / 100);
+    if (plan.passengers != flight.passengers || std::abs(plan.freightLb - flight.cargoLb) > tolerance) {
+        return std::format("SimBrief has {} passengers and {} lb cargo; this flight has {} and {} lb. Open SimBrief to "
+                           "generate it again with this flight's loads.",
+                           formatNumber(plan.passengers), formatNumber(plan.freightLb),
+                           formatNumber(flight.passengers), formatNumber(flight.cargoLb));
+    }
+    if (plan.flightNumber != flight.flightNumber) {
+        return std::format("SimBrief has flight {}; this flight is {}. Open SimBrief to generate it again.",
+                           plan.flightNumber, flight.flightNumber);
+    }
+    return std::nullopt;
 }
 
 std::optional<std::string> planMismatch(const SimbriefPlan& plan, const PlanKey& flight) {

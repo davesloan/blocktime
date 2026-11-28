@@ -93,3 +93,22 @@ Read from the stored OFP (`ofp_json`) by `parsePlanBrief`; checked in Dave's KSA
 - The takeoff report lists every runway at the origin, not only the planned one, so a runway ATC changes still has a
   magnetic course. Plans made without the TLR have no `tlr`; older fixtures (`ofp_v2_min.json`) have none of these.
 - Other fields seen and not used: `general.costindex` (`30`), `fuel.reserve`, `fuel.alternate_burn`, `weights.pax_count`.
+
+## Dispatch's import check and extra fuel (milestone 16, D-251)
+
+Read from Dave's stored KSAN–KSJC OFP (flight 7, 25 Nov 2026):
+
+- **`api_params`** echoes the dispatch form as submitted: `fltnum`, `pax`, `cargo`, `type`, `orig`/`dest`, and
+  `route`, which SimBrief fills in itself when none is sent (so an OFP can't tell Dave's edited route from SimBrief's,
+  D-250). It also lists `addedfuel` (`"0"`), `addedfuel_units` (`"wgt"`) and `addedfuel_label` (`"extra"`).
+- **`fuel_extra.bucket`** is a list of `{label, fuel, time, required}`: MEL, ATC, WXX, EXTRA, TANKERING, FOD ADD.
+  BlockTime reads the `EXTRA` entry's `fuel` as the extra fuel the plan carries (the report's badge).
+- **`weights.freight_added`** is the freight alone; **`weights.cargo`** is freight plus bags (`2420` = 44 bags × 55
+  lb, `freight_added` 0). The import check compares `freight_added` with the flight's cargo and `pax_count` with its
+  passengers.
+- **`general.flight_number`** is the flight number as typed (`"8"`), checked against the flight's.
+
+**Extra fuel on the dispatch page:** BlockTime sends `&addedfuel=<pounds / 1000>&addedfuel_units=wgt` (1,500 lb →
+`addedfuel=1.5`), only when above 0. The unit is **assumed** to be thousands like `cargo`'s and isn't confirmed yet:
+on Dave's first dispatch with extra fuel, the OFP's EXTRA bucket should show the pounds typed. If it shows a
+thousandth of them, send the pounds as they are.

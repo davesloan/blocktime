@@ -7,6 +7,7 @@
 #include <string>
 
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
 
 #include "geo.h"
 #include "simbrief.h"
@@ -221,4 +222,61 @@ TEST(Simbrief, PlanFixesWithoutTimes) {
     EXPECT_EQ(fixes[1].elapsedS, 1320);
     EXPECT_EQ(fixes[1].fuelLb, 9000);
     EXPECT_EQ(fixes[2].elapsedS, 1320);
+}
+
+TEST(Simbrief, DispatchUrlSendsExtraFuelInThousands) {
+    DispatchRequest r = kbfiKsan();
+    r.additionalFuelLb = 1500;
+    EXPECT_NE(dispatchUrl(r).find("&addedfuel=1.5&addedfuel_units=wgt"), std::string::npos) << dispatchUrl(r);
+    r.additionalFuelLb = 1234;
+    EXPECT_NE(dispatchUrl(r).find("&addedfuel=1.234&"), std::string::npos) << dispatchUrl(r);
+    r.additionalFuelLb = 0;
+    EXPECT_EQ(dispatchUrl(r).find("addedfuel"), std::string::npos) << dispatchUrl(r);
+}
+
+TEST(Simbrief, ParsesLoadsAndExtraFuel) {
+    std::string error;
+    const auto p = parseOfp(fixture("ofp-ksan-ksjc-brief.json"), &error);
+    ASSERT_TRUE(p.has_value()) << error;
+    EXPECT_EQ(p->passengers, 44);
+    EXPECT_EQ(p->freightLb, 0);
+    EXPECT_EQ(p->flightNumber, "8");
+    EXPECT_EQ(p->extraFuelLb, 0);
+}
+
+TEST(Simbrief, ParsesExtraFuelFromTheBucket) {
+    nlohmann::json ofp = nlohmann::json::parse(fixture("ofp-ksan-ksjc-brief.json"));
+    for (auto& b : ofp["fuel_extra"]["bucket"]) {
+        if (b["label"] == "EXTRA") b["fuel"] = "1000";
+    }
+    std::string error;
+    const auto p = parseOfp(ofp.dump(), &error);
+    ASSERT_TRUE(p.has_value()) << error;
+    EXPECT_EQ(p->extraFuelLb, 1000);
+    // A plan without fuel_extra (ofp_v2_min) has none.
+    EXPECT_EQ(plan().extraFuelLb, 0);
+}
+
+TEST(Simbrief, LoadCheck) {
+    SimbriefPlan p = plan();
+    p.passengers = 44;
+    p.freightLb = 2300;
+    p.flightNumber = "814";
+    const ExpectedLoad flight{44, 2300, "814"};
+    EXPECT_FALSE(loadMismatch(p, flight).has_value());
+    p.freightLb = 2330;  // 1% is 23: 100 lb wins
+    EXPECT_FALSE(loadMismatch(p, flight).has_value());
+    p.freightLb = 2401;
+    EXPECT_TRUE(loadMismatch(p, flight).has_value());
+    p.freightLb = 20190;
+    EXPECT_FALSE(loadMismatch(p, ExpectedLoad{44, 20000, "814"}).has_value());  // 1% = 200
+    p.freightLb = 2300;
+    p.passengers = 43;
+    EXPECT_EQ(loadMismatch(p, flight).value_or(""),
+              "SimBrief has 43 passengers and 2,300 lb cargo; this flight has 44 and 2,300 lb. Open SimBrief to "
+              "generate it again with this flight's loads.");
+    p.passengers = 44;
+    p.flightNumber = "815";
+    EXPECT_EQ(loadMismatch(p, flight).value_or(""),
+              "SimBrief has flight 815; this flight is 814. Open SimBrief to generate it again.");
 }

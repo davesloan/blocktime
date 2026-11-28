@@ -20,6 +20,7 @@ struct DispatchRequest {
     std::string originRunway, destinationRunway;  // "" = leave out, SimBrief chooses
     int passengers = 0;
     int cargoLb = 0;  // freight on top of the bags SimBrief adds itself
+    int additionalFuelLb = 0;  // extra fuel; 0 = none sent
 };
 
 // https://dispatch.simbrief.com/options/custom?orig=..&dest=..&airline=..&fltnum=..&type=..&pax=..&cargo=..
@@ -33,6 +34,11 @@ struct SimbriefPlan {
         originRunway, destinationRunway;
     int cruiseAltitudeFt = 0, estBlockS = 0, rampFuelLb = 0, enrouteBurnLb = 0, estLandingWeightLb = 0,
         originTransitionAltitudeFt = 0, destinationTransitionLevelFt = 0;
+    // The loads SimBrief planned, for the import check (review 4.7): weights.pax_count, weights.freight_added (freight
+    // without bags; weights.cargo includes them) and general.flight_number. 0 / "" when missing. Not stored.
+    int passengers = 0, freightLb = 0;
+    std::string flightNumber;
+    int extraFuelLb = 0;  // fuel_extra.bucket's EXTRA entry; 0 when missing
 };
 
 // A point on the planned route, in degrees.
@@ -71,6 +77,16 @@ struct PlanKey {
 // The route as Navigraph Charts takes it: "KBFI/14R <route> KSAN/27". An airport without a planned runway is the
 // bare ICAO code.
 std::string routeWithRunways(const SimbriefPlan& plan);
+
+struct ExpectedLoad {
+    int passengers = 0;
+    int cargoLb = 0;
+    std::string flightNumber;
+};
+
+// nullopt when SimBrief planned this flight's loads and flight number, else what to regenerate (review 4.7):
+// passengers exactly, cargo within max(100 lb, 1% of the flight's cargo) (D-251). Run after planMismatch.
+std::optional<std::string> loadMismatch(const SimbriefPlan& plan, const ExpectedLoad& flight);
 
 // nullopt when the plan belongs to the planned flight, else why not (D-105).
 std::optional<std::string> planMismatch(const SimbriefPlan& plan, const PlanKey& flight);
