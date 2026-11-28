@@ -22,6 +22,28 @@ Newest entries at the top. Add an entry at the end of every working session.
 
 ---
 
+## 2026-11-27 — Milestone 16 planned: dispatch on Your Flight
+
+**Done (with Dave, no code):**
+- D-250: no remembered routes (they wait for rotations and can be filled in from the stored OFPs, which keep
+  `general.route` and `api_params.route`). The per-flight log files move to a new milestone 16b. Block out accepts a
+  flight that has a plan but wasn't accepted. `dispatch.md` and the roadmap updated.
+- Found in Dave's stored OFP: `api_params` echoes the dispatch form (with SimBrief's own route when none is sent),
+  `fuel_extra.bucket` has the EXTRA fuel, `weights.freight_added` is the cargo without bags, and
+  `general.flight_number` is there.
+- The plan: `docs/plans/2026-11-27-milestone-16-dispatch.md`, eleven tasks: migration 12 (the accepted breakdown,
+  extra fuel), fully loaded and changing a flight, the SimBrief check, the report's numbers, the `flight_accepted`
+  marker, settling from the accepted lines, `YourFlightStage` and `FlightSource`, `DispatchModel`, the QML, the page,
+  then docs and the review.
+
+**Unverified:** `addedfuel`'s unit (thousands assumed, like `cargo`). Dave's first dispatch with extra fuel settles it.
+
+**Dave's call:** D-247 (milestone 15b's build-time calls) is still Proposed.
+
+**Next step:** build milestone 16 from the plan, in a new session (D-121).
+
+---
+
 ## 2026-11-27 — The window reopens where it was closed (D-249)
 
 **Done:**
