@@ -895,6 +895,22 @@ protected:
         const auto id = createPlannedFlight(db_, f, &error);
         ASSERT_TRUE(id.has_value()) << error;
         plannedId_ = *id;
+        // A flight is only recorded with a plan imported (D-250).
+        SimbriefPlan p;
+        p.requestId = "r1";
+        p.generatedAt = "2026-11-22T10:05:00Z";
+        p.units = "lbs";
+        p.route = "DCT";
+        p.originRunway = "14R";
+        p.destinationRunway = "27";
+        p.cruiseAltitudeFt = 37000;
+        p.estBlockS = 10200;
+        p.rampFuelLb = 20000;
+        p.enrouteBurnLb = 15000;
+        p.estLandingWeightLb = 120000;
+        p.originTransitionAltitudeFt = 18000;
+        p.destinationTransitionLevelFt = 18000;
+        ASSERT_TRUE(storeSimbriefPlan(db_, plannedId_, p, "{}", "2026-11-22T10:06:00Z", &error)) << error;
     }
 
     std::unique_ptr<PlannedFlightModel> model() {
@@ -1074,7 +1090,7 @@ TEST_F(LiveFlight, InterruptedKeepsThePlanWithANotice) {
     bridge_.applyBlockEvent(FlightInterrupted{kLiveOut, "sim_stopped"});
     EXPECT_TRUE(m->hasFlight());
     EXPECT_EQ(m->notice(), QString::fromUtf8("KBFI–KSAN interrupted and discarded"));
-    EXPECT_EQ(m->state(), "waitingForPlan");
+    EXPECT_EQ(m->state(), "waitingForSim");  // the fixture has a plan (D-250)
     EXPECT_TRUE(target_.get().has_value());
 }
 

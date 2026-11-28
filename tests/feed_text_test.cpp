@@ -15,6 +15,10 @@ TEST(FeedText, FlightEvents) {
     EXPECT_EQ(feedText("phase_changed", {{"phase", "climb"}}), "CLIMB");
     EXPECT_EQ(feedText("phase_changed", {{"phase", "taxi_out"}}), "TAXI OUT");
     EXPECT_EQ(feedText("liftoff", {{"runway", "14R"}}), "LIFTOFF  14R");
+    EXPECT_EQ(feedText("flight_accepted", {{"origin", "KSAN"}, {"destination", "KSJC"}, {"at_block_out", false}}),
+              "FLIGHT ACCEPTED  KSAN → KSJC");
+    EXPECT_EQ(feedText("flight_accepted", {{"origin", "KSAN"}, {"destination", "KSJC"}, {"at_block_out", true}}),
+              "FLIGHT ACCEPTED  KSAN → KSJC  (at block out)");
     EXPECT_EQ(feedText("lined_up", {{"runway", "14R"}, {"distance_nm", 0.31}}), "LINED UP  runway 14R  0.3 nm");
     EXPECT_EQ(feedText("gsx_service", {{"service", "boarding"}, {"state", "performing"}}), "GSX boarding performing");
     EXPECT_EQ(feedText("gsx_service", {{"service", "boarding"}, {"state", "available"}}), "");

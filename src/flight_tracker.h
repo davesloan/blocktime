@@ -37,6 +37,14 @@ inline constexpr double kTouchdownArmAglFt = 300;     // D-125
 inline constexpr double kTouchdownDisarmAglFt = 500;  // climbing back through this: a go-around
 inline constexpr double kRunwayRollKt = 40;           // the roll's samples, for naming the runway
 
+// The flight_accepted marker's data (D-236): {planned_flight_id, planned_at, registration, origin, destination,
+// at_block_out}. No flight_id: the flight doesn't exist until block out.
+nlohmann::json acceptedEventData(const FlightTarget& target, bool atBlockOut);
+
+// The marker block out writes before block_out when the target has a plan but wasn't accepted (D-250); nullopt when
+// it was accepted, or with no target.
+std::optional<LogEvent> acceptedAtBlockOut(const std::optional<FlightTarget>& target);
+
 class FlightTracker {
 public:
     // Kept across flights; newer data for the same airport replaces the old (D-126, D-147).

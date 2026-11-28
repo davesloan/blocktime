@@ -125,7 +125,8 @@ bool storeSimbriefPlan(db::Database& db, std::int64_t plannedFlightId, const Sim
 PriceInput priceInput(const PlannedFlightView& flight);
 
 // What the recorder checks a brake release against (D-088): the type's sim folder, the origin's position and the
-// airplane's fuel on record. nullopt if the planned flight is gone.
+// airplane's fuel on record, and whether it was accepted. nullopt if the planned flight is gone or has no plan
+// imported: a flight is only recorded with a plan (D-250).
 std::optional<FlightTarget> flightTarget(db::Database& db, const PlannedFlightView& flight);
 
 // The plan's estimated landing weight is 95% of MLW or more (D-104). False without a plan.

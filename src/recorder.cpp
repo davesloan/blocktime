@@ -83,6 +83,11 @@ public:
         return true;
     }
 
+    // The last good sample again, for the flight_accepted snapshot (D-236). Nothing before the first one.
+    void writeLatest() {
+        if (hasLast_) log_.write("telemetry", toJson(last_));
+    }
+
     void reset() {
         lastProblem_ = SampleProblem::None;
         skipped_ = 0;
@@ -241,6 +246,14 @@ int Recorder::run(const std::atomic<bool>& stop) {
         // The spot it happened at, from the loaded airports' parking (D-148).
         if (auto* out = std::get_if<BlockOut>(&e)) out->parking = tracker.parkingAt(out->latDeg, out->lonDeg);
         if (auto* in = std::get_if<BlockIn>(&e)) in->parking = tracker.parkingAt(in->latDeg, in->lonDeg);
+        // A flight with a plan that wasn't accepted is accepted by block out, the marker first (D-250).
+        if (std::holds_alternative<BlockOut>(e)) {
+            if (const auto marker = acceptedAtBlockOut(target.get())) {
+                logHistory(marker->type, marker->data);
+                observer.onFlightEvent(marker->type, marker->data);
+                observer.onLine(utcTimestamp().substr(11, 8) + "  " + feedText(marker->type, marker->data), false);
+            }
+        }
         logBlockEvent(outbox, observer, e);
         if (const auto* out = std::get_if<BlockOut>(&e)) {
             writeFlightEvents(tracker.onBlockOut(*out, target.get(), s ? s->indicatedAltitudeFt : 0));
@@ -337,10 +350,15 @@ int Recorder::run(const std::atomic<bool>& stop) {
         // failed write like the rest.
         for (const LogEvent& e : appEvents_.drain()) {
             logHistory(e.type, e.data);
-            if (e.type == "arrival_gate") {
+            if (e.type == "arrival_gate" || e.type == "flight_accepted") {
                 observer.onLine(utcTimestamp().substr(11, 8) + "  " + feedText(e.type, e.data), false);
             }
             observer.onFlightEvent(e.type, e.data);
+            // Accept is the flight's start (D-236): the cockpit and the airplane as they are now, after the marker.
+            if (e.type == "flight_accepted") {
+                if (auto snap = cockpit.snapshot(std::chrono::system_clock::now())) logHistory("cockpit", *snap);
+                telemetry.writeLatest();
+            }
         }
         if (!sim.isOpen()) {
             if (sim.open()) {

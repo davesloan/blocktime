@@ -93,6 +93,16 @@ LogEvent FlightTracker::altimeterEvent(const AltimeterSample& a) const {
              {"fo_std", a.foStd}}};
 }
 
+nlohmann::json acceptedEventData(const FlightTarget& t, bool atBlockOut) {
+    return {{"planned_flight_id", t.plannedFlightId}, {"planned_at", t.plannedAt}, {"registration", t.registration},
+            {"origin", t.originIcao},          {"destination", t.destinationIcao}, {"at_block_out", atBlockOut}};
+}
+
+std::optional<LogEvent> acceptedAtBlockOut(const std::optional<FlightTarget>& target) {
+    if (!target || target->accepted) return std::nullopt;
+    return LogEvent{"flight_accepted", acceptedEventData(*target, true)};
+}
+
 std::vector<LogEvent> FlightTracker::onBlockOut(const BlockOut& out, const std::optional<FlightTarget>& target,
                                                 double altFt) {
     onFlightEnded();

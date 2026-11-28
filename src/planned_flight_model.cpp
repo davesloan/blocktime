@@ -164,6 +164,7 @@ QString PlannedFlightModel::notRecording() const {
         case MatchProblem::NoPlannedFlight:
             // Right after a flight is settled nothing is planned; that's the summary's moment, not a warning's.
             if (!summaryFlightId_.isEmpty()) return {};
+            if (flight_) return "Not recording: import the SimBrief plan on Your Flight first.";  // D-250
             return "Not recording: no flight is planned. Plan one from Fleet.";
         case MatchProblem::WrongAircraftType: {
             if (!flight_) return {};

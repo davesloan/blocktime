@@ -33,6 +33,8 @@ struct FlightTarget {
     // For the phases (D-124); 0 = unknown (no plan imported yet).
     double destinationLat = 0, destinationLon = 0;
     int cruiseAltitudeFt = 0, transitionAltitudeFt = 0, transitionLevelFt = 0;
+    // Accepted on Your Flight (D-222). Block out accepts a flight that wasn't, with a marker first (D-250).
+    bool accepted = false;
 };
 
 // Checked in this order; the first that applies is reported.

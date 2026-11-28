@@ -348,3 +348,22 @@ TEST(FlightTracker, LogsLinedUp) {
     EXPECT_LE(e->data["distance_nm"].get<double>(), 10.0);
     EXPECT_EQ(e->data["flight_id"], formatUtc(replay::loadReplay("replay-kbfi-kpdx.csv").blockOut));
 }
+
+// D-250: block out accepts a flight with a plan that wasn't accepted, with the marker written before block_out.
+TEST(FlightTracker, BlockOutAcceptsAnUnacceptedTarget) {
+    FlightTarget t = target();
+    t.accepted = false;
+    const auto marker = acceptedAtBlockOut(t);
+    ASSERT_TRUE(marker.has_value());
+    EXPECT_EQ(marker->type, "flight_accepted");
+    EXPECT_EQ(marker->data["at_block_out"], true);
+    EXPECT_EQ(marker->data["planned_flight_id"], t.plannedFlightId);
+    EXPECT_EQ(marker->data["planned_at"], t.plannedAt);
+    EXPECT_EQ(marker->data["registration"], t.registration);
+    EXPECT_EQ(marker->data["origin"], t.originIcao);
+    EXPECT_EQ(marker->data["destination"], t.destinationIcao);
+    EXPECT_FALSE(marker->data.contains("flight_id"));
+    t.accepted = true;
+    EXPECT_FALSE(acceptedAtBlockOut(t).has_value());
+    EXPECT_FALSE(acceptedAtBlockOut(std::nullopt).has_value());
+}

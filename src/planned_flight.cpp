@@ -427,7 +427,9 @@ std::optional<FlightTarget> flightTarget(db::Database& db, const PlannedFlightVi
                         " JOIN airport d ON d.airport_id = f.destination_airport_id WHERE f.planned_flight_id = ?");
     q.bind(1, flight.id);
     if (!q.next()) return std::nullopt;
+    if (!flight.plan) return std::nullopt;  // dispatched without a plan: not recorded (D-250)
     FlightTarget t;
+    t.accepted = plannedAcceptance(db, flight.id).has_value();
     t.plannedFlightId = flight.id;
     t.plannedAt = flight.plannedAt;
     t.simFolder = q.text(0);
@@ -440,7 +442,7 @@ std::optional<FlightTarget> flightTarget(db::Database& db, const PlannedFlightVi
     t.fuelOnRecordLb = static_cast<int>(q.integer(3));
     t.destinationLat = q.real(4);
     t.destinationLon = q.real(5);
-    if (flight.plan) {  // the phases' plan values (D-124)
+    {  // the phases' plan values (D-124)
         t.cruiseAltitudeFt = flight.plan->cruiseAltitudeFt;
         t.transitionAltitudeFt = flight.plan->originTransitionAltitudeFt;
         t.transitionLevelFt = flight.plan->destinationTransitionLevelFt;

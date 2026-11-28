@@ -47,6 +47,11 @@ std::string feedText(std::string_view type, const nlohmann::json& d) {
     }
     if (type == "touchdown") return std::format("TOUCHDOWN  {:.0f} fpm  {:.2f} g", num(d, "vs_fpm"), num(d, "g"));
     if (type == "arrival_gate") return "ARRIVAL GATE  " + str(d, "gate") + "  (" + str(d, "result") + ")";
+    if (type == "flight_accepted") {
+        const bool atBlockOut = d.contains("at_block_out") && d["at_block_out"].is_boolean() && d["at_block_out"];
+        return "FLIGHT ACCEPTED  " + str(d, "origin") + " → " + str(d, "destination") +
+               (atBlockOut ? "  (at block out)" : "");
+    }
     return "";
 }
 

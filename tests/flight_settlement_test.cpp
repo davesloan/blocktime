@@ -850,3 +850,23 @@ TEST_F(Settlement, ReviewStoredOnce) {
     EXPECT_EQ(got.model, "claude-opus-5-5");
     EXPECT_EQ(count("flight_review_item"), 2);
 }
+
+// D-236: the flight_accepted marker and its snapshots before block_out don't change what settles.
+TEST_F(Settlement, IgnoresAcceptedLines) {
+    const auto id = planDelivery();
+    const std::string marker = line("flight_accepted", R"({"planned_flight_id":)" + std::to_string(id) +
+                                                           R"(,"planned_at":"2026-11-23T10:00:00Z","registration":)"
+                                                           R"("N814SX","origin":"KBFI","destination":"KSAN",)"
+                                                           R"("at_block_out":false})");
+    const std::string cockpit = line("cockpit", R"({"beacon":false,"landing_lights":false})");
+    const std::string telemetry = line("telemetry", R"({"lat":47.53,"lon":-122.302,"fuel_lb":20000})");
+    writeLog({marker, cockpit, telemetry, blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    std::string error;
+    const auto s = settleIfFlown(db_, dir_, Rates{}, &error);
+    ASSERT_TRUE(s.has_value()) << error;
+    EXPECT_EQ(s->logFlightId, kOut);
+    const Lines costs = lines(s->money.costs);
+    ASSERT_EQ(costs.size(), 5u) << ::testing::PrintToString(costs);
+    EXPECT_EQ(costs[0], "fuel -8200");
+    EXPECT_EQ(costs[3], "pilots -1420");
+}
