@@ -105,6 +105,8 @@ struct PlannedFlightView {
     int taxiOutS = 0, taxiInS = 0;   // D-212: Dave's median at the airport, else the plan's; 0 with neither
     std::vector<Hold> holds;  // the airplane's, for the load sheet (D-153)
     int additionalFuelLb = 0;  // extra fuel sent to SimBrief; 0 = none
+    // From the airplane's SimBrief screenshot (airplane_simbrief); nullopt before one was read (D-242).
+    std::optional<int> emptyWeightLb, mtowLb;
     std::optional<std::string> acceptedAt;  // set once the flight is accepted (D-222); a planned flight only
 };
 

@@ -46,6 +46,8 @@
 #include "plan_brief.h"
 #include "predictions.h"
 #include "simbrief.h"
+#include "accepted_breakdown.h"
+#include "dispatch_model.h"
 #include "inflight_model.h"
 #include "preflight_model.h"
 #include "replay_planned_flight.h"
@@ -3692,4 +3694,281 @@ TEST(Aircraft, ReturnFailureIsShown) {
                         " WHERE registration = 'N738BT'"));
     EXPECT_FALSE(m.returnPlane());
     EXPECT_FALSE(m.returnError().isEmpty());
+}
+
+// --- Dispatch on Your Flight (milestone 16) ---
+
+namespace {
+
+class Dispatch : public TempLog {
+protected:
+    std::unique_ptr<YourFlightModel> your() {
+        return std::make_unique<YourFlightModel>(db_, "XLY", planner_, bridge_, target_, dir_, ratesFile_);
+    }
+    std::unique_ptr<DispatchModel> dispatchOn(YourFlightModel& y) {
+        return std::make_unique<DispatchModel>(db_, "XLY", ratesFile_, planner_, bridge_, events_, y);
+    }
+
+    // SimBrief's OFP for the planned flight as it is: its loads, flight number and the time now.
+    QByteArray ofpFor(int rampFuelLb = 14200, int passengersDelta = 0) {
+        const auto v = currentPlannedFlight(db_);
+        EXPECT_TRUE(v.has_value());
+        nlohmann::json ofp = nlohmann::json::parse(dataFile("ofp_v2_min.json"));
+        int people = 0;
+        for (const CabinLoad& c : v->cabins) people += c.passengers;
+        ofp["params"]["time_generated"] =
+            std::format("{:%FT%TZ}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now()));
+        ofp["origin"]["icao_code"] = v->origin;
+        ofp["destination"]["icao_code"] = v->destination;
+        ofp["aircraft"]["internal_id"] = v->airframeId;
+        ofp["general"]["flight_number"] = v->flightNumber;
+        ofp["weights"]["pax_count"] = std::to_string(people + passengersDelta);
+        ofp["weights"]["freight_added"] = std::to_string(v->cargoLb);
+        ofp["fuel"]["plan_ramp"] = std::to_string(rampFuelLb);
+        return QByteArray::fromStdString(ofp.dump());
+    }
+
+    // N814SX (VIP) dispatched to KSAN and its plan imported.
+    void dispatchAndImport(DispatchModel& d) {
+        ASSERT_TRUE(d.openForAirplane("N814SX"));
+        d.setDestination("KSAN");
+        ASSERT_TRUE(d.canDispatch()) << d.destinationMessage().toStdString();
+        d.dispatch();
+        planner_.ofpBody = ofpFor();
+        d.importPlan();
+        ASSERT_TRUE(d.imported()) << d.message().toStdString();
+    }
+
+    std::int64_t count(const char* sql) {
+        db::Statement q(db_, sql);
+        return q.next() ? q.integer(0) : -1;
+    }
+
+    static Cents line(const Preview& p, const char* category) {
+        for (const auto* lines : {&p.income, &p.costs}) {
+            for (const MoneyLine& m : *lines) {
+                if (m.category == category) return m.cents;
+            }
+        }
+        return 0;
+    }
+
+    db::Database db_ = deliveredAirline();
+    FakePlanner planner_;
+    RecorderBridge bridge_;
+    FlightTargetSlot target_;
+    AppEventQueue events_;
+    std::filesystem::path ratesFile_ = kRatesFile;
+};
+
+}  // namespace
+
+TEST_F(Dispatch, FormToReportToAccept) {
+    auto y = your();
+    auto d = dispatchOn(*y);
+    ASSERT_TRUE(d->openForAirplane("N814SX"));
+    EXPECT_EQ(y->stageText(), "form");
+    d->setDestination("KSAN");
+    d->dispatch();
+    EXPECT_EQ(y->stageText(), "dispatched");
+    EXPECT_FALSE(d->imported());
+    const QVariantList before = d->boardRows();
+    ASSERT_FALSE(before.isEmpty());
+    for (const QVariant& r : before) {
+        const QString text = r.toMap().value("text").toString();
+        EXPECT_EQ(text.size(), 20);
+        EXPECT_TRUE(text.endsWith(' ')) << text.toStdString();  // blank value tiles
+    }
+    EXPECT_TRUE(d->ring().value("slices").toList().isEmpty());
+
+    planner_.ofpBody = ofpFor();
+    d->importPlan();
+    EXPECT_EQ(y->stageText(), "imported") << d->message().toStdString();
+    EXPECT_FALSE(d->ring().value("loss").toBool());
+    EXPECT_EQ(d->boardRows().first().toMap().value("id").toString(), "vip_fares");
+    EXPECT_EQ(d->centerLabel(), "Profit");
+
+    d->accept();
+    EXPECT_EQ(y->stageText(), "accepted");
+    EXPECT_TRUE(plannedAcceptance(db_, y->view()->id).has_value());
+    const auto queued = events_.drain();
+    ASSERT_EQ(queued.size(), 1u);
+    EXPECT_EQ(queued[0].type, "flight_accepted");
+    EXPECT_EQ(queued[0].data["at_block_out"], false);
+    ASSERT_TRUE(target_.get().has_value());
+    EXPECT_TRUE(target_.get()->accepted);
+}
+
+// Review Focus 1: a re-import after Accept that the check refuses changes nothing.
+TEST_F(Dispatch, RefusedImportKeepsEverything) {
+    auto y = your();
+    auto d = dispatchOn(*y);
+    dispatchAndImport(*d);
+    d->accept();
+    const auto acceptedBefore = plannedAcceptance(db_, y->view()->id);
+    const std::string requestBefore = y->view()->plan->requestId;
+    planner_.ofpBody = ofpFor(14200, -1);  // one passenger short
+    d->importPlan();
+    EXPECT_TRUE(d->message().startsWith("SimBrief has ")) << d->message().toStdString();
+    EXPECT_TRUE(d->message().endsWith("Open SimBrief to generate it again with this flight's loads."));
+    EXPECT_EQ(y->view()->plan->requestId, requestBefore);
+    const auto acceptedAfter = plannedAcceptance(db_, y->view()->id);
+    ASSERT_TRUE(acceptedAfter.has_value());
+    EXPECT_EQ(acceptedAfter->acceptedAt, acceptedBefore->acceptedAt);
+    EXPECT_EQ(acceptedAfter->money.totalCents, acceptedBefore->money.totalCents);
+}
+
+TEST_F(Dispatch, ReimportAfterAcceptReplacesQuietly) {
+    auto y = your();
+    auto d = dispatchOn(*y);
+    dispatchAndImport(*d);
+    d->accept();
+    const Cents fuelBefore = line(plannedAcceptance(db_, y->view()->id)->money, "fuel");
+    planner_.ofpBody = ofpFor(15200);  // 1,000 lb more ramp fuel
+    d->importPlan();
+    EXPECT_EQ(d->message(), QString()) << d->message().toStdString();
+    EXPECT_EQ(y->stageText(), "accepted");
+    const Cents fuelAfter = line(plannedAcceptance(db_, y->view()->id)->money, "fuel");
+    EXPECT_LT(fuelAfter, fuelBefore);  // a bigger cost
+    QStringList changed;
+    for (const QVariant& r : d->boardRows()) {
+        if (r.toMap().value("changed").toBool()) changed << r.toMap().value("id").toString();
+    }
+    EXPECT_EQ(changed, (QStringList{"fuel", "profit"}));
+}
+
+// Review Focus 2: after a restart the report is the stored breakdown, not today's rates.yaml.
+TEST_F(Dispatch, RestartShowsStoredBreakdown) {
+    Cents pilotsAccepted = 0;
+    {
+        auto y = your();
+        auto d = dispatchOn(*y);
+        dispatchAndImport(*d);
+        d->accept();
+        pilotsAccepted = line(*d->preview(), "pilots");
+    }
+    // rates.yaml edited: the VIP pilot rate doubled.
+    std::ifstream in(kRatesFile, std::ios::binary);
+    std::string text{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+    const auto at = text.find("  pilot_per_hour: 250");
+    ASSERT_NE(at, std::string::npos);
+    text.replace(at, 21, "  pilot_per_hour: 500");
+    ratesFile_ = dir_ / "rates.yaml";
+    std::ofstream(ratesFile_, std::ios::binary) << text;
+
+    auto y = your();
+    auto d = dispatchOn(*y);
+    EXPECT_EQ(y->stageText(), "accepted");
+    EXPECT_NE(pilotsAccepted, 0);
+    EXPECT_EQ(line(*d->preview(), "pilots"), pilotsAccepted);
+    ASSERT_TRUE(target_.get().has_value());
+    EXPECT_TRUE(target_.get()->accepted);
+}
+
+TEST_F(Dispatch, LockedAfterBlockOut) {
+    auto y = your();
+    auto d = dispatchOn(*y);
+    dispatchAndImport(*d);
+    d->accept();
+    BlockOut out;
+    out.flightId = "2026-11-27T10:00:00.000Z";
+    bridge_.applyBlockEvent(out);
+    EXPECT_TRUE(d->locked());
+    const int fetches = planner_.ofpFetches;
+    d->importPlan();
+    EXPECT_EQ(planner_.ofpFetches, fetches);
+}
+
+// Review Focus 5: imported but not accepted, block out accepts it.
+TEST_F(Dispatch, BlockOutAccepts) {
+    auto y = your();
+    auto d = dispatchOn(*y);
+    dispatchAndImport(*d);
+    const std::int64_t id = y->view()->id;
+    BlockOut out;
+    out.flightId = "2026-11-27T10:00:00.000Z";
+    bridge_.applyBlockEvent(out);
+    const auto accepted = plannedAcceptance(db_, id);
+    ASSERT_TRUE(accepted.has_value());
+    EXPECT_TRUE(accepted->atBlockOut);
+    EXPECT_TRUE(events_.drain().empty());  // the recorder wrote the marker, not the app
+}
+
+TEST_F(Dispatch, ChangeFlightKeepsLoads) {
+    auto y = your();
+    auto d = dispatchOn(*y);
+    dispatchAndImport(*d);
+    const std::vector<CabinLoad> cabins = y->view()->cabins;
+    d->changeFlight();
+    EXPECT_EQ(y->stageText(), "form");
+    EXPECT_TRUE(d->changing());
+    d->setFlightNumber("815");
+    d->saveChange();
+    EXPECT_EQ(y->stageText(), "dispatched");
+    EXPECT_FALSE(d->imported());
+    EXPECT_EQ(y->view()->flightNumber, "815");
+    ASSERT_EQ(y->view()->cabins.size(), cabins.size());
+    for (std::size_t i = 0; i < cabins.size(); ++i) EXPECT_EQ(y->view()->cabins[i].passengers, cabins[i].passengers);
+}
+
+TEST_F(Dispatch, NoChangeAfterAccept) {
+    auto y = your();
+    auto d = dispatchOn(*y);
+    dispatchAndImport(*d);
+    d->accept();
+    d->changeFlight();
+    EXPECT_FALSE(d->changing());
+    EXPECT_EQ(y->stageText(), "accepted");
+}
+
+TEST_F(Dispatch, OpenSimbriefSendsTheLoadsAndExtraFuel) {
+    auto y = your();
+    auto d = dispatchOn(*y);
+    ASSERT_TRUE(d->openForAirplane("N814SX"));
+    d->setDestination("KSAN");
+    d->setAdditionalFuel("1500");
+    d->dispatch();
+    d->openSimbrief();
+    ASSERT_EQ(planner_.opened.size(), 1);
+    EXPECT_TRUE(planner_.opened[0].contains("&addedfuel=1.5&addedfuel_units=wgt")) << planner_.opened[0].toStdString();
+    EXPECT_TRUE(planner_.opened[0].contains("&origrwy=14R"));
+    EXPECT_EQ(d->extraFuelBadge(), "+1,500 lb extra fuel");
+}
+
+TEST_F(Dispatch, CancelGoesBackToEmpty) {
+    auto y = your();
+    auto d = dispatchOn(*y);
+    dispatchAndImport(*d);
+    d->accept();
+    d->cancelFlight();
+    EXPECT_EQ(y->stageText(), "empty");
+    EXPECT_EQ(count("SELECT count(*) FROM accepted_breakdown"), 0);
+    EXPECT_FALSE(target_.get().has_value());
+}
+
+// Review Focus 4: a delivery flight's report is a loss: no fares row, the ring is the costs, "Loss" in the centre.
+TEST_F(Dispatch, DeliveryIsALoss) {
+    ASSERT_TRUE(db_.exec("UPDATE airplane SET awaiting_delivery = 1 WHERE registration = 'N814SX'"));
+    auto y = your();
+    auto d = dispatchOn(*y);
+    dispatchAndImport(*d);
+    for (const QVariant& r : d->boardRows()) EXPECT_NE(r.toMap().value("tone").toString(), "income");
+    EXPECT_EQ(d->boardRows().last().toMap().value("tone").toString(), "loss");
+    EXPECT_TRUE(d->ring().value("loss").toBool());
+    EXPECT_EQ(d->centerLabel(), "Loss");
+    EXPECT_EQ(d->centerTone(), "loss");
+}
+
+TEST_F(Dispatch, SelectShowsTheWorking) {
+    auto y = your();
+    auto d = dispatchOn(*y);
+    dispatchAndImport(*d);
+    d->select("fuel");
+    EXPECT_EQ(d->selectedId(), "fuel");
+    const QStringList lines = d->selection().value("lines").toStringList();
+    ASSERT_FALSE(lines.isEmpty());
+    EXPECT_TRUE(lines.first().endsWith("lb block fuel")) << lines.first().toStdString();
+    EXPECT_EQ(d->centerLabel(), "Fuel");
+    d->select("fuel");  // again: cleared
+    EXPECT_EQ(d->selectedId(), "");
 }

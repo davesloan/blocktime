@@ -434,3 +434,21 @@ TEST(PlannedFlight, NoTargetWithoutAPlan) {
     ASSERT_TRUE(t.has_value());
     EXPECT_TRUE(t->accepted);
 }
+
+// The report's badge and the load card need the stored OFP's EXTRA fuel and the screenshot's weights.
+TEST(PlannedFlight, ViewHasExtraFuelAndWeights) {
+    db::Database db = test::testAirline();
+    ASSERT_TRUE(db.exec("UPDATE airplane SET awaiting_delivery = 0 WHERE registration = 'N814SX'"));
+    std::string error;
+    const auto id = createPlannedFlight(db, vipToKsan(db), &error);
+    ASSERT_TRUE(id.has_value()) << error;
+    nlohmann::json ofp = nlohmann::json::parse(fixture("ofp_v2_min.json"));
+    ofp["fuel_extra"] = {{"bucket", {{{"label", "EXTRA"}, {"fuel", "1000"}}}}};
+    ASSERT_TRUE(storeSimbriefPlan(db, *id, fixturePlan(), ofp.dump(), "2026-11-23T14:05:00Z", &error)) << error;
+    const auto v = currentPlannedFlight(db);
+    ASSERT_TRUE(v.has_value());
+    ASSERT_TRUE(v->plan.has_value());
+    EXPECT_EQ(v->plan->extraFuelLb, 1000);
+    EXPECT_EQ(v->emptyWeightLb, 102187);  // N814SX was leased from a screenshot
+    EXPECT_EQ(v->mtowLb, 174700);
+}

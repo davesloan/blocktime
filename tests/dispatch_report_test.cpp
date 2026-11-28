@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 
 #include "dispatch_report.h"
+#include "planned_flight.h"
 #include "pricing.h"
 #include "rates.h"
 
@@ -231,4 +232,49 @@ TEST(Changes, CrewAfterALongerPlan) {
         EXPECT_EQ(c.why, "Was " + formatMoneyFull(c.was) + " before the re-import: planned block 2:44 (was 1:44)");
     }
     EXPECT_TRUE(sawPilots);
+}
+
+TEST(WeightBars, BeforeAndAfterImport) {
+    PlannedFlightView v;
+    v.kind = FlightKind::Vip;
+    v.cabins = {{"economy", 44}};
+    v.limits.passengerWeightLb = 190;
+    v.limits.bagWeightLb = 55;
+    v.limits.mlwLb = 146300;
+    v.limits.maxPayloadLb = 36113;
+    v.emptyWeightLb = 102187;
+    v.mtowLb = 174700;
+    std::vector<WeightBar> bars = weightBars(v);
+    ASSERT_EQ(bars.size(), 3u);
+    EXPECT_EQ(bars[0].label, "Zero fuel weight");
+    EXPECT_EQ(bars[0].valueLb, 102187 + 44 * 190 + 44 * 55);
+    EXPECT_EQ(bars[0].limitLb, 102187 + 36113);  // MZFW
+    EXPECT_EQ(bars[1].label, "Takeoff weight");
+    EXPECT_FALSE(bars[1].valueLb.has_value());  // after import
+    EXPECT_EQ(bars[1].limitLb, 174700);
+    EXPECT_EQ(bars[2].label, "Landing weight");
+    EXPECT_FALSE(bars[2].valueLb.has_value());
+    EXPECT_EQ(bars[2].limitLb, 146300);
+
+    v.plan = SimbriefPlan{};
+    v.plan->rampFuelLb = 9200;
+    v.plan->estLandingWeightLb = 121700;
+    v.brief = PlanBrief{};
+    v.brief->zfwLb = 118400;
+    v.brief->taxiLb = 500;
+    bars = weightBars(v);
+    EXPECT_EQ(bars[0].valueLb, 118400);  // SimBrief's once it's in
+    EXPECT_EQ(bars[1].valueLb, 118400 + 9200 - 500);
+    EXPECT_EQ(bars[2].valueLb, 121700);
+}
+
+TEST(WeightBars, NoScreenshotNoEmptyWeight) {
+    PlannedFlightView v;
+    v.cabins = {{"economy", 10}};
+    v.limits.passengerWeightLb = 190;
+    v.limits.mlwLb = 146300;
+    const std::vector<WeightBar> bars = weightBars(v);
+    EXPECT_FALSE(bars[0].valueLb.has_value());
+    EXPECT_FALSE(bars[0].limitLb.has_value());
+    EXPECT_FALSE(bars[1].limitLb.has_value());
 }

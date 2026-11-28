@@ -293,6 +293,12 @@ std::optional<PlannedFlightView> readFlightView(db::Database& db, const ViewTabl
     for (const Cabin& c : cabinsOf(db, airplaneId)) v.seatsInstalled += c.seats;
     v.limits = airplaneLimits(db, airplaneId).value_or(AirplaneLimits{});
     v.holds = holdsOf(db, airplaneId);
+    db::Statement weights(db, "SELECT empty_weight_lb, mtow_lb FROM airplane_simbrief WHERE airplane_id = ?");
+    weights.bind(1, airplaneId);
+    if (weights.next()) {
+        v.emptyWeightLb = static_cast<int>(weights.integer(0));
+        v.mtowLb = static_cast<int>(weights.integer(1));
+    }
 
     db::Statement cabins(db, std::string("SELECT cabin_class, passengers FROM ") + t.cabins + " WHERE " + t.key +
                                  " = ? ORDER BY CASE cabin_class WHEN 'first' THEN 0 WHEN 'business' THEN 1 ELSE 2 END");
@@ -328,6 +334,13 @@ std::optional<PlannedFlightView> readFlightView(db::Database& db, const ViewTabl
         p.destinationIcao = v.destination;
         p.airframeId = v.airframeId;
         p.units = "lbs";
+        // The loads and EXTRA fuel aren't columns: read back from the stored OFP (the report's badge).
+        if (const auto full = parseOfp(plan.text(12), nullptr)) {
+            p.passengers = full->passengers;
+            p.freightLb = full->freightLb;
+            p.flightNumber = full->flightNumber;
+            p.extraFuelLb = full->extraFuelLb;
+        }
         v.plan = p;
     }
     v.route.push_back({q.real(20), q.real(21)});

@@ -141,14 +141,8 @@ QStringList NewFlightModel::kindLabels() const {
 }
 
 QString NewFlightModel::kindLabel(FlightKind kind) {
-    switch (kind) {
-        case FlightKind::Vip: return "VIP airliner";
-        case FlightKind::Charter: return "Charter";
-        case FlightKind::Cargo: return "Cargo";
-        case FlightKind::Delivery: return "Delivery flight";
-        case FlightKind::Passenger: break;
-    }
-    return "Passengers";
+    const std::string_view label = blocktime::kindLabel(kind);
+    return QString::fromUtf8(label.data(), static_cast<qsizetype>(label.size()));
 }
 
 QString NewFlightModel::kind() const {

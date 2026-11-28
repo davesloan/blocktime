@@ -112,6 +112,12 @@ bool acceptPlannedFlight(db::Database& db, std::int64_t plannedFlightId, const P
         if (error) *error = tx.error();
         return false;
     }
+    if (!writeAcceptance(db, plannedFlightId, money, acceptedAt, atBlockOut, error)) return false;
+    return tx.commit(error);
+}
+
+bool writeAcceptance(db::Database& db, std::int64_t plannedFlightId, const Preview& money, std::string_view acceptedAt,
+                     bool atBlockOut, std::string* error) {
     if (!dropPlannedAcceptance(db, plannedFlightId, error)) return false;
     db::Statement head(db, "INSERT INTO accepted_breakdown (accepted_at, at_block_out) VALUES (?, ?)");
     head.bind(1, acceptedAt);
@@ -124,7 +130,7 @@ bool acceptPlannedFlight(db::Database& db, std::int64_t plannedFlightId, const P
     link.bind(1, plannedFlightId);
     link.bind(2, id);
     if (!link.run()) return failWith(link, error);
-    return tx.commit(error);
+    return true;
 }
 
 std::optional<AcceptedBreakdown> plannedAcceptance(db::Database& db, std::int64_t plannedFlightId) {

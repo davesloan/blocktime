@@ -157,4 +157,22 @@ std::vector<LineChange> changesSince(const Preview& before, const ChangeFacts& b
     return out;
 }
 
+std::vector<WeightBar> weightBars(const PlannedFlightView& f) {
+    WeightBar zfw{"Zero fuel weight", std::nullopt, std::nullopt};
+    WeightBar tow{"Takeoff weight", std::nullopt, f.mtowLb};
+    WeightBar lw{"Landing weight", std::nullopt, f.limits.mlwLb > 0 ? std::optional<int>(f.limits.mlwLb) : std::nullopt};
+    if (f.emptyWeightLb) {
+        int people = 0;
+        for (const CabinLoad& c : f.cabins) people += c.passengers;
+        zfw.valueLb = *f.emptyWeightLb + people * f.limits.passengerWeightLb + bagsLb(f.cabins, f.limits) + f.cargoLb;
+        zfw.limitLb = *f.emptyWeightLb + f.limits.maxPayloadLb;
+    }
+    if (f.plan) {
+        if (f.brief && f.brief->zfwLb > 0) zfw.valueLb = f.brief->zfwLb;
+        if (zfw.valueLb) tow.valueLb = *zfw.valueLb + f.plan->rampFuelLb - (f.brief ? f.brief->taxiLb : 0);
+        lw.valueLb = f.plan->estLandingWeightLb;
+    }
+    return {zfw, tow, lw};
+}
+
 }  // namespace blocktime

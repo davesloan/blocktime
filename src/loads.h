@@ -22,6 +22,8 @@ enum class FlightKind { Passenger, Vip, Charter, Cargo, Delivery };
 
 std::string_view kindCode(FlightKind kind);
 std::optional<FlightKind> parseKind(std::string_view code);
+// For the screens: "VIP airliner", "Charter", "Passengers", "Cargo", "Delivery flight".
+std::string_view kindLabel(FlightKind kind);
 
 // A uniform value in [0, 1). The app uses std::mt19937_64; tests pass fixed sequences.
 using Roll = std::function<double()>;

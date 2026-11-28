@@ -7,11 +7,13 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "money.h"
+#include "planned_flight.h"
 #include "pricing.h"
 
 namespace blocktime {
@@ -76,6 +78,15 @@ struct LineChange {
 // One entry per board id whose amount differs between two imports, the profit included.
 std::vector<LineChange> changesSince(const Preview& before, const ChangeFacts& b, const Preview& after,
                                      const ChangeFacts& a);
+
+// The load card's tapes: zero fuel, takeoff and landing weight against their limits. Zero fuel weight is the empty
+// weight plus the payload before import, SimBrief's after; takeoff and landing weight come with the plan. A value or
+// limit that isn't known (no SimBrief screenshot yet, or no plan) is nullopt.
+struct WeightBar {
+    std::string label;
+    std::optional<int> valueLb, limitLb;
+};
+std::vector<WeightBar> weightBars(const PlannedFlightView& flight);
 
 // "+$15,630" for income, "-$2,420" for a cost, "$8,760" for a profit, "-$1,240" for a loss.
 std::string boardValue(Cents cents, BoardRow::Tone tone);

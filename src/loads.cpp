@@ -55,6 +55,17 @@ std::optional<FlightKind> parseKind(std::string_view code) {
     return std::nullopt;
 }
 
+std::string_view kindLabel(FlightKind kind) {
+    switch (kind) {
+        case FlightKind::Vip: return "VIP airliner";
+        case FlightKind::Charter: return "Charter";
+        case FlightKind::Cargo: return "Cargo";
+        case FlightKind::Delivery: return "Delivery flight";
+        case FlightKind::Passenger: break;
+    }
+    return "Passengers";
+}
+
 LoadRoll rollLoads(const std::vector<Cabin>& cabins, const std::vector<Hold>& holds, const AirplaneLimits& limits,
                    FlightKind kind, bool daytime, const Roll& roll) {
     LoadRoll out;

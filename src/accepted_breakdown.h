@@ -29,6 +29,10 @@ struct AcceptedBreakdown {
 bool acceptPlannedFlight(db::Database& db, std::int64_t plannedFlightId, const Preview& money,
                          std::string_view acceptedAt, bool atBlockOut, std::string* error);
 
+// The same, inside the caller's transaction (a re-import stores the plan and the new breakdown together).
+bool writeAcceptance(db::Database& db, std::int64_t plannedFlightId, const Preview& money, std::string_view acceptedAt,
+                     bool atBlockOut, std::string* error);
+
 std::optional<AcceptedBreakdown> plannedAcceptance(db::Database& db, std::int64_t plannedFlightId);
 std::optional<AcceptedBreakdown> flightAcceptance(db::Database& db, std::int64_t flightId);
 
