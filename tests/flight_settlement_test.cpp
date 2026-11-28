@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <set>
@@ -17,7 +18,9 @@
 #include "debrief_measure.h"
 #include "debrief_store.h"
 #include "flight_events.h"
+#include "accepted_breakdown.h"
 #include "flight_settlement.h"
+#include "settlement_coordinator.h"
 #include "planned_flight.h"
 #include "test_airline.h"
 
@@ -30,6 +33,7 @@ constexpr const char* kPlannedAt = "2026-11-23T10:00:00Z";
 constexpr const char* kOut = "2026-11-23T10:30:05.120Z";
 constexpr const char* kIn = "2026-11-23T13:20:41.900Z";
 constexpr double kSanLat = 32.7336, kSanLon = -117.19;
+const fs::path kRates = BLOCKTIME_SOURCE_DIR "/config/rates.yaml";
 
 // One line of the event log, as EventLog writes it.
 std::string line(const std::string& type, const std::string& data) {
@@ -128,9 +132,60 @@ protected:
         return q.next() ? q.integer(0) : -1;
     }
 
+    // A VIP flight of N814SX to KSAN with a plan of `rampFuelLb` and `extraFuelLb` extra fuel.
+    std::int64_t planVipWithPlan(int rampFuelLb, int extraFuelLb = 0) {
+        NewPlannedFlight f;
+        f.airplaneId = loadFlightAirplane(db_, "N814SX")->airplaneId;
+        f.originIcao = "KBFI";
+        f.destinationIcao = "KSAN";
+        f.flightNumber = "8";
+        f.kind = FlightKind::Vip;
+        f.cabins = {{"economy", 40}};
+        f.fuelPriceCentsPer100Lb = 4100;
+        f.plannedAt = kPlannedAt;
+        f.additionalFuelLb = extraFuelLb;
+        std::string error;
+        const auto id = createPlannedFlight(db_, f, &error);
+        EXPECT_TRUE(id.has_value()) << error;
+        SimbriefPlan p;
+        p.requestId = "r1";
+        p.generatedAt = "2026-11-23T10:05:00Z";
+        p.units = "lbs";
+        p.route = "SEA J1 SAN";
+        p.originRunway = "14R";
+        p.destinationRunway = "27";
+        p.cruiseAltitudeFt = 41000;
+        p.estBlockS = 10320;
+        p.rampFuelLb = rampFuelLb;
+        p.enrouteBurnLb = 10493;
+        p.estLandingWeightLb = 120000;
+        p.originTransitionAltitudeFt = 18000;
+        p.destinationTransitionLevelFt = 18000;
+        EXPECT_TRUE(storeSimbriefPlan(db_, id.value_or(0), p, "{}", "2026-11-23T10:06:00Z", &error)) << error;
+        return id.value_or(0);
+    }
+
+    // Accepts the planned flight as the report shows it at `rates`.
+    Preview acceptNow(const Rates& rates) {
+        const PlannedFlightView v = *currentPlannedFlight(db_);
+        const Preview money = pricePreview(priceInput(v), rates);
+        std::string error;
+        EXPECT_TRUE(acceptPlannedFlight(db_, v.id, money, "2026-11-23T10:10:00Z", false, &error)) << error;
+        return money;
+    }
+
     fs::path dir_;
     db::Database db_ = test::testAirline();
 };
+
+const MoneyLine* line(const Preview& p, const std::string& category) {
+    for (const auto* lines : {&p.income, &p.costs}) {
+        for (const MoneyLine& m : *lines) {
+            if (m.category == category) return &m;
+        }
+    }
+    return nullptr;
+}
 
 std::vector<std::string> lines(const std::vector<MoneyLine>& money) {
     std::vector<std::string> out;
@@ -869,4 +924,83 @@ TEST_F(Settlement, IgnoresAcceptedLines) {
     ASSERT_EQ(costs.size(), 5u) << ::testing::PrintToString(costs);
     EXPECT_EQ(costs[0], "fuel -8200");
     EXPECT_EQ(costs[3], "pilots -1420");
+}
+
+// D-222: what settles is what was shown. Only crew, maintenance and fuel are worked out again, at the locked rates.
+TEST_F(Settlement, AcceptedLinesSettleAsAccepted) {
+    const auto id = planVipWithPlan(21000, 1000);
+    const Preview accepted = acceptNow(Rates{});
+    Rates doubled;
+    doubled.vipPilotPerHour *= 2;
+    doubled.vipFareBase *= 2;
+    writeLog({blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    std::string error;
+    const auto s = settleIfFlown(db_, dir_, doubled, &error);
+    ASSERT_TRUE(s.has_value()) << error;
+    for (const char* fixed : {"vip_fares", "landing_fee", "gate", "handling", "atc", "catering"}) {
+        ASSERT_NE(line(s->money, fixed), nullptr) << fixed;
+        EXPECT_EQ(line(s->money, fixed)->cents, line(accepted, fixed)->cents) << fixed;
+    }
+    const MoneyLine& pilots = *line(s->money, "pilots");
+    EXPECT_DOUBLE_EQ(pilots.rateDollars, 250);
+    EXPECT_EQ(pilots.cents, -roundToFiveDollars(std::llround(10236 / 3600.0 * 2 * 250 * 100)));
+    EXPECT_EQ(count("planned_flight_acceptance"), 0);
+    const std::int64_t flightId = integer("SELECT flight_id FROM flight");
+    const auto moved = flightAcceptance(db_, flightId);
+    ASSERT_TRUE(moved.has_value());
+    EXPECT_EQ(moved->money.totalCents, accepted.totalCents);
+    EXPECT_EQ(integer("SELECT additional_fuel_lb FROM flight"), 1000);
+    EXPECT_EQ(integer("SELECT SUM(amount_cents) FROM ledger_line l JOIN flight_money_line USING (ledger_line_id)"),
+              s->money.totalCents);
+}
+
+// Review Focus 3: more fuel on board than the plan's at Accept; the fuel really added still settles.
+TEST_F(Settlement, ZeroFuelToAdd) {
+    ASSERT_TRUE(db_.exec("UPDATE airplane SET fuel_on_board_lb = 25000 WHERE registration = 'N814SX'"));
+    const auto id = planVipWithPlan(21000);
+    const Preview accepted = acceptNow(Rates{});
+    ASSERT_NE(line(accepted, "fuel"), nullptr);
+    EXPECT_EQ(line(accepted, "fuel")->cents, 0);
+    writeLog({blockOut(kOut, id, 25800), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    std::string error;
+    const auto s = settleIfFlown(db_, dir_, Rates{}, &error);
+    ASSERT_TRUE(s.has_value()) << error;
+    const MoneyLine& fuel = *line(s->money, "fuel");
+    EXPECT_DOUBLE_EQ(fuel.quantities.at(0).value, 800);
+    EXPECT_EQ(fuel.cents, -33000);  // 800 lb × $41 / 100 lb = $328, to $5
+}
+
+TEST_F(Settlement, CoordinatorWaitsForBlockIn) {
+    planVipWithPlan(21000);
+    SettlementCoordinator c(db_, dir_, kRates);
+    EXPECT_EQ(c.check(false).kind, SettlementCoordinator::Outcome::Kind::Nothing);
+    EXPECT_FALSE(c.pending());
+    const auto o = c.check(true);
+    EXPECT_EQ(o.kind, SettlementCoordinator::Outcome::Kind::Waiting);
+    EXPECT_EQ(o.waitingWhy, "the block in isn't in the log yet. BlockTime tries again every minute.");
+    EXPECT_TRUE(c.pending());
+}
+
+TEST_F(Settlement, CoordinatorWaitsForRates) {
+    const auto id = planVipWithPlan(21000);
+    writeLog({blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    SettlementCoordinator c(db_, dir_, dir_ / "no-rates.yaml");
+    const auto o = c.check(true);
+    EXPECT_EQ(o.kind, SettlementCoordinator::Outcome::Kind::Waiting);
+    EXPECT_TRUE(o.waitingWhy.ends_with(". Fix rates.yaml; BlockTime tries again every minute.")) << o.waitingWhy;
+    EXPECT_TRUE(c.pending());
+    EXPECT_EQ(count("flight"), 0);
+}
+
+TEST_F(Settlement, CoordinatorSettles) {
+    const auto id = planVipWithPlan(21000);
+    writeLog({blockOut(kOut, id, 20000), blockIn(kOut, kIn, kSanLat, kSanLon, 9400)});
+    SettlementCoordinator c(db_, dir_, kRates);
+    const auto o = c.check(true);
+    ASSERT_EQ(o.kind, SettlementCoordinator::Outcome::Kind::Settled) << o.waitingWhy;
+    ASSERT_TRUE(o.settled.has_value());
+    EXPECT_EQ(o.settled->logFlightId, kOut);
+    EXPECT_EQ(o.registration, "N814SX");
+    EXPECT_FALSE(c.pending());
+    EXPECT_EQ(count("flight"), 1);
 }

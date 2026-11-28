@@ -90,6 +90,7 @@ add_library(blocktime-core STATIC
   src/pricing.cpp
   src/accepted_breakdown.cpp
   src/dispatch_report.cpp
+  src/settlement_coordinator.cpp
   src/rates.cpp
   src/runway_match.cpp
   src/parking.cpp

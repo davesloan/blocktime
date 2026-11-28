@@ -25,6 +25,7 @@
 #include "planned_flight_display.h"
 #include "planner.h"
 #include "recorder_bridge.h"
+#include "settlement_coordinator.h"
 #include "sqlite_db.h"
 
 class PlannedFlightModel : public PlannedFlightDisplay {
@@ -68,12 +69,13 @@ private:
     Planner& planner_;
     RecorderBridge& bridge_;
     void onBlockEvent(const QString& type);
+    void settle(bool blockInSeen);
 
     blocktime::FlightTargetSlot& target_;
     std::filesystem::path logDir_;
     std::filesystem::path ratesFile_;
     int fuelOnRecordLb_ = 0;
     QString summaryRegistration_;
-    bool settlePending_ = false;  // a block in was seen, or the log shows the flight flown, and it isn't settled
+    blocktime::SettlementCoordinator settlement_;
     std::vector<blocktime::LogLine> settledLines_;  // until the settled handler takes them
 };

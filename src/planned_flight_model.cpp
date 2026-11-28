@@ -33,7 +33,8 @@ PlannedFlightModel::PlannedFlightModel(db::Database& db, QString airlineIcao, Pl
                                        FlightTargetSlot& target, std::filesystem::path logDir,
                                        std::filesystem::path ratesFile, QObject* parent)
     : PlannedFlightDisplay(std::move(airlineIcao), false, parent), db_(db), planner_(planner), bridge_(bridge),
-      target_(target), logDir_(std::move(logDir)), ratesFile_(std::move(ratesFile)) {
+      target_(target), logDir_(std::move(logDir)), ratesFile_(std::move(ratesFile)),
+      settlement_(db_, logDir_, ratesFile_) {
     connect(&bridge_, &RecorderBridge::connectionChanged, this, &PlannedFlightModel::changed);
     connect(&bridge_, &RecorderBridge::connectionChanged, this, &PlannedFlightModel::notRecordingChanged);
     connect(&bridge_, &RecorderBridge::matchChanged, this, &PlannedFlightModel::notRecordingChanged);
@@ -72,8 +73,7 @@ void PlannedFlightModel::reload(const QString& message) {
 
 void PlannedFlightModel::onBlockEvent(const QString& type) {
     if (type == "block_in") {
-        settlePending_ = true;  // until it settles: the block_in line may not be in the log yet (D-049)
-        checkFlown();
+        settle(true);  // pending until it settles: the block_in line may not be in the log yet (D-049)
     } else if (type == "flight_interrupted" && flight_) {
         // Discarded as if it never happened; the plan stays for another try (D-072, D-108).
         notice_ = q(flight_->origin) + QString::fromUtf8("–") + q(flight_->destination) + " interrupted and discarded";
@@ -85,51 +85,25 @@ void PlannedFlightModel::onBlockEvent(const QString& type) {
 }
 
 void PlannedFlightModel::retryPendingSettle() {
-    if (settlePending_) checkFlown();
+    if (settlement_.pending()) checkFlown();
 }
 
-void PlannedFlightModel::checkFlown() {
-    recordDeboardings(db_, logDir_);  // one that ended while BlockTime was closed (D-137)
+void PlannedFlightModel::checkFlown() { settle(false); }
+
+void PlannedFlightModel::settle(bool blockInSeen) {
     if (!flight_) flight_ = currentPlannedFlight(db_);
-    if (!flight_) {
-        settlePending_ = false;
-        return;
-    }
-    const std::string registration = flight_->registration;
-    const auto waiting = [this](const QString& why) {
-        settlePending_ = true;
-        notice_ = "Flown, waiting to settle: " + why;
+    auto outcome = settlement_.check(blockInSeen);
+    if (outcome.kind == SettlementCoordinator::Outcome::Kind::Waiting) {
+        notice_ = "Flown, waiting to settle: " + q(outcome.waitingWhy);
         emit changed();
-    };
-    auto current = findCurrentFlown(db_, logDir_, false);
-    if (!current) {
-        // Not in the log yet: a held block_in line (D-049) is written later, and the minute tick tries again.
-        if (settlePending_) waiting("the block in isn't in the log yet. BlockTime tries again every minute.");
         return;
     }
-    std::string error;
-    // Ledger lines are permanent, so a flight is never settled at default rates: it waits until rates.yaml reads.
-    const auto rates = loadRates(ratesFile_, &error);
-    if (!rates) {
-        waiting(q(error) + ". Fix rates.yaml; BlockTime tries again every minute.");
-        return;
-    }
-    current->flown.lines = loadFlightEvents(logDir_, current->flown.logFlightId);  // the slow part, only now
-    const auto result = settleFlight(db_, current->planned, current->flown, *rates, &error);
-    if (!result) {
-        std::cerr << error << std::endl;  // errors.log (D-067)
-        waiting(q(error) + ". BlockTime tries again every minute.");
-        return;
-    }
-    if (!result->debriefError.empty()) {
-        std::cerr << "Settled " << result->logFlightId << " without its debrief: " << result->debriefError << std::endl;
-    }
-    settlePending_ = false;
+    if (outcome.kind != SettlementCoordinator::Outcome::Kind::Settled) return;
     notice_.clear();
-    settledLines_ = std::move(current->flown.lines);
-    summaryRegistration_ = q(registration);
+    settledLines_ = std::move(outcome.lines);
+    summaryRegistration_ = q(outcome.registration);
     reload();
-    summaryFlightId_ = q(result->logFlightId);  // after reload(), which clears it only while a flight is planned
+    summaryFlightId_ = q(outcome.settled->logFlightId);  // after reload(), which clears it only while a flight is planned
     emit changed();
     emit settled(summaryFlightId_);
 }
@@ -249,7 +223,7 @@ void PlannedFlightModel::importPlan() {
 void PlannedFlightModel::cancelFlight() {
     if (bridge_.flightOpen()) return;  // it's being flown: cancelling would lose it without a word
     // A flown flight that hasn't settled yet would never settle once its planned flight is gone (review 1.2).
-    if (settlePending_ || findCurrentFlown(db_, logDir_, false)) {
+    if (settlement_.pending() || findCurrentFlown(db_, logDir_, false)) {
         message_ = "This flight was flown and is waiting to settle, so it can't be cancelled.";
         emit changed();
         return;

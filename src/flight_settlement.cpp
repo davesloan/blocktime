@@ -4,6 +4,8 @@
 
 #include "flight_settlement.h"
 
+#include "accepted_breakdown.h"
+
 #include "debrief_store.h"
 
 #include <algorithm>
@@ -160,16 +162,21 @@ std::optional<SettledFlight> settleFlight(db::Database& db, const PlannedFlightV
     settled.logFlightId = flown.logFlightId;
     settled.arrivalIcao = arrival->icao;
     settled.diverted = arrival->icao != planned.destination;
-    settled.money = pricePreview(in, rates);
+    // An accepted flight settles from its accepted lines and their locked rates (D-222); one recorded by 0.17 has none
+    // and is priced from rates.yaml as before.
+    const auto accepted = plannedAcceptance(db, planned.id);
+    settled.money = accepted ? settleAccepted(accepted->money, *in.actualBlockHours, *in.fuelAddedLb,
+                                              planned.fuelPriceCentsPer100Lb)
+                             : pricePreview(in, rates);
 
     db::Statement flight(db,
                          "INSERT INTO flight (log_flight_id, airplane_id, flight_number, kind, origin_airport_id,"
                          " planned_destination_airport_id, arrival_airport_id, cargo_lb, fuel_price_cents_per_100lb,"
                          " planned_at, block_out_at, block_in_at, fuel_on_record_lb, fuel_out_lb, fuel_in_lb,"
-                         " origin_runway, destination_runway, origin_parking, arrival_parking)"
+                         " origin_runway, destination_runway, origin_parking, arrival_parking, additional_fuel_lb)"
                          " SELECT ?, airplane_id, flight_number, kind, origin_airport_id, destination_airport_id, ?,"
                          " cargo_lb, fuel_price_cents_per_100lb, planned_at, ?, ?, ?, ?, ?, origin_runway,"
-                         " destination_runway, ?, ? FROM planned_flight WHERE planned_flight_id = ?");
+                         " destination_runway, ?, ?, additional_fuel_lb FROM planned_flight WHERE planned_flight_id = ?");
     flight.bind(1, flown.logFlightId);
     flight.bind(2, arrival->id);
     flight.bind(3, flown.blockOutAt);
@@ -265,6 +272,8 @@ std::optional<SettledFlight> settleFlight(db::Database& db, const PlannedFlightV
             if (!link.run()) return fail(link.error());
         }
     }
+
+    if (!moveAcceptanceToFlight(db, planned.id, flightId, &message)) return fail(message);
 
     db::Statement move(db, "UPDATE airplane SET location_airport_id = ?, fuel_on_board_lb = ?, awaiting_delivery = 0"
                            " WHERE airplane_id = ?");
