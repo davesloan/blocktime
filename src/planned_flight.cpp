@@ -184,6 +184,50 @@ std::optional<std::int64_t> createPlannedFlight(db::Database& db, const NewPlann
     return id;
 }
 
+bool updatePlannedFlight(db::Database& db, std::int64_t id, const NewPlannedFlight& f, std::string* error) {
+    const auto fail = [&](std::string message) {
+        if (error) *error = std::move(message);
+        return false;
+    };
+    const auto destination = airportId(db, f.destinationIcao);
+    if (!destination) return fail("Unknown airport.");
+    db::Transaction tx(db);
+    if (!tx.active()) return fail("Couldn't begin a transaction.");
+    db::Statement update(db,
+                         "UPDATE planned_flight SET destination_airport_id = ?, flight_number = ?, kind = ?,"
+                         " cargo_lb = ?, fuel_price_cents_per_100lb = ?, planned_at = ?, origin_runway = ?,"
+                         " destination_runway = ?, additional_fuel_lb = ? WHERE planned_flight_id = ?");
+    update.bind(1, *destination);
+    update.bind(2, f.flightNumber);
+    update.bind(3, kindCode(f.kind));
+    update.bind(4, static_cast<std::int64_t>(f.cargoLb));
+    update.bind(5, f.fuelPriceCentsPer100Lb);
+    update.bind(6, f.plannedAt);
+    bindText(update, 7, f.originRunway);
+    bindText(update, 8, f.destinationRunway);
+    update.bind(9, static_cast<std::int64_t>(f.additionalFuelLb));
+    update.bind(10, id);
+    if (!update.run()) return fail(update.error());
+    db::Statement cabins(db, "DELETE FROM planned_flight_cabin WHERE planned_flight_id = ?");
+    cabins.bind(1, id);
+    if (!cabins.run()) return fail(cabins.error());
+    for (const CabinLoad& c : f.cabins) {
+        db::Statement cabin(db, "INSERT INTO planned_flight_cabin (planned_flight_id, cabin_class, passengers)"
+                                " VALUES (?, ?, ?)");
+        cabin.bind(1, id);
+        cabin.bind(2, c.cabinClass);
+        cabin.bind(3, static_cast<std::int64_t>(c.passengers));
+        if (!cabin.run()) return fail(cabin.error());
+    }
+    db::Statement plan(db, "DELETE FROM simbrief_plan WHERE planned_flight_id = ?");
+    plan.bind(1, id);
+    if (!plan.run()) return fail(plan.error());
+    std::string message;
+    if (!dropPlannedAcceptance(db, id, &message)) return fail(message);
+    if (!tx.commit(&message)) return fail(message);
+    return true;
+}
+
 namespace {
 
 // Where a flight view is read from: the planned flight, or a settled flight (D-175). The tables have the same columns

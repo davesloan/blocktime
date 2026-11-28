@@ -73,6 +73,10 @@ struct NewPlannedFlight {
 // Writes the flight and its cabins in one transaction. Refuses while a flight is planned already (D-103).
 std::optional<std::int64_t> createPlannedFlight(db::Database& db, const NewPlannedFlight& flight, std::string* error);
 
+// Rewrites a planned flight's row and cabins in one transaction, and deletes its imported plan and its acceptance: any
+// change makes the plan stale (Change flight is offered only before Accept, D-251).
+bool updatePlannedFlight(db::Database& db, std::int64_t id, const NewPlannedFlight& flight, std::string* error);
+
 struct PlannedFlightView {
     std::int64_t id = 0;
     std::string registration, typeCode, airframeId, origin, originName, destination, destinationName, flightNumber;

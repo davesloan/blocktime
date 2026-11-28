@@ -168,3 +168,73 @@ TEST(Draft, PreviewMatchesThePlannedFlight) {
         same(d);
     }
 }
+
+TEST(FlightDraft, FullyLoadedOnlyForPassengerAndCargo) {
+    db::Database db = test::testAirline();
+    Rolls rolls;
+    FlightDraft airliner = draftFor(db, "N738BT", rolls);
+    EXPECT_TRUE(airliner.fullyLoadedAvailable());
+    FlightDraft delivery = draftFor(db, "N814SX", rolls);
+    EXPECT_FALSE(delivery.fullyLoadedAvailable());
+    ASSERT_TRUE(db.exec("UPDATE airplane SET awaiting_delivery = 0 WHERE registration = 'N814SX'"));
+    FlightDraft vip = draftFor(db, "N814SX", rolls);
+    EXPECT_FALSE(vip.fullyLoadedAvailable());
+    vip.setKind(FlightKind::Charter);
+    EXPECT_FALSE(vip.fullyLoadedAvailable());
+}
+
+TEST(FlightDraft, FullyLoadedKeepsTheRandomRoll) {
+    db::Database db = test::testAirline();
+    Rolls rolls;
+    FlightDraft d = draftFor(db, "N738BT", rolls);
+    const LoadRoll random = d.loads();
+    d.setFullyLoaded(true);
+    EXPECT_TRUE(d.fullyLoaded());
+    EXPECT_FALSE(d.bellyCargoAvailable());  // fully loaded always carries cargo
+    EXPECT_EQ(d.loads().cabins.at(0).passengers, 16);
+    EXPECT_EQ(d.loads().cabins.at(1).passengers, 144);
+    d.setFullyLoaded(false);
+    EXPECT_EQ(d.loads().cabins.at(1).passengers, random.cabins.at(1).passengers);
+    EXPECT_EQ(d.loads().cargoLb, random.cargoLb);
+    EXPECT_EQ(rolls.calls, 3u);
+}
+
+TEST(FlightDraft, ExtraFuelCarriedIntoToNew) {
+    db::Database db = test::testAirline();
+    Rolls rolls;
+    FlightDraft d = draftFor(db, "N738BT", rolls);
+    EXPECT_EQ(d.additionalFuelLb(), 0);
+    d.setAdditionalFuelLb(1500);
+    d.setDestination(checkDestination(db, d.airplane(), "KSAN"));
+    EXPECT_EQ(d.toNew("2026-11-23T14:00:00Z", {}).additionalFuelLb, 1500);
+}
+
+TEST(FlightDraft, FromPlannedDoesNotRoll) {
+    db::Database db = test::testAirline();
+    Rolls rolls;
+    FlightDraft d = draftFor(db, "N738BT", rolls);
+    d.setDestination(checkDestination(db, d.airplane(), "KSAN"));
+    d.setFlightNumber("1414");
+    d.setAdditionalFuelLb(1000);
+    std::string error;
+    ASSERT_TRUE(createPlannedFlight(db, d.toNew("2026-11-23T14:00:00Z", {}), &error).has_value()) << error;
+    const auto view = currentPlannedFlight(db);
+    ASSERT_TRUE(view.has_value());
+    const Roll never = [] {
+        ADD_FAILURE() << "fromPlanned rolled";
+        return 0.5;
+    };
+    const FlightDraft again =
+        FlightDraft::fromPlanned(*loadFlightAirplane(db, "N738BT"), Rates{}, *view, true, never);
+    EXPECT_EQ(again.kind(), FlightKind::Passenger);
+    EXPECT_EQ(again.flightNumber(), "1414");
+    EXPECT_EQ(again.additionalFuelLb(), 1000);
+    EXPECT_EQ(again.loads().cargoLb, view->cargoLb);
+    ASSERT_EQ(again.loads().cabins.size(), view->cabins.size());
+    for (std::size_t i = 0; i < view->cabins.size(); ++i) {
+        EXPECT_EQ(again.loads().cabins[i].passengers, view->cabins[i].passengers);
+    }
+    EXPECT_TRUE(again.destination().ok);
+    EXPECT_EQ(again.destination().icao, "KSAN");
+    EXPECT_TRUE(again.canPlan());
+}

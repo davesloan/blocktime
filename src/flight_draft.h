@@ -24,6 +24,10 @@ class FlightDraft {
 public:
     // `daytime` picks the passenger band (D-104). Chooses the first allowed kind and rolls its loads.
     FlightDraft(FlightAirplane airplane, Rates rates, bool daytime, Roll roll);  // locks rates.fuelPer100Lb (D-107)
+    // A draft of a flight already planned (Change flight, review 4.5): its kind, loads, destination, flight number and
+    // extra fuel, and its locked fuel price. Rolls nothing (D-089); `roll` is only for a kind chosen later.
+    static FlightDraft fromPlanned(FlightAirplane airplane, Rates rates, const PlannedFlightView& flight, bool daytime,
+                                   Roll roll);
 
     const FlightAirplane& airplane() const { return airplane_; }
     const std::vector<FlightKind>& kinds() const { return kinds_; }
@@ -33,6 +37,13 @@ public:
     bool bellyCargoAvailable() const;  // airliners only (D-089)
     bool bellyCargo() const { return bellyCargo_; }
     void setBellyCargo(bool on) { bellyCargo_ = on; }
+
+    bool fullyLoadedAvailable() const;  // passenger and cargo flights (D-215, D-251)
+    bool fullyLoaded() const { return fullyLoaded_ && fullyLoadedAvailable(); }
+    void setFullyLoaded(bool on) { fullyLoaded_ = on; }  // the random roll is kept for switching back
+
+    int additionalFuelLb() const { return additionalFuelLb_; }
+    void setAdditionalFuelLb(int lb) { additionalFuelLb_ = lb; }
 
     const DestinationCheck& destination() const { return destination_; }
     void setDestination(DestinationCheck check) { destination_ = std::move(check); }
@@ -48,6 +59,8 @@ public:
     NewPlannedFlight toNew(std::string plannedAt, const AtisRunways& runways) const;
 
 private:
+    FlightDraft(FlightAirplane airplane, Rates rates, bool daytime, Roll roll, const PlannedFlightView& flight);
+
     FlightAirplane airplane_;
     Rates rates_;
     bool daytime_;
@@ -56,6 +69,8 @@ private:
     FlightKind kind_;
     std::map<FlightKind, LoadRoll> rolled_;
     bool bellyCargo_ = true;  // starts on (D-089)
+    bool fullyLoaded_ = false;
+    int additionalFuelLb_ = 0;
     DestinationCheck destination_;
     std::string flightNumber_;
 };

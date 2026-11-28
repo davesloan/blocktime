@@ -78,6 +78,25 @@ LoadRoll rollLoads(const std::vector<Cabin>& cabins, const std::vector<Hold>& ho
     return out;
 }
 
+LoadRoll fullLoads(const std::vector<Cabin>& cabins, const std::vector<Hold>& holds, const AirplaneLimits& limits,
+                   FlightKind kind) {
+    LoadRoll out;
+    if (kind == FlightKind::Cargo) {
+        out.cargoLb = std::min(holdCapacity(holds), limits.maxPayloadLb);
+    } else if (kind == FlightKind::Passenger) {
+        int people = 0;
+        for (const Cabin& c : cabins) {
+            out.cabins.push_back({c.cabinClass, c.seats});
+            people += c.seats;
+        }
+        const int bags = bagsLb(out.cabins, limits);
+        const int space = std::max(0, holdCapacity(holds) - bags);
+        const int payloadLeft = std::max(0, limits.maxPayloadLb - people * limits.passengerWeightLb - bags);
+        out.cargoLb = std::min(space, payloadLeft);
+    }
+    return out;
+}
+
 int bagsLb(const std::vector<CabinLoad>& cabins, const AirplaneLimits& limits) {
     int people = 0;
     for (const CabinLoad& c : cabins) people += c.passengers;

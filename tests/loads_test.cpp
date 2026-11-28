@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Dave Sloan
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include <algorithm>
 #include <cstddef>
 #include <string>
 #include <vector>
@@ -138,4 +139,37 @@ TEST(Holds, ZeroIsEmptyHolds) {
     const auto h = splitHolds(kBbjHolds, 0);
     EXPECT_EQ(h[0].weightLb, 0);
     EXPECT_EQ(h[1].weightLb, 0);
+}
+
+// D-215: every seat, then cargo up to the hold space after bags or the payload left, whichever is less.
+TEST(Loads, FullyLoadedPassengerFillsSeatsThenCargo) {
+    const LoadRoll l = fullLoads(kTwoClass, k738Holds, k738, FlightKind::Passenger);
+    EXPECT_EQ(passengers(l, "business"), 16);
+    EXPECT_EQ(passengers(l, "economy"), 144);
+    const int bags = 160 * 55;                             // 8,800
+    const int space = 7500 + 9500 - bags;                  // 8,200
+    const int payloadLeft = 47000 - 160 * 190 - bags;      // 7,800
+    EXPECT_EQ(l.cargoLb, std::min(space, payloadLeft));
+}
+
+TEST(Loads, FullyLoadedTrimsCargoNeverBags) {
+    AirplaneLimits tight = k738;
+    tight.maxPayloadLb = 45000;  // seats and bags weigh 39,200: 5,800 left for cargo, less than the space
+    LoadRoll l = fullLoads(kTwoClass, k738Holds, tight, FlightKind::Passenger);
+    EXPECT_EQ(passengers(l, "economy"), 144);
+    EXPECT_EQ(160 * 190 + bagsLb(l.cabins, tight) + l.cargoLb, 45000);
+    tight.maxPayloadLb = 35000;  // the seats and bags alone are over it
+    l = fullLoads(kTwoClass, k738Holds, tight, FlightKind::Passenger);
+    EXPECT_EQ(passengers(l, "business"), 16);
+    EXPECT_EQ(l.cargoLb, 0);
+}
+
+TEST(Loads, FullyLoadedFreighter) {
+    const std::vector<Hold> bcf{{"main_deck", 40000, 8}, {"forward", 5000, 1}, {"aft", 6000, 1}};
+    AirplaneLimits limits = k738;
+    limits.maxPayloadLb = 46000;
+    EXPECT_EQ(fullLoads({}, bcf, limits, FlightKind::Cargo).cargoLb, 46000);
+    limits.maxPayloadLb = 60000;
+    EXPECT_EQ(fullLoads({}, bcf, limits, FlightKind::Cargo).cargoLb, 51000);
+    EXPECT_TRUE(fullLoads({}, bcf, limits, FlightKind::Cargo).cabins.empty());
 }

@@ -26,9 +26,36 @@ void FlightDraft::setKind(FlightKind kind) {
     }
 }
 
-bool FlightDraft::bellyCargoAvailable() const { return kind_ == FlightKind::Passenger; }
+FlightDraft::FlightDraft(FlightAirplane airplane, Rates rates, bool daytime, Roll roll, const PlannedFlightView& f)
+    : airplane_(std::move(airplane)),
+      rates_(rates),
+      daytime_(daytime),
+      roll_(std::move(roll)),
+      kinds_(allowedKinds(airplane_)),
+      kind_(f.kind),
+      additionalFuelLb_(f.additionalFuelLb),
+      flightNumber_(f.flightNumber) {
+    rates_.fuelPer100Lb = f.fuelPriceCentsPer100Lb;  // the price locked when it was planned (D-107)
+    rolled_[kind_] = LoadRoll{f.cabins, f.cargoLb};
+    destination_.ok = true;
+    destination_.icao = f.destination;
+    destination_.name = f.destinationName;
+    destination_.distanceNm = f.distanceNm;
+}
+
+FlightDraft FlightDraft::fromPlanned(FlightAirplane airplane, Rates rates, const PlannedFlightView& flight,
+                                     bool daytime, Roll roll) {
+    return FlightDraft(std::move(airplane), rates, daytime, std::move(roll), flight);
+}
+
+bool FlightDraft::fullyLoadedAvailable() const {
+    return kind_ == FlightKind::Passenger || kind_ == FlightKind::Cargo;
+}
+
+bool FlightDraft::bellyCargoAvailable() const { return kind_ == FlightKind::Passenger && !fullyLoaded(); }
 
 LoadRoll FlightDraft::loads() const {
+    if (fullyLoaded()) return fullLoads(airplane_.cabins, airplane_.holds, airplane_.limits, kind_);
     LoadRoll l = rolled_.at(kind_);
     if (bellyCargoAvailable() && !bellyCargo_) l.cargoLb = 0;
     return l;
@@ -72,6 +99,7 @@ NewPlannedFlight FlightDraft::toNew(std::string plannedAt, const AtisRunways& ru
     n.plannedAt = std::move(plannedAt);
     n.originRunway = runways.origin;
     n.destinationRunway = runways.destination;
+    n.additionalFuelLb = additionalFuelLb_;
     return n;
 }
 

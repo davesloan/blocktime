@@ -40,6 +40,12 @@ struct LoadRoll {
 LoadRoll rollLoads(const std::vector<Cabin>& cabins, const std::vector<Hold>& holds, const AirplaneLimits& limits,
                    FlightKind kind, bool daytime, const Roll& roll);
 
+// Fully loaded (D-215, design.md §9 step 5): a passenger flight fills every seat, then adds cargo up to the hold space
+// left after bags or max payload less passengers and bags, whichever is less. A freighter carries cargo up to the
+// holds or max payload. Other kinds are never fully loaded: they get rollLoads' result for no rolls (empty).
+LoadRoll fullLoads(const std::vector<Cabin>& cabins, const std::vector<Hold>& holds, const AirplaneLimits& limits,
+                   FlightKind kind);
+
 int bagsLb(const std::vector<CabinLoad>& cabins, const AirplaneLimits& limits);  // passengers x bag weight
 
 struct HoldLoad {

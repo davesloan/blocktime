@@ -11,6 +11,7 @@
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
 
+#include "accepted_breakdown.h"
 #include "planned_flight.h"
 #include "simbrief.h"
 #include "test_airline.h"
@@ -391,4 +392,34 @@ TEST(Planned, FlownViewTaxiTimesExcludeItself) {
     flownWithTaxi(db, "second", "KSAN", "2026-11-21T10:00:00Z", "2026-11-21T10:05:00Z", "2026-11-21T11:00:00Z");
     EXPECT_EQ(flownFlightView(db, "second")->taxiOutS, 500);  // the first's 500 s, not its own 300
     EXPECT_EQ(flownFlightView(db, "first")->taxiOutS, 0);     // nothing before it, and no plan
+}
+
+TEST(PlannedFlight, UpdateDropsPlanAndAcceptance) {
+    db::Database db = test::testAirline();
+    ASSERT_TRUE(db.exec("UPDATE airplane SET awaiting_delivery = 0 WHERE registration = 'N814SX'"));
+    std::string error;
+    const auto id = createPlannedFlight(db, vipToKsan(db), &error);
+    ASSERT_TRUE(id.has_value()) << error;
+    ASSERT_TRUE(storeSimbriefPlan(db, *id, fixturePlan(), "{}", "2026-11-23T14:10:00Z", &error)) << error;
+    Preview money;
+    money.costs.push_back({"fuel", "Fuel", -100000, {{2439, "lb"}}, 41, 100, "lb"});
+    money.totalCents = -100000;
+    ASSERT_TRUE(acceptPlannedFlight(db, *id, money, "2026-11-23T14:12:00Z", false, &error)) << error;
+
+    NewPlannedFlight changed = vipToKsan(db);
+    changed.destinationIcao = "KSHT";
+    changed.cabins = {{"economy", 30}};
+    ASSERT_TRUE(updatePlannedFlight(db, *id, changed, &error)) << error;
+    const auto v = currentPlannedFlight(db);
+    ASSERT_TRUE(v.has_value());
+    EXPECT_EQ(v->id, *id);
+    EXPECT_EQ(v->destination, "KSHT");
+    ASSERT_EQ(v->cabins.size(), 1u);
+    EXPECT_EQ(v->cabins[0].passengers, 30);
+    EXPECT_FALSE(v->plan.has_value());
+    EXPECT_FALSE(plannedAcceptance(db, *id).has_value());
+    EXPECT_EQ(count(db, "SELECT count(*) FROM simbrief_plan"), 0);
+    EXPECT_EQ(count(db, "SELECT count(*) FROM accepted_breakdown"), 0);
+    db::Statement fk(db, "PRAGMA foreign_key_check");
+    EXPECT_FALSE(fk.next());
 }
